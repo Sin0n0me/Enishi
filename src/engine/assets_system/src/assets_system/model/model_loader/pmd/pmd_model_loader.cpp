@@ -361,7 +361,7 @@ namespace enishi::assets_system {
 
         // 英語非対応の場合はそのまま次へ
         if (eng_dict->is_support == 0) {
-            // Logger::info("このモデルは英名対応していません");
+            // foundation::Logger::info("このモデルは英名対応していません");
             return {};
         }
 

@@ -17,8 +17,8 @@ namespace enishi::assets_system {
         }
     }
 
-    foundation::Result<types::ModelData, AssetError> ModelLoader::load(
-        const std::filesystem::path& path) {
+    foundation::Result<AssetData, AssetError> ModelLoader::load(
+        const std::filesystem::path& path) noexcept {
         if (!path.has_extension()) {
             return foundation::Error(AssetError::NotFound, "不明なファイルです");
         }
@@ -48,10 +48,10 @@ namespace enishi::assets_system {
         return foundation::Error(AssetError::NotFound);
     }
 
-    std::vector<foundation::UTF8> ModelLoader::get_supported_extensions(void) const noexcept {
+    std::vector<foundation::UTF8> ModelLoader::get_supported_extension(void) const noexcept {
         std::vector<foundation::UTF8> extensions(this->loaders.size());
 
-        for (const auto& [extension, loader] : this->loaders) {
+        for (const auto& [extension, _] : this->loaders) {
             extensions.push_back(extension);
         }
 

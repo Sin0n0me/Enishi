@@ -7,23 +7,19 @@ namespace enishi::renderer::directx {
         ID3D11Device* const device, const types::MeshData& mesh_data) {
         // 頂点バッファ作成
         auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        if (auto vertices = mesh_data.vertices.lock()) {
-            auto result = this->make_vertex_buffer(device, *vertices);
-            if (result.is_err()) {
-                return result.add_message("メッシュの作成に失敗しました").error();
-            }
-            vertex_handle = result.value();
+        auto vertex_result = this->make_vertex_buffer(device, mesh_data.vertices);
+        if (vertex_result.is_err()) {
+            return vertex_result.add_message("メッシュの作成に失敗しました").error();
         }
+        vertex_handle = vertex_result.value();
 
         // インデックスバッファ作成
         auto index_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        if (auto indices = mesh_data.indices.lock()) {
-            auto result = this->make_index_buffer(device, *indices);
-            if (result.is_err()) {
-                return result.add_message("メッシュの作成に失敗しました").error();
-            }
-            index_handle = result.value();
+        auto index_result = this->make_index_buffer(device, mesh_data.indices);
+        if (index_result.is_err()) {
+            return index_result.add_message("メッシュの作成に失敗しました").error();
         }
+        index_handle = index_result.value();
 
         const types::HandleId handle = this->handle_allocator.create();
         Mesh mesh{};
@@ -64,13 +60,13 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_vertex_buffer(
         ID3D11Device* const device, const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
-            .ByteWidth = data.byte_width,
+            .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
             .BindFlags = D3D11_BIND_VERTEX_BUFFER,
             .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
         };
         const D3D11_SUBRESOURCE_DATA init_data{
-            .pSysMem = data.data,
+            .pSysMem = data.raw_data(),
         };
 
         Buffer buffer{VertexParameter{
@@ -78,6 +74,9 @@ namespace enishi::renderer::directx {
             .offset = 0,
             .target_slot = 0,
         }};
+
+        Microsoft::WRL::ComPtr<ID3D11Buffer> test_buffer{};
+        const auto hoge = test_buffer.GetAddressOf();
 
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
         if FAILED (hr) {
@@ -96,13 +95,13 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_index_buffer(
         ID3D11Device* const device, const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
-            .ByteWidth = data.byte_width,
+            .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
             .BindFlags = D3D11_BIND_INDEX_BUFFER,
             .CPUAccessFlags = 0,
         };
         const D3D11_SUBRESOURCE_DATA init_data{
-            .pSysMem = data.data,
+            .pSysMem = data.raw_data(),
         };
 
         const DXGI_FORMAT format = [](const std::uint32_t stride) -> DXGI_FORMAT {
@@ -138,13 +137,13 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_constant_buffer(
         ID3D11Device* const device, const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
-            .ByteWidth = data.byte_width,
+            .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
             .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
             .CPUAccessFlags = 0,
         };
         const D3D11_SUBRESOURCE_DATA init_data{
-            .pSysMem = data.data,
+            .pSysMem = data.raw_data(),
             .SysMemPitch = 0,
             .SysMemSlicePitch = data.stride,
         };
@@ -173,8 +172,8 @@ namespace enishi::renderer::directx {
         const std::uint32_t width,
         const std::uint32_t height) {
         const D3D11_SUBRESOURCE_DATA subresource{
-            .pSysMem = data.data,
-            .SysMemPitch = width * data.byte_width,
+            .pSysMem = data.raw_data(),
+            .SysMemPitch = width * data.stride,
         };
         constexpr DXGI_SAMPLE_DESC sample{.Count = 1};
         const D3D11_TEXTURE2D_DESC desc{

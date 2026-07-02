@@ -2,8 +2,11 @@
 #include <nothings_std/stb_image.h>
 
 namespace enishi::assets_system {
-    foundation::Result<types::TextureData, AssetError> TextureLoader::load(
-        const std::filesystem::path& path, const bool generate_mips, const bool force_srgb) {
+    foundation::Result<AssetData, AssetError> TextureLoader::load(
+        const std::filesystem::path& path) noexcept {
+        // TODO
+        const bool force_srgb = false;
+
         std::int32_t width = 0;
         std::int32_t height = 0;
         std::int32_t channels = 0;
@@ -15,14 +18,15 @@ namespace enishi::assets_system {
                 AssetError::IOError, std::format("stbi_load: {}", stbi_failure_reason()));
         };
 
+        const types::TextureFormat format =
+            force_srgb ? types::TextureFormat::RGBA8_SRGB : types::TextureFormat::RGBA8_UNORM;
         types::TextureData data{
-            .format =
-                force_srgb ? types::TextureFormat::RGBA8_SRGB : types::TextureFormat::RGBA8_UNORM,
+            .format = format,
             .width = static_cast<std::uint32_t>(width),
             .height = static_cast<std::uint32_t>(height),
         };
 
-        // ミップレベル0（元画像）
+        // ミップレベル0(元画像)
         const std::uint32_t row_pitch = data.width * 4;
         const std::uint32_t slice_pitch = row_pitch * data.height;
 
@@ -38,13 +42,13 @@ namespace enishi::assets_system {
 
         stbi_image_free(pixels);
 
-        // ミップマップ生成
-        if (generate_mips) {
-            TextureLoader::generate_mip_chain(data);
-        }
-
         return data;
     }
+
+    std::vector<foundation::UTF8> TextureLoader::get_supported_extension(void) const noexcept {
+        return std::vector<foundation::UTF8>();
+    }
+
     void TextureLoader::generate_mip_chain(types::TextureData& data) {
     }
 } // namespace enishi::assets_system

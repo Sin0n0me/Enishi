@@ -1,5 +1,6 @@
 #pragma once
 #include "../errors/errors.h"
+#include "../interface_asset_loader.h"
 #include <cstdint>
 #include <engine_types/assets/texture/texture_data.h>
 #include <filesystem>
@@ -7,13 +8,13 @@
 #include <vector>
 
 namespace enishi::assets_system {
-    class TextureLoader {
+    class TextureLoader : public IAssetLoader {
+      private:
       public:
-        static foundation::Result<types::TextureData, AssetError> load(
-            const std::filesystem::path& path, const bool generate_mips, const bool force_srgb);
+        foundation::Result<AssetData, AssetError> load(
+            const std::filesystem::path& path) noexcept override;
+        std::vector<foundation::UTF8> get_supported_extension(void) const noexcept override;
 
         static void generate_mip_chain(types::TextureData& data);
-
-      private:
     };
 } // namespace enishi::assets_system

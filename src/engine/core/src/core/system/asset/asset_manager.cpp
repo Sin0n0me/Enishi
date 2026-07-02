@@ -1,12 +1,23 @@
 #include "asset_manager.h"
 #include <assets_system/model/model_loader/model_loader.h>
+#include <assets_system/shader/shader_loader.h>
+#include <assets_system/texture/texture_loader.h>
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    core::AssetManager::AssetManager(void) {
-        for (const auto& extension : this->model_loader.get_supported_extensions()) {
-            this->extension_to_asset_type.emplace(extension, assets_system::AssetType::Model);
+    template <typename T, typename... Args>
+    void insert(AssetManager::LoaderMap& map, Args&... args) {
+        auto ptr = std::make_shared<T>(args...);
+
+        for (const auto extension : ptr->get_supported_extension()) {
+            map[extension].push_back(extension, ptr);
         }
+    }
+
+    AssetManager::AssetManager(void) {
+        insert<assets_system::ModelLoader>(this->extension_to_loader);
+        insert<assets_system::TextureLoader>(this->extension_to_loader);
+        insert<assets_system::ShaderLoader>(this->extension_to_loader);
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
@@ -22,46 +33,33 @@ namespace enishi::core {
         }
 
         const auto extention = path.extension();
-        const auto asset_iter = this->extension_to_asset_type.find(extention.string<char>());
-        if (asset_iter == this->extension_to_asset_type.end()) {
+        const auto asset_iter = this->extension_to_loader.find(extention.string<char>());
+        if (asset_iter == this->extension_to_loader.end()) {
             return foundation::Error(assets_system::AssetError::NotFound);
         }
-        const assets_system::AssetType asset_type = asset_iter->second;
 
-        types::HandleId id = types::INVALID_HANDLE_ID;
-        switch (asset_type) {
-            case assets_system::AssetType::Model: {
-                const auto asset_id = this->load_model(path);
+        for (const auto& loader : asset_iter->second) {
+            const auto result = loader->load(path);
+            if (result.is_err()) {
+                continue;
+            }
+
+            auto& asset_data = result.value();
+            if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
+                const auto asset_id = this->register_model(std::move(*model_data));
                 if (asset_id.is_err()) {
-                    return asset_id.propagation(assets_system::AssetError::IOError);
+                    return asset_id.propagation(assets_system::AssetError::InvalidAssetData);
                 }
-                id = asset_id.value();
-            } break;
-            case assets_system::AssetType::Animation: {
-                const auto asset_id = this->load_animation(path);
-                if (asset_id.is_err()) {
-                    return asset_id.propagation(assets_system::AssetError::IOError);
-                }
-                id = asset_id.value();
-            } break;
-            case assets_system::AssetType::Shader: {
-            } break;
-            case assets_system::AssetType::Texture: {
-            } break;
-            case assets_system::AssetType::Video: {
-            } break;
-            case assets_system::AssetType::Sound: {
-            } break;
-            case assets_system::AssetType::Script: {
-            } break;
-            default:
-                break;
+                return assets_system::AssetHandle{
+                    .id = asset_id.value(),
+                    .type = assets_system::AssetType::Model,
+                };
+            }
+            if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
+            }
+            if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
+            }
         }
-
-        return assets_system::AssetHandle{
-            .id = id,
-            .type = asset_type,
-        };
     }
 
     void AssetManager::release_asset(const assets_system::AssetHandle& handle) noexcept {
@@ -135,7 +133,6 @@ namespace enishi::core {
                 .propagation(SystemError::AssetSystemError);
         }
 
-        const auto id = this->asset_registory.create();
         auto result = this->asset_registory.insert(id, model.value());
         if (result.is_err()) {
             return model.add_message("モデルデータの登録に失敗しました")
@@ -145,33 +142,15 @@ namespace enishi::core {
         return id;
     }
 
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_animation(
-        const std::filesystem::path& path) noexcept {
-        return foundation::Result<types::HandleId, SystemError>();
-    }
+    foundation::Result<types::HandleId, SystemError> core::AssetManager::register_model(
+        const types::ModelData& data) noexcept {
+        const auto id = this->asset_registory.create();
+        auto result = this->asset_registory.insert(id, data);
+        if (result.is_err()) {
+            return foundation::Error(
+                SystemError::AssetSystemError, "モデルデータの登録に失敗しました");
+        }
 
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_shader(
-        const std::filesystem::path& path) noexcept {
-        return foundation::Result<types::HandleId, SystemError>();
-    }
-
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_texture(
-        const std::filesystem::path& path) noexcept {
-        return foundation::Result<types::HandleId, SystemError>();
-    }
-
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_video(
-        const std::filesystem::path& path) noexcept {
-        return foundation::Result<types::HandleId, SystemError>();
-    }
-
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_sound(
-        const std::filesystem::path& path) noexcept {
-        return foundation::Result<types::HandleId, SystemError>();
-    }
-
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_script(
-        const std::filesystem::path& path) noexcept {
         return foundation::Result<types::HandleId, SystemError>();
     }
 } // namespace enishi::core

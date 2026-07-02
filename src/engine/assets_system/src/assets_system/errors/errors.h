@@ -19,6 +19,7 @@ namespace enishi::assets_system {
         AlreadyHasAsset,
         NotFound,
         IOError,
+        InvalidAssetData,
     };
 
     template <typename T> using IOResult = foundation::Result<T, IOError>;

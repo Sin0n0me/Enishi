@@ -142,7 +142,10 @@ namespace enishi {
         }
 
         {
-            // this->renderer->create_rasterizer();
+            types::RasterizerDescription description =
+                types::RasterizerDescription::default_solid();
+
+            this->renderer->create_rasterizer(description);
         }
 
         // モデル読み込み

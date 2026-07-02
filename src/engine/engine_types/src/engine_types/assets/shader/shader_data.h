@@ -4,18 +4,14 @@
 #include <vector>
 
 namespace enishi::types {
-    enum class ShaderFileType {
-        HLSL,
-        GLSL,
-        MSL,
-    };
-
     enum class ShaderBinaryType {
         SPIR_V,
         DXIL,
         DXBC,
 
-        SourceCode,
+        SourceFileHLSL,
+        SourceFileGLSL,
+        SourceFileMSL,
     };
 
     struct ShaderData {

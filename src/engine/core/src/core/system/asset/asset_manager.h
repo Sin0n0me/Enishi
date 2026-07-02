@@ -3,20 +3,23 @@
 #include "../interface_system.h"
 #include <assets_system/asset_handle.h>
 #include <assets_system/interface_asset_system.h>
-#include <assets_system/model/model_loader/model_loader.h>
 #include <ecs/registory.h>
 #include <filesystem>
 #include <foundation/str/str.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace enishi::core {
     class AssetManager : public assets_system::IAssetSystem, public ISystem {
       private:
+        using LoaderMap = std::unordered_map<foundation::UTF8,
+            std::vector<std::shared_ptr<assets_system::IAssetLoader>>>;
+
+      private:
         ecs::Registory asset_registory;
         std::unordered_map<std::filesystem::path, assets_system::AssetHandle> path_to_handle;
-        std::unordered_map<foundation::UTF8, assets_system::AssetType> extension_to_asset_type;
-        assets_system::ModelLoader model_loader;
+        LoaderMap extension_to_loader;
 
       public:
         explicit AssetManager(void);
@@ -40,8 +43,8 @@ namespace enishi::core {
         void update(const types::DeltaTime& delta_time) override;
 
       private:
-        foundation::Result<types::HandleId, SystemError> load_model(
-            const std::filesystem::path& path) noexcept;
+        foundation::Result<types::HandleId, SystemError> register_model(
+            const types::ModelData& data) noexcept;
 
         foundation::Result<types::HandleId, SystemError> load_animation(
             const std::filesystem::path& path) noexcept;
