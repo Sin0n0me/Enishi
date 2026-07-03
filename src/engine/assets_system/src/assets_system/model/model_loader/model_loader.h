@@ -23,5 +23,7 @@ namespace enishi::assets_system {
 
       private:
         static types::ModelData to_model_data_from_pmd(const PMDData& data);
+
+        AssetType get_target_asset_type(void) const noexcept override;
     };
 } // namespace enishi::assets_system

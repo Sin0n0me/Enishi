@@ -90,4 +90,8 @@ namespace enishi::assets_system {
             .code = std::move(result.value()),
         };
     }
+
+    AssetType ShaderLoader::get_target_asset_type(void) const noexcept {
+        return AssetType::Shader;
+    }
 } // namespace enishi::assets_system

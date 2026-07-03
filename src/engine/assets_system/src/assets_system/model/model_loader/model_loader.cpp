@@ -35,7 +35,7 @@ namespace enishi::assets_system {
         }
         auto& model_data = load_data.value();
 
-        if (auto pmd_data = std::get_if<1>(&model_data)) {
+        if (auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
             auto convert_data = PMDToModelData::to_model_data(*pmd_data->get());
             if (convert_data.is_err()) {
                 return convert_data.add_message("データの変換に失敗しました").error();
@@ -56,5 +56,9 @@ namespace enishi::assets_system {
         }
 
         return extensions;
+    }
+
+    AssetType ModelLoader::get_target_asset_type(void) const noexcept {
+        return AssetType::Model;
     }
 } // namespace enishi::assets_system

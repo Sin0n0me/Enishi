@@ -1,4 +1,6 @@
 #include "texture_loader.h"
+
+#define STB_IMAGE_IMPLEMENTATION
 #include <nothings_std/stb_image.h>
 
 namespace enishi::assets_system {
@@ -50,5 +52,9 @@ namespace enishi::assets_system {
     }
 
     void TextureLoader::generate_mip_chain(types::TextureData& data) {
+    }
+
+    AssetType TextureLoader::get_target_asset_type(void) const noexcept {
+        return AssetType::Texture;
     }
 } // namespace enishi::assets_system

@@ -12,12 +12,15 @@ namespace enishi::assets_system {
         if (utf8_name.is_err()) {
             foundation::Logger::warning("utf8に変換できない文字が含まれています");
         }
+        const std::string sjis_comment(data.comment.data(), data.comment.size());
+        const auto utf8_comment = foundation::sjis_to_utf8(sjis_comment);
+        foundation::Logger::info(utf8_comment.value_or(sjis_comment));
 
         auto bones = PMDToModelData::make_bone(data.bones);
         if (bones.is_err()) {
             return bones.error();
         }
-        auto& bone_resolver = bones.value();
+        const auto& bone_resolver = bones.value();
 
         auto vertices = PMDToModelData::make_vertices(data.vertices);
         auto indices = PMDToModelData::make_indices(data.indices);
@@ -27,6 +30,7 @@ namespace enishi::assets_system {
             .name = utf8_name.value_or(sjis_name),
             .vertices = types::OwnedRenderData<types::SkinningVertex>(std::move(vertices)),
             .indices = types::OwnedRenderData<std::uint16_t>(std::move(indices)),
+            .addons = {std::move(iks)},
         };
     }
 

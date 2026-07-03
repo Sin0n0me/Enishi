@@ -16,5 +16,7 @@ namespace enishi::assets_system {
         std::vector<foundation::UTF8> get_supported_extension(void) const noexcept override;
 
         static void generate_mip_chain(types::TextureData& data);
+
+        AssetType get_target_asset_type(void) const noexcept override;
     };
 } // namespace enishi::assets_system

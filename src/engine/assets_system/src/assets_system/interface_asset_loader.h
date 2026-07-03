@@ -1,5 +1,6 @@
 #pragma once
 #include "asset_data.h"
+#include "asset_type.h"
 #include "errors/errors.h"
 #include <filesystem>
 #include <foundation/result/result.h>
@@ -16,5 +17,7 @@ namespace enishi::assets_system {
 
         [[nodiscard]] virtual std::vector<foundation::UTF8> get_supported_extension(
             void) const noexcept = 0;
+
+        [[nodiscard]] virtual AssetType get_target_asset_type(void) const noexcept = 0;
     };
 } // namespace enishi::assets_system

@@ -30,7 +30,7 @@ namespace enishi::types {
 
     using Indices = std::variant<OwnedRenderData<std::uint16_t>, OwnedRenderData<std::uint32_t>>;
 
-    using ModelAddon = std::variant<IK>;
+    using ModelAddon = std::variant<std::monostate, std::vector<IK>>;
 
     // このアプリケーション向けに設定されたモデルデータ
     struct ModelData {

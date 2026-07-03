@@ -6,18 +6,23 @@
 
 namespace enishi::core {
     template <typename T, typename... Args>
-    void insert(AssetManager::LoaderMap& map, Args&... args) {
+    AssetManager::AssetLoader insert(AssetManager::LoaderMap& map, Args&... args) {
         auto ptr = std::make_shared<T>(args...);
 
         for (const auto extension : ptr->get_supported_extension()) {
-            map[extension].push_back(extension, ptr);
+            map[extension].push_back(ptr);
         }
+
+        return ptr;
     }
 
     AssetManager::AssetManager(void) {
-        insert<assets_system::ModelLoader>(this->extension_to_loader);
-        insert<assets_system::TextureLoader>(this->extension_to_loader);
-        insert<assets_system::ShaderLoader>(this->extension_to_loader);
+        this->asset_type_to_loader[assets_system::AssetType::Model] =
+            insert<assets_system::ModelLoader>(this->extension_to_loader);
+        this->asset_type_to_loader[assets_system::AssetType::Texture] =
+            insert<assets_system::TextureLoader>(this->extension_to_loader);
+        this->asset_type_to_loader[assets_system::AssetType::Shader] =
+            insert<assets_system::ShaderLoader>(this->extension_to_loader);
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
@@ -39,25 +44,20 @@ namespace enishi::core {
         }
 
         for (const auto& loader : asset_iter->second) {
-            const auto result = loader->load(path);
+            auto result = loader->load(path);
             if (result.is_err()) {
                 continue;
             }
 
-            auto& asset_data = result.value();
+            auto&& asset_data = result.value();
             if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
-                const auto asset_id = this->register_model(std::move(*model_data));
-                if (asset_id.is_err()) {
-                    return asset_id.propagation(assets_system::AssetError::InvalidAssetData);
-                }
-                return assets_system::AssetHandle{
-                    .id = asset_id.value(),
-                    .type = assets_system::AssetType::Model,
-                };
+                return this->register_model(std::move(*model_data));
             }
             if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
+                return this->register_texture(std::move(*texture_data));
             }
             if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
+                return this->register_shader(std::move(*shader_data));
             }
         }
     }
@@ -117,40 +117,112 @@ namespace enishi::core {
         return matched_files;
     }
 
+    std::vector<std::filesystem::path> AssetManager::find_models(
+        const std::filesystem::path& target_path) const noexcept {
+        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Model);
+        if (iter == this->asset_type_to_loader.end()) {
+            return {};
+        }
+        const auto& extensions = iter->second->get_supported_extension();
+
+        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    }
+
+    std::vector<std::filesystem::path> AssetManager::find_shaders(
+        const std::filesystem::path& target_path) const noexcept {
+        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Shader);
+        if (iter == this->asset_type_to_loader.end()) {
+            return {};
+        }
+        const auto& extensions = iter->second->get_supported_extension();
+
+        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    }
+    std::vector<std::filesystem::path> AssetManager::find_textures(
+        const std::filesystem::path& target_path) const noexcept {
+        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Texture);
+        if (iter == this->asset_type_to_loader.end()) {
+            return {};
+        }
+        const auto& extensions = iter->second->get_supported_extension();
+
+        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    }
+    std::vector<std::filesystem::path> AssetManager::find_scripts(
+        const std::filesystem::path& target_path) const noexcept {
+        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Script);
+        if (iter == this->asset_type_to_loader.end()) {
+            return {};
+        }
+        const auto& extensions = iter->second->get_supported_extension();
+
+        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    }
+
     foundation::Option<const types::ModelData&> core::AssetManager::get_model_data(
         const assets_system::AssetHandle& handle) const noexcept {
         return this->asset_registory.get<types::ModelData>(handle.id);
     }
 
+    foundation::Option<const types::ShaderData&> AssetManager::get_shader_data(
+        const assets_system::AssetHandle& handle) const noexcept {
+        return this->asset_registory.get<types::ShaderData>(handle.id);
+    }
+
+    foundation::Option<const types::TextureData&> AssetManager::get_texture_data(
+        const assets_system::AssetHandle& handle) const noexcept {
+        return this->asset_registory.get<types::TextureData>(handle.id);
+    }
+
     void core::AssetManager::update(const types::DeltaTime& delta_time) {
     }
 
-    foundation::Result<types::HandleId, SystemError> AssetManager::load_model(
-        const std::filesystem::path& path) noexcept {
-        auto model = this->model_loader.load(path);
-        if (model.is_err()) {
-            return model.add_message("モデルデータの読み込みに失敗しました")
-                .propagation(SystemError::AssetSystemError);
+    foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+    core::AssetManager::register_model(types::ModelData&& data) noexcept {
+        auto asset_id = this->register_asset(std::move(data));
+        if (asset_id.is_err()) {
+            return asset_id.add_message("モデルの追加に失敗しました")
+                .propagation(assets_system::AssetError::AlreadyHasAsset);
         }
-
-        auto result = this->asset_registory.insert(id, model.value());
-        if (result.is_err()) {
-            return model.add_message("モデルデータの登録に失敗しました")
-                .propagation(SystemError::AssetSystemError);
-        }
-
-        return id;
+        return assets_system::AssetHandle{
+            .id = asset_id.value(),
+            .type = assets_system::AssetType::Model,
+        };
     }
 
-    foundation::Result<types::HandleId, SystemError> core::AssetManager::register_model(
-        const types::ModelData& data) noexcept {
-        const auto id = this->asset_registory.create();
-        auto result = this->asset_registory.insert(id, data);
-        if (result.is_err()) {
-            return foundation::Error(
-                SystemError::AssetSystemError, "モデルデータの登録に失敗しました");
+    foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+    core::AssetManager::register_shader(types::ShaderData&& data) noexcept {
+        auto asset_id = this->register_asset(std::move(data));
+        if (asset_id.is_err()) {
+            return asset_id.add_message("シェーダーの追加に失敗しました")
+                .propagation(assets_system::AssetError::AlreadyHasAsset);
         }
+        return assets_system::AssetHandle{
+            .id = asset_id.value(),
+            .type = assets_system::AssetType::Model,
+        };
+    }
 
-        return foundation::Result<types::HandleId, SystemError>();
+    foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+    core::AssetManager::register_texture(types::TextureData&& data) noexcept {
+        auto asset_id = this->register_asset(std::move(data));
+        if (asset_id.is_err()) {
+            return asset_id.add_message("テクスチャの追加に失敗しました")
+                .propagation(assets_system::AssetError::AlreadyHasAsset);
+        }
+        return assets_system::AssetHandle{
+            .id = asset_id.value(),
+            .type = assets_system::AssetType::Model,
+        };
+    }
+
+    std::unordered_set<std::filesystem::path> AssetManager::convert_hash_set(
+        const std::vector<foundation::UTF8>& extensions) noexcept {
+        std::unordered_set<std::filesystem::path> path_set;
+        path_set.reserve(extensions.size());
+        const auto convert = [](const foundation::UTF8& s) { return std::filesystem::path(s); };
+        std::transform(
+            extensions.begin(), extensions.end(), std::inserter(path_set, path_set.end()), convert);
+        return path_set;
     }
 } // namespace enishi::core

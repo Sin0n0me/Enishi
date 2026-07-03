@@ -23,25 +23,16 @@ namespace enishi {
             return false;
         }
 
-        // 先にアセット読み込み
-        const auto asset_paths =
-            this->asset_manager->find_assets("./assets/models/", {".pmd", ".pmx"});
-        for (const auto& path : asset_paths) {
-            const auto result = this->asset_manager->load_asset(path);
-            if (result.is_err()) {
-                foundation::Logger::error(std::format("load error path: {}, {}",
-                    path.string<char>(),
-                    result.error().get_message("\n")));
-            } else {
-                foundation::Logger::info(std::format("loaded path: {}", path.string<char>()));
-            }
-        }
-
         if (!this->init_window()) {
             return false;
         }
-
         if (!this->init_renderer()) {
+            return false;
+        }
+        if (!this->load_models()) {
+            return false;
+        }
+        if (!this->load_shader()) {
             return false;
         }
 
@@ -144,13 +135,17 @@ namespace enishi {
         {
             types::RasterizerDescription description =
                 types::RasterizerDescription::default_solid();
-
-            this->renderer->create_rasterizer(description);
+            auto result = this->renderer->create_rasterizer(description);
+            if (result.is_err()) {
+                return false;
+            }
         }
 
-        // モデル読み込み
-        const auto asset_paths =
-            this->asset_manager->find_assets("./assets/models/", {".pmd", ".pmx"});
+        return true;
+    }
+
+    bool Application::load_models(void) {
+        const auto asset_paths = this->asset_manager->find_models("./assets/models/");
         if (asset_paths.empty()) {
             foundation::Logger::warning("モデルファイルが見つかりません");
         }
@@ -179,10 +174,42 @@ namespace enishi {
                 continue;
             }
             const auto mesh_handle = result_mesh.value();
-            foundation::Logger::info("メッシュの作成に成功しました");
         }
 
-        // this->renderer->create_shader();
+        return true;
+    }
+
+    bool Application::load_shader(void) {
+        const auto asset_paths = this->asset_manager->find_shaders("./assets/shader/");
+        if (asset_paths.empty()) {
+            foundation::Logger::warning("シェーダーファイルが見つかりません");
+        }
+
+        for (const auto& path : asset_paths) {
+            const auto result = this->asset_manager->load_asset(path);
+            if (result.is_err()) {
+                foundation::Logger::error(std::format("load error path: {}, {}",
+                    path.string<char>(),
+                    result.error().get_message("\n")));
+                continue;
+            }
+
+            foundation::Logger::info(std::format("loaded path: {}", path.string<char>()));
+            const auto handle = result.value();
+
+            const auto opt_model_data = this->asset_manager->get_shader_data(handle);
+            if (opt_model_data.is_none()) {
+                continue;
+            }
+            const auto& shader_data = opt_model_data.unwrap();
+
+            const auto result_shader = this->renderer->create_shader(shader_data);
+            if (result_shader.is_err()) {
+                foundation::Logger::error("シェーダーの作成に失敗しました");
+                continue;
+            }
+            const auto shader_handle = result_shader.value();
+        }
 
         return true;
     }
