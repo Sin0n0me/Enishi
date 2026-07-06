@@ -4,8 +4,10 @@
 #include "../texture/texture_data.h"
 #include "bone.h"
 #include "ik.h"
+#include "material.h"
 #include "morph.h"
-#include "pyhsics.h"
+#include "physics_joint.h"
+#include "rigid_body.h"
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <variant>
@@ -28,18 +30,20 @@ namespace enishi::types {
         Skinning skinning;
     };
 
-    using Indices = std::variant<OwnedRenderData<std::uint16_t>, OwnedRenderData<std::uint32_t>>;
+    using Indices = std::variant<OwnedRenderData<std::uint8_t>,
+        OwnedRenderData<std::uint16_t>,
+        OwnedRenderData<std::uint32_t>>;
 
-    using ModelAddon = std::variant<std::monostate, std::vector<IK>>;
+    using ModelAddon = std::variant<std::monostate, std::vector<IK>, Morphs>;
 
     // このアプリケーション向けに設定されたモデルデータ
     struct ModelData {
         std::string name;
         OwnedRenderData<SkinningVertex> vertices;
         Indices indices;
-        std::vector<BindBone> bind_bones;
-        std::vector<BoneNode> bone_nodes;
+        std::vector<Bone> bones;
         std::vector<ModelAddon> addons;
+        std::vector<int> materials;
 
         [[nodiscard]] MeshData to_mesh_data(void) const;
     };

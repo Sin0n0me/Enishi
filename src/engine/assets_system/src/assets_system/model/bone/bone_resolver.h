@@ -1,6 +1,6 @@
 #pragma once
-#include "bone/bone_data.h"
-#include "interface_bone_resolver.h"
+#include "bone_name_map.h"
+#include "../interface_bone_resolver.h"
 #include <engine_types/assets/model/bone.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
@@ -12,12 +12,12 @@
 namespace enishi::assets_system {
     class BoneResolver : public IBoneResolver {
       private:
-        std::shared_ptr<const BoneData> bone_data;
+        BoneNameMap name_map;
 
         BoneResolver(void) = delete;
 
       public:
-        explicit BoneResolver(const std::shared_ptr<const BoneData> bone_data);
+        explicit BoneResolver(BoneNameMapConstructor& bone_data);
 
         foundation::Option<types::BoneIndex> resolve_index(
             const foundation::UTF8& bone_name) const noexcept override;

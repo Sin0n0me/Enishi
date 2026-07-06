@@ -120,6 +120,9 @@ namespace enishi::assets_system {
             return result;
         }
 
+        pmd_data->model_name = std::to_array(header.model_name);
+        pmd_data->comment = std::to_array(header.comment);
+
         return {};
     }
 

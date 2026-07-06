@@ -1,7 +1,8 @@
 #pragma once
 #include "../../../errors/errors.h"
 #include "../../../interface_asset_system.h"
-#include "../../bone_resolver.h"
+#include "../../bone/bone_resolver.h"
+#include "../../morph/morph_resolver.h"
 #include "pmd_data.h"
 #include <cstdint>
 #include <engine_types/assets/model/model_data.h>
@@ -10,14 +11,15 @@
 #include <vector>
 
 namespace enishi::assets_system {
-    static constexpr glm::vec3 MMD_KNEE_AXIS = glm::vec3(-1.0f, 0.0f, 0.0f); // X軸固定
-
     class PMDToModelData {
+      public:
+        static constexpr glm::vec3 MMD_KNEE_AXIS = glm::vec3(-1.0f, 0.0f, 0.0f); // X軸固定
+
       public:
         static foundation::Result<types::ModelData, AssetError> to_model_data(const PMDData& data);
 
       private:
-        [[nodiscard]] static foundation::Result<BoneResolver, AssetError> make_bone(
+        [[nodiscard]] static std::tuple<std::vector<types::Bone>, BoneResolver> make_bone(
             const std::vector<PMDBone>& bones);
 
         [[nodiscard]] static std::vector<types::SkinningVertex> make_vertices(
@@ -29,6 +31,16 @@ namespace enishi::assets_system {
         [[nodiscard]] static std::vector<types::IK> make_iks(
             const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver);
 
-        //[[nodiscard]] static std::vector<types::IK> make_iks(const std::vector<PMDIK>& iks);
+        [[nodiscard]] static std::tuple<types::Morphs, MorphResolver> make_morphs(
+            const std::vector<PMDMorph>& morphs);
+
+        [[nodiscard]] static std::vector<types::PhysicsJoint> make_joints(
+            const std::vector<PMDPhysicsJoint>& joints);
+
+        [[nodiscard]] static std::vector<types::RigidBody> make_rigid_bodies(
+            const std::vector<PMDRigidBody>& rigid_bodies);
+
+        [[nodiscard]] static std::vector<types::Material> make_materials(
+            const std::vector<PMDMaterial>& materials);
     };
 } // namespace enishi::assets_system

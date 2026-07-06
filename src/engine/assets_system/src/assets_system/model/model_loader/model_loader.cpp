@@ -1,6 +1,6 @@
 #include "model_loader.h"
-#include "../bone/bone_data.h"
-#include "../bone_resolver.h"
+#include "../bone/bone_name_map.h"
+#include "../bone/bone_resolver.h"
 #include "pmd/pmd_model_loader.h"
 #include "pmd/pmd_to_model_data.h"
 

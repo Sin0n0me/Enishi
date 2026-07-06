@@ -1,11 +1,12 @@
 #pragma once
 #include "pmd_file_struct.h"
+#include <cstdint>
 
 namespace enishi::assets_system {
     // 生のデータに近い
     struct PMDData {
-        std::array<char, 20> model_name;
-        std::array<char, 256> comment;
+        std::array<std::int8_t, 20> model_name;
+        std::array<std::int8_t, 256> comment;
         std::vector<PMDVertex> vertices;
         std::vector<PMDVertexIndex> indices;
         std::vector<PMDMaterial> materials;

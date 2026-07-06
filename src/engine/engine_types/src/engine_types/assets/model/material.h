@@ -1,9 +1,8 @@
 #pragma once
-#include <cstdint>
-#include <glm/glm.hpp>
+#include <filesystem>
 #include <variant>
 #include <vector>
 
 namespace enishi::types {
-    struct RigidBody {};
+    struct Material {};
 } // namespace enishi::types

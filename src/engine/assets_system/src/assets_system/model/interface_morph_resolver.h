@@ -8,12 +8,12 @@ namespace enishi::assets_system {
       public:
         virtual ~IMorphResolver(void) noexcept = default;
 
-        // 名前からインデックスを解決する
+        // 表情名からインデックスを解決する
         [[nodiscard]]
         virtual foundation::Option<types::MorphIndex> resolve_index(
             const foundation::UTF8& bone_name) const noexcept = 0;
 
-        // インデックスから名前を取得する
+        // インデックスから表情名を取得する
         [[nodiscard]]
         virtual foundation::Option<foundation::UTF8> resolve_name(
             const types::BoneIndex bone_index) const noexcept = 0;
