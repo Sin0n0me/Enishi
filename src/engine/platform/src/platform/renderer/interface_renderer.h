@@ -27,7 +27,7 @@ namespace enishi::platform {
         virtual ~IRenderer(void) noexcept = default;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_pipeline(
+        virtual RenderResult<types::RenderPass> create_render_pass(
             const types::PipelineDescription& description) = 0;
 
         [[nodiscard]]
@@ -39,6 +39,10 @@ namespace enishi::platform {
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) = 0;
+
+        [[nodiscard]]
+        virtual RenderResult<std::unique_ptr<IPipelineLayout>> create_pipeline_layout_from_shader(
+            const types::ShaderData& shader) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_rasterizer(

@@ -108,4 +108,20 @@ namespace enishi::renderer::directx {
 
         return D3D11_USAGE::D3D11_USAGE_DEFAULT;
     }
+
+    D3D11_PRIMITIVE_TOPOLOGY D3D11Converter::to_topology(
+        const types::PrimitiveTopology& topology) noexcept {
+        switch (topology) {
+            case types::PrimitiveTopology::LineList:
+                return D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+            case types::PrimitiveTopology::PointList:
+                return D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+            case types::PrimitiveTopology::TriangleList:
+                return D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+            default:
+                break;
+        }
+
+        return D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    }
 } // namespace enishi::renderer::directx

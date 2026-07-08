@@ -42,5 +42,13 @@ namespace enishi::assets_system {
 
         [[nodiscard]] static std::vector<types::Material> make_materials(
             const std::vector<PMDMaterial>& materials);
+
+        [[nodiscard]] static glm::mat4 make_offset_from_pmd(const PMDRigidBody& rigid_body);
+
+        [[nodiscard]] static types::RigidBodyShape make_shape_from_pmd(
+            const PMDRigidBody& rigid_body);
+
+        [[nodiscard]] static types::RigidBodyType make_rigid_body_type_from_pmd(
+            const PMDRigidBody& rigid_body);
     };
 } // namespace enishi::assets_system

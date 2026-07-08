@@ -34,7 +34,11 @@ namespace enishi::types {
         OwnedRenderData<std::uint16_t>,
         OwnedRenderData<std::uint32_t>>;
 
-    using ModelAddon = std::variant<std::monostate, std::vector<IK>, Morphs>;
+    using ModelAddon = std::variant<std::monostate,
+        std::vector<IK>,
+        Morphs,
+        std::vector<RigidBody>,
+        std::vector<PhysicsJoint>>;
 
     // このアプリケーション向けに設定されたモデルデータ
     struct ModelData {

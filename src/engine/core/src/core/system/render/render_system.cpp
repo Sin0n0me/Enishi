@@ -19,6 +19,21 @@ namespace enishi::core {
         return this->render_graph;
     }
 
+    void core::RenderSystem::add_render_pass(
+        const foundation::UTF8& pass_name, types::RenderPass& render_pass) {
+        auto& passes = this->render_graph.passes;
+        const auto iter = this->name_to_index.find(pass_name);
+        if (iter == this->name_to_index.end()) {
+            const auto index = passes.size();
+            passes.emplace_back(render_pass);
+            this->name_to_index[pass_name] = index;
+            return;
+        }
+
+        const auto index = iter->second;
+        passes[index] = render_pass;
+    }
+
     void core::RenderSystem::add_command() {
     }
 } // namespace enishi::core

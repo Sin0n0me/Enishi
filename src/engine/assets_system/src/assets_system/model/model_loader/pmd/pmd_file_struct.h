@@ -106,20 +106,26 @@ namespace enishi::assets_system {
         PhysicsSimulationAndBoneAlignment = 2,
     };
 
+    enum class PMDShapeType : std::uint8_t {
+        Sphere = 0,  // 0: 球 [0]
+        Box = 1,     // 1: 箱 [0][1][2]
+        Capsule = 2, // 2: カプセル [0][1]
+    };
+
     struct PMDRigidBody {
-        char name[20];                   // 剛体の名前
-        std::uint16_t relate_bone_index; // 関連ボーン番号
-        std::uint8_t group_index;        // 剛体グループ番号
-        std::uint16_t group_target;      // 対象剛体グループマスク
-        std::uint8_t shape_type;         // 衝突形状( 0:球  1:箱  2:カプセル )
-        float shape_size[3];   // 衝突形状の幅,高さ,奥行 0:球[0] 1:箱[0][1][2] 2:カプセル[0][1]
-        float position[3];     // 位置(相対座標のオフセット)
-        float rotation[3];     // 回転(Radian)
-        float mass;            // 質量
-        float linear_damping;  // 移動減
-        float angular_damping; // 回転減
-        float restitution;     // 反発力
-        float friction;        // 摩擦力
+        char name[20];                    // 剛体の名前
+        std::uint16_t relate_bone_index;  // 関連ボーン番号
+        std::uint8_t group_index;         // 剛体グループ番号
+        std::uint16_t group_target;       // 対象剛体グループマスク
+        PMDShapeType shape_type;          // 衝突形状( 0:球  1:箱  2:カプセル )
+        float shape_size[3];              // 衝突形状の幅,高さ,奥行
+        float position[3];                // 位置(相対座標のオフセット)
+        float rotation[3];                // 回転(Radian)
+        float mass;                       // 質量
+        float linear_damping;             // 移動減
+        float angular_damping;            // 回転減
+        float restitution;                // 反発力
+        float friction;                   // 摩擦力
         PMDRigidBodyType rigid_body_type; // 剛体タイプ
     };
 

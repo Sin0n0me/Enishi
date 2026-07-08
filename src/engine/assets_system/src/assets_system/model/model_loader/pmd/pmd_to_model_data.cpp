@@ -39,7 +39,13 @@ namespace enishi::assets_system {
             .vertices = types::OwnedRenderData<types::SkinningVertex>(std::move(vertices)),
             .indices = types::OwnedRenderData<std::uint16_t>(std::move(indices)),
             .bones = std::move(bones),
-            .addons = {std::move(morphs), std::move(iks)},
+            .addons =
+                {
+                    std::move(morphs),
+                    std::move(iks),
+                    std::move(rigid_bodies),
+                    std::move(physics_joints),
+                },
         };
     }
 
@@ -211,7 +217,12 @@ namespace enishi::assets_system {
         const auto transform = [](const PMDMorphVertex& v) {
             return types::MorphVertex{
                 .index = v.index,
-                .offset = glm::vec3(v.position[0], v.position[1], v.position[2]),
+                .offset =
+                    glm::vec3{
+                        v.position[0],
+                        v.position[1],
+                        v.position[2],
+                    },
             };
         };
 
@@ -262,9 +273,36 @@ namespace enishi::assets_system {
         auto model_rigid_bodies = std::vector<types::RigidBody>(size);
 
         for (const auto& rigid_body : rigid_bodies) {
-            rigid_body;
+            const auto offset = PMDToModelData::make_offset_from_pmd(rigid_body);
+            const auto shape = PMDToModelData::make_shape_from_pmd(rigid_body);
+            const auto rigid_body_type = PMDToModelData::make_rigid_body_type_from_pmd(rigid_body);
+            const bool is_kinematic = rigid_body_type == types::RigidBodyType::Kinematic;
+            const float mass = is_kinematic ? 0.0f : rigid_body.mass;
 
-            auto rb = types::RigidBody{};
+            const auto rb = types::RigidBody{
+                .group = rigid_body.group_index,
+                .group_mask = rigid_body.group_target,
+                .rigid_body_type = rigid_body_type,
+                .shape = shape,
+                .offset = offset,
+                .mass = mass,
+                .position =
+                    glm::vec3{
+                        rigid_body.position[0],
+                        rigid_body.position[1],
+                        rigid_body.position[2],
+                    },
+                .rotation =
+                    glm::vec3{
+                        rigid_body.rotation[0],
+                        rigid_body.rotation[1],
+                        rigid_body.rotation[2],
+                    },
+                .linear_damping = rigid_body.linear_damping,
+                .angular_damping = rigid_body.angular_damping,
+                .restitution = rigid_body.restitution,
+                .friction = rigid_body.friction,
+            };
             model_rigid_bodies.emplace_back(rb);
         }
 
@@ -273,6 +311,81 @@ namespace enishi::assets_system {
 
     std::vector<types::Material> PMDToModelData::make_materials(
         const std::vector<PMDMaterial>& materials) {
+        for (const auto& material : materials) {
+            material;
+
+            types::Material{};
+        }
+
         return std::vector<types::Material>();
+    }
+
+    // PMDはボーンとの相対座標なので剛体中心とのオフセットは以下で求める(列優先の場合)
+    // Offset = T * R
+    // PMXの場合はモデル座標での数値なので以下で求める(列優先の場合)
+    // Offset = Inverse(global) * T * R
+    glm::mat4 PMDToModelData::make_offset_from_pmd(const PMDRigidBody& rigid_body) {
+        const glm::mat4 ident = glm::mat4(1.0f);
+        const glm::vec3 rotate = glm::vec3{
+            rigid_body.rotation[0],
+            rigid_body.rotation[1],
+            rigid_body.rotation[2],
+        };
+        const glm::mat4 rx = glm::rotate(ident, rotate.x, glm::vec3{1, 0, 0});
+        const glm::mat4 ry = glm::rotate(ident, rotate.y, glm::vec3{0, 1, 0});
+        const glm::mat4 rz = glm::rotate(ident, rotate.z, glm::vec3{0, 0, 1});
+        const glm::mat4 rotate_matrix = ry * rx * rz;
+        const glm::mat4 translate_matrix = glm::translate(ident,
+            glm::vec3{
+                rigid_body.position[0],
+                rigid_body.position[1],
+                rigid_body.position[2],
+            });
+        const glm::mat4 offset = translate_matrix * rotate_matrix;
+
+        return offset;
+    }
+
+    types::RigidBodyShape PMDToModelData::make_shape_from_pmd(const PMDRigidBody& rigid_body) {
+        switch (rigid_body.shape_type) {
+            case PMDShapeType::Sphere: {
+                return types::ShapeSphere{
+                    .radius = rigid_body.shape_size[0],
+                };
+            }
+            case PMDShapeType::Box: {
+                return types::ShapeBox{
+                    .width = rigid_body.shape_size[0],
+                    .height = rigid_body.shape_size[1],
+                    .depth = rigid_body.shape_size[2],
+                };
+            }
+            case PMDShapeType::Capsule: {
+                return types::ShapeCapsule{
+                    .radius = rigid_body.shape_size[0],
+                    .height = rigid_body.shape_size[1],
+                };
+            }
+            default:
+                break;
+        }
+
+        return types::RigidBodyShape();
+    }
+
+    types::RigidBodyType PMDToModelData::make_rigid_body_type_from_pmd(
+        const PMDRigidBody& rigid_body) {
+        switch (rigid_body.rigid_body_type) {
+            case PMDRigidBodyType::FollowBone:
+                return types::RigidBodyType::Kinematic;
+            case PMDRigidBodyType::PhysicsSimulation:
+                return types::RigidBodyType::Dynamic;
+            case PMDRigidBodyType::PhysicsSimulationAndBoneAlignment:
+                return types::RigidBodyType::DynamicAdjustBone;
+            default:
+                break;
+        }
+
+        return types::RigidBodyType::Dynamic;
     }
 } // namespace enishi::assets_system

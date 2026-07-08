@@ -5,8 +5,9 @@ namespace enishi::assets_system {
         const auto size = this->bone_names.size();
         BoneNameMap map;
         map.bone_names = std::move(this->bone_names);
+
         for (std::size_t i = 0; i < size; ++i) {
-            map.name_map[this->bone_names[i]] = i;
+            map.name_map[map.bone_names[i]] = i;
         }
 
         return map;

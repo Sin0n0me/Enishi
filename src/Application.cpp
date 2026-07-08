@@ -1,7 +1,9 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
 #include <foundation/log/logger.h>
+
 #include <platform_impl/window/sdl/sdl3_window.h>
+
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
 #include <renderer/directx/directx11/d3d11_renderer.h>
 
@@ -29,10 +31,8 @@ namespace enishi {
         if (!this->init_renderer()) {
             return false;
         }
-        if (!this->load_models()) {
-            return false;
-        }
-        if (!this->load_shader()) {
+
+        if (!this->load()) {
             return false;
         }
 
@@ -72,8 +72,8 @@ namespace enishi {
 
     bool Application::init_window(void) {
         const auto window_size = types::WindowSize{
-            .width = 200,
-            .height = 400,
+            .width = WINDOW_SIZE.x,
+            .height = WINDOW_SIZE.y,
         };
         this->root_window = std::make_unique<platform_impl::SDL3Window>(APPLICATION_NAME,
             window_size,
@@ -111,6 +111,19 @@ namespace enishi {
 
         this->renderer = std::move(renderer.value());
 
+        // this->renderer->create_pipeline();
+        types::PipelineDescription{};
+
+        const auto rect = types::ViewportRect{
+            .left_top_x = 0.0,
+            .left_top_y = 0.0,
+            .width = static_cast<float>(WINDOW_SIZE.x),
+            .height = static_cast<float>(WINDOW_SIZE.y),
+            .min_depth = 0.0,
+            .max_depth = 1.0,
+        };
+        this->renderer->create_viewport(rect);
+
         //
         {
             const auto rtv_image_desc = types::ImageDescription::make_render_target(
@@ -139,6 +152,17 @@ namespace enishi {
             if (result.is_err()) {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    bool Application::load(void) {
+        if (!this->load_models()) {
+            return false;
+        }
+        if (!this->load_shader()) {
+            return false;
         }
 
         return true;

@@ -24,11 +24,12 @@ namespace enishi::renderer::directx {
         void bind_render_target(ID3D11DeviceContext* const context, const types::HandleId id) const;
         void bind_rasterizer(ID3D11DeviceContext* const context, const types::HandleId id) const;
         void bind_mesh(ID3D11DeviceContext* const context, const types::HandleId id) const;
+        void bind_topology(ID3D11DeviceContext* const context, const types::HandleId id) const;
 
       public:
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
 
-        platform::RenderResult<types::RenderHandle> create_pipeline(
+        platform::RenderResult<types::RenderPass> create_render_pass(
             const types::PipelineDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
@@ -36,6 +37,8 @@ namespace enishi::renderer::directx {
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) override;
+        platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
+        create_pipeline_layout_from_shader(const types::ShaderData& shader) override;
         platform::RenderResult<types::RenderHandle> create_rasterizer(
             const types::RasterizerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(

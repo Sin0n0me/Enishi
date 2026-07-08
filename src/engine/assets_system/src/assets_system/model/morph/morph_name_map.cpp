@@ -5,8 +5,9 @@ namespace enishi::assets_system {
         const auto size = this->morph_names.size();
         MorphNameMap map;
         map.morph_names = std::move(this->morph_names);
+
         for (std::size_t i = 0; i < size; ++i) {
-            map.name_map[this->morph_names[i]] = i;
+            map.name_map[map.morph_names[i]] = i;
         }
 
         return map;

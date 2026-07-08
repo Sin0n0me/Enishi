@@ -5,6 +5,7 @@
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/renderer/description/image_description.h>
 #include <engine_types/renderer/description/image_view_description.h>
+#include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer_description.h>
 #include <engine_types/renderer/description/sampler_description.h>
 
@@ -20,5 +21,8 @@ namespace enishi::renderer::directx {
         static D3D11_CULL_MODE to_cull_mode(const types::CullMode& cull_mode) noexcept;
         static DXGI_FORMAT to_dxgi_format(const types::ImageFormat& format) noexcept;
         static D3D11_USAGE to_usage(const types::ImageUsage& usage) noexcept;
+        static D3D11_PRIMITIVE_TOPOLOGY to_topology(
+            const types::PrimitiveTopology& topology) noexcept;
+        static D3D11_INPUT_ELEMENT_DESC to_() noexcept;
     };
 } // namespace enishi::renderer::directx

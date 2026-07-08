@@ -25,22 +25,22 @@ namespace enishi::types {
     };
 
     struct PipelineDescription {
-        RenderHandle vertex_shader;
-        RenderHandle fragment_shader;
+        std::vector<RenderHandle> shaders;
         VertexLayout vertex_layout;
-        RasterizerDescription rasterizer;
+        RenderHandle rasterizer;
         BlendMode blend_mode;
         DepthTestMode depth_test;
         PrimitiveTopology topology;
 
         [[nodiscard]]
-        static constexpr PipelineDescription make_opaque(
-            RenderHandle vs, RenderHandle fs, const VertexLayout& layout) noexcept {
+        static constexpr PipelineDescription make_opaque(RenderHandle vs,
+            RenderHandle fs,
+            const VertexLayout& layout,
+            const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
-                .vertex_shader = vs,
-                .fragment_shader = fs,
+                .shaders = {vs, fs},
                 .vertex_layout = layout,
-                .rasterizer = RasterizerDescription::default_solid(),
+                .rasterizer = rasterizer,
                 .blend_mode = BlendMode::Opaque,
                 .depth_test = DepthTestMode::ReadWrite,
                 .topology = PrimitiveTopology::TriangleList,
@@ -48,26 +48,28 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static PipelineDescription make_shadow(
-            RenderHandle vs, RenderHandle fs, const VertexLayout& layout) noexcept {
+        static PipelineDescription make_shadow(RenderHandle vs,
+            RenderHandle fs,
+            const VertexLayout& layout,
+            const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
-                .vertex_shader = vs,
-                .fragment_shader = fs,
+                .shaders = {vs, fs},
                 .vertex_layout = layout,
-                .rasterizer = RasterizerDescription::shadow_map(),
+                .rasterizer = rasterizer,
                 .depth_test = DepthTestMode::ReadWrite,
                 .topology = PrimitiveTopology::TriangleList,
             };
         }
 
         [[nodiscard]]
-        static PipelineDescription make_wireframe(
-            RenderHandle vs, RenderHandle fs, const VertexLayout& layout) noexcept {
+        static PipelineDescription make_wireframe(RenderHandle vs,
+            RenderHandle fs,
+            const VertexLayout& layout,
+            const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
-                .vertex_shader = vs,
-                .fragment_shader = fs,
+                .shaders = {vs, fs},
                 .vertex_layout = layout,
-                .rasterizer = RasterizerDescription::wireframe(),
+                .rasterizer = rasterizer,
                 .depth_test = DepthTestMode::ReadOnly,
                 .topology = PrimitiveTopology::TriangleList,
             };

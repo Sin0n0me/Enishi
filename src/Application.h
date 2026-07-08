@@ -10,6 +10,7 @@
 namespace enishi {
     constexpr char APPLICATION_NAME[] = "enishi";
     constexpr glm::vec4 CLEAR_COLOR = glm::vec4{0.0f, 0.0f, 0.0f, 0.0f};
+    constexpr glm::ivec2 WINDOW_SIZE = glm::ivec2{200, 400};
 
     class Application {
       private:
@@ -30,6 +31,7 @@ namespace enishi {
         bool init_window(void);
         bool init_renderer(void);
 
+        bool load(void);
         bool load_models(void);
         bool load_shader(void);
     };

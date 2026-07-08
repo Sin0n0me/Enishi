@@ -28,7 +28,8 @@ namespace enishi::core {
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
     AssetManager::load_asset(const std::filesystem::path& path) noexcept {
         // すでにAssetを保持している場合はそのまま保管しているハンドルを返す
-        const auto iter = this->path_to_handle.find(path);
+        const auto normalized_path = path.lexically_normal();
+        const auto iter = this->path_to_handle.find(normalized_path);
         if (iter != this->path_to_handle.end()) {
             return iter->second;
         }
@@ -37,12 +38,15 @@ namespace enishi::core {
             return foundation::Error(assets_system::AssetError::NotFound);
         }
 
+        // 拡張子に応じたアセットローダーを探す
         const auto extention = path.extension();
         const auto asset_iter = this->extension_to_loader.find(extention.string<char>());
         if (asset_iter == this->extension_to_loader.end()) {
             return foundation::Error(assets_system::AssetError::NotFound);
         }
 
+        // 1つの拡張子が複数対応している場合判断がつかないので
+        // 最初に正常に読み込めた値を返す
         for (const auto& loader : asset_iter->second) {
             auto result = loader->load(path);
             if (result.is_err()) {
@@ -51,15 +55,29 @@ namespace enishi::core {
 
             auto&& asset_data = result.value();
             if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
-                return this->register_model(std::move(*model_data));
+                const auto handle = this->register_model(std::move(*model_data));
+                if (handle.is_ok()) {
+                    this->path_to_handle[normalized_path] = handle.value();
+                    return handle;
+                }
             }
             if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
-                return this->register_texture(std::move(*texture_data));
+                const auto handle = this->register_texture(std::move(*texture_data));
+                if (handle.is_ok()) {
+                    this->path_to_handle[normalized_path] = handle.value();
+                    return handle;
+                }
             }
             if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
-                return this->register_shader(std::move(*shader_data));
+                const auto handle = this->register_shader(std::move(*shader_data));
+                if (handle.is_ok()) {
+                    this->path_to_handle[normalized_path] = handle.value();
+                    return handle;
+                }
             }
         }
+
+        return foundation::Error(assets_system::AssetError::NotFound);
     }
 
     void AssetManager::release_asset(const assets_system::AssetHandle& handle) noexcept {

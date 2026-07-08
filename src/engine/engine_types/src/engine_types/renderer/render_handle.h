@@ -13,6 +13,7 @@ namespace enishi::types {
         View,
         Rasterizer,
         ViewPort,
+        Topology,
     };
 
     struct RenderHandle {
