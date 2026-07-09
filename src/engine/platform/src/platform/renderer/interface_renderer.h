@@ -41,7 +41,7 @@ namespace enishi::platform {
             const types::RenderHandle& pixel_shader) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<std::unique_ptr<IPipelineLayout>> create_pipeline_layout_from_shader(
+        virtual RenderResult<types::RenderHandle> create_pipeline_layout_from_shader(
             const types::ShaderData& shader) = 0;
 
         [[nodiscard]]

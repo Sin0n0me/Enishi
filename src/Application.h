@@ -31,6 +31,8 @@ namespace enishi {
         bool init_window(void);
         bool init_renderer(void);
 
+        bool make_render_pass(void);
+
         bool load(void);
         bool load_models(void);
         bool load_shader(void);

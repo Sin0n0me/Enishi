@@ -2,6 +2,7 @@
 #include "d3d11_converter.h"
 #include "shader/shader_refrection.h"
 #include "view/render_target_view.h"
+#include <ranges>
 
 namespace enishi::renderer::directx {
     void D3D11Renderer::execute(
@@ -37,6 +38,9 @@ namespace enishi::renderer::directx {
             } break;
             case types::RenderHandleType::Topology: {
                 this->bind_topology(context, id);
+            } break;
+            case types::RenderHandleType::InputLayout: {
+                this->bind_input_layout(context, id);
             } break;
             default:
                 break;
@@ -148,7 +152,8 @@ namespace enishi::renderer::directx {
             return;
         }
 
-        context->RSSetState(opt_rasterizer.unwrap().Get());
+        const auto& rasterizer = opt_rasterizer.unwrap();
+        context->RSSetState(rasterizer.Get());
     }
 
     void D3D11Renderer::bind_mesh(
@@ -173,6 +178,17 @@ namespace enishi::renderer::directx {
         }
 
         context->IASetPrimitiveTopology(d3d11_topology);
+    }
+
+    void D3D11Renderer::bind_input_layout(
+        ID3D11DeviceContext* const context, const types::HandleId id) const {
+        const auto opt_input_layout = this->resource_manager.get_input_layout(id);
+        if (opt_input_layout.is_none()) {
+            return;
+        }
+
+        const auto& input_layout = opt_input_layout.unwrap();
+        context->IASetInputLayout(input_layout.Get());
     }
 
     D3D11Renderer::D3D11Renderer(std::unique_ptr<D3D11> d3d11)
@@ -221,29 +237,16 @@ namespace enishi::renderer::directx {
         return platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>();
     }
 
-    platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
-    D3D11Renderer::create_pipeline_layout_from_shader(const types::ShaderData& shader) {
-        // shader reflectionでレイアウトを作成
-        auto refection = ShaderReflection::make(shader);
-        if (refection.is_err()) {
-            return refection.propagation(platform::RenderError::MakeError);
-        }
-        auto& refections = refection.value();
-
-        refections.get_input_element_descs();
-
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_pipeline_layout_from_shader(
+        const types::ShaderData& shader_data) {
         const auto device = this->d3d11->get_device();
-        const HRESULT hr = device->CreateInputLayout(input_elements.data(),
-            static_cast<uint32_t>(input_elements.size()),
-            shader.code.data(),
-            shader.code.size(),
-            input_layout);
-        if (FAILED(hr)) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "InputLayoutの作成に失敗しました");
+        const auto result =
+            this->resource_manager.make_input_layout_from_shader(device, shader_data);
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
         }
 
-        return platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>();
+        return result.value();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_rasterizer(

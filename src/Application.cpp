@@ -157,6 +157,14 @@ namespace enishi {
         return true;
     }
 
+    bool Application::make_render_pass(void) {
+        if (!this->make_model_render_pass()) {
+            return false;
+        }
+
+        return true;
+    }
+
     bool Application::load(void) {
         if (!this->load_models()) {
             return false;

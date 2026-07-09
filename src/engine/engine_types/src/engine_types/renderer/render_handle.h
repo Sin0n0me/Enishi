@@ -14,6 +14,7 @@ namespace enishi::types {
         Rasterizer,
         ViewPort,
         Topology,
+        InputLayout,
     };
 
     struct RenderHandle {

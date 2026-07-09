@@ -15,6 +15,7 @@ namespace enishi::renderer::directx {
     }
 
     struct GPUResource {
+        ResourceMap<Microsoft::WRL::ComPtr<ID3D11InputLayout>> input_layouts;
         ResourceMap<Microsoft::WRL::ComPtr<ID3D11RasterizerState>> rasterizers;
         ResourceMap<Buffer> buffers;
         ResourceMap<Texture> textures;

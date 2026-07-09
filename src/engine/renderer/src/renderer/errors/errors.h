@@ -14,6 +14,7 @@ namespace enishi::renderer {
             BufferError,
             ViewError,
             RasterizerError,
+            InputLayoutError,
         };
     } // namespace directx
 

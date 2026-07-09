@@ -30,6 +30,8 @@ namespace enishi::renderer::directx {
       public:
         using Result = foundation::Result<types::RenderHandle, DirectXError>;
 
+        [[nodiscard]] Result make_input_layout_from_shader(
+            ID3D11Device* const device, const types::ShaderData& shader_data);
         [[nodiscard]] Result make_mesh(
             ID3D11Device* const device, const types::MeshData& mesh_data);
         [[nodiscard]] Result make_shader(
@@ -63,6 +65,8 @@ namespace enishi::renderer::directx {
             const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RasterizerState>&>
         get_rasterizer(const types::HandleId handle) const;
+        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
+        get_input_layout(const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const Mesh&> get_mesh(const types::HandleId handle) const;
         [[nodiscard]] const ShaderPool& get_shader_pool(void) const;
         [[nodiscard]] const ViewPool& get_view_pool(void) const;

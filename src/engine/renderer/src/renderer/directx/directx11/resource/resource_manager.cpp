@@ -1,8 +1,45 @@
 #include "resource_manager.h"
 #include "../d3d11_converter.h"
 #include <foundation/log/logger.h>
+#include <renderer/directx/directx11/shader/shader_refrection.h>
 
 namespace enishi::renderer::directx {
+    ResourceManager::Result ResourceManager::make_input_layout_from_shader(
+        ID3D11Device* const device, const types::ShaderData& shader_data) {
+        // shader reflectionでレイアウトを作成
+        auto refection = ShaderReflection::make(shader_data);
+        if (refection.is_err()) {
+            return refection.error();
+        }
+        auto& refections = refection.value();
+
+        // 変換
+        const auto input_elements = refections.get_input_element_descs() |
+                                    std::views::transform([](const InputElementDescription& desc) {
+                                        return desc.description;
+                                    }) |
+                                    std::ranges::to<std::vector>();
+
+        Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
+        const HRESULT hr = device->CreateInputLayout(input_elements.data(),
+            static_cast<uint32_t>(input_elements.size()),
+            shader_data.code.data(),
+            shader_data.code.size(),
+            input_layout.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(
+                DirectXError::InputLayoutError, "InputLayoutの作成に失敗しました");
+        }
+
+        const types::HandleId handle = this->handle_allocator.create();
+        this->resource.input_layouts.emplace(handle, input_layout);
+
+        return types::RenderHandle{
+            .id = handle,
+            .type = types::RenderHandleType::InputLayout,
+        };
+    }
+
     ResourceManager::Result ResourceManager::make_mesh(
         ID3D11Device* const device, const types::MeshData& mesh_data) {
         // 頂点バッファ作成
@@ -319,6 +356,15 @@ namespace enishi::renderer::directx {
     ResourceManager::get_rasterizer(const types::HandleId handle) const {
         const auto& iter = this->resource.rasterizers.find(handle);
         if (iter == this->resource.rasterizers.end()) {
+            return {};
+        }
+        return iter->second;
+    }
+
+    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
+    ResourceManager::get_input_layout(const types::HandleId handle) const {
+        const auto& iter = this->resource.input_layouts.find(handle);
+        if (iter == this->resource.input_layouts.end()) {
             return {};
         }
         return iter->second;
