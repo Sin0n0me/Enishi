@@ -50,6 +50,11 @@ namespace enishi::foundation {
             return this->error().propagation(e);
         }
 
+        template <typename U>
+        [[nodiscard]] constexpr Error<U> propagation(const U e, const UTF8& message) const {
+            return this->error().propagation(e, message);
+        }
+
         Result& add_message(const UTF8& message) {
             if (this->is_ok()) {
                 return *this;
@@ -70,6 +75,11 @@ namespace enishi::foundation {
 
         template <typename U> [[nodiscard]] constexpr Error<U> propagation(const U e) const {
             return this->error().propagation(e);
+        }
+
+        template <typename U>
+        [[nodiscard]] constexpr Error<U> propagation(const U e, const UTF8& message) const {
+            return this->error().propagation(e, message);
         }
 
         Result& add_message(const UTF8& message) {

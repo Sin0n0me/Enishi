@@ -37,16 +37,16 @@ namespace enishi::core {
         foundation::Option<const std::filesystem::path&> get_asset_file_name(
             const assets_system::AssetHandle& handle) const noexcept override;
 
-        std::vector<std::filesystem::path> find_assets(const std::filesystem::path& target_path,
+        assets_system::PathObjects find_assets(const std::filesystem::path& target_path,
             const std::unordered_set<std::filesystem::path>& target_extensions)
             const noexcept override;
-        std::vector<std::filesystem::path> find_models(
+        assets_system::PathObjects find_models(
             const std::filesystem::path& target_path) const noexcept override;
-        std::vector<std::filesystem::path> find_shaders(
+        assets_system::PathObjects find_shaders(
             const std::filesystem::path& target_path) const noexcept override;
-        std::vector<std::filesystem::path> find_textures(
+        assets_system::PathObjects find_textures(
             const std::filesystem::path& target_path) const noexcept override;
-        std::vector<std::filesystem::path> find_scripts(
+        assets_system::PathObjects find_scripts(
             const std::filesystem::path& target_path) const noexcept override;
 
         foundation::Option<const types::ModelData&> get_model_data(
@@ -55,6 +55,11 @@ namespace enishi::core {
             const assets_system::AssetHandle& handle) const noexcept override;
         foundation::Option<const types::TextureData&> get_texture_data(
             const assets_system::AssetHandle& handle) const noexcept override;
+
+        foundation::UTF8 model_extensions_pattern(void) const noexcept override;
+        foundation::UTF8 shader_extensions_pattern(void) const noexcept override;
+        foundation::UTF8 texture_extensions_pattern(void) const noexcept override;
+        foundation::UTF8 script_extensions_pattern(void) const noexcept override;
 
       public:
         void update(const types::DeltaTime& delta_time) override;
@@ -72,26 +77,25 @@ namespace enishi::core {
             return id;
         }
 
-        foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_model(
-            types::ModelData&& data) noexcept;
-
-        foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+        [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+        register_model(types::ModelData&& data) noexcept;
+        [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
         register_animation(types::ModelData&& data) noexcept;
-
+        [[nodiscard]]
         foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_shader(
             types::ShaderData&& data) noexcept;
-
-        foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_texture(
-            types::TextureData&& data) noexcept;
-
+        [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+        register_texture(types::TextureData&& data) noexcept;
+        [[nodiscard]]
         foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_video(
             types::ModelData&& data) noexcept;
+        [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+        register_sound(types::ModelData&& data) noexcept;
+        [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
+        register_script(types::ModelData&& data) noexcept;
 
-        foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_sound(
-            types::ModelData&& data) noexcept;
-
-        foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_script(
-            types::ModelData&& data) noexcept;
+        [[nodiscard]] std::vector<foundation::UTF8> get_extensions(
+            const assets_system::AssetType asset_type) const;
 
         static std::unordered_set<std::filesystem::path> convert_hash_set(
             const std::vector<foundation::UTF8>& extensions) noexcept;

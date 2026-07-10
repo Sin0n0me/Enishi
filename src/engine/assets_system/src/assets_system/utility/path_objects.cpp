@@ -1,7 +1,10 @@
 #include "path_objects.h"
 
 namespace enishi::assets_system {
-    void PathObjects::add(std::filesystem::path& path) {
+    PathObjects::PathObjects(void) {
+    }
+
+    void PathObjects::add(const std::filesystem::path& path) {
         const auto normalized_path = path.lexically_normal();
         this->path_entries.emplace_back(PathObjects::PathEntry{
             .path = normalized_path,

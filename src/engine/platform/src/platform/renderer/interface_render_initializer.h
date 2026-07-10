@@ -14,7 +14,7 @@ namespace enishi::platform {
       public:
         virtual ~IRendererInitializer(void) noexcept = default;
 
-        virtual foundation::Result<std::unique_ptr<T>, RenderError> init(
+        virtual foundation::Result<std::shared_ptr<T>, RenderError> init(
             const WindowHandle& window_handle, const types::WindowSize& window_size) = 0;
     };
 } // namespace enishi::platform

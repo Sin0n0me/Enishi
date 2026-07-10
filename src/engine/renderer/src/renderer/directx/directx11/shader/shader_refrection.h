@@ -19,6 +19,14 @@ namespace enishi::renderer::directx {
 
         explicit InputElementDescription(
             std::string&& semantic_name, const D3D11_INPUT_ELEMENT_DESC description);
+        InputElementDescription(const InputElementDescription& other);
+        InputElementDescription(InputElementDescription&& other) noexcept;
+
+        InputElementDescription& operator=(const InputElementDescription& other);
+        InputElementDescription& operator=(InputElementDescription&& other) noexcept;
+
+      private:
+        void fix_pointer(void);
     };
 
     class ShaderReflection {

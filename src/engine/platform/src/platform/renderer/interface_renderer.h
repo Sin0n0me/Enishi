@@ -3,6 +3,7 @@
 #include "interface_image_view.h"
 #include "interface_pipeline_layout.h"
 #include <engine_types/assets/shader/shader_data.h>
+#include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/renderer/description/image_description.h>
 #include <engine_types/renderer/description/image_view_description.h>
@@ -77,7 +78,7 @@ namespace enishi::platform {
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_shader(
-            const types::ShaderData& shader) = 0;
+            const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
 
         virtual void submit_render_graph(const types::RenderGraph& graph) = 0;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <assets_system/interface_asset_system.h>
+#include <assets_system/utility/path_objects.h>
 #include <foundation/result/result.h>
 #include <foundation/str/str.h>
 #include <platform/renderer/interface_renderer.h>
@@ -11,7 +12,7 @@ namespace enishi {
         std::weak_ptr<platform::IRenderer> renderer;
         std::weak_ptr<assets_system::IAssetSystem> asset_system;
         std::unordered_map<foundation::UTF8, types::PipelineDescription> name_to_description;
-        std::unordered_set<std::filesystem::path> shader_paths;
+        assets_system::PathObjects shader_paths;
 
       private:
         explicit RenderPassConstructor(std::weak_ptr<platform::IRenderer> renderer,
@@ -25,5 +26,12 @@ namespace enishi {
 
       private:
         platform::RenderResult<void> find_shader(void);
+        platform::RenderResult<types::RenderHandle> make_input_layout_from_shader(
+            const std::regex& pattern,
+            const std::shared_ptr<platform::IRenderer>& renderer,
+            const std::shared_ptr<assets_system::IAssetSystem>& asset_system);
+        platform::RenderResult<types::RenderHandle> make_shader(const std::regex& pattern,
+            const std::shared_ptr<platform::IRenderer>& renderer,
+            const std::shared_ptr<assets_system::IAssetSystem>& asset_system);
     };
 } // namespace enishi

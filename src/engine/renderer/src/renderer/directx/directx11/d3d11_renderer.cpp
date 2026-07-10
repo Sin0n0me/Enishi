@@ -215,9 +215,6 @@ namespace enishi::renderer::directx {
             pass.commands.emplace_back(shader);
         }
 
-        description.vertex_layout.attributes;
-        description.vertex_layout.bindings;
-
         return pass;
     }
 
@@ -328,9 +325,9 @@ namespace enishi::renderer::directx {
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader(
-        const types::ShaderData& shader) {
+        const types::ShaderKind kind, const types::ShaderData& shader_data) {
         const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_shader(device, shader);
+        const auto result = this->resource_manager.make_shader(device, shader_data);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }

@@ -15,7 +15,7 @@ namespace enishi {
     class Application {
       private:
         std::unique_ptr<platform::IWindow> root_window;
-        std::unique_ptr<platform::IRenderer> renderer;
+        std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<ecs::Registory> rsegistory;
         std::shared_ptr<core::RenderSystem> render_system;
         std::shared_ptr<core::AssetManager> asset_manager;

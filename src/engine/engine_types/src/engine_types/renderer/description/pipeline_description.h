@@ -26,7 +26,7 @@ namespace enishi::types {
 
     struct PipelineDescription {
         std::vector<RenderHandle> shaders;
-        VertexLayout vertex_layout;
+        RenderHandle vertex_layout;
         RenderHandle rasterizer;
         BlendMode blend_mode;
         DepthTestMode depth_test;
@@ -35,7 +35,7 @@ namespace enishi::types {
         [[nodiscard]]
         static constexpr PipelineDescription make_opaque(RenderHandle vs,
             RenderHandle fs,
-            const VertexLayout& layout,
+            const RenderHandle& layout,
             const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
                 .shaders = {vs, fs},
@@ -48,9 +48,9 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static PipelineDescription make_shadow(RenderHandle vs,
-            RenderHandle fs,
-            const VertexLayout& layout,
+        static PipelineDescription make_shadow(const RenderHandle& vs,
+            const RenderHandle& fs,
+            const RenderHandle& layout,
             const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
                 .shaders = {vs, fs},
@@ -62,9 +62,9 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static PipelineDescription make_wireframe(RenderHandle vs,
-            RenderHandle fs,
-            const VertexLayout& layout,
+        static PipelineDescription make_wireframe(const RenderHandle& vs,
+            const RenderHandle& fs,
+            const RenderHandle& layout,
             const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{
                 .shaders = {vs, fs},

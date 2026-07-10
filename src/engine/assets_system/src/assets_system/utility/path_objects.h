@@ -19,7 +19,7 @@ namespace enishi::assets_system {
       public:
         PathObjects(void);
 
-        void add(std::filesystem::path& path);
+        void add(const std::filesystem::path& path);
 
         std::vector<std::filesystem::path> find(const std::regex& pattern) const;
     };

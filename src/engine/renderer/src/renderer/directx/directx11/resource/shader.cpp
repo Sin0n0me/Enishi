@@ -12,33 +12,33 @@ namespace enishi::renderer::directx {
     }
 
     foundation::VoidResult<DirectXError> ShaderPool::create(
-        const types::HandleId id, const ShaderType shader_type) noexcept {
+        const types::HandleId id, const types::ShaderKind shader_kind) noexcept {
         if (this->handle_map.contains(id)) {
             return foundation::Error(DirectXError::ShaderError, "");
         }
 
-        switch (shader_type) {
-            case ShaderType::Vertex: {
+        switch (shader_kind) {
+            case types::ShaderKind::Vertex: {
                 this->vertex_shaders.push_back({});
                 this->handle_map.emplace(id,
                     ShaderInfo{
-                        .shader_type = shader_type,
+                        .shader_type = shader_kind,
                         .index = static_cast<std::uint32_t>(this->vertex_shaders.size()) - 1,
                     });
             } break;
-            case ShaderType::Pixcel: {
+            case types::ShaderKind::Pixel: {
                 this->pixel_shaders.push_back({});
                 this->handle_map.emplace(id,
                     ShaderInfo{
-                        .shader_type = shader_type,
+                        .shader_type = shader_kind,
                         .index = static_cast<std::uint32_t>(this->pixel_shaders.size()) - 1,
                     });
             } break;
-            case ShaderType::Compute: {
+            case types::ShaderKind::Compute: {
                 this->compute_shaders.push_back({});
                 this->handle_map.emplace(id,
                     ShaderInfo{
-                        .shader_type = shader_type,
+                        .shader_type = shader_kind,
                         .index = static_cast<std::uint32_t>(this->compute_shaders.size()) - 1,
                     });
             } break;
@@ -49,7 +49,7 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    foundation::Option<ShaderType> ShaderPool::get_shader_type(
+    foundation::Option<types::ShaderKind> ShaderPool::get_shader_type(
         const types::HandleId id) const noexcept {
         const auto opt_info = this->get_shader_info(id);
         if (opt_info.is_none()) {
@@ -68,7 +68,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Vertex) {
+        if (info.shader_type != types::ShaderKind::Vertex) {
             return {};
         }
 
@@ -83,7 +83,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Pixcel) {
+        if (info.shader_type != types::ShaderKind::Pixel) {
             return {};
         }
         return this->pixel_shaders.at(info.index).Get();
@@ -97,7 +97,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Compute) {
+        if (info.shader_type != types::ShaderKind::Compute) {
             return {};
         }
         return this->compute_shaders.at(info.index).Get();
@@ -111,7 +111,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Vertex) {
+        if (info.shader_type != types::ShaderKind::Vertex) {
             return {};
         }
         return this->vertex_shaders.at(info.index).GetAddressOf();
@@ -125,7 +125,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Pixcel) {
+        if (info.shader_type != types::ShaderKind::Pixel) {
             return {};
         }
         return this->pixel_shaders.at(info.index).GetAddressOf();
@@ -139,7 +139,7 @@ namespace enishi::renderer::directx {
         }
         const auto info = opt_info.unwrap();
 
-        if (info.shader_type != ShaderType::Compute) {
+        if (info.shader_type != types::ShaderKind::Compute) {
             return {};
         }
         return this->compute_shaders.at(info.index).GetAddressOf();

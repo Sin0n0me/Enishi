@@ -1,4 +1,5 @@
 #include "application.h"
+#include "render_pass_constructor.h"
 #include <core/system/animation/animation_system.h>
 #include <foundation/log/logger.h>
 
@@ -32,7 +33,7 @@ namespace enishi {
             return false;
         }
 
-        if (!this->load()) {
+        if (!this->make_render_pass()) {
             return false;
         }
 
@@ -109,7 +110,7 @@ namespace enishi {
             return false;
         }
 
-        this->renderer = std::move(renderer.value());
+        this->renderer = renderer.value();
 
         // this->renderer->create_pipeline();
         types::PipelineDescription{};
@@ -158,90 +159,16 @@ namespace enishi {
     }
 
     bool Application::make_render_pass(void) {
-        if (!this->make_model_render_pass()) {
+        RenderPassConstructor constructor =
+            RenderPassConstructor::make(this->renderer, this->asset_manager);
+
+        auto pass = constructor.make_model_render_pass();
+        if (pass.is_err()) {
+            foundation::Logger::error(pass.error().get_message());
             return false;
         }
 
-        return true;
-    }
-
-    bool Application::load(void) {
-        if (!this->load_models()) {
-            return false;
-        }
-        if (!this->load_shader()) {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool Application::load_models(void) {
-        const auto asset_paths = this->asset_manager->find_models("./assets/models/");
-        if (asset_paths.empty()) {
-            foundation::Logger::warning("モデルファイルが見つかりません");
-        }
-
-        for (const auto& path : asset_paths) {
-            const auto result = this->asset_manager->load_asset(path);
-            if (result.is_err()) {
-                foundation::Logger::error(std::format("load error path: {}, {}",
-                    path.string<char>(),
-                    result.error().get_message("\n")));
-                continue;
-            }
-
-            foundation::Logger::info(std::format("loaded path: {}", path.string<char>()));
-            const auto handle = result.value();
-
-            const auto opt_model_data = this->asset_manager->get_model_data(handle);
-            if (opt_model_data.is_none()) {
-                continue;
-            }
-            const auto& model_data = opt_model_data.unwrap();
-
-            const auto result_mesh = this->renderer->create_mesh(model_data.to_mesh_data());
-            if (result_mesh.is_err()) {
-                foundation::Logger::error("メッシュの作成に失敗しました");
-                continue;
-            }
-            const auto mesh_handle = result_mesh.value();
-        }
-
-        return true;
-    }
-
-    bool Application::load_shader(void) {
-        const auto asset_paths = this->asset_manager->find_shaders("./assets/shader/");
-        if (asset_paths.empty()) {
-            foundation::Logger::warning("シェーダーファイルが見つかりません");
-        }
-
-        for (const auto& path : asset_paths) {
-            const auto result = this->asset_manager->load_asset(path);
-            if (result.is_err()) {
-                foundation::Logger::error(std::format("load error path: {}, {}",
-                    path.string<char>(),
-                    result.error().get_message("\n")));
-                continue;
-            }
-
-            foundation::Logger::info(std::format("loaded path: {}", path.string<char>()));
-            const auto handle = result.value();
-
-            const auto opt_model_data = this->asset_manager->get_shader_data(handle);
-            if (opt_model_data.is_none()) {
-                continue;
-            }
-            const auto& shader_data = opt_model_data.unwrap();
-
-            const auto result_shader = this->renderer->create_shader(shader_data);
-            if (result_shader.is_err()) {
-                foundation::Logger::error("シェーダーの作成に失敗しました");
-                continue;
-            }
-            const auto shader_handle = result_shader.value();
-        }
+        this->render_system->add_render_pass("Model", pass.value());
 
         return true;
     }

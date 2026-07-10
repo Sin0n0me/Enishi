@@ -1,7 +1,7 @@
 #include "d3d11_render_initializer.h"
 
 namespace enishi::renderer::directx {
-    foundation::Result<std::unique_ptr<D3D11Renderer>, platform::RenderError>
+    foundation::Result<std::shared_ptr<D3D11Renderer>, platform::RenderError>
     D3D11RenderInitializer::init(
         const platform::WindowHandle& window_handle, const types::WindowSize& window_size) {
         if (window_handle.tag != platform::WindowSystem::Windows) {
@@ -17,6 +17,6 @@ namespace enishi::renderer::directx {
                 .propagation(platform::RenderError::MakeError);
         }
 
-        return std::make_unique<D3D11Renderer>(std::move(d3d11.value()));
+        return std::make_shared<D3D11Renderer>(std::move(d3d11.value()));
     }
 } // namespace enishi::renderer::directx

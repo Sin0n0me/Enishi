@@ -5,7 +5,7 @@
 namespace enishi::renderer::vulkan {
     class VullkanRenderInitializer : public platform::IRendererInitializer<VulkanRenderer> {
       public:
-        foundation::Result<std::unique_ptr<VulkanRenderer>, platform::RenderError> init(
+        foundation::Result<std::shared_ptr<VulkanRenderer>, platform::RenderError> init(
             const platform::WindowHandle& window_handle,
             const types::WindowSize& window_size) override;
     };

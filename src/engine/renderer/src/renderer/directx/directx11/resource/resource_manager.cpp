@@ -9,7 +9,7 @@ namespace enishi::renderer::directx {
         // shader reflectionでレイアウトを作成
         auto refection = ShaderReflection::make(shader_data);
         if (refection.is_err()) {
-            return refection.error();
+            return refection.add_message("shader reflectionの作成に失敗しました").error();
         }
         auto& refections = refection.value();
 
@@ -71,10 +71,17 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_shader(
-        ID3D11Device* const device, const types::ShaderData& shader_data) {
+    ResourceManager::Result ResourceManager::make_shader(ID3D11Device* const device,
+        const types::ShaderKind kind,
+        const types::ShaderData& shader_data) {
         switch (shader_data.binary_type) {
             case types::ShaderBinaryType::DXBC: {
+                switch (kind) {
+                    case types::ShaderKind::Vertex:
+                        return this->make_vertex_shader(device, shader_data);
+                    default:
+                        break;
+                }
             } break;
             case types::ShaderBinaryType::DXIL: {
             } break;
@@ -388,5 +395,27 @@ namespace enishi::renderer::directx {
 
     const std::vector<D3D11_VIEWPORT>& ResourceManager::get_viewports(void) const {
         return this->resource.viewports;
+    }
+
+    ResourceManager::Result ResourceManager::make_vertex_shader(
+        ID3D11Device* const device, const types::ShaderData& shader_data) {
+        const auto handle = this->handle_allocator.create();
+        auto& shader_pool = this->resource.shaders;
+
+        // 先に作成
+        const auto result = shader_pool.create(handle, types::ShaderKind::Vertex);
+        if (result.is_err()) {
+            return result.error();
+        };
+
+        const HRESULT hr = device->CreateVertexShader(shader_data.code.data(),
+            shader_data.code.size(),
+            nullptr,
+            shader_pool.get_address_vertex_shader(handle).unwrap());
+        if (FAILED(hr)) {
+            return foundation::Error(DirectXError::ShaderError);
+        }
+
+        return Result();
     }
 } // namespace enishi::renderer::directx

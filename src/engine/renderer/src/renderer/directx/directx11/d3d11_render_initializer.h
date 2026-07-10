@@ -6,7 +6,7 @@
 namespace enishi::renderer::directx {
     class D3D11RenderInitializer : public platform::IRendererInitializer<D3D11Renderer> {
       public:
-        foundation::Result<std::unique_ptr<D3D11Renderer>, platform::RenderError> init(
+        foundation::Result<std::shared_ptr<D3D11Renderer>, platform::RenderError> init(
             const platform::WindowHandle& window_handle,
             const types::WindowSize& window_size) override;
     };

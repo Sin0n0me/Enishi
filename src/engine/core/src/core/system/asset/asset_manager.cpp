@@ -16,6 +16,24 @@ namespace enishi::core {
         return ptr;
     }
 
+    foundation::UTF8 make_extension_regex(const std::vector<foundation::UTF8>& extensions) {
+        constexpr std::string_view REGEX_PREFIX = "(";
+        constexpr std::string_view REGEX_SUFFIX = ")$";
+
+        // `.` + 1文字以上という前提
+        foundation::UTF8 pattern(REGEX_PREFIX);
+        for (std::size_t i = 0; i < extensions.size(); ++i) {
+            if (i != 0) {
+                pattern += '|';
+            }
+            pattern += "\\"; // 先頭の`.`のみエスケープ
+            pattern += extensions[i];
+        }
+        pattern += REGEX_SUFFIX;
+
+        return pattern;
+    }
+
     AssetManager::AssetManager(void) {
         this->asset_type_to_loader[assets_system::AssetType::Model] =
             insert<assets_system::ModelLoader>(this->extension_to_loader);
@@ -88,10 +106,9 @@ namespace enishi::core {
         return foundation::Option<const std::filesystem::path&>();
     }
 
-    std::vector<std::filesystem::path> AssetManager::find_assets(
-        const std::filesystem::path& target_path,
+    assets_system::PathObjects AssetManager::find_assets(const std::filesystem::path& target_path,
         const std::unordered_set<std::filesystem::path>& target_extensions) const noexcept {
-        std::vector<std::filesystem::path> matched_files;
+        assets_system::PathObjects matched_files;
         std::vector<std::filesystem::path> directory_stack;
         std::error_code ec;
 
@@ -100,6 +117,7 @@ namespace enishi::core {
         if (!std::filesystem::is_directory(root_path, ec) || ec) {
             foundation::Logger::warning(
                 std::format("not a directory. find path: {}", target_path.string<char>()));
+
             return matched_files;
         }
 
@@ -126,7 +144,7 @@ namespace enishi::core {
                     directory_stack.push_back(entry.path());
                 } else if (std::filesystem::is_regular_file(status)) {
                     if (target_extensions.contains(entry.path().extension())) {
-                        matched_files.push_back(entry.path().string());
+                        matched_files.add(entry.path());
                     }
                 }
             }
@@ -135,45 +153,26 @@ namespace enishi::core {
         return matched_files;
     }
 
-    std::vector<std::filesystem::path> AssetManager::find_models(
+    assets_system::PathObjects AssetManager::find_models(
         const std::filesystem::path& target_path) const noexcept {
-        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Model);
-        if (iter == this->asset_type_to_loader.end()) {
-            return {};
-        }
-        const auto& extensions = iter->second->get_supported_extension();
-
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Model);
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
 
-    std::vector<std::filesystem::path> AssetManager::find_shaders(
+    assets_system::PathObjects AssetManager::find_shaders(
         const std::filesystem::path& target_path) const noexcept {
-        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Shader);
-        if (iter == this->asset_type_to_loader.end()) {
-            return {};
-        }
-        const auto& extensions = iter->second->get_supported_extension();
-
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Shader);
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
-    std::vector<std::filesystem::path> AssetManager::find_textures(
-        const std::filesystem::path& target_path) const noexcept {
-        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Texture);
-        if (iter == this->asset_type_to_loader.end()) {
-            return {};
-        }
-        const auto& extensions = iter->second->get_supported_extension();
 
+    assets_system::PathObjects AssetManager::find_textures(
+        const std::filesystem::path& target_path) const noexcept {
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Texture);
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
-    std::vector<std::filesystem::path> AssetManager::find_scripts(
+    assets_system::PathObjects AssetManager::find_scripts(
         const std::filesystem::path& target_path) const noexcept {
-        const auto iter = this->asset_type_to_loader.find(assets_system::AssetType::Script);
-        if (iter == this->asset_type_to_loader.end()) {
-            return {};
-        }
-        const auto& extensions = iter->second->get_supported_extension();
-
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Script);
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
 
@@ -190,6 +189,26 @@ namespace enishi::core {
     foundation::Option<const types::TextureData&> AssetManager::get_texture_data(
         const assets_system::AssetHandle& handle) const noexcept {
         return this->asset_registory.get<types::TextureData>(handle.id);
+    }
+
+    foundation::UTF8 core::AssetManager::model_extensions_pattern(void) const noexcept {
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Model);
+        return make_extension_regex(extensions);
+    }
+
+    foundation::UTF8 core::AssetManager::shader_extensions_pattern(void) const noexcept {
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Shader);
+        return make_extension_regex(extensions);
+    }
+
+    foundation::UTF8 core::AssetManager::texture_extensions_pattern(void) const noexcept {
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Texture);
+        return make_extension_regex(extensions);
+    }
+
+    foundation::UTF8 core::AssetManager::script_extensions_pattern(void) const noexcept {
+        const auto& extensions = this->get_extensions(assets_system::AssetType::Script);
+        return make_extension_regex(extensions);
     }
 
     void core::AssetManager::update(const types::DeltaTime& delta_time) {
@@ -217,7 +236,7 @@ namespace enishi::core {
         }
         return assets_system::AssetHandle{
             .id = asset_id.value(),
-            .type = assets_system::AssetType::Model,
+            .type = assets_system::AssetType::Shader,
         };
     }
 
@@ -230,8 +249,18 @@ namespace enishi::core {
         }
         return assets_system::AssetHandle{
             .id = asset_id.value(),
-            .type = assets_system::AssetType::Model,
+            .type = assets_system::AssetType::Texture,
         };
+    }
+
+    std::vector<foundation::UTF8> core::AssetManager::get_extensions(
+        const assets_system::AssetType asset_type) const {
+        const auto iter = this->asset_type_to_loader.find(asset_type);
+        if (iter == this->asset_type_to_loader.end()) {
+            return {};
+        }
+
+        return iter->second->get_supported_extension();
     }
 
     std::unordered_set<std::filesystem::path> AssetManager::convert_hash_set(

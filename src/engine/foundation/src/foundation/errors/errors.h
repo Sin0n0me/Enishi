@@ -44,5 +44,12 @@ namespace enishi ::foundation {
             next_err.message = this->message;
             return next_err;
         }
+
+        template <typename T> Error<T> propagation(const T new_error, const UTF8& message) const {
+            Error<T> next_err = Error<T>(new_error);
+            next_err.message = this->message;
+            next_err.message.push_back(message);
+            return next_err;
+        }
     };
 } // namespace enishi::foundation

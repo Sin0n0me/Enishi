@@ -3,6 +3,7 @@
 #include "gpu_resource.h"
 #include "mesh.h"
 #include <engine_types/assets/shader/shader_data.h>
+#include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/handle/handle_allocator.h>
 #include <engine_types/renderer/description/image_description.h>
@@ -34,8 +35,9 @@ namespace enishi::renderer::directx {
             ID3D11Device* const device, const types::ShaderData& shader_data);
         [[nodiscard]] Result make_mesh(
             ID3D11Device* const device, const types::MeshData& mesh_data);
-        [[nodiscard]] Result make_shader(
-            ID3D11Device* const device, const types::ShaderData& shader_data);
+        [[nodiscard]] Result make_shader(ID3D11Device* const device,
+            const types::ShaderKind kind,
+            const types::ShaderData& shader_data);
         [[nodiscard]] Result make_texture(
             ID3D11Device* const device, const types::TextureData& texture_data);
         [[nodiscard]] Result make_vertex_buffer(
@@ -71,5 +73,9 @@ namespace enishi::renderer::directx {
         [[nodiscard]] const ShaderPool& get_shader_pool(void) const;
         [[nodiscard]] const ViewPool& get_view_pool(void) const;
         [[nodiscard]] const std::vector<D3D11_VIEWPORT>& get_viewports(void) const;
+
+      private:
+        [[nodiscard]] Result make_vertex_shader(
+            ID3D11Device* const device, const types::ShaderData& shader_data);
     };
 } // namespace enishi::renderer::directx

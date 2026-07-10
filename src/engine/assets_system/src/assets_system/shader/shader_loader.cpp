@@ -48,8 +48,8 @@ namespace enishi::assets_system {
     }
 
     std::vector<foundation::UTF8> ShaderLoader::get_supported_extension(void) const noexcept {
-        std::vector<foundation::UTF8> extensions(this->supported_extension.size());
-
+        std::vector<foundation::UTF8> extensions;
+        extensions.reserve(this->supported_extension.size());
         for (const auto& [extension, _] : this->supported_extension) {
             extensions.push_back(extension);
         }
