@@ -112,9 +112,6 @@ namespace enishi {
 
         this->renderer = renderer.value();
 
-        // this->renderer->create_pipeline();
-        types::PipelineDescription{};
-
         const auto rect = types::ViewportRect{
             .left_top_x = 0.0,
             .left_top_y = 0.0,
@@ -124,36 +121,6 @@ namespace enishi {
             .max_depth = 1.0,
         };
         this->renderer->create_viewport(rect);
-
-        //
-        {
-            const auto rtv_image_desc = types::ImageDescription::make_render_target(
-                {window_size.width, window_size.height});
-            auto result_image = this->renderer->create_image(rtv_image_desc);
-            if (result_image.is_err()) {
-                return false;
-            }
-
-            const auto image_view_desc = types::ImageViewDescription{};
-            auto result_rtv =
-                this->renderer->create_render_target_view(result_image.value(), image_view_desc);
-            if (result_rtv.is_err()) {
-                return false;
-            }
-
-            if (const auto& rtv = result_rtv.value().lock()) {
-                rtv->set_clear_color(CLEAR_COLOR);
-            }
-        }
-
-        {
-            types::RasterizerDescription description =
-                types::RasterizerDescription::default_solid();
-            auto result = this->renderer->create_rasterizer(description);
-            if (result.is_err()) {
-                return false;
-            }
-        }
 
         return true;
     }

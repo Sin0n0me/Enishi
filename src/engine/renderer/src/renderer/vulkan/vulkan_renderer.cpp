@@ -12,7 +12,7 @@ namespace enishi::renderer::vulkan {
     }
 
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_shader(
-        const types::ShaderData& shader) {
+        const types::ShaderKind kind, const types::ShaderData& shader) {
         return {};
     }
 

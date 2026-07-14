@@ -5,50 +5,49 @@
 #include <ranges>
 
 namespace enishi::renderer::directx {
-    void D3D11Renderer::execute(
-        ID3D11DeviceContext* const context, const types::DrawCommand& command) const {
-        this->bind_handle(context, command.handle);
+    void D3D11Renderer::execute(const types::DrawCommand& command) const {
+        this->bind_handle(command.handle);
     }
 
-    void D3D11Renderer::bind_handle(
-        ID3D11DeviceContext* const context, const types::RenderHandle handle) const {
+    void D3D11Renderer::bind_handle(const types::RenderHandle handle) const {
         const auto id = handle.id;
+
         switch (handle.type) {
             case types::RenderHandleType::Buffer: {
-                const auto& opt_buffer = this->resource_manager.get_buffer(id);
+                const auto& opt_buffer = this->resource_manager->get_buffer(id);
                 if (!opt_buffer.has_value()) {
                     return;
                 }
                 const auto& buffer = opt_buffer.value();
-                this->bind_buffer(context, buffer);
+                this->bind_buffer(buffer);
             } break;
             case types::RenderHandleType::Shader: {
-                this->bind_shader(context, id);
+                this->bind_shader(id);
             } break;
             case types::RenderHandleType::Mesh: {
-                this->bind_mesh(context, id);
+                this->bind_mesh(id);
             } break;
             case types::RenderHandleType::Texture: {
             } break;
             case types::RenderHandleType::View: {
-                this->bind_render_target(context, id);
+                this->bind_render_target(id);
             } break;
             case types::RenderHandleType::Rasterizer: {
-                this->bind_rasterizer(context, id);
+                this->bind_rasterizer(id);
             } break;
             case types::RenderHandleType::Topology: {
-                this->bind_topology(context, id);
+                this->bind_topology(id);
             } break;
             case types::RenderHandleType::InputLayout: {
-                this->bind_input_layout(context, id);
+                this->bind_input_layout(id);
             } break;
             default:
                 break;
         }
     }
 
-    void D3D11Renderer::bind_buffer(
-        ID3D11DeviceContext* const context, const Buffer& buffer) const {
+    void D3D11Renderer::bind_buffer(const Buffer& buffer) const {
+        const auto context = this->d3d11->get_context();
         if (const auto vertex = std::get_if<VertexParameter>(&buffer.parameter)) {
             context->IASetVertexBuffers(vertex->target_slot,
                 1,
@@ -77,49 +76,49 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::bind_shader(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
-        const auto& pool = this->resource_manager.get_shader_pool();
+    void D3D11Renderer::bind_shader(const types::HandleId id) const {
+        const auto& pool = this->resource_manager->get_shader_pool();
         const auto opt_type = pool.get_shader_type(id);
         if (opt_type.is_none()) {
             return;
         }
 
+        const auto context = this->d3d11->get_context();
         switch (opt_type.value()) {
-            case ShaderType::Vertex: {
+            case types::ShaderKind::Vertex: {
                 const auto opt_shader = pool.get_vertex_shader(id);
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->VSSetShader(opt_shader.value(), nullptr, 0);
+                context->VSSetShader(opt_shader.value().Get(), nullptr, 0);
             } break;
-            case ShaderType::Pixcel: {
+            case types::ShaderKind::Pixel: {
                 const auto opt_shader = pool.get_pixel_shader(id);
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->PSSetShader(opt_shader.value(), nullptr, 0);
+                context->PSSetShader(opt_shader.value().Get(), nullptr, 0);
             } break;
-            case ShaderType::Compute: {
+            case types::ShaderKind::Compute: {
                 const auto opt_shader = pool.get_compute_shader(id);
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->CSSetShader(opt_shader.value(), nullptr, 0);
+                context->CSSetShader(opt_shader.value().Get(), nullptr, 0);
             } break;
             default:
                 break;
         }
     }
 
-    void D3D11Renderer::bind_render_target(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
-        const auto& view_pool = this->resource_manager.get_view_pool();
+    void D3D11Renderer::bind_render_target(const types::HandleId id) const {
+        const auto& view_pool = this->resource_manager->get_view_pool();
         const auto opt_type = view_pool.get_view_type(id);
         if (opt_type.is_none()) {
             return;
         }
 
+        const auto context = this->d3d11->get_context();
         switch (opt_type.value()) {
             case types::ImageViewType::DepthStencil: {
                 const auto opt_view = view_pool.get_depth_stencil_view(id);
@@ -145,60 +144,62 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::bind_rasterizer(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
-        const auto opt_rasterizer = this->resource_manager.get_rasterizer(id);
+    void D3D11Renderer::bind_rasterizer(const types::HandleId id) const {
+        const auto opt_rasterizer = this->resource_manager->get_rasterizer(id);
         if (opt_rasterizer.is_none()) {
             return;
         }
 
+        const auto context = this->d3d11->get_context();
         const auto& rasterizer = opt_rasterizer.unwrap();
         context->RSSetState(rasterizer.Get());
     }
 
-    void D3D11Renderer::bind_mesh(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
-        const auto& opt_mesh = this->resource_manager.get_mesh(id);
+    void D3D11Renderer::bind_mesh(const types::HandleId id) const {
+        const auto& opt_mesh = this->resource_manager->get_mesh(id);
         if (opt_mesh.is_none()) {
             return;
         }
         const auto& mesh = opt_mesh.unwrap();
 
         for (const auto handle : mesh.mesh_handles) {
-            this->bind_handle(context, handle);
+            this->bind_handle(handle);
         }
     }
 
-    void D3D11Renderer::bind_topology(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
+    void D3D11Renderer::bind_topology(const types::HandleId id) const {
         const auto topology = static_cast<types::PrimitiveTopology>(id);
         const auto d3d11_topology = D3D11Converter::to_topology(topology);
         if (d3d11_topology == D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED) {
             return;
         }
 
+        const auto context = this->d3d11->get_context();
         context->IASetPrimitiveTopology(d3d11_topology);
     }
 
-    void D3D11Renderer::bind_input_layout(
-        ID3D11DeviceContext* const context, const types::HandleId id) const {
-        const auto opt_input_layout = this->resource_manager.get_input_layout(id);
+    void D3D11Renderer::bind_input_layout(const types::HandleId id) const {
+        const auto opt_input_layout = this->resource_manager->get_input_layout(id);
         if (opt_input_layout.is_none()) {
             return;
         }
 
+        const auto context = this->d3d11->get_context();
         const auto& input_layout = opt_input_layout.unwrap();
         context->IASetInputLayout(input_layout.Get());
     }
 
     D3D11Renderer::D3D11Renderer(std::unique_ptr<D3D11> d3d11)
-        : d3d11(std::move(d3d11))
-        , resource_manager(ResourceManager{}) {
+        : d3d11(std::move(d3d11)) {
+        this->resource_manager = std::make_unique<ResourceManager>(this->d3d11);
     }
 
     platform::RenderResult<types::RenderPass> D3D11Renderer::create_render_pass(
         const types::PipelineDescription& description) {
         types::RenderPass pass{};
+
+        // RTVの追加
+        pass.render_target = description.render_target;
 
         // トポロジの追加
         pass.commands.emplace_back(types::RenderHandle{
@@ -209,8 +210,11 @@ namespace enishi::renderer::directx {
         // ラスタライザの追加
         pass.commands.emplace_back(description.rasterizer);
 
+        // 頂点レイアウトの追加
+        pass.commands.emplace_back(description.vertex_layout);
+
         // シェーダーの追加
-        const auto& shader_pool = this->resource_manager.get_shader_pool();
+        const auto& shader_pool = this->resource_manager->get_shader_pool();
         for (const auto& shader : description.shaders) {
             pass.commands.emplace_back(shader);
         }
@@ -220,7 +224,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_viewport(
         const types::ViewportRect& config) {
-        const auto result = this->resource_manager.make_viewport(config);
+        const auto result = this->resource_manager->make_viewport(config);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -236,9 +240,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_pipeline_layout_from_shader(
         const types::ShaderData& shader_data) {
-        const auto device = this->d3d11->get_device();
-        const auto result =
-            this->resource_manager.make_input_layout_from_shader(device, shader_data);
+        const auto result = this->resource_manager->make_input_layout_from_shader(shader_data);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -248,8 +250,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_rasterizer(
         const types::RasterizerDescription& description) {
-        const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_rasterizer(device, description);
+        const auto result = this->resource_manager->make_rasterizer(description);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -259,8 +260,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_image(
         const types::ImageDescription& description) {
-        const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_image(device, description);
+        const auto result = this->resource_manager->make_image(description);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -271,9 +271,8 @@ namespace enishi::renderer::directx {
     platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
     D3D11Renderer::create_render_target_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        const auto device = this->d3d11->get_device();
         const auto result =
-            this->resource_manager.make_render_target_view(device, image_handle, description);
+            this->resource_manager->make_render_target_view(image_handle, description);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -304,8 +303,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(
         const types::MeshData& mesh) {
-        const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_mesh(device, mesh);
+        const auto result = this->resource_manager->make_mesh(mesh);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -315,8 +313,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_texture(
         const types::TextureData& texture) {
-        const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_texture(device, texture);
+        const auto result = this->resource_manager->make_texture(texture);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -326,8 +323,7 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
-        const auto device = this->d3d11->get_device();
-        const auto result = this->resource_manager.make_shader(device, shader_data);
+        const auto result = this->resource_manager->make_shader(kind, shader_data);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -337,10 +333,10 @@ namespace enishi::renderer::directx {
 
     void D3D11Renderer::submit_render_graph(const types::RenderGraph& graph) {
         const auto& context = this->d3d11->get_context();
-        const auto& view_pool = this->resource_manager.get_view_pool();
+        const auto& view_pool = this->resource_manager->get_view_pool();
 
         // ビューポートのセット
-        const auto& viewports = this->resource_manager.get_viewports();
+        const auto& viewports = this->resource_manager->get_viewports();
         context->RSSetViewports(viewports.size(), viewports.data());
 
         // レンダーターゲットのクリア
@@ -360,7 +356,7 @@ namespace enishi::renderer::directx {
         // 各パイプラインに応じた描画コマンド実行
         for (const auto& pass : graph.passes) {
             for (const auto& command : pass.commands) {
-                this->execute(context, command);
+                this->execute(command);
             }
         }
     }

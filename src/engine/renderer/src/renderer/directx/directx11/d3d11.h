@@ -1,5 +1,6 @@
 #pragma once
 #include "../../errors/errors.h"
+#include "interface_d3d11_context.h"
 #include <d3d11.h>
 #include <dcomp.h>
 #include <engine_types/window/window_types.h>
@@ -8,7 +9,7 @@
 #include <wrl/client.h>
 
 namespace enishi::renderer::directx {
-    class D3D11 {
+    class D3D11 : public ID3D11Context {
       private:
         Microsoft::WRL::ComPtr<IDXGIDevice> dxgi_device;
         Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
@@ -35,8 +36,11 @@ namespace enishi::renderer::directx {
         static foundation::Result<std::unique_ptr<D3D11>, DirectXError> make(
             const HWND hwnd, const types::WindowSize& size);
 
-        [[nodiscard]] ID3D11Device* get_device(void) const;
-        [[nodiscard]] ID3D11DeviceContext* get_context(void) const;
-        [[nodiscard]] IDXGISwapChain1* get_swap_chain(void) const;
+        Microsoft::WRL::ComPtr<ID3D11Device> get_device(void) const override;
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext> get_context(void) const override;
+        Microsoft::WRL::ComPtr<IDXGISwapChain1> get_swap_chain(void) const override;
+        ID3D11Device* get_device_ptr(void) const override;
+        ID3D11DeviceContext* get_context_ptr(void) const override;
+        IDXGISwapChain1* get_swap_chain_ptr(void) const override;
     };
 } // namespace enishi::renderer::directx

@@ -176,15 +176,27 @@ namespace enishi::renderer::directx {
         return d3d11;
     }
 
-    ID3D11Device* D3D11::get_device(void) const {
+    Microsoft::WRL::ComPtr<ID3D11Device> D3D11::get_device(void) const {
+        return this->device;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> D3D11::get_context(void) const {
+        return this->context;
+    }
+
+    Microsoft::WRL::ComPtr<IDXGISwapChain1> D3D11::get_swap_chain(void) const {
+        return this->dxgi_swap_chain;
+    }
+
+    ID3D11Device* D3D11::get_device_ptr(void) const {
         return this->device.Get();
     }
 
-    ID3D11DeviceContext* D3D11::get_context(void) const {
+    ID3D11DeviceContext* D3D11::get_context_ptr(void) const {
         return this->context.Get();
     }
 
-    IDXGISwapChain1* D3D11::get_swap_chain(void) const {
+    IDXGISwapChain1* D3D11::get_swap_chain_ptr(void) const {
         return this->dxgi_swap_chain.Get();
     }
 } // namespace enishi::renderer::directx

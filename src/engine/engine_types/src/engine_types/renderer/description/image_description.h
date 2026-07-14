@@ -12,6 +12,7 @@ namespace enishi::types {
         UnorderedAccess = 1 << 3, // UAV として使う
         TransferSrc = 1 << 4,     // コピー元
         TransferDst = 1 << 5,     // コピー先
+        BackBuffer = 1 << 6,      // バックバッファから
     };
 
     // ビット演算を使えるようにする
@@ -30,40 +31,51 @@ namespace enishi::types {
         glm::ivec2 size;
         ImageFormat format;
         ImageUsage usage;
-        std::uint32_t mip_levels = 1;
-        std::uint32_t array_layers = 1;
-        std::uint32_t samples = 1; // MSAA サンプル数
+        std::uint32_t mip_levels;
+        std::uint32_t array_layers;
+        std::uint32_t samples; // MSAA サンプル数
+
+        [[nodiscard]]
+        bool contains(const ImageUsage flag) const noexcept {
+            return has_usage(this->usage, flag);
+        }
+
+        [[nodiscard]]
+        static constexpr ImageDescription make_default(
+            const glm::ivec2& size, const ImageFormat& format, const ImageUsage& usage) noexcept {
+            return ImageDescription{
+                .size = size,
+                .format = format,
+                .usage = usage,
+                .mip_levels = 1,
+                .array_layers = 1,
+                .samples = 1,
+            };
+        }
 
         [[nodiscard]]
         static constexpr ImageDescription make_render_target(
             const glm::ivec2& size, const ImageFormat format = ImageFormat::RGBA8_UNORM) noexcept {
-            return ImageDescription{
-                .size = size,
-                .format = format,
-                .usage = ImageUsage::RenderTarget | ImageUsage::ShaderResource,
-            };
+            return ImageDescription::make_default(
+                size, format, ImageUsage::RenderTarget | ImageUsage::ShaderResource);
         }
 
         [[nodiscard]]
         static constexpr ImageDescription make_depth_stencil(
             const glm::ivec2& size, const ImageFormat format = ImageFormat::D32_FLOAT) noexcept {
-            return ImageDescription{
-                .size = size,
-                .format = format,
-                .usage = ImageUsage::DepthStencil | ImageUsage::ShaderResource,
-            };
+            return ImageDescription::make_default(
+                size, format, ImageUsage::DepthStencil | ImageUsage::ShaderResource);
         }
 
         [[nodiscard]]
         static constexpr ImageDescription make_texture(const glm::ivec2& size,
             const ImageFormat format = ImageFormat::RGBA8_UNORM,
             const std::uint32_t mip_levels = 1) noexcept {
-            return ImageDescription{
-                .size = size,
-                .format = format,
-                .usage = ImageUsage::ShaderResource | ImageUsage::TransferDst,
-                .mip_levels = mip_levels,
-            };
+            auto description = ImageDescription::make_default(
+                size, format, ImageUsage::ShaderResource | ImageUsage::ShaderResource);
+            description.mip_levels = mip_levels;
+
+            return description;
         }
     };
 } // namespace enishi::types

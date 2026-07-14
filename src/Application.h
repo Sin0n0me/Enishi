@@ -1,4 +1,5 @@
 #pragma once
+#include "settings.h"
 #include <core/system/asset/asset_manager.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
@@ -8,10 +9,6 @@
 #include <ui/ui.h>
 
 namespace enishi {
-    constexpr char APPLICATION_NAME[] = "enishi";
-    constexpr glm::vec4 CLEAR_COLOR = glm::vec4{0.0f, 0.0f, 0.0f, 0.0f};
-    constexpr glm::ivec2 WINDOW_SIZE = glm::ivec2{200, 400};
-
     class Application {
       private:
         std::unique_ptr<platform::IWindow> root_window;

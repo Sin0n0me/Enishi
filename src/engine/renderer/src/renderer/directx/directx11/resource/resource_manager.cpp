@@ -4,8 +4,12 @@
 #include <renderer/directx/directx11/shader/shader_refrection.h>
 
 namespace enishi::renderer::directx {
+    ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
+        : context(context) {
+    }
+
     ResourceManager::Result ResourceManager::make_input_layout_from_shader(
-        ID3D11Device* const device, const types::ShaderData& shader_data) {
+        const types::ShaderData& shader_data) {
         // shader reflectionでレイアウトを作成
         auto refection = ShaderReflection::make(shader_data);
         if (refection.is_err()) {
@@ -21,6 +25,7 @@ namespace enishi::renderer::directx {
                                     std::ranges::to<std::vector>();
 
         Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateInputLayout(input_elements.data(),
             static_cast<uint32_t>(input_elements.size()),
             shader_data.code.data(),
@@ -40,11 +45,10 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_mesh(
-        ID3D11Device* const device, const types::MeshData& mesh_data) {
+    ResourceManager::Result ResourceManager::make_mesh(const types::MeshData& mesh_data) {
         // 頂点バッファ作成
         auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto vertex_result = this->make_vertex_buffer(device, mesh_data.vertices);
+        auto vertex_result = this->make_vertex_buffer(mesh_data.vertices);
         if (vertex_result.is_err()) {
             return vertex_result.add_message("メッシュの作成に失敗しました").error();
         }
@@ -52,7 +56,7 @@ namespace enishi::renderer::directx {
 
         // インデックスバッファ作成
         auto index_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto index_result = this->make_index_buffer(device, mesh_data.indices);
+        auto index_result = this->make_index_buffer(mesh_data.indices);
         if (index_result.is_err()) {
             return index_result.add_message("メッシュの作成に失敗しました").error();
         }
@@ -71,17 +75,11 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_shader(ID3D11Device* const device,
-        const types::ShaderKind kind,
-        const types::ShaderData& shader_data) {
+    ResourceManager::Result ResourceManager::make_shader(
+        const types::ShaderKind kind, const types::ShaderData& shader_data) {
         switch (shader_data.binary_type) {
             case types::ShaderBinaryType::DXBC: {
-                switch (kind) {
-                    case types::ShaderKind::Vertex:
-                        return this->make_vertex_shader(device, shader_data);
-                    default:
-                        break;
-                }
+                return this->make_shader_from_dxbc(kind, shader_data);
             } break;
             case types::ShaderBinaryType::DXIL: {
             } break;
@@ -91,18 +89,16 @@ namespace enishi::renderer::directx {
                 break;
         }
 
-        return Result();
+        return foundation::Error(DirectXError::ShaderError);
     }
 
-    ResourceManager::Result ResourceManager::make_texture(
-        ID3D11Device* const device, const types::TextureData& texture_data) {
+    ResourceManager::Result ResourceManager::make_texture(const types::TextureData& texture_data) {
         texture_data.format;
 
         return Result();
     }
 
-    ResourceManager::Result ResourceManager::make_vertex_buffer(
-        ID3D11Device* const device, const types::RenderData& data) {
+    ResourceManager::Result ResourceManager::make_vertex_buffer(const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -119,9 +115,7 @@ namespace enishi::renderer::directx {
             .target_slot = 0,
         }};
 
-        Microsoft::WRL::ComPtr<ID3D11Buffer> test_buffer{};
-        const auto hoge = test_buffer.GetAddressOf();
-
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "頂点バッファの作成に失敗しました");
@@ -136,8 +130,7 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_index_buffer(
-        ID3D11Device* const device, const types::RenderData& data) {
+    ResourceManager::Result ResourceManager::make_index_buffer(const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -163,6 +156,7 @@ namespace enishi::renderer::directx {
         }(data.stride);
 
         Buffer buffer{IndexParameter{.format = format}};
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
@@ -178,8 +172,7 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_constant_buffer(
-        ID3D11Device* const device, const types::RenderData& data) {
+    ResourceManager::Result ResourceManager::make_constant_buffer(const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -197,6 +190,7 @@ namespace enishi::renderer::directx {
             .target_shader = ShaderType::Vertex,
             .target_slot = 0,
         }};
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "定数バッファの作成に失敗しました");
@@ -211,10 +205,8 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_texture(ID3D11Device* const device,
-        const types::RenderData& data,
-        const std::uint32_t width,
-        const std::uint32_t height) {
+    ResourceManager::Result ResourceManager::make_texture(
+        const types::RenderData& data, const std::uint32_t width, const std::uint32_t height) {
         const D3D11_SUBRESOURCE_DATA subresource{
             .pSysMem = data.raw_data(),
             .SysMemPitch = width * data.stride,
@@ -235,6 +227,7 @@ namespace enishi::renderer::directx {
         Texture texture{
             .texture_type = TextureType::Texture2D,
         };
+        const auto device = this->context->get_device();
         const HRESULT hr =
             device->CreateTexture2D(&desc, &subresource, texture.texture.GetAddressOf());
         if (FAILED(hr)) {
@@ -251,16 +244,28 @@ namespace enishi::renderer::directx {
     }
 
     ResourceManager::Result ResourceManager::make_image(
-        ID3D11Device* const device, const types::ImageDescription& description) {
-        const auto desc = D3D11Converter::to_texture2d_desc(description);
-
+        const types::ImageDescription& description) {
         // 先に作成
         Texture texture{
             .texture_type = TextureType::Texture2D,
         };
-        const HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.texture.GetAddressOf());
-        if (FAILED(hr)) {
-            return foundation::Error(DirectXError::BufferError, "イメージの作成に失敗しました");
+        const auto desc = D3D11Converter::to_texture2d_desc(description);
+
+        if (description.contains(types::ImageUsage::BackBuffer)) {
+            const auto swap_chain = this->context->get_swap_chain();
+            const HRESULT hr =
+                swap_chain->GetBuffer(0, IID_PPV_ARGS(texture.texture.GetAddressOf()));
+            if (FAILED(hr)) {
+                return foundation::Error(
+                    DirectXError::BufferError, "バックバッファの取得に失敗しました");
+            }
+        } else {
+            const auto device = this->context->get_device();
+            const HRESULT hr =
+                device->CreateTexture2D(&desc, nullptr, texture.texture.GetAddressOf());
+            if (FAILED(hr)) {
+                return foundation::Error(DirectXError::BufferError, "イメージの作成に失敗しました");
+            }
         }
 
         const types::HandleId handle = this->handle_allocator.create();
@@ -273,10 +278,11 @@ namespace enishi::renderer::directx {
     }
 
     ResourceManager::Result ResourceManager::make_rasterizer(
-        ID3D11Device* const device, const types::RasterizerDescription& description) {
+        const types::RasterizerDescription& description) {
         const auto desc = D3D11Converter::to_rasterizer_desc(description);
 
         Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer;
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateRasterizerState(&desc, rasterizer.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
@@ -294,9 +300,8 @@ namespace enishi::renderer::directx {
         return Result();
     }
 
-    ResourceManager::Result ResourceManager::make_render_target_view(ID3D11Device* const device,
-        const types::RenderHandle& image_handle,
-        const types::ImageViewDescription& description) {
+    ResourceManager::Result ResourceManager::make_render_target_view(
+        const types::RenderHandle& image_handle, const types::ImageViewDescription& description) {
         //
         if (image_handle.type != types::RenderHandleType::Texture) {
             return foundation::Error(DirectXError::TargetError, "不正なハンドルです");
@@ -321,6 +326,7 @@ namespace enishi::renderer::directx {
             return result.propagation(DirectXError::TargetError);
         }
         auto rtv = opt_rtv.value();
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateRenderTargetView(texture.Get(), nullptr, rtv);
         if (FAILED(hr)) {
             return foundation::Error(
@@ -397,25 +403,83 @@ namespace enishi::renderer::directx {
         return this->resource.viewports;
     }
 
-    ResourceManager::Result ResourceManager::make_vertex_shader(
-        ID3D11Device* const device, const types::ShaderData& shader_data) {
+    ResourceManager::Result ResourceManager::make_shader_from_dxbc(
+        const types::ShaderKind kind, const types::ShaderData& shader_data) {
         const auto handle = this->handle_allocator.create();
+
+        foundation::VoidResult<DirectXError> result = foundation::Error(DirectXError::ShaderError);
+        switch (kind) {
+            case types::ShaderKind::Vertex: {
+                result = this->make_vertex_shader(shader_data, handle);
+            } break;
+            case types::ShaderKind::Pixel: {
+                result = this->make_pixel_shader(shader_data, handle);
+            } break;
+            default:
+                break;
+        }
+
+        // エラーがあればハンドルは削除
+        if (result.is_err()) {
+            this->handle_allocator.destroy(handle);
+            return result.error();
+        }
+
+        return types::RenderHandle{
+            .id = handle,
+            .type = types::RenderHandleType::Shader,
+        };
+    }
+
+    foundation::VoidResult<DirectXError> ResourceManager::make_vertex_shader(
+
+        const types::ShaderData& shader_data, const types::HandleId handle) {
         auto& shader_pool = this->resource.shaders;
 
         // 先に作成
         const auto result = shader_pool.create(handle, types::ShaderKind::Vertex);
         if (result.is_err()) {
+            this->handle_allocator.destroy(handle);
             return result.error();
         };
 
+        auto opt_shader = shader_pool.get_vertex_shader(handle);
+        const auto device = this->context->get_device();
         const HRESULT hr = device->CreateVertexShader(shader_data.code.data(),
             shader_data.code.size(),
             nullptr,
-            shader_pool.get_address_vertex_shader(handle).unwrap());
+            opt_shader.unwrap_mut().GetAddressOf());
         if (FAILED(hr)) {
+            this->handle_allocator.destroy(handle);
             return foundation::Error(DirectXError::ShaderError);
         }
 
-        return Result();
+        return {};
+    }
+
+    foundation::VoidResult<DirectXError> ResourceManager::make_pixel_shader(
+
+        const types::ShaderData& shader_data, const types::HandleId handle) {
+        auto& shader_pool = this->resource.shaders;
+
+        // 先に作成
+        const auto result = shader_pool.create(handle, types::ShaderKind::Pixel);
+        if (result.is_err()) {
+            this->handle_allocator.destroy(handle);
+            return result.error();
+        };
+
+        auto opt_shader = shader_pool.get_pixel_shader(handle);
+        const auto device = this->context->get_device();
+        const HRESULT hr = device->CreatePixelShader(shader_data.code.data(),
+            shader_data.code.size(),
+            nullptr,
+            opt_shader.unwrap_mut().GetAddressOf());
+        if (FAILED(hr)) {
+            this->handle_allocator.destroy(handle);
+            return foundation::Error(DirectXError::ShaderError);
+        }
+
+        return {};
     }
 } // namespace enishi::renderer::directx

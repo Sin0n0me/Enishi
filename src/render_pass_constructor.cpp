@@ -1,18 +1,20 @@
 #include "render_pass_constructor.h"
+#include "settings.h"
 #include <foundation/log/logger.h>
 
 namespace enishi {
     const std::filesystem::path SHADER_PATH = "./assets/shader";
+    const std::filesystem::path MODEL_PATH = "./assets/models";
     constexpr char PASS_MODEL[] = "ModelRenderPass";
 
     foundation::UTF8 path_to_regex(const std::filesystem::path& path) {
-        constexpr std::string_view kMetaChars = R"(\.^$|()[]{}*+?-)";
+        constexpr std::string_view META_CHARS = R"(\.^$|()[]{}*+?-)";
         foundation::UTF8 result;
         const auto str = path.lexically_normal().string<char>();
         result.reserve(str.size() * 2);
 
         for (const char c : str) {
-            if (kMetaChars.contains(c)) {
+            if (META_CHARS.contains(c)) {
                 result += '\\';
             }
             result += c;
@@ -31,7 +33,14 @@ namespace enishi {
         std::weak_ptr<assets_system::IAssetSystem> asset_system) {
         RenderPassConstructor constructor(renderer, asset_system);
 
-        constructor.find_shader();
+        auto result = constructor.find_shaders();
+        if (result.is_err()) {
+            foundation::Logger::error(result.error().get_message());
+        }
+        result = constructor.find_models();
+        if (result.is_err()) {
+            foundation::Logger::error(result.error().get_message());
+        }
 
         return constructor;
     }
@@ -49,10 +58,50 @@ namespace enishi {
 
         types::PipelineDescription& description = this->name_to_description[PASS_MODEL];
 
+        description.topology = types::PrimitiveTopology::TriangleList;
+
+        // RTVの作成
+        {
+            const auto image_description = types::ImageDescription::make_render_target(WINDOW_SIZE);
+            const auto image_handle = renderer->create_image(image_description);
+            if (image_handle.is_err()) {
+                return image_handle.propagation(
+                    platform::RenderError::MakeError, "イメージの作成に失敗しました");
+            }
+
+            const auto image_view_description = types::ImageViewDescription{};
+            const auto result =
+                renderer->create_render_target_view(image_handle.value(), image_view_description);
+
+            if (result.is_err()) {
+                return image_handle.propagation(
+                    platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました");
+            }
+            if (auto render_target_view = result.value().lock()) {
+                render_target_view->set_clear_color(CLEAR_COLOR);
+                description.render_target = render_target_view->get_handle();
+            }
+        }
+
+        // ラスタライザの作成
+        {
+            const auto rasterizer = renderer->create_rasterizer(types::RasterizerDescription{
+                .cull_mode = types::CullMode::None,
+                .front_face = types::FrontFace::CounterClockwise,
+            });
+            if (rasterizer.is_err()) {
+                return rasterizer.propagation(
+                    platform::RenderError::MakeError, "ラスタライザの作成に失敗しました");
+            }
+
+            description.rasterizer = rasterizer.value();
+        }
+
         // シェーダーからインプットレイアウトの作成
         const auto vertex_file = SHADER_PATH / "vs_model";
-        const auto extension_pattern = asset_system->shader_extensions_pattern();
-        const auto str_pattern = std::format("{}{}", path_to_regex(vertex_file), extension_pattern);
+        const auto pattern_shader_extensions = asset_system->shader_extensions_pattern();
+        const auto str_pattern =
+            std::format("{}{}", path_to_regex(vertex_file), pattern_shader_extensions);
         const std::regex pattern(str_pattern);
         {
             const auto input_layout =
@@ -67,7 +116,8 @@ namespace enishi {
 
         // シェーダーの作成
         {
-            const auto handle = this->make_shader(pattern, renderer, asset_system);
+            const auto handle =
+                this->make_shader(types::ShaderKind::Vertex, pattern, renderer, asset_system);
             if (handle.is_err()) {
                 return handle.propagation(
                     platform::RenderError::MakeError, "頂点シェーダーの作成に失敗しました");
@@ -79,9 +129,10 @@ namespace enishi {
         {
             const auto pixel_file = SHADER_PATH / "ps_model";
             const std::regex pattern(
-                std::format("{}{}", path_to_regex(pixel_file), extension_pattern));
+                std::format("{}{}", path_to_regex(pixel_file), pattern_shader_extensions));
 
-            const auto handle = this->make_shader(pattern, renderer, asset_system);
+            const auto handle =
+                this->make_shader(types::ShaderKind::Pixel, pattern, renderer, asset_system);
             if (handle.is_err()) {
                 return handle.propagation(
                     platform::RenderError::MakeError, "ピクセルシェーダーの作成に失敗しました");
@@ -90,10 +141,36 @@ namespace enishi {
             description.shaders.push_back(handle.value());
         }
 
-        return renderer->create_render_pass(description);
+        auto result = renderer->create_render_pass(description);
+        if (result.is_err()) {
+            return result;
+        }
+        auto&& render_pass = result.value();
+
+        // モデルのみ初期モデル追加
+        // TODO: ファイルからの読み取り初期モデルを選択するように
+        {
+            const auto pattern_model_extensions = asset_system->model_extensions_pattern();
+            const auto path = MODEL_PATH / "";
+            const std::regex pattern(
+                std::format("{}.*{}", path_to_regex(path), pattern_model_extensions));
+
+            const auto handle = this->make_mesh(pattern, renderer, asset_system);
+            if (handle.is_err()) {
+                return handle.propagation(
+                    platform::RenderError::MakeError, "モデルの作成に失敗しました");
+            }
+
+            render_pass.commands.push_back(types::DrawCommand{
+                .handle = handle.value(),
+                .sub_command = types::SubCommand::Bind,
+            });
+        }
+
+        return result;
     }
 
-    platform::RenderResult<void> RenderPassConstructor::find_shader(void) {
+    platform::RenderResult<void> RenderPassConstructor::find_shaders(void) {
         auto asset_system = this->asset_system.lock();
         if (!bool(asset_system)) {
             return foundation::Error(
@@ -101,6 +178,18 @@ namespace enishi {
         }
 
         this->shader_paths = asset_system->find_shaders(SHADER_PATH);
+
+        return {};
+    }
+
+    platform::RenderResult<void> RenderPassConstructor::find_models(void) {
+        auto asset_system = this->asset_system.lock();
+        if (!bool(asset_system)) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Asset Systemが存在しません");
+        }
+
+        this->model_paths = asset_system->find_models(MODEL_PATH);
 
         return {};
     }
@@ -152,6 +241,7 @@ namespace enishi {
     }
 
     platform::RenderResult<types::RenderHandle> RenderPassConstructor::make_shader(
+        const types::ShaderKind kind,
         const std::regex& pattern,
         const std::shared_ptr<platform::IRenderer>& renderer,
         const std::shared_ptr<assets_system::IAssetSystem>& asset_system) {
@@ -180,7 +270,7 @@ namespace enishi {
                 continue;
             }
 
-            const auto shader_handle = renderer->create_shader(shader_data.value());
+            const auto shader_handle = renderer->create_shader(kind, shader_data.value());
             if (shader_handle.is_err()) {
                 error_message = shader_handle.error().get_message();
                 continue;
@@ -192,6 +282,43 @@ namespace enishi {
             }
 
             return shader_handle.value();
+        }
+
+        return foundation::Error(platform::RenderError::MakeError, error_message);
+    }
+
+    platform::RenderResult<types::RenderHandle> RenderPassConstructor::make_mesh(
+        const std::regex& pattern,
+        const std::shared_ptr<platform::IRenderer>& renderer,
+        const std::shared_ptr<assets_system::IAssetSystem>& asset_system) {
+        const auto asset_paths = this->model_paths.find(pattern);
+
+        if (asset_paths.empty()) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "モデルデータが見つかりません");
+        }
+
+        // モデルからメッシュへ変換
+        foundation::UTF8 error_message;
+        for (const auto& path : asset_paths) {
+            const auto asset_handle = asset_system->load_asset(path);
+            if (asset_handle.is_err()) {
+                error_message = asset_handle.error().get_message();
+                continue;
+            }
+            const auto opt_model_data = asset_system->get_model_data(asset_handle.value());
+            if (opt_model_data.is_none()) {
+                continue;
+            }
+            const auto& model_data = opt_model_data.unwrap();
+
+            const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
+            if (mesh_handle.is_err()) {
+                error_message = mesh_handle.error().get_message();
+                continue;
+            }
+
+            return mesh_handle.value();
         }
 
         return foundation::Error(platform::RenderError::MakeError, error_message);

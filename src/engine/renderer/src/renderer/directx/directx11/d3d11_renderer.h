@@ -11,21 +11,20 @@
 namespace enishi::renderer::directx {
     class D3D11Renderer : public platform::IRenderer {
       private:
-        std::unique_ptr<D3D11> d3d11;
+        std::shared_ptr<D3D11> d3d11;
         std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
-        ResourceManager resource_manager;
+        std::unique_ptr<ResourceManager> resource_manager;
 
       private:
-        void execute(ID3D11DeviceContext* const context, const types::DrawCommand& command) const;
-        void bind_handle(
-            ID3D11DeviceContext* const context, const types::RenderHandle handle) const;
-        void bind_buffer(ID3D11DeviceContext* const context, const Buffer& buffer) const;
-        void bind_shader(ID3D11DeviceContext* const context, const types::HandleId id) const;
-        void bind_render_target(ID3D11DeviceContext* const context, const types::HandleId id) const;
-        void bind_rasterizer(ID3D11DeviceContext* const context, const types::HandleId id) const;
-        void bind_mesh(ID3D11DeviceContext* const context, const types::HandleId id) const;
-        void bind_topology(ID3D11DeviceContext* const context, const types::HandleId id) const;
-        void bind_input_layout(ID3D11DeviceContext* const context, const types::HandleId id) const;
+        void execute(const types::DrawCommand& command) const;
+        void bind_handle(const types::RenderHandle handle) const;
+        void bind_buffer(const Buffer& buffer) const;
+        void bind_shader(const types::HandleId id) const;
+        void bind_render_target(const types::HandleId id) const;
+        void bind_rasterizer(const types::HandleId id) const;
+        void bind_mesh(const types::HandleId id) const;
+        void bind_topology(const types::HandleId id) const;
+        void bind_input_layout(const types::HandleId id) const;
 
       public:
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);

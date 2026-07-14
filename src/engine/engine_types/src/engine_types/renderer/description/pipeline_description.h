@@ -28,6 +28,7 @@ namespace enishi::types {
         std::vector<RenderHandle> shaders;
         RenderHandle vertex_layout;
         RenderHandle rasterizer;
+        RenderHandle render_target;
         BlendMode blend_mode;
         DepthTestMode depth_test;
         PrimitiveTopology topology;

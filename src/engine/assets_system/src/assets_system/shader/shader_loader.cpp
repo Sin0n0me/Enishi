@@ -86,7 +86,7 @@ namespace enishi::assets_system {
         }
 
         return types::ShaderData{
-            .binary_type = types::ShaderBinaryType::SPIR_V,
+            .binary_type = types::ShaderBinaryType::DXBC,
             .code = std::move(result.value()),
         };
     }

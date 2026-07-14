@@ -49,7 +49,7 @@ namespace enishi::assets_system {
     }
 
     std::vector<foundation::UTF8> ModelLoader::get_supported_extension(void) const noexcept {
-        std::vector<foundation::UTF8> extensions(this->loaders.size());
+        std::vector<foundation::UTF8> extensions;
 
         for (const auto& [extension, _] : this->loaders) {
             extensions.push_back(extension);

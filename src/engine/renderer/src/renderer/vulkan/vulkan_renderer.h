@@ -15,7 +15,7 @@ namespace enishi::renderer::vulkan {
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(
-            const types::ShaderData& shader) override;
+            const types::ShaderKind kind, const types::ShaderData& shader) override;
         void submit_render_graph(const types::RenderGraph& graph) override;
         void present(void) override;
     };
