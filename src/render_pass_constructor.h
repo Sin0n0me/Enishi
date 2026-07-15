@@ -21,7 +21,8 @@ namespace enishi {
             std::weak_ptr<assets_system::IAssetSystem> asset_system);
 
       public:
-        static RenderPassConstructor make(std::weak_ptr<platform::IRenderer> renderer,
+        static foundation::Result<RenderPassConstructor, void> make(
+            std::weak_ptr<platform::IRenderer> renderer,
             std::weak_ptr<assets_system::IAssetSystem> asset_system);
 
         platform::RenderResult<types::RenderPass> make_model_render_pass(void);

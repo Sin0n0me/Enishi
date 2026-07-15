@@ -29,7 +29,8 @@ namespace enishi {
         , asset_system(asset_system) {
     }
 
-    RenderPassConstructor RenderPassConstructor::make(std::weak_ptr<platform::IRenderer> renderer,
+    foundation::Result<RenderPassConstructor, void> RenderPassConstructor::make(
+        std::weak_ptr<platform::IRenderer> renderer,
         std::weak_ptr<assets_system::IAssetSystem> asset_system) {
         RenderPassConstructor constructor(renderer, asset_system);
 
@@ -48,6 +49,7 @@ namespace enishi {
     platform::RenderResult<types::RenderPass> RenderPassConstructor::make_model_render_pass(void) {
         auto renderer = this->renderer.lock();
         if (!bool(renderer)) {
+            // foundation::Error();
             return foundation::Error(platform::RenderError::MakeError, "Renderer が存在しません");
         }
         auto asset_system = this->asset_system.lock();
@@ -62,7 +64,8 @@ namespace enishi {
 
         // RTVの作成
         {
-            const auto image_description = types::ImageDescription::make_render_target(WINDOW_SIZE);
+            const auto image_description =
+                types::ImageDescription::make_default_render_target(WINDOW_SIZE);
             const auto image_handle = renderer->create_image(image_description);
             if (image_handle.is_err()) {
                 return image_handle.propagation(

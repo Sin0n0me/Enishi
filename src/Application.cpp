@@ -126,9 +126,11 @@ namespace enishi {
     }
 
     bool Application::make_render_pass(void) {
-        RenderPassConstructor constructor =
-            RenderPassConstructor::make(this->renderer, this->asset_manager);
-
+        auto result = RenderPassConstructor::make(this->renderer, this->asset_manager);
+        if (result.is_err()) {
+            return false;
+        }
+        auto&& constructor = result.value();
         auto pass = constructor.make_model_render_pass();
         if (pass.is_err()) {
             foundation::Logger::error(pass.error().get_message());

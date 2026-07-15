@@ -23,6 +23,18 @@ namespace enishi::types {
     }
 
     [[nodiscard]]
+    constexpr ImageUsage operator&(const ImageUsage& a, const ImageUsage& b) noexcept {
+        return static_cast<ImageUsage>(
+            static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
+    }
+
+    [[nodiscard]]
+    constexpr ImageUsage operator^(const ImageUsage& a, const ImageUsage& b) noexcept {
+        return static_cast<ImageUsage>(
+            static_cast<std::uint32_t>(a) ^ static_cast<std::uint32_t>(b));
+    }
+
+    [[nodiscard]]
     constexpr bool has_usage(const ImageUsage& flags, const ImageUsage& bit) noexcept {
         return (static_cast<std::uint32_t>(flags) & static_cast<std::uint32_t>(bit)) != 0;
     }
@@ -51,6 +63,15 @@ namespace enishi::types {
                 .array_layers = 1,
                 .samples = 1,
             };
+        }
+
+        // スワップチェイン側に書く場合
+        [[nodiscard]]
+        static constexpr ImageDescription make_default_render_target(
+            const glm::ivec2& size, const ImageFormat format = ImageFormat::RGBA8_UNORM) noexcept {
+            return ImageDescription::make_default(size,
+                format,
+                ImageUsage::RenderTarget | ImageUsage::ShaderResource | ImageUsage::BackBuffer);
         }
 
         [[nodiscard]]
