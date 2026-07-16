@@ -228,7 +228,7 @@ namespace enishi::renderer::directx {
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
@@ -245,7 +245,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_rasterizer(
@@ -255,7 +255,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_image(
@@ -265,7 +265,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
@@ -277,7 +277,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        const auto rtv = std::make_shared<RenderTargetView>(result.value(), description);
+        const auto rtv = std::make_shared<RenderTargetView>(result.unwrap(), description);
         this->render_targets.emplace_back(rtv);
 
         return rtv;
@@ -308,7 +308,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_texture(
@@ -318,7 +318,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader(
@@ -328,7 +328,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        return result.value();
+        return result.unwrap();
     }
 
     void D3D11Renderer::submit_render_graph(const types::RenderGraph& graph) {

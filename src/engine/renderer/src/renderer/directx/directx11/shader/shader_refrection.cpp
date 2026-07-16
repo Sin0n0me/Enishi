@@ -102,14 +102,14 @@ namespace enishi::renderer::directx {
         for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
             const auto result_binding_desc = this->load_binding_desc(i);
             if (result_binding_desc.is_err()) {
-                foundation::Logger::error(result_binding_desc.error().get_message());
+                foundation::Logger::error(result_binding_desc.unwrap_err().get_message());
             }
         }
 
         for (std::uint32_t i = 0; i < shader_desc.InputParameters; ++i) {
             const auto result_parameter_desc = this->load_parameter_desc(i);
             if (result_parameter_desc.is_err()) {
-                foundation::Logger::error(result_parameter_desc.error().get_message());
+                foundation::Logger::error(result_parameter_desc.unwrap_err().get_message());
             }
         }
 

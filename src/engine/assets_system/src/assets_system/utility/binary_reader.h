@@ -55,7 +55,7 @@ namespace enishi::assets_system {
             requires std::is_trivially_copyable_v<T>
         [[nodiscard]] IOResult<void> read_to_vec(std::vector<T>& data, const std::uint64_t count) {
             std::vector<T> temp(count);
-            const auto result = this->read(temp.data(), sizeof(T) * count);
+            auto&& result = this->read(temp.data(), sizeof(T) * count);
             if (result.is_err()) {
                 return result;
             }
@@ -82,7 +82,7 @@ namespace enishi::assets_system {
             T found{};
             const auto result = this->read_to(&found);
             if (result.is_err()) {
-                return result;
+                return result.unwrap_err();
             }
 
             // マジックナンバーの比較

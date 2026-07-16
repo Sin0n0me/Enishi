@@ -9,97 +9,91 @@
 #include <vector>
 
 namespace enishi ::foundation {
-    template <typename E> struct ErrorObject {
+    template <typename E> class ErrorBase {
+      protected:
+        std::vector<UTF8> messages;
         E error;
 
-        constexpr ErrorObject(const E& error)
-            : error(error) {
+      public:
+        ErrorBase(E&& error)
+            : error(std::move(error))
+            , messages({}) {
         }
-        constexpr ErrorObject(E&& error)
-            : error(error) {
+        ErrorBase(E&& error, std::vector<UTF8>&& message)
+            : error(std::move(error))
+            , messages(std::move(message)) {
         }
-        constexpr ErrorObject(const ErrorObject&) = default;
-        constexpr ErrorObject(ErrorObject&&) = default;
-        constexpr ErrorObject& operator=(ErrorObject&&) = default;
+        ErrorBase(E&& error, UTF8&& message)
+            : error(std::move(error))
+            , messages({std::move(message)}) {
+        }
+        ErrorBase(E&& error, const UTF8& message)
+            : error(std::move(error))
+            , messages({message}) {
+        }
+
+        ErrorBase(const ErrorBase&) = default;
+        ErrorBase(ErrorBase&&) = default;
+        ErrorBase& operator=(ErrorBase&&) = default;
+        ErrorBase& operator=(const ErrorBase&) = default;
+
+      public:
+        [[nodiscard]] ErrorBase& add_message(const UTF8& message) & {
+            this->messages.emplace_back(message);
+            return *this;
+        }
+        [[nodiscard]] ErrorBase& add_message(UTF8&& message) & {
+            this->messages.emplace_back(std::move(message));
+            return *this;
+        }
+        [[nodiscard]] ErrorBase&& add_message(const UTF8& message) && {
+            this->messages.emplace_back(message);
+            return std::move(*this);
+        }
+        [[nodiscard]] ErrorBase&& add_message(UTF8&& message) && {
+            this->messages.emplace_back(std::move(message));
+            return std::move(*this);
+        }
+
+        UTF8 get_message(const UTF8& sep) const {
+            const auto joined = this->messages | std::views::join_with(sep);
+            return std::string{joined.begin(), joined.end()};
+        }
+
+        UTF8 get_message(void) const {
+            const auto joined = this->messages | std::views::join_with(std::string_view{"\n"});
+            return std::string{joined.begin(), joined.end()};
+        }
     };
 
-    template <> struct ErrorObject<void> {
-        constexpr ErrorObject(void) = default;
-        constexpr ErrorObject(const ErrorObject&) = default;
-        constexpr ErrorObject(ErrorObject&&) = default;
-        constexpr ErrorObject& operator=(ErrorObject&&) = default;
-    };
-
-    namespace {
-        template <typename E> class ErrorBase {
-          protected:
-            // constなオブジェクトでも上位へ渡しつつ余分なコピーを減らすためにshared_ptr
-            std::shared_ptr<std::vector<UTF8>> message;
-            ErrorObject<E> error;
-
-          public:
-            constexpr ErrorBase(ErrorObject<E>&& error)
-                : error(std::move(error)) {
-            }
-            constexpr ErrorBase(
-                ErrorObject<E>&& error, const std::shared_ptr<std::vector<UTF8>>& message)
-                : error(std::move(error))
-                , message(message) {
-            }
-            constexpr ErrorBase(ErrorObject<E>&& error, UTF8&& message)
-                : error(std::move(error)) {
-                this->add_message(std::move(message));
-            }
-
-            constexpr ErrorBase(ErrorBase&&) = default;
-            constexpr ErrorBase& operator=(ErrorBase&&) = default;
-
-          public:
-            void add_message(UTF8&& message) const {
-                this->message->emplace_back(std::move(message));
-            }
-
-            constexpr UTF8 get_message(const UTF8& sep) const {
-                const auto joined = *this->message | std::views::join_with(sep);
-                return std::string{joined.begin(), joined.end()};
-            }
-
-            constexpr UTF8 get_message(void) const {
-                const auto joined = *this->message | std::views::join_with(std::string_view{"\n"});
-                return std::string{joined.begin(), joined.end()};
-            }
-
-            constexpr const ErrorObject<E>& get_error(void) const {
-                return this->error;
-            }
-        };
-    } // namespace
-
-    template <typename E = void> class Error : public ErrorBase<E> {
+    template <typename E = std::monostate> class Error : public ErrorBase<E> {
       private:
         template <typename T> friend class Error;
 
       public:
-        constexpr Error(const E& error)
-            : ErrorBase<E>(ErrorObject(error)) {
-        }
-        constexpr Error(const E& error, UTF8&& message)
-            : ErrorBase<E>(ErrorObject(error), std::move(message)) {
-        }
-        constexpr Error(E&& error)
-            : ErrorBase<E>(ErrorObject(error)) {
-        }
-        constexpr Error(E&& error, UTF8&& message)
-            : ErrorBase<E>(ErrorObject(error), std::move(message)) {
-        }
+        using ErrorBase<E>::ErrorBase;
 
+        Error(E&& error)
+            : ErrorBase<E>(std::move(error)) {
+        }
+        Error(E&& error, UTF8&& message)
+            : ErrorBase<E>(std::move(error), std::move(message)) {
+        }
+        Error(E&& error, const UTF8& message)
+            : ErrorBase<E>(std::move(error), message) {
+        }
+        Error(ErrorBase<E>&& error)
+            : ErrorBase<E>(std::move(error)) {
+        }
         template <typename U>
-        constexpr Error(const E& new_error, const Error<U>& error)
-            : ErrorBase<E>(ErrorObject(new_error), error.message) {
+        Error(E&& new_error, Error<U>&& pre_error)
+            : ErrorBase<E>(new_error, pre_error.messages) {
         }
 
-        constexpr Error(Error&&) = default;
-        constexpr Error& operator=(Error&&) = default;
+        Error(const Error&) = default;
+        Error(Error&&) = default;
+        Error& operator=(Error&&) = default;
+        Error& operator=(const Error&) = default;
 
       public:
         // 別のエラーオブジェクト型への変換
@@ -108,21 +102,34 @@ namespace enishi ::foundation {
         }
 
         template <typename U> Error<U> propagation(const U new_error, const UTF8& message) const {
-            this->add_message(message);
-            return Error<U>(new_error, *this);
+            return Error<U>(new_error, *this).add_message(message);
+        }
+
+        const E& get_error(void) const {
+            return this->error;
         }
     };
 
-    template <> class Error<void> : public ErrorBase<void> {
+    template <> class Error<void> : public ErrorBase<std::monostate> {
       private:
         template <typename T> friend class Error;
 
       public:
-        constexpr Error(void)
-            : ErrorBase<void>(ErrorObject<void>{}) {
+        using ErrorBase<std::monostate>::ErrorBase;
+
+        Error(void)
+            : ErrorBase<std::monostate>(std::monostate{}) {
         }
-        constexpr Error(UTF8&& message)
-            : ErrorBase<void>(ErrorObject<void>{}, std::move(message)) {
+        Error(UTF8&& message)
+            : ErrorBase<std::monostate>(std::monostate{}, std::move(message)) {
         }
+        Error(ErrorBase<std::monostate>&& error)
+            : ErrorBase<std::monostate>(std::move(error)) {
+        }
+
+        Error(const Error&) = default;
+        Error(Error&&) = default;
+        Error& operator=(Error&&) = default;
+        Error& operator=(const Error&) = default;
     };
 } // namespace enishi::foundation

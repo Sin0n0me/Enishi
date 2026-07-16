@@ -13,10 +13,10 @@ namespace enishi::renderer::directx {
 
         auto d3d11 = D3D11::make(native_handle.hwnd, window_size);
         if (d3d11.is_err()) {
-            return d3d11.add_message("Rendererの初期化に失敗しました")
-                .propagation(platform::RenderError::MakeError);
+            return d3d11.propagation(platform::RenderError::MakeError)
+                .add_message("Rendererの初期化に失敗しました");
         }
 
-        return std::make_shared<D3D11Renderer>(std::move(d3d11.value()));
+        return std::make_shared<D3D11Renderer>(std::move(d3d11.unwrap_mut()));
     }
 } // namespace enishi::renderer::directx

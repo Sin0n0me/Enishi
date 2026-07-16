@@ -110,7 +110,7 @@ namespace enishi {
             return false;
         }
 
-        this->renderer = renderer.value();
+        this->renderer = renderer.unwrap();
 
         const auto rect = types::ViewportRect{
             .left_top_x = 0.0,
@@ -120,7 +120,10 @@ namespace enishi {
             .min_depth = 0.0,
             .max_depth = 1.0,
         };
-        this->renderer->create_viewport(rect);
+
+        if (this->renderer->create_viewport(rect).is_err()) {
+            return false;
+        }
 
         return true;
     }
@@ -130,14 +133,14 @@ namespace enishi {
         if (result.is_err()) {
             return false;
         }
-        auto&& constructor = result.value();
+        auto&& constructor = result.unwrap_mut();
         auto pass = constructor.make_model_render_pass();
         if (pass.is_err()) {
-            foundation::Logger::error(pass.error().get_message());
+            foundation::Logger::error(pass.unwrap_err().get_message());
             return false;
         }
 
-        this->render_system->add_render_pass("Model", pass.value());
+        this->render_system->add_render_pass("Model", pass.unwrap_mut());
 
         return true;
     }

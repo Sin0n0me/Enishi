@@ -85,7 +85,7 @@ namespace enishi::assets_system {
         const auto result = this->read_to_vec(vec, size);
 
         if (result.is_err()) {
-            return result.error();
+            return result.unwrap_err();
         }
 
         return vec;
@@ -102,11 +102,11 @@ namespace enishi::assets_system {
         this->file.seekg(0, std::ios::beg);
 
         // 比較用に一時バッファ作成
-        const std::uint32_t size = expect.size();
+        const std::size_t size = expect.size();
         std::vector<char> buff(size);
         const auto result = this->read(buff.data(), sizeof(char) * size);
-        if (!result.has_value()) {
-            return result;
+        if (result.is_err()) {
+            return result.unwrap_err();
         }
 
         // マジックナンバーの比較

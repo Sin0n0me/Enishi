@@ -13,9 +13,9 @@ namespace enishi::renderer::directx {
         // shader reflectionでレイアウトを作成
         auto refection = ShaderReflection::make(shader_data);
         if (refection.is_err()) {
-            return refection.add_message("shader reflectionの作成に失敗しました").error();
+            return refection.unwrap_err().add_message("shader reflectionの作成に失敗しました");
         }
-        auto& refections = refection.value();
+        const auto& refections = refection.unwrap();
 
         // 変換
         const auto input_elements = refections.get_input_element_descs() |
@@ -50,17 +50,17 @@ namespace enishi::renderer::directx {
         auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
         auto vertex_result = this->make_vertex_buffer(mesh_data.vertices);
         if (vertex_result.is_err()) {
-            return vertex_result.add_message("メッシュの作成に失敗しました").error();
+            return vertex_result.unwrap_err().add_message("メッシュの作成に失敗しました");
         }
-        vertex_handle = vertex_result.value();
+        vertex_handle = vertex_result.unwrap();
 
         // インデックスバッファ作成
         auto index_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
         auto index_result = this->make_index_buffer(mesh_data.indices);
         if (index_result.is_err()) {
-            return index_result.add_message("メッシュの作成に失敗しました").error();
+            return index_result.unwrap_err().add_message("メッシュの作成に失敗しました");
         }
-        index_handle = index_result.value();
+        index_handle = index_result.unwrap();
 
         const types::HandleId handle = this->handle_allocator.create();
         Mesh mesh{};
@@ -422,7 +422,7 @@ namespace enishi::renderer::directx {
         // エラーがあればハンドルは削除
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.error();
+            return result.unwrap_err();
         }
 
         return types::RenderHandle{
@@ -440,7 +440,7 @@ namespace enishi::renderer::directx {
         const auto result = shader_pool.create(handle, types::ShaderKind::Vertex);
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.error();
+            return result.unwrap_err();
         };
 
         auto opt_shader = shader_pool.get_vertex_shader(handle);
@@ -466,7 +466,7 @@ namespace enishi::renderer::directx {
         const auto result = shader_pool.create(handle, types::ShaderKind::Pixel);
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.error();
+            return result.unwrap_err();
         };
 
         auto opt_shader = shader_pool.get_pixel_shader(handle);

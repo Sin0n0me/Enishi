@@ -71,25 +71,25 @@ namespace enishi::core {
                 continue;
             }
 
-            auto&& asset_data = result.value();
+            auto&& asset_data = result.unwrap_mut();
             if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
                 const auto handle = this->register_model(std::move(*model_data));
                 if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.value();
+                    this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
             if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
                 const auto handle = this->register_texture(std::move(*texture_data));
                 if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.value();
+                    this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
             if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
                 const auto handle = this->register_shader(std::move(*shader_data));
                 if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.value();
+                    this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
@@ -216,39 +216,40 @@ namespace enishi::core {
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
     core::AssetManager::register_model(types::ModelData&& data) noexcept {
-        auto asset_id = this->register_asset(std::move(data));
+        const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
-            return asset_id.add_message("モデルの追加に失敗しました")
-                .propagation(assets_system::AssetError::AlreadyHasAsset);
+            return asset_id.propagation(assets_system::AssetError::AlreadyHasAsset)
+                .add_message("モデルの追加に失敗しました");
         }
         return assets_system::AssetHandle{
-            .id = asset_id.value(),
+            .id = asset_id.unwrap(),
             .type = assets_system::AssetType::Model,
         };
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
     core::AssetManager::register_shader(types::ShaderData&& data) noexcept {
-        auto asset_id = this->register_asset(std::move(data));
+        const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
-            return asset_id.add_message("シェーダーの追加に失敗しました")
-                .propagation(assets_system::AssetError::AlreadyHasAsset);
+            return asset_id.unwrap_err()
+                .propagation(assets_system::AssetError::AlreadyHasAsset)
+                .add_message("シェーダーの追加に失敗しました");
         }
         return assets_system::AssetHandle{
-            .id = asset_id.value(),
+            .id = asset_id.unwrap(),
             .type = assets_system::AssetType::Shader,
         };
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
     core::AssetManager::register_texture(types::TextureData&& data) noexcept {
-        auto asset_id = this->register_asset(std::move(data));
+        const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
-            return asset_id.add_message("テクスチャの追加に失敗しました")
-                .propagation(assets_system::AssetError::AlreadyHasAsset);
+            return asset_id.propagation(assets_system::AssetError::AlreadyHasAsset)
+                .add_message("テクスチャの追加に失敗しました");
         }
         return assets_system::AssetHandle{
-            .id = asset_id.value(),
+            .id = asset_id.unwrap(),
             .type = assets_system::AssetType::Texture,
         };
     }

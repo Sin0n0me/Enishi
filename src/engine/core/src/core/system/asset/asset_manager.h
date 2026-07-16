@@ -68,11 +68,11 @@ namespace enishi::core {
         template <typename T>
         foundation::Result<types::HandleId, SystemError> register_asset(T&& data) noexcept {
             const auto id = this->asset_registory.create();
-            auto result = this->asset_registory.insert(id, std::move(data));
+            const auto result = this->asset_registory.insert(id, std::move(data));
             if (result.is_err()) {
                 this->asset_registory.destroy(id);
-                return result.add_message("アセットデータの登録に失敗しました")
-                    .propagation(SystemError::AssetSystemError);
+                return result.propagation(SystemError::AssetSystemError)
+                    .add_message("アセットデータの登録に失敗しました");
             }
             return id;
         }

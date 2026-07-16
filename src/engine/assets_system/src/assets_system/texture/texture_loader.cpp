@@ -44,7 +44,7 @@ namespace enishi::assets_system {
 
         stbi_image_free(pixels);
 
-        return data;
+        return AssetData{data};
     }
 
     std::vector<foundation::UTF8> TextureLoader::get_supported_extension(void) const noexcept {

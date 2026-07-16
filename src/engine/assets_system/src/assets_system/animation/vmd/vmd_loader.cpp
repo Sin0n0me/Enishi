@@ -52,20 +52,19 @@ namespace enishi::assets_system {
         VMDHeader header{};
         auto result = binary_reader.read_to(&header);
         if (result.is_err()) {
-            return result.add_message("ヘッダを読み込めませんでした");
+            return result.unwrap_err().add_message("ヘッダを読み込めませんでした");
         }
 
         result = binary_reader.read_magic_number("Vocaloid Motion Data");
-        if (result.has_value()) {
+        if (result.is_ok()) {
             return {};
         }
 
         result = binary_reader.read_magic_number("Vocaloid Motion Data 0002");
-        if (result.has_value()) {
+        if (result.is_ok()) {
             return {};
         }
 
-        result.error().add_message("");
         return result;
     }
 
@@ -74,13 +73,12 @@ namespace enishi::assets_system {
         std::uint32_t size; // サイズは4Byte
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message(
+                "ボーンキーフレームのサイズ読み込みに失敗しました");
         }
 
         result = binary_reader.read_to_vec(vmd_data->bone_key_frames, size);
         if (result.is_err()) {
-            result.error().add_message("");
             return result;
         }
 
@@ -92,13 +90,12 @@ namespace enishi::assets_system {
         std::uint32_t size; // サイズは4Byte
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message(
+                "モーフキーフレームのサイズ読み込みに失敗しました");
         }
 
         result = binary_reader.read_to_vec(vmd_data->morph_key_frames, size);
         if (result.is_err()) {
-            result.error().add_message("");
             return result;
         }
 
@@ -111,13 +108,11 @@ namespace enishi::assets_system {
 
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message("のサイズ読み込みに失敗しました");
         }
 
         result = binary_reader.read_to_vec(vmd_data->camera_key_frames, size);
         if (result.is_err()) {
-            result.error().add_message("");
             return result;
         }
 
@@ -129,13 +124,12 @@ namespace enishi::assets_system {
         std::uint32_t size; // サイズは4Byte
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message("のサイズ読み込みに失敗しました");
         }
 
         result = binary_reader.read_to_vec(vmd_data->light_key_frames, size);
         if (result.is_err()) {
-            result.error().add_message("");
+            result.unwrap_err().add_message("");
             return result;
         }
 
@@ -147,13 +141,12 @@ namespace enishi::assets_system {
         std::uint32_t size; // サイズは4Byte
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message("のサイズ読み込みに失敗しました");
         }
 
         result = binary_reader.read_to_vec(vmd_data->shadow_key_frames, size);
         if (result.is_err()) {
-            result.error().add_message("");
+            result.unwrap_err().add_message("");
             return result;
         }
 
@@ -165,8 +158,7 @@ namespace enishi::assets_system {
 
         auto result = binary_reader.read_to(&size);
         if (result.is_err()) {
-            result.error().add_message("のサイズ読み込みに失敗しました");
-            return result;
+            return result.unwrap_err().add_message("のサイズ読み込みに失敗しました");
         }
 
         vmd_data->iks.resize(size);
@@ -174,15 +166,13 @@ namespace enishi::assets_system {
             //
             result =
                 binary_reader.read(&ik, sizeof(VMDIKKeyFrame) - sizeof(VMDIKKeyFrame::ik_infos));
-            if (!result) {
-                result.error().add_message("");
-                return result;
+            if (result.is_err()) {
+                return result.unwrap_err().add_message("");
             }
 
             result = binary_reader.read_to_vec(ik.ik_infos, ik.count);
-            if (!result) {
-                result.error().add_message("");
-                return result;
+            if (result.is_err()) {
+                return result.unwrap_err().add_message("");
             }
         }
 
@@ -191,16 +181,16 @@ namespace enishi::assets_system {
 
     IOResult<std::unique_ptr<VMDData>> VMDLoader::load(const std::filesystem::path& path) noexcept {
         auto reader = BinaryReader::make_reader(path);
-        if (!reader.has_value()) {
-            return std::unexpected(std::move(reader.error()));
+        if (reader.is_err()) {
+            return reader.unwrap_err();
         }
-        auto& binary_reader = reader.value();
+        auto& binary_reader = reader.unwrap_mut();
         VMDLoader loader{};
         std::unique_ptr<VMDData> vmd_data = std::make_unique<VMDData>();
 
         const auto result = loader.load_vmd(binary_reader, vmd_data.get());
         if (result.is_err()) {
-            return result.error();
+            return result.unwrap_err();
         }
 
         return std::move(vmd_data);

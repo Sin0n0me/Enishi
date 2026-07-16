@@ -112,7 +112,7 @@ namespace enishi::assets_system {
 
         auto result = binary_reader.read_to(&header);
         if (result.is_err()) {
-            return result.add_message("ヘッダを読み込めませんでした");
+            return result.unwrap_err().add_message("ヘッダを読み込めませんでした");
         }
 
         result = binary_reader.read_magic_number_from_str("Pmd");
@@ -133,14 +133,14 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("頂点情報リストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message("頂点情報リストサイズの取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->vertices, size);
             if (result.is_err()) {
-                return result.add_message("頂点情報の取得に失敗しました");
+                return result.unwrap_err().add_message("頂点情報の取得に失敗しました");
             }
         }
 
@@ -155,14 +155,15 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("インデックスリストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message(
+                    "インデックスリストサイズの取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->indices, size);
             if (result.is_err()) {
-                return result.add_message("インデックス情報の取得に失敗しました");
+                return result.unwrap_err().add_message("インデックス情報の取得に失敗しました");
             }
         }
 
@@ -177,14 +178,15 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("マテリアルリストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message(
+                    "マテリアルリストサイズの取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->materials, size);
             if (result.is_err()) {
-                return result.add_message("マテリアル情報の取得に失敗しました");
+                return result.unwrap_err().add_message("マテリアル情報の取得に失敗しました");
             }
         }
 
@@ -199,14 +201,14 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("ボーンリストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message("ボーンリストサイズの取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->bones, size);
             if (result.is_err()) {
-                return result.add_message("ボーン情報の取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン情報の取得に失敗しました");
             }
         }
 
@@ -221,7 +223,7 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("IKリストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message("IKリストサイズの取得に失敗しました");
             }
         }
 
@@ -232,7 +234,7 @@ namespace enishi::assets_system {
             {
                 auto result = binary_reader.read(&ik, sizeof(PMDIK) - sizeof(PMDIK::chain));
                 if (result.is_err()) {
-                    return result.add_message("IK情報の取得に失敗しました");
+                    return result.unwrap_err().add_message("IK情報の取得に失敗しました");
                 }
             }
 
@@ -240,7 +242,7 @@ namespace enishi::assets_system {
             {
                 auto result = binary_reader.read_to_vec(ik.chain, ik.chain_length);
                 if (result.is_err()) {
-                    return result.add_message("IKのリンク情報の取得に失敗しました");
+                    return result.unwrap_err().add_message("IKのリンク情報の取得に失敗しました");
                 }
             }
         }
@@ -256,7 +258,7 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("モーフリストサイズの取得に失敗しました");
+                return result.unwrap_err().add_message("モーフリストサイズの取得に失敗しました");
             }
         }
 
@@ -268,7 +270,7 @@ namespace enishi::assets_system {
                 auto result =
                     binary_reader.read(&morph, sizeof(PMDMorph) - sizeof(PMDMorph::vertices));
                 if (result.is_err()) {
-                    return result.add_message("モーフ情報の取得に失敗しました");
+                    return result.unwrap_err().add_message("モーフ情報の取得に失敗しました");
                 }
             }
 
@@ -276,7 +278,7 @@ namespace enishi::assets_system {
             {
                 auto result = binary_reader.read_to_vec(morph.vertices, morph.vertex_count);
                 if (result.is_err()) {
-                    return result.add_message("モーフの頂点情報の取得に失敗しました");
+                    return result.unwrap_err().add_message("モーフの頂点情報の取得に失敗しました");
                 }
             }
         }
@@ -292,14 +294,15 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("モーフの表示リストのサイズ取得に失敗しました");
+                return result.unwrap_err().add_message(
+                    "モーフの表示リストのサイズ取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->display_morphs, size);
             if (result.is_err()) {
-                return result.add_message("モーフの表示リスト取得に失敗しました");
+                return result.unwrap_err().add_message("モーフの表示リスト取得に失敗しました");
             }
         }
 
@@ -314,14 +317,15 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("ボーン枠名リストのサイズ取得に失敗しました");
+                return result.unwrap_err().add_message(
+                    "ボーン枠名リストのサイズ取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->bone_frame_name, size);
             if (result.is_err()) {
-                return result.add_message("ボーン枠名の取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン枠名の取得に失敗しました");
             }
         }
 
@@ -336,14 +340,14 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("ボーン表示名リストの取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン表示名リストの取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->display_bones, size);
             if (result.is_err()) {
-                return result.add_message("ボーン表示名の取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン表示名の取得に失敗しました");
             }
         }
 
@@ -358,7 +362,7 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&eng_dict->is_support);
             if (result.is_err()) {
-                return result.add_message("英名対応フラグの取得に失敗しました");
+                return result.unwrap_err().add_message("英名対応フラグの取得に失敗しました");
             }
         }
 
@@ -372,14 +376,14 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&eng_dict->model_name);
             if (result.is_err()) {
-                return result.add_message("モデル名(英名)取得に失敗しました");
+                return result.unwrap_err().add_message("モデル名(英名)取得に失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to(&eng_dict->comment);
             if (result.is_err()) {
-                return result.add_message("コメント(英名)取得に失敗しました");
+                return result.unwrap_err().add_message("コメント(英名)取得に失敗しました");
             }
         }
 
@@ -387,7 +391,7 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to_vec(eng_dict->bone_name, pmd_data->bones.size());
             if (result.is_err()) {
-                return result.add_message("ボーン名(英名)取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン名(英名)取得に失敗しました");
             }
         }
 
@@ -395,7 +399,7 @@ namespace enishi::assets_system {
             auto result =
                 binary_reader.read_to_vec(eng_dict->skin_name, pmd_data->morphs.size() - 1);
             if (result.is_err()) {
-                return result.add_message("スキン名(英名)取得に失敗しました");
+                return result.unwrap_err().add_message("スキン名(英名)取得に失敗しました");
             }
         }
 
@@ -403,7 +407,7 @@ namespace enishi::assets_system {
             auto result =
                 binary_reader.read_to_vec(eng_dict->display_name, pmd_data->bone_frame_name.size());
             if (result.is_err()) {
-                return result.add_message("ボーン枠名(英名)取得に失敗しました");
+                return result.unwrap_err().add_message("ボーン枠名(英名)取得に失敗しました");
             }
         }
 
@@ -416,7 +420,7 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&pmd_data->toon_textures.file_names);
             if (result.is_err()) {
-                return result.add_message("トゥーンテクスチャの取得に失敗しました");
+                return result.unwrap_err().add_message("トゥーンテクスチャの取得に失敗しました");
             }
         }
 
@@ -431,14 +435,15 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("剛体情報リストのサイズ読み込みに失敗しました");
+                return result.unwrap_err().add_message(
+                    "剛体情報リストのサイズ読み込みに失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->rigid_bodies, size);
             if (result.is_err()) {
-                return result.add_message("剛体情報の読み込みに失敗しました");
+                return result.unwrap_err().add_message("剛体情報の読み込みに失敗しました");
             }
         }
 
@@ -453,14 +458,16 @@ namespace enishi::assets_system {
         {
             auto result = binary_reader.read_to(&size);
             if (result.is_err()) {
-                return result.add_message("物理ジョイントリストのサイズ読み込みに失敗しました");
+                return result.unwrap_err().add_message(
+                    "物理ジョイントリストのサイズ読み込みに失敗しました");
             }
         }
 
         {
             auto result = binary_reader.read_to_vec(pmd_data->physics_joints, size);
             if (result.is_err()) {
-                return result.add_message("物理ジョイント情報の読み込みに失敗しました");
+                return result.unwrap_err().add_message(
+                    "物理ジョイント情報の読み込みに失敗しました");
             }
         }
 
@@ -471,18 +478,18 @@ namespace enishi::assets_system {
     foundation::Result<ModelData, AssetError> PMDModelLoader::load(
         const std::filesystem::path& path) noexcept {
         auto reader = BinaryReader::make_reader(path);
-        if (!reader.has_value()) {
-            return reader.error().propagation(AssetError::IOError);
+        if (reader.is_err()) {
+            return reader.propagation(AssetError::IOError);
         }
-        auto& binary_reader = reader.value();
+        auto& binary_reader = reader.unwrap_mut();
 
         std::unique_ptr<PMDData> pmd_data = std::make_unique<PMDData>();
         auto result = this->load_pmd(binary_reader, pmd_data.get());
         if (result.is_err()) {
-            return reader.error().propagation(AssetError::IOError);
+            return reader.propagation(AssetError::IOError);
         }
 
-        return pmd_data;
+        return ModelData{std::move(pmd_data)};
     }
 
     foundation::UTF8 PMDModelLoader::get_supported_extension(void) const noexcept {

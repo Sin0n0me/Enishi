@@ -14,7 +14,7 @@ namespace enishi::assets_system {
         if (utf8_name.is_err()) {
             foundation::Logger::warning("utf8に変換できない文字が含まれています");
         }
-        foundation::Logger::info(utf8_name.value_or(sjis_name));
+        foundation::Logger::info(utf8_name.unwrap_or(sjis_name));
 
         const std::string sjis_comment(
             reinterpret_cast<const char*>(data.comment.data()), data.comment.size());
@@ -22,7 +22,7 @@ namespace enishi::assets_system {
         if (utf8_comment.is_err()) {
             foundation::Logger::warning("utf8に変換できない文字が含まれています");
         }
-        foundation::Logger::info(utf8_comment.value_or(sjis_comment));
+        foundation::Logger::info(utf8_comment.unwrap_or(sjis_comment));
 
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
         auto vertices = PMDToModelData::make_vertices(data.vertices);
@@ -35,7 +35,7 @@ namespace enishi::assets_system {
         data.toon_textures;
 
         return types::ModelData{
-            .name = utf8_name.value_or(sjis_name),
+            .name = utf8_name.unwrap_or(sjis_name),
             .vertices = types::OwnedRenderData<types::SkinningVertex>(std::move(vertices)),
             .indices = types::OwnedRenderData<std::uint16_t>(std::move(indices)),
             .bones = std::move(bones),
@@ -67,7 +67,7 @@ namespace enishi::assets_system {
             if (utf8_name.is_err()) {
                 foundation::Logger::warning("utf8に変換できない文字が含まれています");
             }
-            constructor.bone_names.push_back(utf8_name.value_or(sjis_name));
+            constructor.bone_names.push_back(utf8_name.unwrap_or(sjis_name));
 
             // ローカル行列作成
             const glm::vec3 position = {
@@ -241,7 +241,7 @@ namespace enishi::assets_system {
             if (utf8_name.is_err()) {
                 foundation::Logger::warning("utf8に変換できない文字が含まれています");
             }
-            constructor.morph_names.push_back(utf8_name.value_or(sjis_name));
+            constructor.morph_names.push_back(utf8_name.unwrap_or(sjis_name));
 
             // モーフで扱う頂点を共通の型に変換
             const auto vertices =

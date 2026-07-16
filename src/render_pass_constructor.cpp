@@ -36,11 +36,11 @@ namespace enishi {
 
         auto result = constructor.find_shaders();
         if (result.is_err()) {
-            foundation::Logger::error(result.error().get_message());
+            foundation::Logger::error(result.unwrap_err().get_message());
         }
         result = constructor.find_models();
         if (result.is_err()) {
-            foundation::Logger::error(result.error().get_message());
+            foundation::Logger::error(result.unwrap_err().get_message());
         }
 
         return constructor;
@@ -68,19 +68,19 @@ namespace enishi {
                 types::ImageDescription::make_default_render_target(WINDOW_SIZE);
             const auto image_handle = renderer->create_image(image_description);
             if (image_handle.is_err()) {
-                return image_handle.propagation(
-                    platform::RenderError::MakeError, "イメージの作成に失敗しました");
+                return image_handle.propagation(platform::RenderError::MakeError)
+                    .add_message("イメージの作成に失敗しました");
             }
 
             const auto image_view_description = types::ImageViewDescription{};
             const auto result =
-                renderer->create_render_target_view(image_handle.value(), image_view_description);
+                renderer->create_render_target_view(image_handle.unwrap(), image_view_description);
 
             if (result.is_err()) {
-                return image_handle.propagation(
-                    platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました");
+                return image_handle.propagation(platform::RenderError::MakeError)
+                    .add_message("レンダーターゲットの作成に失敗しました");
             }
-            if (auto render_target_view = result.value().lock()) {
+            if (auto render_target_view = result.unwrap().lock()) {
                 render_target_view->set_clear_color(CLEAR_COLOR);
                 description.render_target = render_target_view->get_handle();
             }
@@ -93,11 +93,11 @@ namespace enishi {
                 .front_face = types::FrontFace::CounterClockwise,
             });
             if (rasterizer.is_err()) {
-                return rasterizer.propagation(
-                    platform::RenderError::MakeError, "ラスタライザの作成に失敗しました");
+                return rasterizer.propagation(platform::RenderError::MakeError)
+                    .add_message("ラスタライザの作成に失敗しました");
             }
 
-            description.rasterizer = rasterizer.value();
+            description.rasterizer = rasterizer.unwrap();
         }
 
         // シェーダーからインプットレイアウトの作成
@@ -110,11 +110,11 @@ namespace enishi {
             const auto input_layout =
                 this->make_input_layout_from_shader(pattern, renderer, asset_system);
             if (input_layout.is_err()) {
-                return input_layout.propagation(
-                    platform::RenderError::MakeError, "入力レイアウトの作成に失敗しました");
+                return input_layout.propagation(platform::RenderError::MakeError)
+                    .add_message("入力レイアウトの作成に失敗しました");
             }
 
-            description.vertex_layout = input_layout.value();
+            description.vertex_layout = input_layout.unwrap();
         }
 
         // シェーダーの作成
@@ -122,11 +122,11 @@ namespace enishi {
             const auto handle =
                 this->make_shader(types::ShaderKind::Vertex, pattern, renderer, asset_system);
             if (handle.is_err()) {
-                return handle.propagation(
-                    platform::RenderError::MakeError, "頂点シェーダーの作成に失敗しました");
+                return handle.propagation(platform::RenderError::MakeError)
+                    .add_message("頂点シェーダーの作成に失敗しました");
             }
 
-            description.shaders.push_back(handle.value());
+            description.shaders.push_back(handle.unwrap());
         }
 
         {
@@ -137,18 +137,18 @@ namespace enishi {
             const auto handle =
                 this->make_shader(types::ShaderKind::Pixel, pattern, renderer, asset_system);
             if (handle.is_err()) {
-                return handle.propagation(
-                    platform::RenderError::MakeError, "ピクセルシェーダーの作成に失敗しました");
+                return handle.propagation(platform::RenderError::MakeError)
+                    .add_message("ピクセルシェーダーの作成に失敗しました");
             }
 
-            description.shaders.push_back(handle.value());
+            description.shaders.push_back(handle.unwrap());
         }
 
         auto result = renderer->create_render_pass(description);
         if (result.is_err()) {
             return result;
         }
-        auto&& render_pass = result.value();
+        auto&& render_pass = result.unwrap_mut();
 
         // モデルのみ初期モデル追加
         // TODO: ファイルからの読み取り初期モデルを選択するように
@@ -160,12 +160,12 @@ namespace enishi {
 
             const auto handle = this->make_mesh(pattern, renderer, asset_system);
             if (handle.is_err()) {
-                return handle.propagation(
-                    platform::RenderError::MakeError, "モデルの作成に失敗しました");
+                return handle.propagation(platform::RenderError::MakeError)
+                    .add_message("モデルの作成に失敗しました");
             }
 
             render_pass.commands.push_back(types::DrawCommand{
-                .handle = handle.value(),
+                .handle = handle.unwrap(),
                 .sub_command = types::SubCommand::Bind,
             });
         }
@@ -218,11 +218,11 @@ namespace enishi {
         for (const auto& path : asset_paths) {
             const auto asset_handle = asset_system->load_asset(path);
             if (asset_handle.is_err()) {
-                error_message += asset_handle.error().get_message() + "\n";
+                error_message += asset_handle.unwrap_err().get_message() + "\n";
                 error_message += std::format("読み込みに失敗しました: {}", path.string<char>());
                 continue;
             }
-            const auto shader_data = asset_system->get_shader_data(asset_handle.value());
+            const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
             if (shader_data.is_none()) {
                 error_message +=
                     std::format("シェーダーデータの取得に失敗しました: {}", path.string<char>());
@@ -231,13 +231,13 @@ namespace enishi {
             const auto input_layout =
                 renderer->create_pipeline_layout_from_shader(shader_data.unwrap());
             if (input_layout.is_err()) {
-                error_message += input_layout.error().get_message() + "\n";
+                error_message += input_layout.unwrap_err().get_message() + "\n";
                 error_message +=
                     std::format("頂点レイアウトの作成に失敗しました: {}", path.string<char>());
                 continue;
             }
 
-            return input_layout.value();
+            return input_layout.unwrap();
         }
 
         return foundation::Error(platform::RenderError::MakeError, error_message);
@@ -265,17 +265,17 @@ namespace enishi {
         for (const auto& path : asset_paths) {
             const auto asset_handle = asset_system->load_asset(path);
             if (asset_handle.is_err()) {
-                error_message = asset_handle.error().get_message();
+                error_message = asset_handle.unwrap_err().get_message();
                 continue;
             }
-            const auto shader_data = asset_system->get_shader_data(asset_handle.value());
+            const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
             if (shader_data.is_none()) {
                 continue;
             }
 
-            const auto shader_handle = renderer->create_shader(kind, shader_data.value());
+            const auto shader_handle = renderer->create_shader(kind, shader_data.unwrap());
             if (shader_handle.is_err()) {
-                error_message = shader_handle.error().get_message();
+                error_message = shader_handle.unwrap_err().get_message();
                 continue;
             }
 
@@ -284,7 +284,7 @@ namespace enishi {
                     std::format("使用するシェーダー: {}", path.string<char>()));
             }
 
-            return shader_handle.value();
+            return shader_handle.unwrap();
         }
 
         return foundation::Error(platform::RenderError::MakeError, error_message);
@@ -306,10 +306,10 @@ namespace enishi {
         for (const auto& path : asset_paths) {
             const auto asset_handle = asset_system->load_asset(path);
             if (asset_handle.is_err()) {
-                error_message = asset_handle.error().get_message();
+                error_message = asset_handle.unwrap_err().get_message();
                 continue;
             }
-            const auto opt_model_data = asset_system->get_model_data(asset_handle.value());
+            const auto opt_model_data = asset_system->get_model_data(asset_handle.unwrap());
             if (opt_model_data.is_none()) {
                 continue;
             }
@@ -317,11 +317,11 @@ namespace enishi {
 
             const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
             if (mesh_handle.is_err()) {
-                error_message = mesh_handle.error().get_message();
+                error_message = mesh_handle.unwrap_err().get_message();
                 continue;
             }
 
-            return mesh_handle.value();
+            return mesh_handle.unwrap();
         }
 
         return foundation::Error(platform::RenderError::MakeError, error_message);

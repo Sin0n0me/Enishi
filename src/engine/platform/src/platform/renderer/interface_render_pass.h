@@ -10,5 +10,7 @@ namespace enishi::platform {
         //[[nodiscard]]
 
         virtual void add_mesh(const types::RenderHandle handle) noexcept = 0;
+
+
     };
 } // namespace enishi::platform

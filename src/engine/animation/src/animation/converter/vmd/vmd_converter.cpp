@@ -35,7 +35,7 @@ namespace enishi::animation {
                 continue;
             }
 
-            const auto opt_index = resolver->resolve_index(utf8.value());
+            const auto opt_index = resolver->resolve_index(utf8.unwrap());
             if (opt_index.is_none()) {
                 foundation::Logger::warning("モデルに存在しないボーンが含まれています");
                 continue;
@@ -97,7 +97,7 @@ namespace enishi::animation {
                 continue;
             }
 
-            const auto opt_index = resolver->resolve_index(utf8.value());
+            const auto opt_index = resolver->resolve_index(utf8.unwrap());
             if (opt_index.is_none()) {
                 foundation::Logger::warning("モデルに存在しないボーンが含まれています");
                 continue;

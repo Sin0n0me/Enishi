@@ -31,17 +31,17 @@ namespace enishi::assets_system {
 
         auto load_data = iter->second->load(path);
         if (load_data.is_err()) {
-            return load_data.error();
+            return load_data.unwrap_err();
         }
-        auto& model_data = load_data.value();
+        auto&& model_data = load_data.unwrap_mut();
 
-        if (auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
+        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
             auto convert_data = PMDToModelData::to_model_data(*pmd_data->get());
             if (convert_data.is_err()) {
-                return convert_data.add_message("データの変換に失敗しました").error();
+                return convert_data.unwrap_err().add_message("データの変換に失敗しました");
             }
 
-            return convert_data.value();
+            return AssetData{convert_data.unwrap()};
         }
 
         // 仮

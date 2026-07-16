@@ -18,10 +18,10 @@ namespace enishi::assets_system {
     foundation::Result<AssetData, AssetError> ShaderLoader::load(
         const std::filesystem::path& path) noexcept {
         auto reader = BinaryReader::make_reader(path);
-        if (!reader.has_value()) {
+        if (reader.is_err()) {
             return reader.propagation(AssetError::IOError);
         }
-        auto& binary_reader = reader.value();
+        auto& binary_reader = reader.unwrap_mut();
 
         if (!path.has_extension()) {
             return foundation::Error(AssetError::NotFound);
@@ -70,7 +70,7 @@ namespace enishi::assets_system {
 
         return types::ShaderData{
             .binary_type = types::ShaderBinaryType::SPIR_V,
-            .code = std::move(result.value()),
+            .code = std::move(result.unwrap_mut()),
         };
     }
 
@@ -87,7 +87,7 @@ namespace enishi::assets_system {
 
         return types::ShaderData{
             .binary_type = types::ShaderBinaryType::DXBC,
-            .code = std::move(result.value()),
+            .code = std::move(result.unwrap_mut()),
         };
     }
 

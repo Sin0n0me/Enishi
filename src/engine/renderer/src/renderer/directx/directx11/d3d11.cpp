@@ -170,7 +170,7 @@ namespace enishi::renderer::directx {
 
         auto reuslt = d3d11->init(hwnd, size);
         if (reuslt.is_err()) {
-            return reuslt.add_message("DirectX11の初期化に失敗しました").error();
+            return reuslt.unwrap_err().add_message("DirectX11の初期化に失敗しました");
         }
 
         return d3d11;
