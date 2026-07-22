@@ -277,7 +277,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
 
-        const auto rtv = std::make_shared<RenderTargetView>(result.unwrap(), description);
+        auto&& rtv = std::make_shared<RenderTargetView>(result.unwrap(), description);
         this->render_targets.emplace_back(rtv);
 
         return rtv;

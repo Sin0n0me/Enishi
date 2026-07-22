@@ -73,21 +73,21 @@ namespace enishi::core {
 
             auto&& asset_data = result.unwrap_mut();
             if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
-                const auto handle = this->register_model(std::move(*model_data));
+                auto&& handle = this->register_model(std::move(*model_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
             if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
-                const auto handle = this->register_texture(std::move(*texture_data));
+                auto&& handle = this->register_texture(std::move(*texture_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
             if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
-                const auto handle = this->register_shader(std::move(*shader_data));
+                auto&& handle = this->register_shader(std::move(*shader_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;

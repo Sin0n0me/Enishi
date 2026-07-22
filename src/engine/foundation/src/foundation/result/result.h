@@ -5,23 +5,21 @@
 #include <vector>
 
 namespace enishi::foundation {
-    template <typename T, typename E>
-    using storage_t = std::conditional_t<std::is_reference_v<T>,
-        std::expected<std::reference_wrapper<std::remove_reference_t<T>>, E>,
-        std::expected<T, E>>;
+    template <typename T, typename E> using Expected = std::expected<T, Error<E>>;
+    template <typename E> using Unexpected = std::unexpected<Error<E>>;
 
     template <typename T, typename E> class ResultBase {
       protected:
-        std::expected<T, Error<E>> expected;
+        Expected<T, E> expected;
 
       public:
         ResultBase(ResultBase<T, E>&& result) noexcept
             : expected(std::move(result.expected)) {
         }
-        ResultBase(std::expected<T, E>&& expected)
+        ResultBase(Expected<T, E>&& expected)
             : expected(std::move(expected)) {
         }
-        ResultBase(std::unexpected<E>&& unexpected)
+        ResultBase(Unexpected<E>&& unexpected)
             : expected(std::move(unexpected)) {
         }
 
@@ -50,59 +48,21 @@ namespace enishi::foundation {
             }
         }
 
-        template <typename U> [[nodiscard]] T& unwrap_or(U&& value) {
-            if constexpr (std::is_reference_v<T>) {
-                return this->expected.value_or(std::forward(value)).get();
-            } else {
-                return this->expected.value_or(std::forward(value));
-            }
-        }
-
         template <typename U> [[nodiscard]] const T& unwrap_or(U&& value) const {
             if constexpr (std::is_reference_v<T>) {
-                return this->expected.value_or(std::move(value)).get();
+                return this->expected.value_or(std::forward<U>(value)).get();
             } else {
-                return this->expected.value_or(std::move(value));
+                return this->expected.value_or(std::forward<U>(value));
             }
         }
 
-        [[nodiscard]] const E& unwrap_err(void) const {
+        [[nodiscard]] const Error<E>& unwrap_err(void) const& {
             return this->expected.error();
         }
-        [[nodiscard]] E&& unwrap_err(void) {
-            return std::move(this->expected.error());
-        }
-    };
-
-    template <typename E> class ResultBase<void, E> {
-      protected:
-        std::expected<void, Error<E>> expected;
-
-      public:
-        ResultBase(ResultBase<void, E>&& result)
-            : expected(std::move(result.expected)) {
-        }
-        ResultBase(std::expected<void, E>&& expected)
-            : expected(expected) {
-        }
-        ResultBase(std::unexpected<E>&& unexpected)
-            : expected(std::move(unexpected)) {
-        }
-
-        ResultBase& operator=(ResultBase&&) = default;
-
-        void unwrap(void) const {
-            this->expected.value();
-        }
-
-        void unwrap_mut(void) {
-            return this->expected.value();
-        }
-
-        [[nodiscard]] const E& unwrap_err(void) const {
+        [[nodiscard]] Error<E>& unwrap_err(void) & {
             return this->expected.error();
         }
-        [[nodiscard]] E&& unwrap_err(void) {
+        [[nodiscard]] Error<E>&& unwrap_err(void) && {
             return std::move(this->expected.error());
         }
     };
@@ -116,13 +76,13 @@ namespace enishi::foundation {
             : ResultBase<T, E>(std::move(result)) {
         }
         ResultMethod(const Error<E>& err)
-            : ResultBase<T, E>(std::unexpected(err)) {
+            : ResultBase<T, E>(Unexpected<E>(err)) {
         }
         ResultMethod(Error<E>&& err)
-            : ResultBase<T, E>(std::unexpected(std::move(err))) {
+            : ResultBase<T, E>(Unexpected<E>(std::move(err))) {
         }
-        ResultMethod(ErrorBase<E>&& err)
-            : ResultBase<T, E>(std::unexpected(Error<E>(std::move(err)))) {
+        ResultMethod(details::ErrorBase<E>&& err)
+            : ResultBase<T, E>(Unexpected<E>(Error<E>(std::move(err)))) {
         }
 
         ResultMethod& operator=(ResultMethod&&) = default;
@@ -135,8 +95,12 @@ namespace enishi::foundation {
             return !this->expected.has_value();
         }
 
-        template <typename U> [[nodiscard]] constexpr Error<U> propagation(const U e) const {
-            return this->expected.error().propagation(e);
+        template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) const {
+            return this->expected.error().propagation(std::forward<U>(e));
+        }
+
+        template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) {
+            return this->expected.error().propagation(std::forward<U>(e));
         }
     };
 
@@ -149,36 +113,44 @@ namespace enishi::foundation {
 
       public:
         Result(void)
-            : ResultMethod<T, E>(std::expected<T, Error<E>>{T{}}) {
+            : ResultMethod<T, E>(Expected<T, E>{T{}}) {
         }
         Result(const T& value)
-            : ResultMethod<T, E>(std::expected<T, Error<E>>{value}) {
+            : ResultMethod<T, E>(Expected<T, E>{value}) {
         }
         Result(T&& value)
-            : ResultMethod<T, E>(std::expected<T, Error<E>>{std::move(value)}) {
+            : ResultMethod<T, E>(Expected<T, E>{std::move(value)}) {
         }
+        // UからTへ変換可能な場合
+        template <typename U>
+            requires std::constructible_from<T, U&&> &&
+                     (!std::same_as<std::remove_cvref_t<U>, Result>)
+        Result(U&& other)
+            : ResultMethod<T, E>(Expected<T, E>{std::forward<U>(other)}) {
+        }
+
+        Result(const Error<E>& err)
+            : ResultMethod<T, E>(err) {
+        }
+
         Result(Result&& result)
             : ResultMethod<T, E>(std::move(result)) {
-        }
-        template <typename U>
-            requires std::constructible_from<T, const U&>
-        Result(const Result<U, E>& other)
-            : ResultMethod<T, E>(std::expected<T, Error<E>>(other.expected)) {
         }
 
         Result& operator=(Result&&) = default;
     };
 
-    template <typename T, typename E> class Result<T&, E> : public ResultMethod<T&, E> {
+    template <typename T, typename E>
+    class Result<T&, E> : public ResultMethod<std::reference_wrapper<T>, E> {
       public:
-        using ResultMethod<T&, E>::ResultMethod;
+        using ResultMethod<std::reference_wrapper<T>, E>::ResultMethod;
 
         Result(T&& value)
-            : ResultMethod<T, E>(
-                  std::expected<std::reference_wrapper<T>, Error<E>>{std::forward<T>(value)}) {
+            : ResultMethod<std::reference_wrapper<T>, E>(Expected<std::reference_wrapper<T>, E>{
+                  std::forward<std::reference_wrapper<T>>(value)}) {
         }
         Result(Result&& result)
-            : ResultMethod<T&, E>(std::move(result)) {
+            : ResultMethod<std::reference_wrapper<T>, E>(std::move(result)) {
         }
 
         Result& operator=(Result&&) = default;
@@ -189,7 +161,7 @@ namespace enishi::foundation {
         using ResultMethod<std::monostate, E>::ResultMethod;
 
         Result(void)
-            : ResultMethod<std::monostate, E>(std::expected<std::monostate, E>{}) {
+            : ResultMethod<std::monostate, E>(Expected<std::monostate, E>{}) {
         }
         Result(Result&& result)
             : ResultMethod<std::monostate, E>(std::move(result)) {
