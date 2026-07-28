@@ -80,9 +80,9 @@ namespace enishi::assets_system {
             this->file.seekg(0, std::ios::beg);
 
             T found{};
-            const auto result = this->read_to(&found);
+            auto&& result = this->read_to(&found);
             if (result.is_err()) {
-                return result.unwrap_err();
+                return result;
             }
 
             // マジックナンバーの比較

@@ -31,6 +31,7 @@ namespace enishi::assets_system {
         if (iter == this->supported_extension.end()) {
             return foundation::Error(AssetError::NotFound);
         }
+
         switch (iter->second) {
             case types::ShaderBinaryType::SPIR_V:
                 return ShaderLoader::load_spir_v(binary_reader);

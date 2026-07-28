@@ -44,7 +44,7 @@ namespace enishi::renderer::directx {
 
     foundation::Result<ShaderReflection, DirectXError> ShaderReflection::make(
         const types::ShaderData& data) {
-        ShaderReflection reflection;
+        ShaderReflection reflection{};
 
         const HRESULT hr = D3DReflect(
             data.code.data(), data.code.size(), IID_PPV_ARGS(reflection.reflector.GetAddressOf()));

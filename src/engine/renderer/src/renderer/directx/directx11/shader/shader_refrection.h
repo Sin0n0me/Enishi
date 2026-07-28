@@ -40,6 +40,9 @@ namespace enishi::renderer::directx {
         static foundation::Result<ShaderReflection, DirectXError> make(
             const types::ShaderData& data);
 
+        ShaderReflection(ShaderReflection&&) noexcept = default;
+        ShaderReflection& operator=(ShaderReflection&&) noexcept = default;
+
         foundation::Option<std::uint32_t> get_constant_buffer_slot(
             const std::string& name) const noexcept;
 
@@ -48,6 +51,8 @@ namespace enishi::renderer::directx {
         const std::vector<InputElementDescription>& get_input_element_descs(void) const noexcept;
 
       private:
+        ShaderReflection(void) noexcept = default;
+
         foundation::Option<std::uint32_t> get(
             const D3D_SHADER_INPUT_TYPE input_type, const std::string& name) const noexcept;
 

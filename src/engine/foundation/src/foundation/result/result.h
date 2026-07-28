@@ -5,169 +5,171 @@
 #include <vector>
 
 namespace enishi::foundation {
-    template <typename T, typename E> using Expected = std::expected<T, Error<E>>;
+    namespace details {
+        template <typename T, typename E> using WrappedExpected = std::expected<T, Error<E>>;
+
+        template <class T, class E> struct ExpectedTrait {
+            using storage_type = std::conditional_t<std::is_reference_v<T>,
+                details::WrappedExpected<std::reference_wrapper<std::remove_reference_t<T>>, E>,
+                details::WrappedExpected<T, E>>;
+
+            static storage_type make(storage_type&& value) {
+                return std::move(value);
+            }
+
+            template <class U> static storage_type make(U&& value) {
+                return std::forward<U>(value);
+            }
+        };
+    } // namespace details
+
+    template <typename T, typename E>
+    using Expected = std::conditional_t<std::is_reference_v<T>,
+        details::WrappedExpected<std::reference_wrapper<std::remove_reference_t<T>>, E>,
+        details::WrappedExpected<T, E>>;
     template <typename E> using Unexpected = std::unexpected<Error<E>>;
 
-    template <typename T, typename E> class ResultBase {
-      protected:
-        Expected<T, E> expected;
+    namespace details {
+        template <typename Derived, typename T, typename E> class ResultBase {
+          protected:
+            Expected<T, E> expected;
 
-      public:
-        ResultBase(ResultBase<T, E>&& result) noexcept
-            : expected(std::move(result.expected)) {
-        }
-        ResultBase(Expected<T, E>&& expected)
-            : expected(std::move(expected)) {
-        }
-        ResultBase(Unexpected<E>&& unexpected)
-            : expected(std::move(unexpected)) {
-        }
-
-        ResultBase& operator=(ResultBase&&) = default;
-
-        [[nodiscard]] const T& unwrap(void) const {
-            if constexpr (std::is_reference_v<T>) {
-                return this->expected.value().get();
-            } else {
-                return this->expected.value();
+          public:
+            ResultBase(ResultBase<Derived, T, E>&&) noexcept = default;
+            explicit ResultBase(Expected<T, E>&& expected)
+                : expected(std::move(expected)) {
             }
-        }
-
-        [[nodiscard]] T& unwrap_mut(void) & {
-            if constexpr (std::is_reference_v<T>) {
-                return this->expected.value().get();
-            } else {
-                return this->expected.value();
+            explicit ResultBase(Unexpected<E>&& unexpected)
+                : expected(std::move(unexpected)) {
             }
-        }
-        [[nodiscard]] T&& unwrap_mut(void) && {
-            if constexpr (std::is_reference_v<T>) {
-                return std::move(this->expected.value().get());
-            } else {
-                return std::move(this->expected.value());
+
+          public:
+            ResultBase& operator=(ResultBase&&) noexcept = default;
+
+          public:
+            [[nodiscard]] const T& unwrap(void) const {
+                if constexpr (std::is_reference_v<T>) {
+                    return this->expected.value().get();
+                } else {
+                    return this->expected.value();
+                }
             }
-        }
 
-        template <typename U> [[nodiscard]] const T& unwrap_or(U&& value) const {
-            if constexpr (std::is_reference_v<T>) {
-                return this->expected.value_or(std::forward<U>(value)).get();
-            } else {
-                return this->expected.value_or(std::forward<U>(value));
+            [[nodiscard]] T& unwrap_mut(void) & {
+                if constexpr (std::is_reference_v<T>) {
+                    return this->expected.value().get();
+                } else {
+                    return this->expected.value();
+                }
             }
-        }
+            [[nodiscard]] T&& unwrap_mut(void) && {
+                if constexpr (std::is_reference_v<T>) {
+                    return std::move(this->expected.value().get());
+                } else {
+                    return std::move(this->expected.value());
+                }
+            }
 
-        [[nodiscard]] const Error<E>& unwrap_err(void) const& {
-            return this->expected.error();
-        }
-        [[nodiscard]] Error<E>& unwrap_err(void) & {
-            return this->expected.error();
-        }
-        [[nodiscard]] Error<E>&& unwrap_err(void) && {
-            return std::move(this->expected.error());
-        }
-    };
+            template <typename U> [[nodiscard]] const T& unwrap_or(U&& value) const {
+                if constexpr (std::is_reference_v<T>) {
+                    return this->expected.value_or(std::forward<U>(value)).get();
+                } else {
+                    return this->expected.value_or(value);
+                }
+            }
 
-    template <typename T, typename E> class ResultMethod : public ResultBase<T, E> {
-      public:
-        using ResultBase<T, E>::ResultBase;
+            [[nodiscard]] const Error<E>& unwrap_err(void) const& {
+                return this->expected.error();
+            }
+            [[nodiscard]] Error<E>& unwrap_err(void) & {
+                return this->expected.error();
+            }
+            [[nodiscard]] Error<E>&& unwrap_err(void) && {
+                return std::move(this->expected.error());
+            }
 
-      public:
-        ResultMethod(ResultMethod&& result)
-            : ResultBase<T, E>(std::move(result)) {
-        }
-        ResultMethod(const Error<E>& err)
-            : ResultBase<T, E>(Unexpected<E>(err)) {
-        }
-        ResultMethod(Error<E>&& err)
-            : ResultBase<T, E>(Unexpected<E>(std::move(err))) {
-        }
-        ResultMethod(details::ErrorBase<E>&& err)
-            : ResultBase<T, E>(Unexpected<E>(Error<E>(std::move(err)))) {
-        }
+            [[nodiscard]] Error<E> take_err(void) && {
+                return std::move(this->expected.error());
+            }
 
-        ResultMethod& operator=(ResultMethod&&) = default;
+            [[nodiscard]] Derived&& add_message(UTF8&& message) && {
+                if (this->is_err()) {
+                    this->expected.error().add_message(std::forward<UTF8>(message));
+                }
+                return static_cast<Derived&&>(std::move(*this));
+            }
 
-        [[nodiscard]] constexpr bool is_ok(void) const {
-            return this->expected.has_value();
-        }
+            [[nodiscard]] constexpr bool is_ok(void) const noexcept {
+                return this->expected.has_value();
+            }
 
-        [[nodiscard]] constexpr bool is_err(void) const {
-            return !this->expected.has_value();
-        }
+            [[nodiscard]] constexpr bool is_err(void) const noexcept {
+                return !this->expected.has_value();
+            }
 
-        template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) const {
-            return this->expected.error().propagation(std::forward<U>(e));
-        }
+            template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) const {
+                return this->expected.error().propagation(std::forward<U>(e));
+            }
 
-        template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) {
-            return this->expected.error().propagation(std::forward<U>(e));
-        }
-    };
+            template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) {
+                return this->expected.error().propagation(std::forward<U>(e));
+            }
+        };
+    } // namespace details
 
-    template <typename T, typename E> class Result : public ResultMethod<T, E> {
+    template <typename T, typename E>
+    class Result : public details::ResultBase<Result<T, E>, T, E> {
       private:
         template <typename T, typename E> friend class Result;
 
       public:
-        using ResultMethod<T, E>::ResultMethod;
+        using details::ResultBase<Result<T, E>, T, E>::ResultBase;
 
       public:
         Result(void)
-            : ResultMethod<T, E>(Expected<T, E>{T{}}) {
+            : details::ResultBase<Result<T, E>, T, E>(Expected<T, E>{T{}}) {
         }
-        Result(const T& value)
-            : ResultMethod<T, E>(Expected<T, E>{value}) {
+        Result(Error<E>&& err)
+            : details::ResultBase<Result<T, E>, T, E>(Unexpected<E>{std::move(err)}) {
         }
-        Result(T&& value)
-            : ResultMethod<T, E>(Expected<T, E>{std::move(value)}) {
+
+        template <class U>
+            requires std::constructible_from<std::remove_reference_t<T>, U&&>
+        Result(U&& value)
+            : details::ResultBase<Result<T, E>, T, E>(Expected<T, E>{std::forward<U>(value)}) {
         }
+
         // UからTへ変換可能な場合
         template <typename U>
-            requires std::constructible_from<T, U&&> &&
-                     (!std::same_as<std::remove_cvref_t<U>, Result>)
-        Result(U&& other)
-            : ResultMethod<T, E>(Expected<T, E>{std::forward<U>(other)}) {
+            requires std::constructible_from<T, U>
+        Result(Result<U, E>&& other)
+            : details::ResultBase<Result<T, E>, T, E>(
+                  other.is_ok() ? Expected<T, E>{T{std::move(other).unwrap_mut()}}
+                                : Expected<T, E>{Unexpected<E>{std::move(other).unwrap_err()}}) {
         }
 
-        Result(const Error<E>& err)
-            : ResultMethod<T, E>(err) {
-        }
+        Result(Result&&) noexcept = default;
 
-        Result(Result&& result)
-            : ResultMethod<T, E>(std::move(result)) {
-        }
-
-        Result& operator=(Result&&) = default;
+        Result& operator=(Result&&) noexcept = default;
     };
 
-    template <typename T, typename E>
-    class Result<T&, E> : public ResultMethod<std::reference_wrapper<T>, E> {
+    template <typename E>
+    class Result<void, E> : public details::ResultBase<Result<void, E>, std::monostate, E> {
       public:
-        using ResultMethod<std::reference_wrapper<T>, E>::ResultMethod;
+        using details::ResultBase<Result<void, E>, std::monostate, E>::ResultBase;
 
-        Result(T&& value)
-            : ResultMethod<std::reference_wrapper<T>, E>(Expected<std::reference_wrapper<T>, E>{
-                  std::forward<std::reference_wrapper<T>>(value)}) {
-        }
-        Result(Result&& result)
-            : ResultMethod<std::reference_wrapper<T>, E>(std::move(result)) {
-        }
-
-        Result& operator=(Result&&) = default;
-    };
-
-    template <typename E> class Result<void, E> : public ResultMethod<std::monostate, E> {
       public:
-        using ResultMethod<std::monostate, E>::ResultMethod;
-
         Result(void)
-            : ResultMethod<std::monostate, E>(Expected<std::monostate, E>{}) {
+            : details::ResultBase<Result<void, E>, std::monostate, E>(
+                  Expected<std::monostate, E>{}) {
         }
-        Result(Result&& result)
-            : ResultMethod<std::monostate, E>(std::move(result)) {
+        Result(Error<E>&& err)
+            : details::ResultBase<Result<void, E>, std::monostate, E>(
+                  Unexpected<E>(std::move(err))) {
         }
+        Result(Result&&) noexcept = default;
 
-        Result& operator=(Result&&) = default;
+        Result& operator=(Result&&) noexcept = default;
     };
 
     template <typename E> using VoidResult = Result<void, E>;

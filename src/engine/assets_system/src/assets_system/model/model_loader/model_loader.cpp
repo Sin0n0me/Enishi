@@ -29,16 +29,17 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::NotFound, "対応していないファイル形式です");
         }
 
-        auto load_data = iter->second->load(path);
+        auto&& load_data = iter->second->load(path);
         if (load_data.is_err()) {
-            return load_data.unwrap_err();
+            return std::move(load_data).take_err();
         }
         auto&& model_data = load_data.unwrap_mut();
 
         if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
-            auto convert_data = PMDToModelData::to_model_data(*pmd_data->get());
+            auto&& convert_data = PMDToModelData::to_model_data(*pmd_data->get())
+                                      .add_message("データの変換に失敗しました");
             if (convert_data.is_err()) {
-                return convert_data.unwrap_err().add_message("データの変換に失敗しました");
+                return convert_data;
             }
 
             return AssetData{convert_data.unwrap()};

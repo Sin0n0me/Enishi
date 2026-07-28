@@ -107,11 +107,11 @@ namespace enishi {
             std::format("{}{}", path_to_regex(vertex_file), pattern_shader_extensions);
         const std::regex pattern(str_pattern);
         {
-            const auto input_layout =
-                this->make_input_layout_from_shader(pattern, renderer, asset_system);
-            if (input_layout.is_err()) {
-                return input_layout.propagation(platform::RenderError::MakeError)
+            auto&& input_layout =
+                this->make_input_layout_from_shader(pattern, renderer, asset_system)
                     .add_message("入力レイアウトの作成に失敗しました");
+            if (input_layout.is_err()) {
+                return input_layout.propagation(platform::RenderError::MakeError);
             }
 
             description.vertex_layout = input_layout.unwrap();
@@ -119,11 +119,11 @@ namespace enishi {
 
         // シェーダーの作成
         {
-            const auto handle =
-                this->make_shader(types::ShaderKind::Vertex, pattern, renderer, asset_system);
-            if (handle.is_err()) {
-                return handle.propagation(platform::RenderError::MakeError)
+            auto&& handle =
+                this->make_shader(types::ShaderKind::Vertex, pattern, renderer, asset_system)
                     .add_message("頂点シェーダーの作成に失敗しました");
+            if (handle.is_err()) {
+                return handle.propagation(platform::RenderError::MakeError);
             }
 
             description.shaders.push_back(handle.unwrap());

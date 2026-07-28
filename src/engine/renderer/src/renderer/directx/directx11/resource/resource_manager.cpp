@@ -11,14 +11,15 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_input_layout_from_shader(
         const types::ShaderData& shader_data) {
         // shader reflectionでレイアウトを作成
-        auto refection = ShaderReflection::make(shader_data);
-        if (refection.is_err()) {
-            return refection.unwrap_err().add_message("shader reflectionの作成に失敗しました");
+        auto&& result = ShaderReflection::make(shader_data)
+                            .add_message("shader reflectionの作成に失敗しました");
+        if (result.is_err()) {
+            return std::move(result).unwrap_err();
         }
-        const auto& refections = refection.unwrap();
+        const auto& refection = result.unwrap();
 
         // 変換
-        const auto input_elements = refections.get_input_element_descs() |
+        const auto input_elements = refection.get_input_element_descs() |
                                     std::views::transform([](const InputElementDescription& desc) {
                                         return desc.description;
                                     }) |
@@ -48,17 +49,19 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_mesh(const types::MeshData& mesh_data) {
         // 頂点バッファ作成
         auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto vertex_result = this->make_vertex_buffer(mesh_data.vertices);
+        auto&& vertex_result = this->make_vertex_buffer(mesh_data.vertices)
+                                   .add_message("メッシュの作成に失敗しました");
         if (vertex_result.is_err()) {
-            return vertex_result.unwrap_err().add_message("メッシュの作成に失敗しました");
+            return std::move(vertex_result);
         }
         vertex_handle = vertex_result.unwrap();
 
         // インデックスバッファ作成
         auto index_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto index_result = this->make_index_buffer(mesh_data.indices);
+        auto&& index_result =
+            this->make_index_buffer(mesh_data.indices).add_message("メッシュの作成に失敗しました");
         if (index_result.is_err()) {
-            return index_result.unwrap_err().add_message("メッシュの作成に失敗しました");
+            return std::move(index_result);
         }
         index_handle = index_result.unwrap();
 
@@ -407,7 +410,8 @@ namespace enishi::renderer::directx {
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
         const auto handle = this->handle_allocator.create();
 
-        foundation::VoidResult<DirectXError> result = foundation::Error(DirectXError::ShaderError);
+        foundation::VoidResult<DirectXError>&& result =
+            foundation::Error(DirectXError::ShaderError);
         switch (kind) {
             case types::ShaderKind::Vertex: {
                 result = this->make_vertex_shader(shader_data, handle);
@@ -422,7 +426,7 @@ namespace enishi::renderer::directx {
         // エラーがあればハンドルは削除
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.unwrap_err();
+            return std::move(result).unwrap_err();
         }
 
         return types::RenderHandle{
@@ -437,10 +441,10 @@ namespace enishi::renderer::directx {
         auto& shader_pool = this->resource.shaders;
 
         // 先に作成
-        const auto result = shader_pool.create(handle, types::ShaderKind::Vertex);
+        auto&& result = shader_pool.create(handle, types::ShaderKind::Vertex);
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.unwrap_err();
+            return result;
         };
 
         auto opt_shader = shader_pool.get_vertex_shader(handle);
@@ -463,10 +467,10 @@ namespace enishi::renderer::directx {
         auto& shader_pool = this->resource.shaders;
 
         // 先に作成
-        const auto result = shader_pool.create(handle, types::ShaderKind::Pixel);
+        auto&& result = shader_pool.create(handle, types::ShaderKind::Pixel);
         if (result.is_err()) {
             this->handle_allocator.destroy(handle);
-            return result.unwrap_err();
+            return std::move(result);
         };
 
         auto opt_shader = shader_pool.get_pixel_shader(handle);

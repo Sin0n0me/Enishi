@@ -168,9 +168,9 @@ namespace enishi::renderer::directx {
         const HWND hwnd, const types::WindowSize& size) {
         std::unique_ptr<D3D11> d3d11 = std::make_unique<D3D11>();
 
-        auto reuslt = d3d11->init(hwnd, size);
+        auto&& reuslt = d3d11->init(hwnd, size).add_message("DirectX11の初期化に失敗しました");
         if (reuslt.is_err()) {
-            return reuslt.unwrap_err().add_message("DirectX11の初期化に失敗しました");
+            return std::move(reuslt).take_err();
         }
 
         return d3d11;

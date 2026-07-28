@@ -46,11 +46,11 @@ namespace enishi::ecs {
                 return foundation::Error(ECSError::AlreadyHasComponent, "already has component");
             }
 
-            return this->emplace_component(id, component);
+            return this->emplace_component(id, std::move(component));
         }
 
         // 既に持っている場合は上書き, なければ追加
-        T& insert_or_replace(const EntityID id, const T component) {
+        T& insert_or_replace(const EntityID id, T&& component) {
             if (this->has(id)) {
                 // 既存のコンポーネントを上書き
                 T& existing = this->components[this->sparse[id]];
@@ -61,7 +61,7 @@ namespace enishi::ecs {
         }
 
         // 既に持っている場合は何もしない
-        T& insert_or_ignore(const EntityID id, const T component) {
+        T& insert_or_ignore(const EntityID id, const T&& component) {
             if (this->has(id)) {
                 return this->components[this->sparse[id]];
             }

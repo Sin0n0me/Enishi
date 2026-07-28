@@ -35,7 +35,7 @@ namespace enishi::assets_system {
                 path.string() + " というパスもしくはファイルは存在しない, または権限がありません");
         }
 
-        return std::move(reader);
+        return reader;
     }
 
     IOResult<void> BinaryReader::read(void* data, const std::streamsize size) {
@@ -82,10 +82,9 @@ namespace enishi::assets_system {
         this->file.seekg(0, std::ios::beg);
 
         std::vector<std::uint8_t> vec;
-        const auto result = this->read_to_vec(vec, size);
-
+        auto result = this->read_to_vec(vec, size);
         if (result.is_err()) {
-            return result.unwrap_err();
+            return std::move(result).take_err();
         }
 
         return vec;
@@ -104,9 +103,9 @@ namespace enishi::assets_system {
         // 比較用に一時バッファ作成
         const std::size_t size = expect.size();
         std::vector<char> buff(size);
-        const auto result = this->read(buff.data(), sizeof(char) * size);
+        auto&& result = this->read(buff.data(), sizeof(char) * size);
         if (result.is_err()) {
-            return result.unwrap_err();
+            return result;
         }
 
         // マジックナンバーの比較
