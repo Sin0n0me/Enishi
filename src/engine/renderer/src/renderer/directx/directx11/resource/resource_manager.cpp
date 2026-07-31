@@ -11,8 +11,8 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_input_layout_from_shader(
         const types::ShaderData& shader_data) {
         // shader reflectionでレイアウトを作成
-        auto&& result = ShaderReflection::make(shader_data)
-                            .add_message("shader reflectionの作成に失敗しました");
+        auto result = ShaderReflection::make(shader_data)
+                          .add_message("shader reflectionの作成に失敗しました");
         if (result.is_err()) {
             return std::move(result).unwrap_err();
         }
@@ -98,7 +98,7 @@ namespace enishi::renderer::directx {
     ResourceManager::Result ResourceManager::make_texture(const types::TextureData& texture_data) {
         texture_data.format;
 
-        return Result();
+        return types::RenderHandle{};
     }
 
     ResourceManager::Result ResourceManager::make_vertex_buffer(const types::RenderData& data) {
@@ -299,8 +299,6 @@ namespace enishi::renderer::directx {
             .id = handle,
             .type = types::RenderHandleType::Rasterizer,
         };
-
-        return Result();
     }
 
     ResourceManager::Result ResourceManager::make_render_target_view(

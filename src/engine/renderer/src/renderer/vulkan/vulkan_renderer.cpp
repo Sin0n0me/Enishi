@@ -3,17 +3,17 @@
 namespace enishi::renderer::vulkan {
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_mesh(
         const types::MeshData& mesh) {
-        return {};
+        return types::RenderHandle{};
     }
 
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_texture(
         const types::TextureData& texture) {
-        return {};
+        return types::RenderHandle{};
     }
 
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_shader(
         const types::ShaderKind kind, const types::ShaderData& shader) {
-        return {};
+        return types::RenderHandle{};
     }
 
     void VulkanRenderer::submit_render_graph(const types::RenderGraph& graph) {

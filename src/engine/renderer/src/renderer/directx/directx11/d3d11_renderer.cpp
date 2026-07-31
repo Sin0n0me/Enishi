@@ -235,7 +235,7 @@ namespace enishi::renderer::directx {
     D3D11Renderer::create_pipeline_layout(const types::VertexLayout& layout,
         const types::RenderHandle& vertex_shader,
         const types::RenderHandle& pixel_shader) {
-        return platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>();
+        return std::unique_ptr<platform::IPipelineLayout>{};
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_pipeline_layout_from_shader(

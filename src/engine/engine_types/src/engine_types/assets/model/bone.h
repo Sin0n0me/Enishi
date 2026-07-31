@@ -12,11 +12,21 @@ namespace enishi::types {
         glm::mat4 local;          // ローカル
         glm::mat4 global;         // グローバル(GPUに渡す値)
         glm::mat4 global_inverse; // スキニング計算に使用
+
+        BindBone(void)
+            : local(glm::mat4(1.0f))
+            , global(glm::mat4(1.0f))
+            , global_inverse(glm::mat4(1.0f)) {
+        }
     };
 
     struct BoneNode {
         BoneIndex parent;
         std::vector<BoneIndex> children;
+
+        BoneNode(void)
+            : parent(INVALID_BONE_INDEX) {
+        }
 
         [[nodiscard]] bool has_parent(void) const;
     };

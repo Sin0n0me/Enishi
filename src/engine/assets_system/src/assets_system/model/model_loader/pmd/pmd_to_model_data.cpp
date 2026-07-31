@@ -10,7 +10,7 @@ namespace enishi::assets_system {
         const PMDData& data) {
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
-        const auto utf8_name = foundation::sjis_to_utf8(sjis_name);
+        auto&& utf8_name = foundation::sjis_to_utf8(sjis_name);
         if (utf8_name.is_err()) {
             foundation::Logger::warning("utf8に変換できない文字が含まれています");
         }
@@ -18,7 +18,7 @@ namespace enishi::assets_system {
 
         const std::string sjis_comment(
             reinterpret_cast<const char*>(data.comment.data()), data.comment.size());
-        const auto utf8_comment = foundation::sjis_to_utf8(sjis_comment);
+        auto&& utf8_comment = foundation::sjis_to_utf8(sjis_comment);
         if (utf8_comment.is_err()) {
             foundation::Logger::warning("utf8に変換できない文字が含まれています");
         }

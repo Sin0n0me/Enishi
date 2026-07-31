@@ -7,20 +7,6 @@
 namespace enishi::foundation {
     namespace details {
         template <typename T, typename E> using WrappedExpected = std::expected<T, Error<E>>;
-
-        template <class T, class E> struct ExpectedTrait {
-            using storage_type = std::conditional_t<std::is_reference_v<T>,
-                details::WrappedExpected<std::reference_wrapper<std::remove_reference_t<T>>, E>,
-                details::WrappedExpected<T, E>>;
-
-            static storage_type make(storage_type&& value) {
-                return std::move(value);
-            }
-
-            template <class U> static storage_type make(U&& value) {
-                return std::forward<U>(value);
-            }
-        };
     } // namespace details
 
     template <typename T, typename E>
@@ -31,6 +17,10 @@ namespace enishi::foundation {
 
     namespace details {
         template <typename Derived, typename T, typename E> class ResultBase {
+          private:
+            using ConstRefType =
+                std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t<T>>>;
+
           protected:
             Expected<T, E> expected;
 
@@ -49,9 +39,9 @@ namespace enishi::foundation {
           public:
             [[nodiscard]] const T& unwrap(void) const {
                 if constexpr (std::is_reference_v<T>) {
-                    return this->expected.value().get();
+                    return static_cast<ConstRefType>(this->expected.value().get());
                 } else {
-                    return this->expected.value();
+                    return static_cast<const T&>(this->expected.value());
                 }
             }
 
@@ -70,11 +60,21 @@ namespace enishi::foundation {
                 }
             }
 
-            template <typename U> [[nodiscard]] const T& unwrap_or(U&& value) const {
+            template <typename U> [[nodiscard]] T unwrap_or(U&& value) const& {
                 if constexpr (std::is_reference_v<T>) {
-                    return this->expected.value_or(std::forward<U>(value)).get();
+                    return static_cast<ConstRefType>(
+                        this->expected.value_or(std::forward<U>(value)).get());
                 } else {
-                    return this->expected.value_or(value);
+                    return this->expected.value_or(std::forward<U>(value));
+                }
+            }
+
+            template <typename U> [[nodiscard]] T unwrap_or(U&& value) && {
+                if constexpr (std::is_reference_v<T>) {
+                    return static_cast<ConstRefType>(
+                        this->expected.value_or(std::forward<U>(value)).get());
+                } else {
+                    return this->expected.value_or(std::forward<U>(value));
                 }
             }
 
@@ -92,11 +92,19 @@ namespace enishi::foundation {
                 return std::move(this->expected.error());
             }
 
-            [[nodiscard]] Derived&& add_message(UTF8&& message) && {
-                if (this->is_err()) {
-                    this->expected.error().add_message(std::forward<UTF8>(message));
+            [[nodiscard]] Derived& add_message(UTF8 message) & {
+                if (is_err()) {
+                    expected.error().add_message(std::move(message));
                 }
-                return static_cast<Derived&&>(std::move(*this));
+                return static_cast<Derived&>(*this);
+            }
+
+            [[nodiscard]] Derived add_message(UTF8&& message) && {
+                if (this->is_err()) {
+                    this->expected.error().add_message(std::move(message));
+                }
+
+                return Derived(std::move(static_cast<Derived&>(*this)));
             }
 
             [[nodiscard]] constexpr bool is_ok(void) const noexcept {
@@ -110,25 +118,18 @@ namespace enishi::foundation {
             template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) const {
                 return this->expected.error().propagation(std::forward<U>(e));
             }
-
-            template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) {
-                return this->expected.error().propagation(std::forward<U>(e));
-            }
         };
     } // namespace details
 
     template <typename T, typename E>
     class Result : public details::ResultBase<Result<T, E>, T, E> {
       private:
-        template <typename T, typename E> friend class Result;
+        template <typename U, typename F> friend class Result;
 
       public:
         using details::ResultBase<Result<T, E>, T, E>::ResultBase;
 
       public:
-        Result(void)
-            : details::ResultBase<Result<T, E>, T, E>(Expected<T, E>{T{}}) {
-        }
         Result(Error<E>&& err)
             : details::ResultBase<Result<T, E>, T, E>(Unexpected<E>{std::move(err)}) {
         }

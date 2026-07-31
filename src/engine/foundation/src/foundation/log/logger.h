@@ -30,13 +30,13 @@ namespace enishi::foundation {
         void logging(void);
         void shutdown(void);
 
-        void enqueue(const LogLevel& level, const UTF8& msg);
+        void enqueue(const LogLevel& level, UTF8&& msg);
         void write(const LogEntry& log);
 
       public:
-        static void debug(const UTF8& msg);
-        static void info(const UTF8& msg);
-        static void warning(const UTF8& msg);
-        static void error(const UTF8& msg);
+        static void debug(UTF8&& msg);
+        static void info(UTF8&& msg);
+        static void warning(UTF8&& msg);
+        static void error(UTF8&& msg);
     };
 } // namespace enishi::foundation
