@@ -21,7 +21,7 @@ namespace enishi::core {
 
         const types::RenderGraph& get_render_graph(void) const;
 
-        void add_render_pass(const foundation::UTF8& pass_name, types::RenderPass& render_pass);
+        void add_render_pass(foundation::UTF8&& pass_name, types::RenderPass&& render_pass);
 
         types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
 

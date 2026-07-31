@@ -94,7 +94,11 @@ namespace enishi::assets_system {
     };
 
     struct PMDToonTexture {
-        char file_names[10][100];
+        static constexpr std::size_t MAX_FILE_COUNT = 10;
+        static constexpr std::size_t MAX_PATH_SIZE = 100;
+
+        // std::array<std::array<char, 100>, 10> file_names;
+        char file_names[MAX_FILE_COUNT][MAX_PATH_SIZE];
     };
 
     // 0: Bone追従 kinematic

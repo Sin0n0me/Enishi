@@ -41,7 +41,7 @@ namespace enishi::assets_system {
             const std::vector<PMDRigidBody>& rigid_bodies);
 
         [[nodiscard]] static std::vector<types::Material> make_materials(
-            const std::vector<PMDMaterial>& materials);
+            const std::vector<PMDMaterial>& materials, const PMDToonTexture& toon_textures);
 
         [[nodiscard]] static glm::mat4 make_offset_from_pmd(const PMDRigidBody& rigid_body);
 

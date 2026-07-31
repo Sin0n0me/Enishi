@@ -29,10 +29,9 @@ namespace enishi::assets_system {
         auto indices = PMDToModelData::make_indices(data.indices);
         auto iks = PMDToModelData::make_iks(data.iks, &bone_resolver);
         auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
-        auto materials = PMDToModelData::make_materials(data.materials);
+        auto materials = PMDToModelData::make_materials(data.materials, data.toon_textures);
         auto physics_joints = PMDToModelData::make_joints(data.physics_joints);
         auto rigid_bodies = PMDToModelData::make_rigid_bodies(data.rigid_bodies);
-        data.toon_textures;
 
         return types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
@@ -310,14 +309,82 @@ namespace enishi::assets_system {
     }
 
     std::vector<types::Material> PMDToModelData::make_materials(
-        const std::vector<PMDMaterial>& materials) {
-        for (const auto& material : materials) {
-            material;
+        const std::vector<PMDMaterial>& pmd_materials, const PMDToonTexture& toon_textures) {
+        std::vector<types::Material> materials;
 
-            types::Material{};
+        for (const auto& pmd_material : pmd_materials) {
+            types::Material material{};
+
+            material.variants.emplace_back(types::Ambient{
+                .color =
+                    glm::vec3{
+                        pmd_material.ambient[0],
+                        pmd_material.ambient[1],
+                        pmd_material.ambient[2],
+                    },
+            });
+            material.variants.emplace_back(types::Diffuse{
+                .color =
+                    glm::vec4{
+                        pmd_material.diffuse[0],
+                        pmd_material.diffuse[1],
+                        pmd_material.diffuse[2],
+                        pmd_material.diffuse[3],
+                    },
+            });
+            material.variants.emplace_back(types::Specular{
+                .color =
+                    glm::vec3{
+                        pmd_material.specular[0],
+                        pmd_material.specular[1],
+                        pmd_material.specular[2],
+                    },
+                .shininess = pmd_material.shininess,
+            });
+            material.variants.emplace_back(types::MaterialIndex{
+                types::MaterialIndexCount{.count = pmd_material.index_count},
+            });
+
+            // 使用するテクスチャパスのセット
+            const auto toon_index = pmd_material.toon_index;
+            if (toon_index > PMDToonTexture::MAX_FILE_COUNT - 1) {
+                // TODO:
+            }
+            auto toon_texture =
+                std::filesystem::path{toon_textures.file_names[toon_index]}.lexically_normal();
+
+            // スフィアがついている場合があるので分離
+            auto texture_path = std::string{pmd_material.texture_file};
+            const auto pos = texture_path.find('*');
+            if (pos == std::string::npos) {
+                // スフィアがない場合
+                material.variants.emplace_back(types::MaterialTextures{
+                    .paths =
+                        {
+                            toon_texture,
+                            std::filesystem::path{texture_path}.lexically_normal(),
+                        },
+                });
+            } else {
+                // スフィア付きの場合
+                auto texture =
+                    std::filesystem::path{texture_path.substr(0, pos)}.lexically_normal();
+                auto sphere =
+                    std::filesystem::path{texture_path.substr(pos + 1)}.lexically_normal();
+                material.variants.emplace_back(types::MaterialTextures{
+                    .paths =
+                        {
+                            toon_texture,
+                            texture,
+                            sphere,
+                        },
+                });
+            }
+
+            materials.emplace_back(material);
         }
 
-        return std::vector<types::Material>();
+        return materials;
     }
 
     // PMDはボーンとの相対座標なので剛体中心とのオフセットは以下で求める(列優先の場合)

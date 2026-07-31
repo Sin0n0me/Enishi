@@ -10,6 +10,8 @@
 namespace enishi::assets_system {
     class TextureLoader : public IAssetLoader {
       private:
+        std::weak_ptr<int> a;
+
       public:
         foundation::Result<AssetData, AssetError> load(
             const std::filesystem::path& path) noexcept override;
