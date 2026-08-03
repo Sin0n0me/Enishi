@@ -500,7 +500,7 @@ namespace enishi::assets_system {
         return {};
     }
 
-    foundation::Result<ModelData, AssetError> PMDModelLoader::load(
+    foundation::Result<ModelVariant, AssetError> PMDModelLoader::load(
         const std::filesystem::path& path) noexcept {
         auto reader = BinaryReader::make_reader(path);
         if (reader.is_err()) {
@@ -514,7 +514,7 @@ namespace enishi::assets_system {
             return reader.propagation(AssetError::IOError);
         }
 
-        return ModelData{std::move(pmd_data)};
+        return ModelVariant{std::move(pmd_data)};
     }
 
     foundation::UTF8 PMDModelLoader::get_supported_extension(void) const noexcept {

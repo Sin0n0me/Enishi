@@ -79,9 +79,5 @@ namespace enishi::platform {
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
-
-        virtual void submit_render_graph(const types::RenderGraph& graph) = 0;
-
-        virtual void present(void) = 0;
     };
 } // namespace enishi::platform

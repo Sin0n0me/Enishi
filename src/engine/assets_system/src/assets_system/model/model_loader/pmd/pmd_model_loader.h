@@ -38,7 +38,7 @@ namespace enishi::assets_system {
 
       public:
         explicit PMDModelLoader(void) = default;
-        foundation::Result<ModelData, AssetError> load(
+        foundation::Result<ModelVariant, AssetError> load(
             const std::filesystem::path& path) noexcept override;
         foundation::UTF8 get_supported_extension(void) const noexcept override;
     };

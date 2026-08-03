@@ -13,10 +13,67 @@ namespace enishi::core {
 
         for (auto [entity, animation, model] : view) {
         }
+
+        // 描画
+        this->draw();
     }
 
-    const types::RenderGraph& core::RenderSystem::get_render_graph(void) const {
-        return this->render_graph;
+    void RenderSystem::draw(void) const {
+        this->submit_render_graph(this->render_graph);
+        this->present();
+    }
+
+    void RenderSystem::submit_render_graph(const types::RenderGraph& graph) const {
+        // 描画前初期化
+        this->encoder->setup_viewports();
+        this->encoder->setup_render_targets();
+
+        // 各パイプラインに応じた描画コマンド実行
+        for (const auto& pass : graph.passes) {
+            for (const auto& command : pass.commands) {
+                this->execute(command);
+            }
+        }
+    }
+
+    void RenderSystem::present(void) const {
+        this->encoder->present();
+    }
+
+    void RenderSystem::execute(const types::DrawCommand& command) const {
+        this->bind(command.handle);
+    }
+
+    void RenderSystem::bind(const types::RenderHandle& render_handle) const {
+        const auto id = render_handle.id;
+        switch (render_handle.type) {
+            case types::RenderHandleType::Buffer: {
+                this->encoder->bind_buffer(id);
+            } break;
+            case types::RenderHandleType::Shader: {
+                this->encoder->bind_shader(id);
+            } break;
+            case types::RenderHandleType::Mesh: {
+                this->encoder->bind_mesh(id);
+            } break;
+            case types::RenderHandleType::Texture: {
+                this->encoder->bind_texture(id);
+            } break;
+            case types::RenderHandleType::View: {
+                this->encoder->bind_view(id);
+            } break;
+            case types::RenderHandleType::Rasterizer: {
+                this->encoder->bind_rasterizer(id);
+            } break;
+            case types::RenderHandleType::Topology: {
+                this->encoder->bind_topology(id);
+            } break;
+            case types::RenderHandleType::InputLayout: {
+                this->encoder->bind_input_layout(id);
+            } break;
+            default:
+                break;
+        }
     }
 
     void core::RenderSystem::add_render_pass(

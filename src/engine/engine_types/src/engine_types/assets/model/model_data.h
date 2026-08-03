@@ -47,7 +47,7 @@ namespace enishi::types {
         Indices indices;
         std::vector<Bone> bones;
         std::vector<ModelAddon> addons;
-        std::vector<int> materials;
+        std::vector<Material> materials;
 
         [[nodiscard]] MeshData to_mesh_data(void) const;
     };

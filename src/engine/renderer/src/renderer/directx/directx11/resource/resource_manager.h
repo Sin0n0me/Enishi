@@ -30,6 +30,7 @@ namespace enishi::renderer::directx {
         std::unordered_map<types::HandleId, types::RenderHandleType> handles;
         std::unordered_map<types::HandleId, Mesh> meshes;
         GPUResource resource;
+        std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
 
       public:
         explicit ResourceManager(std::shared_ptr<ID3D11Context> context);

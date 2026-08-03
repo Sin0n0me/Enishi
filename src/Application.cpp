@@ -140,7 +140,7 @@ namespace enishi {
             return false;
         }
 
-        this->render_system->add_render_pass("Model", pass.unwrap_mut());
+        this->render_system->add_render_pass("Model", std::move(pass).unwrap_mut());
 
         return true;
     }
