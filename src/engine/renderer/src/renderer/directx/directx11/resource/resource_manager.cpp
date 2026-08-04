@@ -349,9 +349,9 @@ namespace enishi::renderer::directx {
         // RenderTargetViewの作成
         auto opt_rtv = this->resource->views.get_render_target_view(handle_id);
         if (opt_rtv.is_none()) {
-            return result.propagation(DirectXError::TargetError);
+            return foundation::Error(DirectXError::TargetError);
         }
-        auto&& rtv = opt_rtv.value();
+        auto& rtv = opt_rtv.unwrap_mut();
         const auto device = this->context->get_device();
         const HRESULT hr =
             device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());

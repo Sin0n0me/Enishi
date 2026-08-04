@@ -25,8 +25,12 @@ namespace enishi::renderer::directx {
         if (this->render_targets.size() < resource.index + 1) {
             return {};
         }
+        auto&& rtv = this->render_targets[resource.index];
+        if (!bool(rtv)) {
+            return {};
+        }
 
-        return this->render_targets[resource.index];
+        return rtv;
     }
 
     const std::vector<std::shared_ptr<platform::IRenderTargetView>>&

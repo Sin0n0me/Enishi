@@ -38,14 +38,22 @@ namespace enishi::renderer::directx {
         [[nodiscard]] foundation::Option<types::ImageViewType> get_view_type(
             const types::HandleId id) const noexcept;
 
-        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11DepthStencilView>>
+        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11DepthStencilView>&>
         get_depth_stencil_view(const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>>
+        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RenderTargetView>&>
         get_render_target_view(const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>
+        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>&>
         get_shader_resource_view(const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>>
+        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>&>
         get_unordered_access_view(const types::HandleId id) const noexcept;
+        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11DepthStencilView>&>
+        get_depth_stencil_view(const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>&>
+        get_render_target_view(const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>&>
+        get_shader_resource_view(const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>&>
+        get_unordered_access_view(const types::HandleId id) noexcept;
 
       private:
     };

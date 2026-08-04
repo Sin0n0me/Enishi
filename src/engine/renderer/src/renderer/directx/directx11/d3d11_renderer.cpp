@@ -265,14 +265,14 @@ namespace enishi::renderer::directx {
                     return;
                 }
 
-                context->OMSetRenderTargets(1, nullptr, opt_view.value().Get());
+                context->OMSetRenderTargets(1, nullptr, opt_view.unwrap().Get());
             } break;
             case types::ImageViewType::RenderTarget: {
                 const auto opt_view = view_pool.get_render_target_view(id);
                 if (opt_view.is_none()) {
                     return;
                 }
-                context->OMSetRenderTargets(1, opt_view.value().GetAddressOf(), nullptr);
+                context->OMSetRenderTargets(1, opt_view.unwrap().GetAddressOf(), nullptr);
             } break;
             case types::ImageViewType::ShaderResource: {
             } break;

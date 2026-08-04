@@ -1,4 +1,4 @@
-#include "view.h"
+#include "view_pool.h"
 
 namespace enishi::renderer::directx {
     foundation::Option<const ViewInfo&> ViewPool::get_view_info(
@@ -68,7 +68,7 @@ namespace enishi::renderer::directx {
         return info.view_type;
     }
 
-    foundation::Option<Microsoft::WRL::ComPtr<ID3D11DepthStencilView>>
+    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11DepthStencilView>&>
     ViewPool::get_depth_stencil_view(const types::HandleId id) const noexcept {
         const auto opt_info = this->get_view_info(id);
         if (opt_info.is_none()) {
@@ -82,7 +82,7 @@ namespace enishi::renderer::directx {
         return this->depth_stencils.at(info.index);
     }
 
-    foundation::Option<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>>
+    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RenderTargetView>&>
     ViewPool::get_render_target_view(const types::HandleId id) const noexcept {
         const auto opt_info = this->get_view_info(id);
         if (opt_info.is_none()) {
@@ -96,7 +96,7 @@ namespace enishi::renderer::directx {
         return this->render_targets.at(info.index);
     }
 
-    foundation::Option<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>
+    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>&>
     ViewPool::get_shader_resource_view(const types::HandleId id) const noexcept {
         const auto opt_info = this->get_view_info(id);
         if (opt_info.is_none()) {
@@ -110,8 +110,64 @@ namespace enishi::renderer::directx {
         return this->shader_resources.at(info.index);
     }
 
-    foundation::Option<Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>>
+    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>&>
     ViewPool::get_unordered_access_view(const types::HandleId id) const noexcept {
+        const auto opt_info = this->get_view_info(id);
+        if (opt_info.is_none()) {
+            return {};
+        }
+        const auto info = opt_info.unwrap();
+        if (info.view_type != types::ImageViewType::UnorderedAccess) {
+            return {};
+        }
+
+        return this->unordered_accesses.at(info.index);
+    }
+
+    foundation::Option<Microsoft::WRL::ComPtr<ID3D11DepthStencilView>&>
+    ViewPool::get_depth_stencil_view(const types::HandleId id) noexcept {
+        const auto opt_info = this->get_view_info(id);
+        if (opt_info.is_none()) {
+            return {};
+        }
+        const auto info = opt_info.unwrap();
+        if (info.view_type != types::ImageViewType::DepthStencil) {
+            return {};
+        }
+
+        return this->depth_stencils.at(info.index);
+    }
+
+    foundation::Option<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>&>
+    ViewPool::get_render_target_view(const types::HandleId id) noexcept {
+        const auto opt_info = this->get_view_info(id);
+        if (opt_info.is_none()) {
+            return {};
+        }
+        const auto info = opt_info.unwrap();
+        if (info.view_type != types::ImageViewType::RenderTarget) {
+            return {};
+        }
+
+        return this->render_targets.at(info.index);
+    }
+
+    foundation::Option<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>&>
+    ViewPool::get_shader_resource_view(const types::HandleId id) noexcept {
+        const auto opt_info = this->get_view_info(id);
+        if (opt_info.is_none()) {
+            return {};
+        }
+        const auto info = opt_info.unwrap();
+        if (info.view_type != types::ImageViewType::ShaderResource) {
+            return {};
+        }
+
+        return this->shader_resources.at(info.index);
+    }
+
+    foundation::Option<Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>&>
+    ViewPool::get_unordered_access_view(const types::HandleId id) noexcept {
         const auto opt_info = this->get_view_info(id);
         if (opt_info.is_none()) {
             return {};

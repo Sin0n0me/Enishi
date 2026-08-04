@@ -77,7 +77,7 @@ namespace enishi {
                 renderer->create_render_target_view(image_handle.unwrap(), image_view_description);
 
             if (result.is_err()) {
-                return image_handle.propagation(platform::RenderError::MakeError)
+                return result.propagation(platform::RenderError::MakeError)
                     .add_message("レンダーターゲットの作成に失敗しました");
             }
             if (auto render_target_view = result.unwrap().lock()) {

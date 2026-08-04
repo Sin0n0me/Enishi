@@ -2,7 +2,7 @@
 #include "buffer.h"
 #include "shader.h"
 #include "texture.h"
-#include "view.h"
+#include "view_pool.h"
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
 #include <unordered_map>
