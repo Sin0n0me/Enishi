@@ -11,26 +11,34 @@ namespace enishi::core {
     class RenderSystem : public ISystem {
       private:
         std::shared_ptr<ecs::Registory> registory;
-        std::unique_ptr<platform::IRenderer> renderer;
-        std::unique_ptr<platform::IRenderCommandEncoder> encoder;
+        std::shared_ptr<platform::IRenderer> renderer;
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder;
         types::RenderGraph render_graph;
         std::unordered_map<foundation::UTF8, std::uint64_t> name_to_index;
 
         explicit RenderSystem(void) = delete;
 
       public:
-        explicit RenderSystem(std::shared_ptr<ecs::Registory> registory);
+        explicit RenderSystem(std::shared_ptr<ecs::Registory> registory,
+            std::shared_ptr<platform::IRenderer> renderer,
+            std::shared_ptr<platform::IRenderCommandEncoder> encoder);
 
-        void update(const types::DeltaTime& delta_time) override;
-
+      public:
         void add_render_pass(foundation::UTF8&& pass_name, types::RenderPass&& render_pass);
 
         types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
 
-        platform::IRenderer* get_renderer(void);
+        std::weak_ptr<platform::IRenderer> get_renderer(void) const;
+        std::weak_ptr<platform::IRenderCommandEncoder> get_render_command_encoder(void) const;
+
+      public:
+        bool should_close(void) override;
+        void pre_update(void) override;
+        void post_update(void) override;
+        void update(const types::DeltaTime& delta_time) override;
+        void render(void) const override;
 
       private:
-        void draw(void) const;
         void submit_render_graph(const types::RenderGraph& graph) const;
         void present(void) const;
         void execute(const types::DrawCommand& command) const;

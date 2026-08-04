@@ -1,9 +1,20 @@
 #include "animation_system.h"
 #include "animation_player.h"
+#include "animation_system.h"
 
 namespace enishi::core {
     AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registory> registory)
         : registory(registory) {
+    }
+
+    bool enishi::core::AnimationSystem::should_close(void) {
+        return false;
+    }
+
+    void enishi::core::AnimationSystem::pre_update(void) {
+    }
+
+    void enishi::core::AnimationSystem::post_update(void) {
     }
 
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
@@ -15,6 +26,9 @@ namespace enishi::core {
         for (auto [entity, animation, model, ik] : view) {
             this->animation(animation, model, ik);
         }
+    }
+
+    void enishi::core::AnimationSystem::render(void) const {
     }
 
     void AnimationSystem::animation(component::AnimationComponent& animation,

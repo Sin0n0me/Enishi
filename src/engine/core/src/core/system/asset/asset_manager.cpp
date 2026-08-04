@@ -211,7 +211,16 @@ namespace enishi::core {
         return make_extension_regex(extensions);
     }
 
+    bool enishi::core::AssetManager::should_close(void) {
+        return false;
+    }
+    void enishi::core::AssetManager::pre_update(void) {
+    }
     void core::AssetManager::update(const types::DeltaTime& delta_time) {
+    }
+    void enishi::core::AssetManager::post_update(void) {
+    }
+    void enishi::core::AssetManager::render(void) const {
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>

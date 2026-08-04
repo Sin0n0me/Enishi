@@ -1,15 +1,22 @@
 #include "resource_manager.h"
 #include "../d3d11_converter.h"
+#include "../shader/shader_refrection.h"
+#include "../view/render_target_view.h"
 #include <foundation/log/logger.h>
-#include <renderer/directx/directx11/shader/shader_refrection.h>
 
 namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
-        : context(context) {
+        : context(context)
+        , resource(std::make_unique<GPUResource>())
+        , resource_editor(std::make_unique<ResourceEditor>()) {
     }
 
-    ResourceManager::Result ResourceManager::make_input_layout_from_shader(
-        const types::ShaderData& shader_data) {
+    GPUResourceAccessor* const ResourceManager::get_accessor(void) const {
+        return this->resource_editor.get();
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError>
+    ResourceManager::make_input_layout_from_shader(const types::ShaderData& shader_data) {
         // shader reflectionでレイアウトを作成
         auto result = ShaderReflection::make(shader_data)
                           .add_message("shader reflectionの作成に失敗しました");
@@ -38,7 +45,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.input_layouts.emplace(handle, input_layout);
+        this->resource->input_layouts.emplace(handle, input_layout);
 
         return types::RenderHandle{
             .id = handle,
@@ -46,7 +53,8 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_mesh(const types::MeshData& mesh_data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_mesh(
+        const types::MeshData& mesh_data) {
         // 頂点バッファ作成
         auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
         auto&& vertex_result = this->make_vertex_buffer(mesh_data.vertices)
@@ -78,7 +86,7 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_shader(
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
         switch (shader_data.binary_type) {
             case types::ShaderBinaryType::DXBC: {
@@ -95,13 +103,15 @@ namespace enishi::renderer::directx {
         return foundation::Error(DirectXError::ShaderError);
     }
 
-    ResourceManager::Result ResourceManager::make_texture(const types::TextureData& texture_data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_texture(
+        const types::TextureData& texture_data) {
         texture_data.format;
 
         return types::RenderHandle{};
     }
 
-    ResourceManager::Result ResourceManager::make_vertex_buffer(const types::RenderData& data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_vertex_buffer(
+        const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -125,7 +135,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.buffers.emplace(handle, buffer);
+        this->resource->buffers.emplace(handle, buffer);
 
         return types::RenderHandle{
             .id = handle,
@@ -133,7 +143,8 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_index_buffer(const types::RenderData& data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_index_buffer(
+        const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -167,7 +178,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.buffers.emplace(handle, buffer);
+        this->resource->buffers.emplace(handle, buffer);
 
         return types::RenderHandle{
             .id = handle,
@@ -175,7 +186,8 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_constant_buffer(const types::RenderData& data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_constant_buffer(
+        const types::RenderData& data) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -200,7 +212,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.buffers.emplace(handle, buffer);
+        this->resource->buffers.emplace(handle, buffer);
 
         return types::RenderHandle{
             .id = handle,
@@ -208,7 +220,8 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_texture(
+    foundation::Result<types::RenderHandle, DirectXError>
+    ResourceManager::make_texture_from_render_data(
         const types::RenderData& data, const std::uint32_t width, const std::uint32_t height) {
         const D3D11_SUBRESOURCE_DATA subresource{
             .pSysMem = data.raw_data(),
@@ -238,7 +251,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.textures.emplace(handle, texture);
+        this->resource->textures.emplace(handle, texture);
 
         return types::RenderHandle{
             .id = handle,
@@ -246,7 +259,7 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_image(
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_image(
         const types::ImageDescription& description) {
         // 先に作成
         Texture texture{
@@ -272,7 +285,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.textures.emplace(handle, texture);
+        this->resource->textures.emplace(handle, texture);
 
         return types::RenderHandle{
             .id = handle,
@@ -280,7 +293,15 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_rasterizer(
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_blend_state() {
+        return types::RenderHandle{};
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_sampler() {
+        return types::RenderHandle{};
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_rasterizer(
         const types::RasterizerDescription& description) {
         const auto desc = D3D11Converter::to_rasterizer_desc(description);
 
@@ -293,7 +314,7 @@ namespace enishi::renderer::directx {
         }
 
         const types::HandleId handle = this->handle_allocator.create();
-        this->resource.rasterizers.emplace(handle, rasterizer);
+        this->resource->rasterizers.emplace(handle, rasterizer);
 
         return types::RenderHandle{
             .id = handle,
@@ -301,48 +322,55 @@ namespace enishi::renderer::directx {
         };
     }
 
-    ResourceManager::Result ResourceManager::make_render_target_view(
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_render_target_view(
         const types::RenderHandle& image_handle, const types::ImageViewDescription& description) {
-        //
+        // テクスチャから
         if (image_handle.type != types::RenderHandleType::Texture) {
-            return foundation::Error(DirectXError::TargetError, "不正なハンドルです");
+            return foundation::Error(DirectXError::TargetError, "不正なテクスチャハンドルです");
         }
 
-        const auto iter = this->resource.textures.find(image_handle.id);
-        if (iter == this->resource.textures.end()) {
+        const auto iter = this->resource->textures.find(image_handle.id);
+        if (iter == this->resource->textures.end()) {
             return foundation::Error(DirectXError::TargetError, "イメージが見つかりませんでした");
         }
         const auto& texture = iter->second.texture;
 
         // 先にリソースの作成
-        const types::HandleId handle = this->handle_allocator.create();
-        auto result = this->resource.views.create(handle, types::ImageViewType::RenderTarget);
+        const types::HandleId handle_id = this->handle_allocator.create();
+        auto result = this->resource->views.create(handle_id, types::ImageViewType::RenderTarget);
         if (result.is_err()) {
             return result.propagation(DirectXError::TargetError);
         }
+        const auto handle = types::RenderHandle{
+            .id = handle_id,
+            .type = types::RenderHandleType::View,
+        };
 
         // RenderTargetViewの作成
-        const auto opt_rtv = this->resource.views.get_address_render_target_view(handle);
+        auto opt_rtv = this->resource->views.get_render_target_view(handle_id);
         if (opt_rtv.is_none()) {
             return result.propagation(DirectXError::TargetError);
         }
-        auto rtv = opt_rtv.value();
+        auto&& rtv = opt_rtv.value();
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateRenderTargetView(texture.Get(), nullptr, rtv);
+        const HRESULT hr =
+            device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 DirectXError::TargetError, "レンダーターゲットの作成に失敗しました");
         }
 
-        return types::RenderHandle{
-            .id = handle,
-            .type = types::RenderHandleType::View,
-        };
+        // 外部変更用のレンダーターゲットの作成
+        this->resource_editor->add_render_target(
+            std::make_shared<RenderTargetView>(handle, description));
+
+        return handle;
     }
 
-    ResourceManager::Result ResourceManager::make_viewport(const types::ViewportRect& config) {
-        const auto id = this->resource.viewports.size();
-        this->resource.viewports.emplace_back(D3D11_VIEWPORT{
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_viewport(
+        const types::ViewportRect& config) {
+        const auto id = this->resource->viewports.size();
+        this->resource->viewports.emplace_back(D3D11_VIEWPORT{
             .TopLeftX = static_cast<FLOAT>(config.left_top_x),
             .TopLeftY = static_cast<FLOAT>(config.left_top_y),
             .Width = static_cast<FLOAT>(config.width),
@@ -359,8 +387,8 @@ namespace enishi::renderer::directx {
 
     foundation::Option<const Buffer&> ResourceManager::get_buffer(
         const types::HandleId handle) const {
-        const auto& iter = this->resource.buffers.find(handle);
-        if (iter == this->resource.buffers.end()) {
+        const auto& iter = this->resource->buffers.find(handle);
+        if (iter == this->resource->buffers.end()) {
             return {};
         }
         return iter->second;
@@ -368,8 +396,8 @@ namespace enishi::renderer::directx {
 
     foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RasterizerState>&>
     ResourceManager::get_rasterizer(const types::HandleId handle) const {
-        const auto& iter = this->resource.rasterizers.find(handle);
-        if (iter == this->resource.rasterizers.end()) {
+        const auto& iter = this->resource->rasterizers.find(handle);
+        if (iter == this->resource->rasterizers.end()) {
             return {};
         }
         return iter->second;
@@ -377,8 +405,8 @@ namespace enishi::renderer::directx {
 
     foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
     ResourceManager::get_input_layout(const types::HandleId handle) const {
-        const auto& iter = this->resource.input_layouts.find(handle);
-        if (iter == this->resource.input_layouts.end()) {
+        const auto& iter = this->resource->input_layouts.find(handle);
+        if (iter == this->resource->input_layouts.end()) {
             return {};
         }
         return iter->second;
@@ -393,18 +421,18 @@ namespace enishi::renderer::directx {
     }
 
     const ShaderPool& ResourceManager::get_shader_pool(void) const {
-        return this->resource.shaders;
+        return this->resource->shaders;
     }
 
     const ViewPool& ResourceManager::get_view_pool(void) const {
-        return this->resource.views;
+        return this->resource->views;
     }
 
     const std::vector<D3D11_VIEWPORT>& ResourceManager::get_viewports(void) const {
-        return this->resource.viewports;
+        return this->resource->viewports;
     }
 
-    ResourceManager::Result ResourceManager::make_shader_from_dxbc(
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_from_dxbc(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
         const auto handle = this->handle_allocator.create();
 
@@ -436,7 +464,7 @@ namespace enishi::renderer::directx {
     foundation::VoidResult<DirectXError> ResourceManager::make_vertex_shader(
 
         const types::ShaderData& shader_data, const types::HandleId handle) {
-        auto& shader_pool = this->resource.shaders;
+        auto& shader_pool = this->resource->shaders;
 
         // 先に作成
         auto&& result = shader_pool.create(handle, types::ShaderKind::Vertex);
@@ -462,7 +490,7 @@ namespace enishi::renderer::directx {
     foundation::VoidResult<DirectXError> ResourceManager::make_pixel_shader(
 
         const types::ShaderData& shader_data, const types::HandleId handle) {
-        auto& shader_pool = this->resource.shaders;
+        auto& shader_pool = this->resource->shaders;
 
         // 先に作成
         auto&& result = shader_pool.create(handle, types::ShaderKind::Pixel);

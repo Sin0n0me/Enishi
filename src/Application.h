@@ -3,6 +3,7 @@
 #include <core/system/asset/asset_manager.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
+#include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
@@ -11,11 +12,7 @@
 namespace enishi {
     class Application {
       private:
-        std::unique_ptr<platform::IWindow> root_window;
-        std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<ecs::Registory> rsegistory;
-        std::shared_ptr<core::RenderSystem> render_system;
-        std::shared_ptr<core::AssetManager> asset_manager;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
 
@@ -24,14 +21,12 @@ namespace enishi {
         void run(void);
 
       private:
-        bool init_system(void);
-        bool init_window(void);
-        bool init_renderer(void);
+        std::weak_ptr<platform::IWindow> init_window(void);
+        std::weak_ptr<platform::IRenderer> init_renderer(
+            std::weak_ptr<platform::IWindow> root_window,
+            std::weak_ptr<assets_system::IAssetSystem> asset_system);
 
-        bool make_render_pass(void);
-
-        bool load(void);
-        bool load_models(void);
-        bool load_shader(void);
+        bool make_render_pass(core::RenderSystem* const render_system,
+            std::weak_ptr<assets_system::IAssetSystem> asset_system);
     };
 } // namespace enishi

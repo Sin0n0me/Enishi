@@ -16,7 +16,31 @@ namespace enishi::renderer::vulkan {
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader) override;
-        void submit_render_graph(const types::RenderGraph& graph) override;
-        void present(void) override;
+        platform::RenderResult<types::RenderPass> create_render_pass(
+            const types::PipelineDescription& description) override;
+        platform::RenderResult<types::RenderHandle> create_viewport(
+            const types::ViewportRect& config) override;
+        platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> create_pipeline_layout(
+            const types::VertexLayout& layout,
+            const types::RenderHandle& vertex_shader,
+            const types::RenderHandle& pixel_shader) override;
+        platform::RenderResult<types::RenderHandle> create_pipeline_layout_from_shader(
+            const types::ShaderData& shader) override;
+        platform::RenderResult<types::RenderHandle> create_rasterizer(
+            const types::RasterizerDescription& description) override;
+        platform::RenderResult<types::RenderHandle> create_image(
+            const types::ImageDescription& description) override;
+        platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
+        create_render_target_view(types::RenderHandle image_handle,
+            const types::ImageViewDescription& description) override;
+        platform::RenderResult<std::weak_ptr<platform::IDepthStencilView>>
+        create_depth_stencil_view(types::RenderHandle image_handle,
+            const types::ImageViewDescription& description) override;
+        platform::RenderResult<std::weak_ptr<platform::IShaderResourceView>>
+        create_shader_resource_view(types::RenderHandle image_handle,
+            const types::ImageViewDescription& description) override;
+        platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
+        create_unordered_access_view(types::RenderHandle image_handle,
+            const types::ImageViewDescription& description) override;
     };
 } // namespace enishi::renderer::vulkan

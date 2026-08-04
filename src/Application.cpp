@@ -21,19 +21,28 @@ int main(void) {
 }
 
 namespace enishi {
+    constexpr auto INIT_WINDOW_SIZE = types::WindowSize{
+        .width = WINDOW_SIZE.x,
+        .height = WINDOW_SIZE.y,
+    };
+
     bool Application::init(void) {
-        if (!this->init_system()) {
+        this->rsegistory = std::make_shared<ecs::Registory>();
+
+        // システムの追加
+        auto asset_manager = this->system_scheduler.register_system<core::AssetManager>(50);
+        auto animation_system =
+            this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
+
+        // ウィンドウの初期化
+        const auto root_window = this->init_window().lock();
+        if (!bool(root_window)) {
             return false;
         }
 
-        if (!this->init_window()) {
-            return false;
-        }
-        if (!this->init_renderer()) {
-            return false;
-        }
-
-        if (!this->make_render_pass()) {
+        // レンダラーの初期化
+        const auto renderer = this->init_renderer(root_window, asset_manager).lock();
+        if (!bool(renderer)) {
             return false;
         }
 
@@ -44,73 +53,58 @@ namespace enishi {
         const auto init_time = this->app_timer.tick_unclamp();
         foundation::Logger::info(std::format("初期化時間: {:%S}s", init_time.delta_time));
 
-        for (; this->root_window->should_close();) {
-            this->root_window->poll_events();
-
+        for (; !this->system_scheduler.should_close();) {
             const auto dt = this->app_timer.tick();
 
             // 更新
+            this->system_scheduler.pre_update();
             this->system_scheduler.update(dt);
+            this->system_scheduler.post_update();
 
             // 描画
-            const auto& render_graph = this->render_system->get_render_graph();
-            this->renderer->submit_render_graph(render_graph);
-            this->renderer->present();
+            this->system_scheduler.render();
         }
     }
 
-    bool Application::init_system(void) {
-        this->rsegistory = std::make_shared<ecs::Registory>();
+    std::weak_ptr<platform::IWindow> Application::init_window(void) {
+        const auto window_manager = this->system_scheduler.register_system<core::WindowManager>(80,
+            std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
+                INIT_WINDOW_SIZE,
+                platform::WindowSystem::Windows,
+                types::GraphicsAPI::DirectX11));
 
-        // システムの追加
-        this->asset_manager = this->system_scheduler.register_system<core::AssetManager>(50);
-        this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
-        this->render_system =
-            this->system_scheduler.register_system<core::RenderSystem>(100, this->rsegistory);
+        auto root_window = window_manager->get_root_window().lock();
+        if (!bool(root_window)) {
+            return {};
+        }
 
-        return true;
+        if (root_window->init().is_err()) {
+            return {};
+        }
+
+        return root_window;
     }
 
-    bool Application::init_window(void) {
-        const auto window_size = types::WindowSize{
-            .width = WINDOW_SIZE.x,
-            .height = WINDOW_SIZE.y,
-        };
-        this->root_window = std::make_unique<platform_impl::SDL3Window>(APPLICATION_NAME,
-            window_size,
-            platform::WindowSystem::Windows,
-            types::GraphicsAPI::DirectX11);
-        if (!bool(this->root_window)) {
-            return false;
+    std::weak_ptr<platform::IRenderer> Application::init_renderer(
+        std::weak_ptr<platform::IWindow> root_window,
+        std::weak_ptr<assets_system::IAssetSystem> asset_system) {
+        auto window = root_window.lock();
+        if (!bool(window)) {
+            return {};
         }
 
-        if (this->root_window->init().is_err()) {
-            return false;
+        const auto opt_window_handle = window->get_handle();
+        if (opt_window_handle.is_none()) {
+            return {};
         }
-
-        return true;
-    }
-
-    bool Application::init_renderer(void) {
-        const auto opt_window_size = this->root_window->get_size();
-        if (opt_window_size.is_none()) {
-            return false;
-        }
-        const auto& window_size = opt_window_size.value();
-
-        const auto opt_handle = this->root_window->get_handle();
-        if (opt_handle.is_none()) {
-            return false;
-        }
-        const auto& window_handle = opt_handle.value();
 
         auto initializer = renderer::directx::D3D11RenderInitializer{};
-        auto renderer = initializer.init(window_handle, window_size);
-        if (renderer.is_err()) {
-            return false;
+        auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
+        if (result_renderer.is_err()) {
+            return {};
         }
 
-        this->renderer = renderer.unwrap();
+        auto&& renderer = result_renderer.unwrap();
 
         const auto rect = types::ViewportRect{
             .left_top_x = 0.0,
@@ -121,26 +115,36 @@ namespace enishi {
             .max_depth = 1.0,
         };
 
-        if (this->renderer->create_viewport(rect).is_err()) {
-            return false;
+        if (renderer->create_viewport(rect).is_err()) {
+            return {};
         }
 
-        return true;
+        const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
+            100, this->rsegistory, renderer, renderer);
+
+        if (!this->make_render_pass(render_system.get(), asset_system)) {
+            return {};
+        }
+
+        return renderer;
     }
 
-    bool Application::make_render_pass(void) {
-        auto result = RenderPassConstructor::make(this->renderer, this->asset_manager);
+    bool Application::make_render_pass(core::RenderSystem* const render_system,
+        std::weak_ptr<assets_system::IAssetSystem> asset_system) {
+        auto result = RenderPassConstructor::make(render_system->get_renderer(), asset_system);
         if (result.is_err()) {
             return false;
         }
         auto&& constructor = result.unwrap_mut();
-        auto pass = constructor.make_model_render_pass();
+
+        // パスの作成
+        auto&& pass = constructor.make_model_render_pass();
         if (pass.is_err()) {
             foundation::Logger::error(pass.unwrap_err().get_message());
             return false;
         }
 
-        this->render_system->add_render_pass("Model", std::move(pass).unwrap_mut());
+        render_system->add_render_pass("Model", std::move(pass).unwrap_mut());
 
         return true;
     }

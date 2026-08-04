@@ -17,6 +17,8 @@
 namespace enishi::renderer {
     template <typename E> class GPUResourceMaker {
       public:
+        virtual ~GPUResourceMaker(void) noexcept = default;
+
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E>
         make_input_layout_from_shader(const types::ShaderData& shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_mesh(

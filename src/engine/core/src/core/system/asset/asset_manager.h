@@ -62,7 +62,10 @@ namespace enishi::core {
         foundation::UTF8 script_extensions_pattern(void) const noexcept override;
 
       public:
+        void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
+        void post_update(void) override;
+        void render(void) const override;
 
       private:
         template <typename T>
@@ -99,5 +102,8 @@ namespace enishi::core {
 
         static std::unordered_set<std::filesystem::path> convert_hash_set(
             const std::vector<foundation::UTF8>& extensions) noexcept;
+
+        // ISystem を介して継承されました
+        bool should_close(void) override;
     };
 } // namespace enishi::core

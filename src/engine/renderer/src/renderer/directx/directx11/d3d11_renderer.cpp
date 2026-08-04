@@ -92,11 +92,13 @@ namespace enishi::renderer::directx {
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
+        auto handle = result.unwrap();
+        auto opt_rtv = this->resource_manager->get_accessor()->get_render_target(handle.id);
+        if (opt_rtv.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
 
-        auto&& rtv = std::make_shared<RenderTargetView>(result.unwrap(), description);
-        this->render_targets.emplace_back(rtv);
-
-        return rtv;
+        return opt_rtv.unwrap();
     }
 
     platform::RenderResult<std::weak_ptr<platform::IDepthStencilView>>
@@ -158,17 +160,19 @@ namespace enishi::renderer::directx {
         // レンダーターゲットのクリア
         const auto& context = this->d3d11->get_context();
         const auto& view_pool = this->resource_manager->get_view_pool();
-        for (const auto& render_target : this->render_targets) {
+        const auto& accessor = this->resource_manager->get_accessor();
+
+        for (const auto& render_target : accessor->get_render_targets()) {
             const auto handle = render_target->get_handle();
             const auto opt_target = view_pool.get_render_target_view(handle.id);
             if (opt_target.is_none()) {
                 continue;
             }
-            const auto target = opt_target.value();
+            auto&& target = opt_target.unwrap();
 
             const auto color = render_target->get_clear_color();
             const float clear_color[4] = {color.r, color.g, color.b, color.a};
-            context->ClearRenderTargetView(target, clear_color);
+            context->ClearRenderTargetView(target.Get(), clear_color);
         }
     }
 
@@ -261,14 +265,14 @@ namespace enishi::renderer::directx {
                     return;
                 }
 
-                context->OMSetRenderTargets(1, nullptr, opt_view.value());
+                context->OMSetRenderTargets(1, nullptr, opt_view.value().Get());
             } break;
             case types::ImageViewType::RenderTarget: {
-                const auto opt_view = view_pool.get_address_render_target_view(id);
+                const auto opt_view = view_pool.get_render_target_view(id);
                 if (opt_view.is_none()) {
                     return;
                 }
-                context->OMSetRenderTargets(1, opt_view.value(), nullptr);
+                context->OMSetRenderTargets(1, opt_view.value().GetAddressOf(), nullptr);
             } break;
             case types::ImageViewType::ShaderResource: {
             } break;

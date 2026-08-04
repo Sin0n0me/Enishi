@@ -17,7 +17,11 @@ namespace enishi::core {
       public:
         explicit AnimationSystem(const std::shared_ptr<ecs::Registory> registory);
 
+        bool should_close(void) override;
+        void pre_update(void) override;
+        void post_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
+        void render(void) const override;
 
       private:
         void animation(component::AnimationComponent& animation,

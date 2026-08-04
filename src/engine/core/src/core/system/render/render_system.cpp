@@ -3,8 +3,19 @@
 #include <component/model_component.h>
 
 namespace enishi::core {
-    RenderSystem::RenderSystem(std::shared_ptr<ecs::Registory> registory)
-        : registory(registory) {
+    RenderSystem::RenderSystem(std::shared_ptr<ecs::Registory> registory,
+        std::shared_ptr<platform::IRenderer> renderer,
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder)
+        : registory(registory)
+        , renderer(renderer)
+        , encoder(encoder) {
+    }
+
+    bool enishi::core::RenderSystem::should_close(void) {
+        return false;
+    }
+
+    void enishi::core::RenderSystem::pre_update(void) {
     }
 
     void RenderSystem::update(const types::DeltaTime& delta_time) {
@@ -13,12 +24,12 @@ namespace enishi::core {
 
         for (auto [entity, animation, model] : view) {
         }
-
-        // 描画
-        this->draw();
     }
 
-    void RenderSystem::draw(void) const {
+    void enishi::core::RenderSystem::post_update(void) {
+    }
+
+    void enishi::core::RenderSystem::render(void) const {
         this->submit_render_graph(this->render_graph);
         this->present();
     }
@@ -89,6 +100,10 @@ namespace enishi::core {
 
         const auto index = iter->second;
         passes[index] = std::move(render_pass);
+    }
+
+    std::weak_ptr<platform::IRenderer> RenderSystem::get_renderer(void) const {
+        return this->renderer;
     }
 
     void core::RenderSystem::add_command() {

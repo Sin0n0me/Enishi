@@ -345,41 +345,33 @@ namespace enishi::assets_system {
                 types::MaterialIndexCount{.count = pmd_material.index_count},
             });
 
+            std::vector<std::filesystem::path> paths{};
+
             // 使用するテクスチャパスのセット
             const auto toon_index = pmd_material.toon_index;
-            if (toon_index > PMDToonTexture::MAX_FILE_COUNT - 1) {
-                // TODO:
+            if (toon_index < PMDToonTexture::MAX_FILE_COUNT) {
+                paths.emplace_back(
+                    std::filesystem::path{toon_textures.file_names[toon_index]}.lexically_normal());
             }
-            auto toon_texture =
-                std::filesystem::path{toon_textures.file_names[toon_index]}.lexically_normal();
 
             // スフィアがついている場合があるので分離
             auto texture_path = std::string{pmd_material.texture_file};
             const auto pos = texture_path.find('*');
             if (pos == std::string::npos) {
                 // スフィアがない場合
-                material.variants.emplace_back(types::MaterialTextures{
-                    .paths =
-                        {
-                            toon_texture,
-                            std::filesystem::path{texture_path}.lexically_normal(),
-                        },
-                });
+                paths.emplace_back(std::filesystem::path{texture_path}.lexically_normal());
             } else {
                 // スフィア付きの場合
                 auto texture =
                     std::filesystem::path{texture_path.substr(0, pos)}.lexically_normal();
                 auto sphere =
                     std::filesystem::path{texture_path.substr(pos + 1)}.lexically_normal();
-                material.variants.emplace_back(types::MaterialTextures{
-                    .paths =
-                        {
-                            toon_texture,
-                            texture,
-                            sphere,
-                        },
-                });
+
+                paths.emplace_back(texture);
+                paths.emplace_back(sphere);
             }
+
+            material.variants.emplace_back(types::MaterialTextures{.paths = std::move(paths)});
 
             materials.emplace_back(material);
         }
