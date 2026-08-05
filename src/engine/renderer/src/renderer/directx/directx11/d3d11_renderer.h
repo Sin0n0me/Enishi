@@ -62,6 +62,7 @@ namespace enishi::renderer::directx {
         void bind_mesh(const types::HandleId id) const override;
         void bind_topology(const types::HandleId id) const override;
         void bind_input_layout(const types::HandleId id) const override;
+        void draw(const types::HandleId id) const override;
         void present(void) const override;
     };
 } // namespace enishi::renderer::directx

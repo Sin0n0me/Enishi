@@ -52,7 +52,15 @@ namespace enishi::core {
     }
 
     void RenderSystem::execute(const types::DrawCommand& command) const {
-        this->bind(command.handle);
+        switch (command.sub_command) {
+            case types::SubCommand::Bind: {
+                this->bind(command.handle);
+            } break;
+            case types::SubCommand::Clear: {
+            } break;
+            case types::SubCommand::Unbind: {
+            } break;
+        }
     }
 
     void RenderSystem::bind(const types::RenderHandle& render_handle) const {
@@ -81,6 +89,9 @@ namespace enishi::core {
             } break;
             case types::RenderHandleType::InputLayout: {
                 this->encoder->bind_input_layout(id);
+            } break;
+            case types::RenderHandleType::Draw: {
+                this->encoder->draw(id);
             } break;
             default:
                 break;

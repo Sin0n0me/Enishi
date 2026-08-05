@@ -14,7 +14,7 @@ namespace enishi::types {
         glm::vec3 offset;    // インデックスと対応する要素とのオフセット
     };
 
-    struct Morphs {
+    struct AddonMorphs {
         std::vector<MorphVertex> base_vertices;
         std::vector<std::vector<MorphVertex>> vertices; // このモーフが動かす頂点群
     };

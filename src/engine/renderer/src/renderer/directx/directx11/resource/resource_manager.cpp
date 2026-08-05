@@ -55,28 +55,41 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_mesh(
         const types::MeshData& mesh_data) {
+        Mesh mesh{};
+
         // 頂点バッファ作成
-        auto vertex_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto&& vertex_result = this->make_vertex_buffer(mesh_data.vertices)
-                                   .add_message("メッシュの作成に失敗しました");
-        if (vertex_result.is_err()) {
-            return std::move(vertex_result);
+        {
+            auto&& result = this->make_vertex_buffer(mesh_data.vertices.get_render_data())
+                                .add_message("メッシュの作成に失敗しました");
+            if (result.is_err()) {
+                return std::move(result);
+            }
+            mesh.mesh_handles.emplace_back(result.unwrap());
         }
-        vertex_handle = vertex_result.unwrap();
 
         // インデックスバッファ作成
-        auto index_handle = types::RenderHandle{.id = types::INVALID_HANDLE_ID};
-        auto&& index_result =
-            this->make_index_buffer(mesh_data.indices).add_message("メッシュの作成に失敗しました");
-        if (index_result.is_err()) {
-            return std::move(index_result);
+        {
+            auto&& result = this->make_index_buffer(mesh_data.indices.get_render_data())
+                                .add_message("メッシュの作成に失敗しました");
+            if (result.is_err()) {
+                return std::move(result);
+            }
+            mesh.mesh_handles.emplace_back(result.unwrap());
         }
-        index_handle = index_result.unwrap();
+
+        // 定数バッファ作成
+        for (const auto& uniform : mesh_data.uniforms) {
+            auto&& result = this->make_constant_buffer(uniform.get_render_data())
+                                .add_message("メッシュの作成に失敗しました");
+            if (result.is_err()) {
+                return std::move(result);
+            }
+            mesh.mesh_handles.emplace_back(result.unwrap());
+        }
+
+        // マテリアル
 
         const types::HandleId handle = this->handle_allocator.create();
-        Mesh mesh{};
-        mesh.mesh_handles.push_back(vertex_handle);
-        mesh.mesh_handles.push_back(index_handle);
 
         this->meshes.emplace(handle, mesh);
 

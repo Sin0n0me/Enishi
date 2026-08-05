@@ -6,7 +6,9 @@
 
 namespace enishi::types {
     struct MeshData {
-        RenderData vertices;
-        RenderData indices;
+        OwnedRenderData<std::byte> vertices;
+        OwnedRenderData<std::byte> indices;
+        std::vector<OwnedRenderData<std::byte>> uniforms;
+        std::vector<MeshData> children;
     };
 } // namespace enishi::types

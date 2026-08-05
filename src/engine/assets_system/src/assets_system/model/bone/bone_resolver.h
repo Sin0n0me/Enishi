@@ -1,7 +1,7 @@
 #pragma once
-#include "bone_name_map.h"
 #include "../interface_bone_resolver.h"
-#include <engine_types/assets/model/bone.h>
+#include "bone_name_map.h"
+#include <engine_types/assets/model/addons/bone.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 #include <glm/glm.hpp>

@@ -1,5 +1,5 @@
 #pragma once
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <unordered_map>

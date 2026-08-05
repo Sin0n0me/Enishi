@@ -18,6 +18,8 @@ namespace enishi::platform {
         virtual void bind_topology(const types::HandleId id) const = 0;
         virtual void bind_input_layout(const types::HandleId id) const = 0;
 
+        virtual void draw(const types::HandleId id) const = 0;
+
         virtual void present(void) const = 0;
     };
 } // namespace enishi::platform

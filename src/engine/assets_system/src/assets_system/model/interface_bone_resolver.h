@@ -1,5 +1,5 @@
 #pragma once
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 

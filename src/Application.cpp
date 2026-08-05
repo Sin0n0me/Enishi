@@ -135,10 +135,10 @@ namespace enishi {
         if (result.is_err()) {
             return false;
         }
-        auto&& constructor = result.unwrap_mut();
+        auto& constructor = result.unwrap_mut();
 
         // パスの作成
-        auto&& pass = constructor.make_model_render_pass();
+        auto pass = constructor.make_model_render_pass();
         if (pass.is_err()) {
             foundation::Logger::error(pass.unwrap_err().get_message());
             return false;

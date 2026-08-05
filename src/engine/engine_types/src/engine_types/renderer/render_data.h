@@ -35,18 +35,23 @@ namespace enishi::types {
     template <typename T>
         requires std::is_trivially_copyable_v<T>
     class OwnedRenderData {
+      public:
+        using RequestType = std::vector<T>;
+
       private:
-        std::vector<T> buffer;
+        RequestType buffer;
 
       public:
-        explicit OwnedRenderData(std::vector<T>&& buffer)
+        explicit OwnedRenderData(RequestType&& buffer)
             : buffer(std::move(buffer)) {
         }
+        explicit OwnedRenderData(OwnedRenderData&&) noexcept = default;
+
+        OwnedRenderData& operator=(OwnedRenderData&&) noexcept = default;
 
         T& operator[](const std::size_t index) {
             return this->buffer[index];
         }
-
         const T& operator[](const std::size_t index) const {
             return this->buffer[index];
         }

@@ -4,7 +4,7 @@
 #include <component/model_component.h>
 #include <component/physics_component.h>
 #include <ecs/registory.h>
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <memory>
 
 namespace enishi::core {

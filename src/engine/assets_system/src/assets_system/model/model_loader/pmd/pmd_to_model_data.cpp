@@ -35,11 +35,11 @@ namespace enishi::assets_system {
 
         return types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
-            .vertices = types::OwnedRenderData<types::SkinningVertex>(std::move(vertices)),
-            .indices = types::OwnedRenderData<std::uint16_t>(std::move(indices)),
-            .bones = std::move(bones),
+            .vertices = {std::move(vertices)},
+            .indices = std::move(indices),
             .addons =
                 {
+                    std::move(bones),
                     std::move(morphs),
                     std::move(iks),
                     std::move(rigid_bodies),
@@ -108,10 +108,10 @@ namespace enishi::assets_system {
         return {bone_data, BoneResolver(constructor)};
     }
 
-    std::vector<types::SkinningVertex> PMDToModelData::make_vertices(
+    std::vector<types::VertexVariants> PMDToModelData::make_vertices(
         const std::vector<PMDVertex>& vertices) {
         const auto vertex_size = vertices.size();
-        std::vector<types::SkinningVertex> skinning_vertices(vertex_size);
+        std::vector<types::VertexVariants> skinning_vertices(vertex_size);
         for (size_t i = 0; i < vertex_size; ++i) {
             const auto& vertex = vertices[i];
 
@@ -119,36 +119,34 @@ namespace enishi::assets_system {
             const float weight = static_cast<float>(vertex.bone_weight) / 100.0f;
             const glm::vec2 bone_weight{weight, 1.0f - weight};
 
-            skinning_vertices.emplace_back(types::SkinningVertex{
-                .vertex =
-                    types::Vertex{
-                        .position =
-                            glm::vec3{
-                                vertex.position[0],
-                                vertex.position[1],
-                                vertex.position[2],
-                            },
-                        .normal =
-                            glm::vec3{
-                                vertex.normal[0],
-                                vertex.normal[1],
-                                vertex.normal[2],
-                            },
-                        .uv =
-                            glm::vec2{
-                                vertex.uv[0],
-                                vertex.uv[1],
-                            },
-                    },
-                .skinning =
-                    types::Skinning{
-                        .bone_index =
-                            glm::u16vec2{
-                                vertex.bone_index[0],
-                                vertex.bone_index[1],
-                            },
-                        .bone_weight = bone_weight,
-                    },
+            skinning_vertices.emplace_back(types::VertexVariants{
+                types ::Vertex{
+                    .position =
+                        glm::vec3{
+                            vertex.position[0],
+                            vertex.position[1],
+                            vertex.position[2],
+                        },
+                    .normal =
+                        glm::vec3{
+                            vertex.normal[0],
+                            vertex.normal[1],
+                            vertex.normal[2],
+                        },
+                    .uv =
+                        glm::vec2{
+                            vertex.uv[0],
+                            vertex.uv[1],
+                        },
+                },
+                types::Skinning{
+                    .bone_index =
+                        glm::u16vec2{
+                            vertex.bone_index[0],
+                            vertex.bone_index[1],
+                        },
+                    .bone_weight = bone_weight,
+                },
             });
         }
 
@@ -166,7 +164,7 @@ namespace enishi::assets_system {
         return vertex_indices;
     }
 
-    std::vector<types::IK> PMDToModelData::make_iks(
+    types::AddonIKs PMDToModelData::make_iks(
         const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver) {
         const auto ik_size = iks.size();
         std::vector<types::IK> ik_vec(ik_size);
@@ -208,9 +206,9 @@ namespace enishi::assets_system {
         return ik_vec;
     }
 
-    std::tuple<types::Morphs, MorphResolver> PMDToModelData::make_morphs(
+    std::tuple<types::AddonMorphs, MorphResolver> PMDToModelData::make_morphs(
         const std::vector<PMDMorph>& morphs) {
-        types::Morphs model_morphs;
+        types::AddonMorphs model_morphs;
         MorphNameMapConstructor constructor;
         const auto size = morphs.size();
         const auto transform = [](const PMDMorphVertex& v) {
@@ -252,7 +250,7 @@ namespace enishi::assets_system {
         return {model_morphs, MorphResolver(constructor)};
     }
 
-    std::vector<types::PhysicsJoint> PMDToModelData::make_joints(
+    types::AddonPhysicsJoints PMDToModelData::make_joints(
         const std::vector<PMDPhysicsJoint>& joints) {
         const auto size = joints.size();
         auto model_joints = std::vector<types::PhysicsJoint>(size);
@@ -266,10 +264,10 @@ namespace enishi::assets_system {
         return model_joints;
     }
 
-    std::vector<types::RigidBody> PMDToModelData::make_rigid_bodies(
+    types::AddonRigidBodies PMDToModelData::make_rigid_bodies(
         const std::vector<PMDRigidBody>& rigid_bodies) {
         const auto size = rigid_bodies.size();
-        auto model_rigid_bodies = std::vector<types::RigidBody>(size);
+        auto model_rigid_bodies = types::AddonRigidBodies(size);
 
         for (const auto& rigid_body : rigid_bodies) {
             const auto offset = PMDToModelData::make_offset_from_pmd(rigid_body);
@@ -313,7 +311,9 @@ namespace enishi::assets_system {
         std::vector<types::Material> materials;
 
         for (const auto& pmd_material : pmd_materials) {
-            types::Material material{};
+            types::Material material{
+                .indecies = pmd_material.index_count,
+            };
 
             material.variants.emplace_back(types::Ambient{
                 .color =
@@ -340,9 +340,6 @@ namespace enishi::assets_system {
                         pmd_material.specular[2],
                     },
                 .shininess = pmd_material.shininess,
-            });
-            material.variants.emplace_back(types::MaterialIndex{
-                types::MaterialIndexCount{.count = pmd_material.index_count},
             });
 
             std::vector<std::filesystem::path> paths{};
@@ -371,7 +368,7 @@ namespace enishi::assets_system {
                 paths.emplace_back(sphere);
             }
 
-            material.variants.emplace_back(types::MaterialTextures{.paths = std::move(paths)});
+            material.texture_paths = std::move(paths);
 
             materials.emplace_back(material);
         }

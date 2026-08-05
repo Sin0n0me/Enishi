@@ -22,22 +22,22 @@ namespace enishi::assets_system {
         [[nodiscard]] static std::tuple<std::vector<types::Bone>, BoneResolver> make_bone(
             const std::vector<PMDBone>& bones);
 
-        [[nodiscard]] static std::vector<types::SkinningVertex> make_vertices(
+        [[nodiscard]] static std::vector<types::VertexVariants> make_vertices(
             const std::vector<PMDVertex>& vertices);
 
         [[nodiscard]] static std::vector<std::uint16_t> make_indices(
             const std::vector<PMDVertexIndex>& indices);
 
-        [[nodiscard]] static std::vector<types::IK> make_iks(
+        [[nodiscard]] static types::AddonIKs make_iks(
             const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver);
 
-        [[nodiscard]] static std::tuple<types::Morphs, MorphResolver> make_morphs(
+        [[nodiscard]] static std::tuple<types::AddonMorphs, MorphResolver> make_morphs(
             const std::vector<PMDMorph>& morphs);
 
-        [[nodiscard]] static std::vector<types::PhysicsJoint> make_joints(
+        [[nodiscard]] static types::AddonPhysicsJoints make_joints(
             const std::vector<PMDPhysicsJoint>& joints);
 
-        [[nodiscard]] static std::vector<types::RigidBody> make_rigid_bodies(
+        [[nodiscard]] static types::AddonRigidBodies make_rigid_bodies(
             const std::vector<PMDRigidBody>& rigid_bodies);
 
         [[nodiscard]] static std::vector<types::Material> make_materials(

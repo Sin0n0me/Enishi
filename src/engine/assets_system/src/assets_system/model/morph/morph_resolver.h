@@ -1,7 +1,7 @@
 #pragma once
 #include "../interface_morph_resolver.h"
 #include "morph_name_map.h"
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 #include <glm/glm.hpp>

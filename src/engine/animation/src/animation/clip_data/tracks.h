@@ -2,7 +2,7 @@
 #include "interpolation/interpolation.h"
 #include "interpolation/interpolation_type.h"
 #include <cstdint>
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <vector>

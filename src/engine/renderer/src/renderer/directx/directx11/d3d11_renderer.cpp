@@ -337,6 +337,38 @@ namespace enishi::renderer::directx {
         context->IASetInputLayout(input_layout.Get());
     }
 
+    void D3D11Renderer::draw(const types::HandleId id) const {
+        const auto& opt_draw_args = this->resource_manager->get_accessor()->get_draw_args(id);
+        if (opt_draw_args.is_none()) {
+            return;
+        }
+        const auto& draw_args = opt_draw_args.unwrap();
+        const auto context = this->d3d11->get_context();
+
+        if (const auto& argument = std::get_if<types::Draw>(&draw_args)) {
+            if (argument->instance_count > 1) {
+                context->DrawInstanced(argument->vertex_count,
+                    argument->instance_count,
+                    argument->first_vertex,
+                    argument->first_instance);
+            } else {
+                context->Draw(argument->vertex_count, argument->first_vertex);
+            }
+        }
+        if (const auto& argument = std::get_if<types::DrawIndexed>(&draw_args)) {
+            if (argument->instance_count > 1) {
+                context->DrawIndexedInstanced(argument->index_count,
+                    argument->instance_count,
+                    argument->first_index,
+                    argument->vertex_offset,
+                    argument->first_instance);
+            } else {
+                context->DrawIndexed(
+                    argument->index_count, argument->first_index, argument->vertex_offset);
+            }
+        }
+    }
+
     void D3D11Renderer::present(void) const {
         this->d3d11->get_swap_chain()->Present(1, 0);
     }

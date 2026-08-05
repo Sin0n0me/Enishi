@@ -41,5 +41,7 @@ namespace enishi {
         platform::RenderResult<types::RenderHandle> make_mesh(const std::regex& pattern,
             const std::shared_ptr<platform::IRenderer>& renderer,
             const std::shared_ptr<assets_system::IAssetSystem>& asset_system);
+
+        foundation::VoidResult<bool> bind_materials(const types::RenderHandle& mesh_handle);
     };
 } // namespace enishi

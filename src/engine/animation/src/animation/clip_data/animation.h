@@ -1,7 +1,7 @@
 #pragma once
 #include "interpolation/interpolation.h"
 #include "tracks.h"
-#include <engine_types/assets/model/bone.h>
+#include <engine_types/assets/model/addons/bone.h>
 #include <string>
 #include <vector>
 

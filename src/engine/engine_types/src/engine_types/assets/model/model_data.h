@@ -2,12 +2,9 @@
 #include "../../renderer/mesh_data.h"
 #include "../../renderer/render_data.h"
 #include "../texture/texture_data.h"
-#include "bone.h"
-#include "ik.h"
-#include "material.h"
-#include "morph.h"
-#include "physics_joint.h"
-#include "rigid_body.h"
+#include "addons.h"
+#include "materials.h"
+
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <variant>
@@ -25,30 +22,30 @@ namespace enishi::types {
         glm::vec2 bone_weight;   // 0-1
     };
 
-    struct SkinningVertex {
-        Vertex vertex;
-        Skinning skinning;
-    };
-
-    using Indices = std::variant<OwnedRenderData<std::uint8_t>,
-        OwnedRenderData<std::uint16_t>,
-        OwnedRenderData<std::uint32_t>>;
-
-    using ModelAddon = std::variant<std::monostate,
-        std::vector<IK>,
-        Morphs,
-        std::vector<RigidBody>,
-        std::vector<PhysicsJoint>>;
+    using VertexVariant = std::variant<Vertex, Skinning>;
+    using VertexVariants = std::vector<VertexVariant>;
+    using IndicesVariant = std::variant<std::monostate,
+        std::vector<std::uint8_t>,
+        std::vector<std::uint16_t>,
+        std::vector<std::uint32_t>>;
 
     // このアプリケーション向けに設定されたモデルデータ
+    // 基本的には不変
     struct ModelData {
         std::string name;
-        OwnedRenderData<SkinningVertex> vertices;
-        Indices indices;
-        std::vector<Bone> bones;
+        std::vector<VertexVariants> vertices;
+        IndicesVariant indices;
         std::vector<ModelAddon> addons;
         std::vector<Material> materials;
 
+        [[nodiscard]] bool is_valid_data(void) const;
+
+        // コピーが発生するので頻繁に呼ばないこと
         [[nodiscard]] MeshData to_mesh_data(void) const;
+
+      private:
+        [[nodiscard]] OwnedRenderData<std::byte> to_vertices(void) const;
+        [[nodiscard]] OwnedRenderData<std::byte> to_indices(void) const;
+        [[nodiscard]] std::vector<OwnedRenderData<std::byte>> to_uniforms(void) const;
     };
 } // namespace enishi::types

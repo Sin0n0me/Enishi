@@ -15,6 +15,7 @@ namespace enishi::types {
         ViewPort,
         Topology,
         InputLayout,
+        Draw,
     };
 
     struct RenderHandle {

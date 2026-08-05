@@ -315,10 +315,24 @@ namespace enishi {
             }
             const auto& model_data = opt_model_data.unwrap();
 
+            // メッシュ作成
             const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
             if (mesh_handle.is_err()) {
                 error_message = mesh_handle.unwrap_err().get_message();
                 continue;
+            }
+
+            auto offset = 0;
+            for (const auto& material : model_data.materials) {
+                offset += material.indecies;
+
+                for (const auto& texture_path : material.texture_paths) {
+                    const auto asset_handle = asset_system->load_asset(texture_path);
+                    if (asset_handle.is_err()) {
+                        error_message = asset_handle.unwrap_err().get_message();
+                        break;
+                    }
+                }
             }
 
             return mesh_handle.unwrap();
