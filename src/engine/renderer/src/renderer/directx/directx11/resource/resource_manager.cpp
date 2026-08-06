@@ -54,13 +54,13 @@ namespace enishi::renderer::directx {
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_mesh(
-        const types::MeshData& mesh_data) {
+        types::MeshData&& mesh_data) {
         Mesh mesh{};
 
         // 頂点バッファ作成
         {
             auto&& result = this->make_vertex_buffer(mesh_data.vertices.get_render_data())
-                                .add_message("メッシュの作成に失敗しました");
+                                .add_message("頂点バッファの作成に失敗しました");
             if (result.is_err()) {
                 return std::move(result);
             }
@@ -70,7 +70,7 @@ namespace enishi::renderer::directx {
         // インデックスバッファ作成
         {
             auto&& result = this->make_index_buffer(mesh_data.indices.get_render_data())
-                                .add_message("メッシュの作成に失敗しました");
+                                .add_message("インデックスバッファの作成に失敗しました");
             if (result.is_err()) {
                 return std::move(result);
             }
@@ -79,8 +79,8 @@ namespace enishi::renderer::directx {
 
         // 定数バッファ作成
         for (const auto& uniform : mesh_data.uniforms) {
-            auto&& result = this->make_constant_buffer(uniform.get_render_data())
-                                .add_message("メッシュの作成に失敗しました");
+            auto&& result = this->make_constant_buffer(uniform.second.get_render_data())
+                                .add_message("定数バッファの作成に失敗しました");
             if (result.is_err()) {
                 return std::move(result);
             }
@@ -88,6 +88,14 @@ namespace enishi::renderer::directx {
         }
 
         // マテリアル
+        for (auto& argument : mesh_data.draw_args) {
+            auto&& result = this->make_draw_args(std::move(argument))
+                                .add_message("描画引数の作成に失敗しました");
+            if (result.is_err()) {
+                return std::move(result);
+            }
+            mesh.mesh_handles.emplace_back(result.unwrap());
+        }
 
         const types::HandleId handle = this->handle_allocator.create();
 
@@ -190,11 +198,11 @@ namespace enishi::renderer::directx {
                 DirectXError::BufferError, "インデックスバッファの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
-        this->resource->buffers.emplace(handle, buffer);
+        const auto handle_id = this->handle_allocator.create();
+        this->resource->buffers.emplace(handle_id, buffer);
 
         return types::RenderHandle{
-            .id = handle,
+            .id = handle_id,
             .type = types::RenderHandleType::Buffer,
         };
     }
@@ -224,11 +232,11 @@ namespace enishi::renderer::directx {
             return foundation::Error(DirectXError::BufferError, "定数バッファの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
-        this->resource->buffers.emplace(handle, buffer);
+        const auto handle_id = this->handle_allocator.create();
+        this->resource->buffers.emplace(handle_id, buffer);
 
         return types::RenderHandle{
-            .id = handle,
+            .id = handle_id,
             .type = types::RenderHandleType::Buffer,
         };
     }
@@ -263,11 +271,11 @@ namespace enishi::renderer::directx {
             return foundation::Error(DirectXError::BufferError, "テクスチャの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
-        this->resource->textures.emplace(handle, texture);
+        const auto handle_id = this->handle_allocator.create();
+        this->resource->textures.emplace(handle_id, texture);
 
         return types::RenderHandle{
-            .id = handle,
+            .id = handle_id,
             .type = types::RenderHandleType::Texture,
         };
     }
@@ -395,6 +403,17 @@ namespace enishi::renderer::directx {
         return types::RenderHandle{
             .id = static_cast<types::HandleId>(id),
             .type = types::RenderHandleType::ViewPort,
+        };
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_draw_args(
+        types::DrawArgs&& args) {
+        const auto handle_id = this->handle_allocator.create();
+        this->resource_editor->make_draw_args(handle_id, std::move(args));
+
+        return types::RenderHandle{
+            .id = handle_id,
+            .type = types::RenderHandleType::Draw,
         };
     }
 

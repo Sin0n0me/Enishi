@@ -33,6 +33,7 @@ namespace enishi::types {
     // 基本的には不変
     struct ModelData {
         std::string name;
+        std::filesystem::path path;
         std::vector<VertexVariants> vertices;
         IndicesVariant indices;
         std::vector<ModelAddon> addons;
@@ -40,12 +41,14 @@ namespace enishi::types {
 
         [[nodiscard]] bool is_valid_data(void) const;
 
-        // コピーが発生するので頻繁に呼ばないこと
-        [[nodiscard]] MeshData to_mesh_data(void) const;
+        // 大量のコピーが発生するので頻繁に呼ばないこと
+        [[nodiscard]] MeshData to_mesh_data(const std::uint32_t uniform_separator = 16) const;
 
       private:
-        [[nodiscard]] OwnedRenderData<std::byte> to_vertices(void) const;
-        [[nodiscard]] OwnedRenderData<std::byte> to_indices(void) const;
-        [[nodiscard]] std::vector<OwnedRenderData<std::byte>> to_uniforms(void) const;
+        [[nodiscard]] OwnedRenderData to_vertices(void) const;
+        [[nodiscard]] OwnedRenderData to_indices(void) const;
+        [[nodiscard]] std::unordered_map<std::string, OwnedRenderData> to_uniforms(
+            const std::uint32_t separator) const;
+        [[nodiscard]] std::vector<DrawArgs> to_draw_args(void) const;
     };
 } // namespace enishi::types

@@ -7,7 +7,7 @@
 
 namespace enishi::assets_system {
     foundation::Result<types::ModelData, AssetError> PMDToModelData::to_model_data(
-        const PMDData& data) {
+        const std::filesystem::path& path, const PMDData& data) {
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
         auto&& utf8_name = foundation::sjis_to_utf8(sjis_name);
@@ -24,17 +24,21 @@ namespace enishi::assets_system {
         }
         foundation::Logger::info(utf8_comment.unwrap_or(sjis_comment));
 
+        auto parent_path = path.parent_path();
+
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
         auto vertices = PMDToModelData::make_vertices(data.vertices);
         auto indices = PMDToModelData::make_indices(data.indices);
         auto iks = PMDToModelData::make_iks(data.iks, &bone_resolver);
         auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
-        auto materials = PMDToModelData::make_materials(data.materials, data.toon_textures);
+        auto materials =
+            PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
         auto physics_joints = PMDToModelData::make_joints(data.physics_joints);
         auto rigid_bodies = PMDToModelData::make_rigid_bodies(data.rigid_bodies);
 
         return types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
+            .path = path,
             .vertices = {std::move(vertices)},
             .indices = std::move(indices),
             .addons =
@@ -45,6 +49,7 @@ namespace enishi::assets_system {
                     std::move(rigid_bodies),
                     std::move(physics_joints),
                 },
+            .materials = std::move(materials),
         };
     }
 
@@ -111,7 +116,9 @@ namespace enishi::assets_system {
     std::vector<types::VertexVariants> PMDToModelData::make_vertices(
         const std::vector<PMDVertex>& vertices) {
         const auto vertex_size = vertices.size();
-        std::vector<types::VertexVariants> skinning_vertices(vertex_size);
+
+        std::vector<types::VertexVariants> skinning_vertices;
+        skinning_vertices.reserve(vertex_size);
         for (size_t i = 0; i < vertex_size; ++i) {
             const auto& vertex = vertices[i];
 
@@ -307,12 +314,14 @@ namespace enishi::assets_system {
     }
 
     std::vector<types::Material> PMDToModelData::make_materials(
-        const std::vector<PMDMaterial>& pmd_materials, const PMDToonTexture& toon_textures) {
+        const std::filesystem::path& model_path,
+        const std::vector<PMDMaterial>& pmd_materials,
+        const PMDToonTexture& toon_textures) {
         std::vector<types::Material> materials;
 
         for (const auto& pmd_material : pmd_materials) {
             types::Material material{
-                .indecies = pmd_material.index_count,
+                .count = pmd_material.index_count,
             };
 
             material.variants.emplace_back(types::Ambient{
@@ -344,11 +353,15 @@ namespace enishi::assets_system {
 
             std::vector<std::filesystem::path> paths{};
 
+            auto normalized_path = [](const std::string& path) {
+                return std::filesystem::path{path}.lexically_normal();
+            };
+
             // 使用するテクスチャパスのセット
             const auto toon_index = pmd_material.toon_index;
             if (toon_index < PMDToonTexture::MAX_FILE_COUNT) {
                 paths.emplace_back(
-                    std::filesystem::path{toon_textures.file_names[toon_index]}.lexically_normal());
+                    model_path / normalized_path(toon_textures.file_names[toon_index]));
             }
 
             // スフィアがついている場合があるので分離
@@ -356,13 +369,11 @@ namespace enishi::assets_system {
             const auto pos = texture_path.find('*');
             if (pos == std::string::npos) {
                 // スフィアがない場合
-                paths.emplace_back(std::filesystem::path{texture_path}.lexically_normal());
+                paths.emplace_back(model_path / normalized_path(texture_path));
             } else {
                 // スフィア付きの場合
-                auto texture =
-                    std::filesystem::path{texture_path.substr(0, pos)}.lexically_normal();
-                auto sphere =
-                    std::filesystem::path{texture_path.substr(pos + 1)}.lexically_normal();
+                auto texture = model_path / normalized_path(texture_path.substr(0, pos));
+                auto sphere = model_path / normalized_path(texture_path.substr(pos + 1));
 
                 paths.emplace_back(texture);
                 paths.emplace_back(sphere);

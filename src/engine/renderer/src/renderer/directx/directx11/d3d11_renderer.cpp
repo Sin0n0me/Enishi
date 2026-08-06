@@ -119,9 +119,9 @@ namespace enishi::renderer::directx {
         return foundation::Error(platform::RenderError::MakeError);
     }
 
-    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(
-        const types::MeshData& mesh) {
-        const auto result = this->resource_manager->make_mesh(mesh);
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(types::MeshData&& mesh) {
+        const auto result = this->resource_manager->make_mesh(std::move(mesh))
+                                .add_message("メッシュの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -131,7 +131,8 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_texture(
         const types::TextureData& texture) {
-        const auto result = this->resource_manager->make_texture(texture);
+        const auto result = this->resource_manager->make_texture(texture).add_message(
+            "テクスチャの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -141,7 +142,8 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
-        const auto result = this->resource_manager->make_shader(kind, shader_data);
+        const auto result = this->resource_manager->make_shader(kind, shader_data)
+                                .add_message("シェーダーの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -226,21 +228,21 @@ namespace enishi::renderer::directx {
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->VSSetShader(opt_shader.value().Get(), nullptr, 0);
+                context->VSSetShader(opt_shader.unwrap().Get(), nullptr, 0);
             } break;
             case types::ShaderKind::Pixel: {
                 const auto opt_shader = pool.get_pixel_shader(id);
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->PSSetShader(opt_shader.value().Get(), nullptr, 0);
+                context->PSSetShader(opt_shader.unwrap().Get(), nullptr, 0);
             } break;
             case types::ShaderKind::Compute: {
                 const auto opt_shader = pool.get_compute_shader(id);
                 if (opt_shader.is_none()) {
                     return;
                 }
-                context->CSSetShader(opt_shader.value().Get(), nullptr, 0);
+                context->CSSetShader(opt_shader.unwrap().Get(), nullptr, 0);
             } break;
             default:
                 break;
@@ -308,6 +310,9 @@ namespace enishi::renderer::directx {
                 } break;
                 case types::RenderHandleType::Texture: {
                     this->bind_texture(handle.id);
+                } break;
+                case types::RenderHandleType::Draw: {
+                    this->draw(handle.id);
                 } break;
                 default:
                     break;

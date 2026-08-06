@@ -303,10 +303,12 @@ namespace enishi {
 
         // モデルからメッシュへ変換
         foundation::UTF8 error_message;
+        error_message.reserve(0xFFFF);
         for (const auto& path : asset_paths) {
+            error_message += std::format("loaded path: {}\n", path.string<char>());
             const auto asset_handle = asset_system->load_asset(path);
             if (asset_handle.is_err()) {
-                error_message = asset_handle.unwrap_err().get_message();
+                error_message += asset_handle.unwrap_err().get_message() + "\n";
                 continue;
             }
             const auto opt_model_data = asset_system->get_model_data(asset_handle.unwrap());
@@ -315,24 +317,21 @@ namespace enishi {
             }
             const auto& model_data = opt_model_data.unwrap();
 
-            // メッシュ作成
-            const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
-            if (mesh_handle.is_err()) {
-                error_message = mesh_handle.unwrap_err().get_message();
-                continue;
-            }
-
-            auto offset = 0;
+            // 先にテクスチャ読み込み
             for (const auto& material : model_data.materials) {
-                offset += material.indecies;
-
                 for (const auto& texture_path : material.texture_paths) {
                     const auto asset_handle = asset_system->load_asset(texture_path);
                     if (asset_handle.is_err()) {
-                        error_message = asset_handle.unwrap_err().get_message();
-                        break;
+                        error_message += asset_handle.unwrap_err().get_message() + "\n";
                     }
                 }
+            }
+
+            // メッシュ作成
+            const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
+            if (mesh_handle.is_err()) {
+                error_message += mesh_handle.unwrap_err().get_message() + "\n";
+                continue;
             }
 
             return mesh_handle.unwrap();

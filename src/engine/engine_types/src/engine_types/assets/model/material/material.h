@@ -33,8 +33,12 @@ namespace enishi::types {
     using MaterialVariant = std::variant<Ambient, Specular, Diffuse, Light, Edge>;
 
     struct Material {
+        std::string name;
         std::vector<MaterialVariant> variants; // Vectorに渡した順序に統合されたバイト列になる
         std::vector<std::filesystem::path> texture_paths;
-        std::uint32_t indecies;
+        std::uint32_t first_offset;
+        std::uint32_t first_instance_offset;
+        std::uint32_t count; // 頂点 or インデックス
+        std::uint32_t instance_count;
     };
 } // namespace enishi::types

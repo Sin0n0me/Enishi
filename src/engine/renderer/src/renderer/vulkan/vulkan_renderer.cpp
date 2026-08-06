@@ -2,7 +2,7 @@
 
 namespace enishi::renderer::vulkan {
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_mesh(
-        const types::MeshData& mesh) {
+        types::MeshData&& mesh) {
         return types::RenderHandle{};
     }
 

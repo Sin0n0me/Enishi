@@ -22,7 +22,7 @@ namespace enishi::renderer {
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E>
         make_input_layout_from_shader(const types::ShaderData& shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_mesh(
-            const types::MeshData& mesh_data) = 0;
+            types::MeshData&& mesh_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_texture(
@@ -48,5 +48,7 @@ namespace enishi::renderer {
             const types::ImageViewDescription& description) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_viewport(
             const types::ViewportRect& config) = 0;
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_draw_args(
+            types::DrawArgs&& args) = 0;
     };
 } // namespace enishi::renderer

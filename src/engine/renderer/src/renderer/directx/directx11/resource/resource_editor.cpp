@@ -12,7 +12,7 @@ namespace enishi::renderer::directx {
         this->render_targets.emplace_back(std::move(rtv));
     }
 
-    void ResourceEditor::add_draw_args(const types::HandleId handle_id, types::DrawArgs&& args) {
+    void ResourceEditor::make_draw_args(const types::HandleId handle_id, types::DrawArgs&& args) {
         this->handle_to_index[ResourceIndex{
             .type = ResourceType::DrawArgs,
             .handle_id = handle_id,
@@ -69,7 +69,7 @@ namespace enishi::renderer::directx {
     foundation::Option<types::DrawArgs&> ResourceEditor::get_draw_args(
         const types::HandleId handle) {
         const auto& opt_index = this->get_index(ResourceIndex{
-            .type = ResourceType::RenderTarget,
+            .type = ResourceType::DrawArgs,
             .handle_id = handle,
         });
         if (opt_index.is_none()) {

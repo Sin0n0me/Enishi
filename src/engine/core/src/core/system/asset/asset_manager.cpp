@@ -60,7 +60,8 @@ namespace enishi::core {
         const auto extention = path.extension();
         const auto asset_iter = this->extension_to_loader.find(extention.string<char>());
         if (asset_iter == this->extension_to_loader.end()) {
-            return foundation::Error(assets_system::AssetError::NotFound);
+            return foundation::Error(assets_system::AssetError::NotFound,
+                std::format("not found loader. target: {}", path.string<char>()));
         }
 
         // 1つの拡張子が複数対応している場合判断がつかないので

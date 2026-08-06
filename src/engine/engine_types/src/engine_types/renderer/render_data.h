@@ -32,35 +32,57 @@ namespace enishi::types {
         }
     };
 
-    template <typename T>
-        requires std::is_trivially_copyable_v<T>
     class OwnedRenderData {
       public:
-        using RequestType = std::vector<T>;
+        using RawDataType = std::vector<std::byte>;
 
       private:
-        RequestType buffer;
+        RawDataType buffer;
+        std::uint32_t stride; // 1つのデータ間隔
 
       public:
-        explicit OwnedRenderData(RequestType&& buffer)
-            : buffer(std::move(buffer)) {
+        // 任意のVec<T>をバイト列へ
+        template <typename T>
+            requires std::is_trivially_copyable_v<T>
+        explicit OwnedRenderData(const std::vector<T>& buffer)
+            : buffer(OwnedRenderData::to_byte_vector(buffer))
+            , stride(static_cast<std::uint32_t>(sizeof(T))) {
+        }
+
+        explicit OwnedRenderData(RawDataType&& buffer, const std::uint32_t stride)
+            : buffer(std::move(buffer))
+            , stride(stride) {
         }
         explicit OwnedRenderData(OwnedRenderData&&) noexcept = default;
 
         OwnedRenderData& operator=(OwnedRenderData&&) noexcept = default;
 
-        T& operator[](const std::size_t index) {
+        explicit operator bool(void) const noexcept {
+            return !this->buffer.empty();
+        };
+
+        std::byte& operator[](const std::size_t index) {
             return this->buffer[index];
         }
-        const T& operator[](const std::size_t index) const {
+        const std::byte& operator[](const std::size_t index) const {
             return this->buffer[index];
         }
 
         [[nodiscard]] RenderData get_render_data(void) const {
             return RenderData{
                 .bytes = std::as_bytes(std::span{this->buffer}),
-                .stride = static_cast<std::uint32_t>(sizeof(T)),
+                .stride = this->stride,
             };
+        }
+
+      private:
+        template <typename T>
+            requires std::is_trivially_copyable_v<T>
+        static RawDataType to_byte_vector(const std::vector<T>& src) {
+            const auto byte_size = src.size() * sizeof(T);
+            RawDataType dest(byte_size);
+            std::memcpy(dest.data(), src.data(), byte_size);
+            return dest;
         }
     };
 } // namespace enishi::types

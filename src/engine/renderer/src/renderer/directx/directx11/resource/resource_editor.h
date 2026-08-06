@@ -37,7 +37,7 @@ namespace enishi::renderer::directx {
 
       public:
         void add_render_target(std::shared_ptr<platform::IRenderTargetView> rtv);
-        void add_draw_args(const types::HandleId handle_id, types::DrawArgs&& args);
+        void make_draw_args(const types::HandleId handle_id, types::DrawArgs&& args);
 
       public:
         foundation::Option<std::shared_ptr<platform::IRenderTargetView>> get_render_target(

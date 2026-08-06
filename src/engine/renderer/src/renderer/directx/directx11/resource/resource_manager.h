@@ -27,11 +27,13 @@ namespace enishi::renderer::directx {
       public:
         GPUResourceAccessor* const get_accessor(void) const;
 
+        // D3D11ResourceAccessor* const get_d3d11_accessor(void) const;
+
       public:
         foundation::Result<types::RenderHandle, DirectXError> make_input_layout_from_shader(
             const types::ShaderData& shader_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_mesh(
-            const types::MeshData& mesh_data) override;
+            types::MeshData&& mesh_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_texture(
@@ -57,6 +59,8 @@ namespace enishi::renderer::directx {
             const types::ImageViewDescription& description) override;
         foundation::Result<types::RenderHandle, DirectXError> make_viewport(
             const types::ViewportRect& config) override;
+        foundation::Result<types::RenderHandle, DirectXError> make_draw_args(
+            types::DrawArgs&& args) override;
 
       public:
         // TODO: インターフェイス経由

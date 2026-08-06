@@ -36,7 +36,7 @@ namespace enishi::assets_system {
         auto&& model_data = load_data.unwrap_mut();
 
         if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
-            auto&& convert_data = PMDToModelData::to_model_data(*pmd_data->get())
+            auto&& convert_data = PMDToModelData::to_model_data(path, *pmd_data->get())
                                       .add_message("データの変換に失敗しました");
             if (convert_data.is_err()) {
                 return convert_data;

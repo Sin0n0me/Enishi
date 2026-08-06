@@ -44,8 +44,7 @@ namespace enishi::renderer::directx {
         platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
         create_unordered_access_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<types::RenderHandle> create_mesh(
-            const types::MeshData& mesh) override;
+        platform::RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh) override;
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(

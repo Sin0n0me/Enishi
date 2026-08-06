@@ -70,7 +70,7 @@ namespace enishi::platform {
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_mesh(const types::MeshData& mesh) = 0;
+        virtual RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_texture(

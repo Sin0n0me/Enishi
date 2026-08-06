@@ -10,15 +10,15 @@
 namespace enishi::assets_system {
     class TextureLoader : public IAssetLoader {
       private:
-        std::weak_ptr<int> a;
+      public:
+        static void generate_mip_chain(types::TextureData& data);
 
       public:
         foundation::Result<AssetData, AssetError> load(
             const std::filesystem::path& path) noexcept override;
         std::vector<foundation::UTF8> get_supported_extension(void) const noexcept override;
-
-        static void generate_mip_chain(types::TextureData& data);
-
         AssetType get_target_asset_type(void) const noexcept override;
+
+      private:
     };
 } // namespace enishi::assets_system
