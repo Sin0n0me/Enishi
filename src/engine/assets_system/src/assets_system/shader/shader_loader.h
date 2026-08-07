@@ -23,11 +23,11 @@ namespace enishi::assets_system {
 
       private:
         [[nodiscard]]
-        static foundation::Result<types::ShaderData, AssetError> load_spir_v(
+        static foundation::Result<AssetShaderData, AssetError> load_spir_v(
             BinaryReader& reader) noexcept;
 
         [[nodiscard]]
-        static foundation::Result<types::ShaderData, AssetError> load_dxbc(
+        static foundation::Result<AssetShaderData, AssetError> load_dxbc(
             BinaryReader& reader) noexcept;
 
         AssetType get_target_asset_type(void) const noexcept override;

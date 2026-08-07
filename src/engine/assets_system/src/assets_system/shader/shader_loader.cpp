@@ -58,7 +58,7 @@ namespace enishi::assets_system {
         return extensions;
     }
 
-    foundation::Result<types::ShaderData, AssetError> ShaderLoader::load_spir_v(
+    foundation::Result<AssetShaderData, AssetError> ShaderLoader::load_spir_v(
         BinaryReader& reader) noexcept {
         auto result = reader.read_all();
         if (result.is_err()) {
@@ -69,13 +69,13 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::InvalidAssetData);
         }
 
-        return types::ShaderData{
+        return std::make_shared<types::ShaderData>(types::ShaderData{
             .binary_type = types::ShaderBinaryType::SPIR_V,
             .code = std::move(result.unwrap_mut()),
-        };
+        });
     }
 
-    foundation::Result<types::ShaderData, AssetError> ShaderLoader::load_dxbc(
+    foundation::Result<AssetShaderData, AssetError> ShaderLoader::load_dxbc(
         BinaryReader& reader) noexcept {
         auto result = reader.read_all();
         if (result.is_err()) {
@@ -86,10 +86,10 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::InvalidAssetData);
         }
 
-        return types::ShaderData{
+        return std::make_shared<types::ShaderData>(types::ShaderData{
             .binary_type = types::ShaderBinaryType::DXBC,
             .code = std::move(result.unwrap_mut()),
-        };
+        });
     }
 
     AssetType ShaderLoader::get_target_asset_type(void) const noexcept {

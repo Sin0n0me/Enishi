@@ -6,7 +6,7 @@
 #include <ranges>
 
 namespace enishi::assets_system {
-    foundation::Result<types::ModelData, AssetError> PMDToModelData::to_model_data(
+    foundation::Result<AssetModelData, AssetError> PMDToModelData::to_model_data(
         const std::filesystem::path& path, const PMDData& data) {
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
@@ -24,33 +24,28 @@ namespace enishi::assets_system {
         }
         foundation::Logger::info(utf8_comment.unwrap_or(sjis_comment));
 
-        auto parent_path = path.parent_path();
+        const auto parent_path = path.parent_path();
 
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
-        auto vertices = PMDToModelData::make_vertices(data.vertices);
-        auto indices = PMDToModelData::make_indices(data.indices);
-        auto iks = PMDToModelData::make_iks(data.iks, &bone_resolver);
         auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
-        auto materials =
-            PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
-        auto physics_joints = PMDToModelData::make_joints(data.physics_joints);
-        auto rigid_bodies = PMDToModelData::make_rigid_bodies(data.rigid_bodies);
 
-        return types::ModelData{
+        return std::make_shared<types::ModelData>(types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
             .path = path,
-            .vertices = {std::move(vertices)},
-            .indices = std::move(indices),
+            .vertices = {PMDToModelData::make_vertices(data.vertices)},
+            .indices = PMDToModelData::make_indices(data.indices),
             .addons =
                 {
                     std::move(bones),
                     std::move(morphs),
-                    std::move(iks),
-                    std::move(rigid_bodies),
-                    std::move(physics_joints),
+                    PMDToModelData::make_iks(data.iks, &bone_resolver),
+                    PMDToModelData::make_rigid_bodies(data.rigid_bodies),
+                    PMDToModelData::make_joints(data.physics_joints),
                 },
-            .materials = std::move(materials),
-        };
+            .materials =
+                PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures),
+        });
+        ;
     }
 
     std::tuple<std::vector<types::Bone>, BoneResolver> PMDToModelData::make_bone(

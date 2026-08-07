@@ -45,10 +45,15 @@ namespace enishi::types {
         [[nodiscard]] MeshData to_mesh_data(const std::uint32_t uniform_separator = 16) const;
 
       private:
+        using Uniforms = std::unordered_map<std::string, OwnedRenderData>;
+
         [[nodiscard]] OwnedRenderData to_vertices(void) const;
         [[nodiscard]] OwnedRenderData to_indices(void) const;
-        [[nodiscard]] std::unordered_map<std::string, OwnedRenderData> to_uniforms(
-            const std::uint32_t separator) const;
+        [[nodiscard]] Uniforms to_uniforms(const std::uint32_t separator) const;
+        [[nodiscard]] void to_uniforms_from_addon(Uniforms& uniforms) const;
+        [[nodiscard]] void to_uniforms_from_material(
+            Uniforms& uniforms, const std::uint32_t separator) const;
+
         [[nodiscard]] std::vector<DrawArgs> to_draw_args(void) const;
     };
 } // namespace enishi::types

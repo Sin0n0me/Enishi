@@ -49,11 +49,11 @@ namespace enishi::core {
         assets_system::PathObjects find_scripts(
             const std::filesystem::path& target_path) const noexcept override;
 
-        foundation::Option<const types::ModelData&> get_model_data(
+        foundation::Option<const assets_system::AssetModelData&> get_model_data(
             const assets_system::AssetHandle& handle) const noexcept override;
-        foundation::Option<const types::ShaderData&> get_shader_data(
+        foundation::Option<const assets_system::AssetShaderData&> get_shader_data(
             const assets_system::AssetHandle& handle) const noexcept override;
-        foundation::Option<const types::TextureData&> get_texture_data(
+        foundation::Option<const assets_system::AssetTextureData&> get_texture_data(
             const assets_system::AssetHandle& handle) const noexcept override;
 
         foundation::UTF8 model_extensions_pattern(void) const noexcept override;
@@ -81,17 +81,17 @@ namespace enishi::core {
         }
 
         [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
-        register_model(types::ModelData&& data) noexcept;
+        register_model(assets_system::AssetModelData data) noexcept;
         [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
         register_animation(types::ModelData&& data) noexcept;
         [[nodiscard]]
         foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_shader(
-            types::ShaderData&& data) noexcept;
+            assets_system::AssetShaderData data) noexcept;
         [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
-        register_texture(types::TextureData&& data) noexcept;
+        register_texture(assets_system::AssetTextureData data) noexcept;
         [[nodiscard]]
         foundation::Result<assets_system::AssetHandle, assets_system::AssetError> register_video(
-            types::ModelData&& data) noexcept;
+            assets_system::AssetModelData data) noexcept;
         [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
         register_sound(types::ModelData&& data) noexcept;
         [[nodiscard]] foundation::Result<assets_system::AssetHandle, assets_system::AssetError>

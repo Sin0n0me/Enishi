@@ -3,7 +3,7 @@
 namespace enishi::types {
     Ray Ray::make_ray_from_screen(const types::WindowSize& window_size,
         const types::ClientMousePosition& mouse_position,
-        const types::Camera& camera) {
+        const types::UniformCamera& camera) {
         // スクリーン座標からNDCに
         const float ndc_x = (2.0f * mouse_position.x / window_size.width) - 1.0f;
         const float ndc_y = 1.0f - (2.0f * mouse_position.y / window_size.height);

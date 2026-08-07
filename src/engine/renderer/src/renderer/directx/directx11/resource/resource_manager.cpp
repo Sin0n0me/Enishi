@@ -1,6 +1,5 @@
 #include "resource_manager.h"
 #include "../d3d11_converter.h"
-#include "../shader/shader_refrection.h"
 #include "../view/render_target_view.h"
 #include <foundation/log/logger.h>
 
@@ -15,29 +14,46 @@ namespace enishi::renderer::directx {
         return this->resource_editor.get();
     }
 
-    foundation::Result<types::RenderHandle, DirectXError>
-    ResourceManager::make_input_layout_from_shader(const types::ShaderData& shader_data) {
-        // shader reflectionでレイアウトを作成
-        auto result = ShaderReflection::make(shader_data)
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_reflection(
+        std::shared_ptr<types::ShaderData> shader_data) {
+        const auto handle_id = this->handle_allocator.create();
+        auto result = this->resource_editor->make_shader_reflection(handle_id, shader_data)
                           .add_message("shader reflectionの作成に失敗しました");
         if (result.is_err()) {
+            this->handle_allocator.destroy(handle_id);
             return std::move(result).unwrap_err();
         }
-        const auto& refection = result.unwrap();
 
-        // 変換
-        const auto input_elements = refection.get_input_element_descs() |
-                                    std::views::transform([](const InputElementDescription& desc) {
-                                        return desc.description;
-                                    }) |
-                                    std::ranges::to<std::vector>();
+        return types::RenderHandle{
+            .id = handle_id,
+            .type = types::RenderHandleType::ShaderReflection,
+        };
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError>
+    ResourceManager::make_input_layout_from_shader_reflection(
+        const types::RenderHandle& shader_reflection_handle) {
+        if (shader_reflection_handle.type != types::RenderHandleType::ShaderReflection) {
+            return foundation::Error(DirectXError::ShaderReflectionError, "不正なハンドルです");
+        }
+
+        // shader reflectionでレイアウトを作成
+        auto opt_refection =
+            this->resource_editor->get_shader_reflection(shader_reflection_handle.id);
+        if (opt_refection.is_none()) {
+            return foundation::Error(
+                DirectXError::ShaderReflectionError, "シェーダーリフレクションが存在しません");
+        }
+        const auto& reflection = opt_refection.unwrap();
+        auto shader_data = reflection->get_shader_data();
+        auto input_elements = reflection->get_input_element_descs();
 
         Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateInputLayout(input_elements.data(),
             static_cast<uint32_t>(input_elements.size()),
-            shader_data.code.data(),
-            shader_data.code.size(),
+            shader_data->code.data(),
+            shader_data->code.size(),
             input_layout.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
@@ -78,12 +94,14 @@ namespace enishi::renderer::directx {
         }
 
         // 定数バッファ作成
-        for (const auto& uniform : mesh_data.uniforms) {
-            auto&& result = this->make_constant_buffer(uniform.second.get_render_data())
-                                .add_message("定数バッファの作成に失敗しました");
+        for (const auto& [name, uniform] : mesh_data.uniforms) {
+            auto&& result =
+                this->make_uniform_buffer(uniform.get_render_data(), types::ShaderKind::Vertex, 0)
+                    .add_message("定数バッファの作成に失敗しました");
             if (result.is_err()) {
                 return std::move(result);
             }
+
             mesh.mesh_handles.emplace_back(result.unwrap());
         }
 
@@ -207,8 +225,10 @@ namespace enishi::renderer::directx {
         };
     }
 
-    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_constant_buffer(
-        const types::RenderData& data) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_uniform_buffer(
+        const types::RenderData& data,
+        const types::ShaderKind target_shader,
+        const std::uint32_t target_slot) {
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -221,10 +241,9 @@ namespace enishi::renderer::directx {
             .SysMemSlicePitch = data.stride,
         };
 
-        // TODO
         Buffer buffer{UniformParameter{
-            .target_shader = ShaderType::Vertex,
-            .target_slot = 0,
+            .target_shader = target_shader,
+            .target_slot = target_slot,
         }};
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());

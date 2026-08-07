@@ -23,25 +23,22 @@ namespace enishi::assets_system {
 
         const types::TextureFormat format =
             force_srgb ? types::TextureFormat::RGBA8_SRGB : types::TextureFormat::RGBA8_UNORM;
-        types::TextureData data{
-            .format = format,
-            .width = static_cast<std::uint32_t>(width),
-            .height = static_cast<std::uint32_t>(height),
-        };
+        const auto data = std::make_shared<types::TextureData>();
+        data->format = format;
+        data->width = static_cast<std::uint32_t>(width);
+        data->height = static_cast<std::uint32_t>(height);
 
         // ミップレベル0(元画像)
-        const std::uint32_t row_pitch = data.width * 4;
-        const std::uint32_t slice_pitch = row_pitch * data.height;
-
+        const std::uint32_t row_pitch = data->width * 4;
+        const std::uint32_t slice_pitch = row_pitch * data->height;
         types::MipData mip0{
-            .width = data.width,
-            .height = data.height,
+            .width = data->width,
+            .height = data->height,
             .row_pitch = row_pitch,
             .slice_pitch = slice_pitch,
         };
-
         mip0.pixels.assign(pixels, pixels + slice_pitch);
-        data.mips.push_back(std::move(mip0));
+        data->mips.push_back(std::move(mip0));
 
         stbi_image_free(pixels);
 

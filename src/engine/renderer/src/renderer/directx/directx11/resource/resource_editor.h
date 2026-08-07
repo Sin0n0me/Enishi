@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../common/interface_gpu_resource_accessor.h"
+#include "../shader/shader_refrection.h"
 #include <foundation/option/option.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
@@ -11,6 +12,7 @@ namespace enishi::renderer::directx {
         enum class ResourceType : std::uint32_t {
             RenderTarget,
             DrawArgs,
+            ShaderReflection,
         };
 
         struct ResourceIndex {
@@ -34,8 +36,12 @@ namespace enishi::renderer::directx {
         std::unordered_map<ResourceIndex, std::size_t, KeyHash> handle_to_index;
         std::vector<types::DrawArgs> draw_args;
         std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
+        std::vector<std::shared_ptr<ShaderReflection>> shader_refections;
 
       public:
+        foundation::VoidResult<DirectXError> make_shader_reflection(
+            const types::HandleId handle_id, std::shared_ptr<types::ShaderData> shader_data);
+
         void add_render_target(std::shared_ptr<platform::IRenderTargetView> rtv);
         void make_draw_args(const types::HandleId handle_id, types::DrawArgs&& args);
 
@@ -47,6 +53,9 @@ namespace enishi::renderer::directx {
         foundation::Option<const types::DrawArgs&> get_draw_args(
             const types::HandleId handle) const override;
         foundation::Option<types::DrawArgs&> get_draw_args(const types::HandleId handle) override;
+
+        foundation::Option<std::shared_ptr<ShaderReflection>> get_shader_reflection(
+            const types::HandleId handle) const;
 
       private:
         foundation::Option<std::size_t> get_index(const ResourceIndex& index) const;

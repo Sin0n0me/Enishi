@@ -22,12 +22,14 @@ namespace enishi::renderer::directx {
             const types::PipelineDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
+        platform::RenderResult<types::RenderHandle> create_shader_reflection(
+            std::shared_ptr<types::ShaderData> shader_data) override;
         platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> create_pipeline_layout(
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) override;
-        platform::RenderResult<types::RenderHandle> create_pipeline_layout_from_shader(
-            const types::ShaderData& shader) override;
+        platform::RenderResult<types::RenderHandle> create_pipeline_layout_from_shader_reflection(
+            const types::RenderHandle& shader_reflection_handle) override;
         platform::RenderResult<types::RenderHandle> create_rasterizer(
             const types::RasterizerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(
@@ -63,5 +65,7 @@ namespace enishi::renderer::directx {
         void bind_input_layout(const types::HandleId id) const override;
         void draw(const types::HandleId id) const override;
         void present(void) const override;
+
+        // IRenderer を介して継承されました
     };
 } // namespace enishi::renderer::directx

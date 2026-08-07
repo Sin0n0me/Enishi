@@ -30,8 +30,11 @@ namespace enishi::renderer::directx {
         // D3D11ResourceAccessor* const get_d3d11_accessor(void) const;
 
       public:
-        foundation::Result<types::RenderHandle, DirectXError> make_input_layout_from_shader(
-            const types::ShaderData& shader_data) override;
+        foundation::Result<types::RenderHandle, DirectXError> make_shader_reflection(
+            std::shared_ptr<types::ShaderData> shader_data) override;
+        foundation::Result<types::RenderHandle, DirectXError>
+        make_input_layout_from_shader_reflection(
+            const types::RenderHandle& shader_reflection_handle) override;
         foundation::Result<types::RenderHandle, DirectXError> make_mesh(
             types::MeshData&& mesh_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_shader(
@@ -46,8 +49,10 @@ namespace enishi::renderer::directx {
             const types::RenderData& data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_index_buffer(
             const types::RenderData& data) override;
-        foundation::Result<types::RenderHandle, DirectXError> make_constant_buffer(
-            const types::RenderData& data) override;
+        foundation::Result<types::RenderHandle, DirectXError> make_uniform_buffer(
+            const types::RenderData& data,
+            const types::ShaderKind target_shader,
+            const std::uint32_t target_slot) override;
         foundation::Result<types::RenderHandle, DirectXError> make_image(
             const types::ImageDescription& description) override;
         foundation::Result<types::RenderHandle, DirectXError> make_blend_state() override;

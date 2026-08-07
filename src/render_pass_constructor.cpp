@@ -228,8 +228,16 @@ namespace enishi {
                     std::format("シェーダーデータの取得に失敗しました: {}", path.string<char>());
                 continue;
             }
+
+            // シェーダーリフレクションで情報の取得
+            const auto shader_reflection = renderer->create_shader_reflection(shader_data.unwrap());
+            if (shader_reflection.is_err()) {
+                error_message += shader_reflection.unwrap_err().get_message() + "\n";
+                continue;
+            }
+
             const auto input_layout =
-                renderer->create_pipeline_layout_from_shader(shader_data.unwrap());
+                renderer->create_pipeline_layout_from_shader_reflection(shader_reflection.unwrap());
             if (input_layout.is_err()) {
                 error_message += input_layout.unwrap_err().get_message() + "\n";
                 error_message +=
@@ -273,7 +281,7 @@ namespace enishi {
                 continue;
             }
 
-            const auto shader_handle = renderer->create_shader(kind, shader_data.unwrap());
+            const auto shader_handle = renderer->create_shader(kind, *shader_data.unwrap());
             if (shader_handle.is_err()) {
                 error_message = shader_handle.unwrap_err().get_message();
                 continue;
@@ -303,7 +311,7 @@ namespace enishi {
 
         // モデルからメッシュへ変換
         foundation::UTF8 error_message;
-        error_message.reserve(0xFFFF);
+        error_message.reserve(0x1000);
         for (const auto& path : asset_paths) {
             error_message += std::format("loaded path: {}\n", path.string<char>());
             const auto asset_handle = asset_system->load_asset(path);
@@ -318,7 +326,7 @@ namespace enishi {
             const auto& model_data = opt_model_data.unwrap();
 
             // 先にテクスチャ読み込み
-            for (const auto& material : model_data.materials) {
+            for (const auto& material : model_data->materials) {
                 for (const auto& texture_path : material.texture_paths) {
                     const auto asset_handle = asset_system->load_asset(texture_path);
                     if (asset_handle.is_err()) {
@@ -328,7 +336,7 @@ namespace enishi {
             }
 
             // メッシュ作成
-            const auto mesh_handle = renderer->create_mesh(model_data.to_mesh_data());
+            const auto mesh_handle = renderer->create_mesh(model_data->to_mesh_data());
             if (mesh_handle.is_err()) {
                 error_message += mesh_handle.unwrap_err().get_message() + "\n";
                 continue;

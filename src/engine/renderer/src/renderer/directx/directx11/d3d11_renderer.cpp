@@ -54,9 +54,21 @@ namespace enishi::renderer::directx {
         return std::unique_ptr<platform::IPipelineLayout>{};
     }
 
-    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_pipeline_layout_from_shader(
-        const types::ShaderData& shader_data) {
-        const auto result = this->resource_manager->make_input_layout_from_shader(shader_data);
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader_reflection(
+        std::shared_ptr<types::ShaderData> shader_data) {
+        const auto result = this->resource_manager->make_shader_reflection(shader_data);
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+
+        return result.unwrap();
+    }
+
+    platform::RenderResult<types::RenderHandle>
+    D3D11Renderer::create_pipeline_layout_from_shader_reflection(
+        const types::RenderHandle& shader_reflection_handle) {
+        const auto result = this->resource_manager->make_input_layout_from_shader_reflection(
+            shader_reflection_handle);
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -196,15 +208,15 @@ namespace enishi::renderer::directx {
             context->IASetIndexBuffer(buffer.buffer.Get(), index->format, index->offset);
         } else if (const auto uniform = std::get_if<UniformParameter>(&buffer.parameter)) {
             switch (uniform->target_shader) {
-                case ShaderType::Vertex: {
+                case types::ShaderKind::Vertex: {
                     context->VSSetConstantBuffers(
                         uniform->target_slot, 1, buffer.buffer.GetAddressOf());
                 } break;
-                case ShaderType::Pixcel: {
+                case types::ShaderKind::Pixel: {
                     context->PSSetConstantBuffers(
                         uniform->target_slot, 1, buffer.buffer.GetAddressOf());
                 } break;
-                case ShaderType::Compute: {
+                case types::ShaderKind::Compute: {
                     context->CSSetConstantBuffers(
                         uniform->target_slot, 1, buffer.buffer.GetAddressOf());
                 } break;

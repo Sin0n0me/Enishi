@@ -29,8 +29,13 @@ namespace enishi::renderer::vulkan {
         const types::RenderHandle& pixel_shader) {
         return std::unique_ptr<platform::IPipelineLayout>{};
     }
-    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_pipeline_layout_from_shader(
-        const types::ShaderData& shader) {
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_shader_reflection(
+        std::shared_ptr<types::ShaderData> shader_data) {
+        return types::RenderHandle{};
+    }
+    platform::RenderResult<types::RenderHandle>
+    VulkanRenderer::create_pipeline_layout_from_shader_reflection(
+        const types::RenderHandle& shader_reflection_handle) {
         return types::RenderHandle{};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_rasterizer(

@@ -1,6 +1,6 @@
 #pragma once
-#include "buffer/camera.h"
 #include "render_handle.h"
+#include "uniform_buffer/camera.h"
 #include <glm/glm.hpp>
 
 namespace enishi::types {
@@ -23,6 +23,6 @@ namespace enishi::types {
     // フレーム全体の描画記述
     struct RenderGraph {
         std::vector<RenderPass> passes; // 順番通りに実行される
-        Camera camera;                  // 全パス共通のカメラ情報
+        UniformCamera camera;           // 全パス共通のカメラ情報
     };
 } // namespace enishi::types

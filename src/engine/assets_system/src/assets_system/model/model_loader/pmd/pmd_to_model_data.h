@@ -16,7 +16,7 @@ namespace enishi::assets_system {
         static constexpr glm::vec3 MMD_KNEE_AXIS = glm::vec3(-1.0f, 0.0f, 0.0f); // X軸固定
 
       public:
-        static foundation::Result<types::ModelData, AssetError> to_model_data(
+        static foundation::Result<AssetModelData, AssetError> to_model_data(
             const std::filesystem::path& path, const PMDData& data);
 
       private:

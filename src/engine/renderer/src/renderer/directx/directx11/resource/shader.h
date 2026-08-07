@@ -33,13 +33,21 @@ namespace enishi::renderer::directx {
         [[nodiscard]] foundation::Option<types::ShaderKind> get_shader_type(
             const types::HandleId id) const noexcept;
 
-        [[nodiscard]] foundation::Option<VertexShader> get_vertex_shader(
+        [[nodiscard]] foundation::Option<VertexShader&> get_vertex_shader(
+            const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<const VertexShader&> get_vertex_shader(
             const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<PixelShader> get_pixel_shader(
+        [[nodiscard]] foundation::Option<PixelShader&> get_pixel_shader(
+            const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<const PixelShader&> get_pixel_shader(
             const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<ComputeShader> get_compute_shader(
+        [[nodiscard]] foundation::Option<ComputeShader&> get_compute_shader(
+            const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<const ComputeShader&> get_compute_shader(
             const types::HandleId id) const noexcept;
-        [[nodiscard]] foundation::Option<HullShader> get_hull_shader(
+        [[nodiscard]] foundation::Option<HullShader&> get_hull_shader(
+            const types::HandleId id) noexcept;
+        [[nodiscard]] foundation::Option<const HullShader&> get_hull_shader(
             const types::HandleId id) const noexcept;
 
       private:

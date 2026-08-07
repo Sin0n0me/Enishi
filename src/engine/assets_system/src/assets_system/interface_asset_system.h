@@ -1,11 +1,9 @@
 #pragma once
+#include "asset_data.h"
 #include "asset_handle.h"
 #include "asset_type.h"
 #include "errors/errors.h"
 #include "utility/path_objects.h"
-#include <engine_types/assets/model/model_data.h>
-#include <engine_types/assets/shader/shader_data.h>
-#include <engine_types/assets/texture/texture_data.h>
 #include <filesystem>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
@@ -42,13 +40,13 @@ namespace enishi::assets_system {
         [[nodiscard]] virtual foundation::Option<const std::filesystem::path&> get_asset_file_name(
             const AssetHandle& handle) const noexcept = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::ModelData&> get_model_data(
+        [[nodiscard]] virtual foundation::Option<const AssetModelData&> get_model_data(
             const AssetHandle& handle) const noexcept = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::ShaderData&> get_shader_data(
+        [[nodiscard]] virtual foundation::Option<const AssetShaderData&> get_shader_data(
             const AssetHandle& handle) const noexcept = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::TextureData&> get_texture_data(
+        [[nodiscard]] virtual foundation::Option<const AssetTextureData&> get_texture_data(
             const AssetHandle& handle) const noexcept = 0;
 
         [[nodiscard]] virtual foundation::UTF8 model_extensions_pattern(void) const noexcept = 0;

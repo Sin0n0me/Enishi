@@ -1,5 +1,4 @@
 #pragma once
-#include "../buffer/camera.h"
 #include "../render_handle.h"
 #include "../vertex/vertex_layout.h"
 #include "rasterizer_description.h"

@@ -1,4 +1,7 @@
 #include "model_data.h"
+#include "../../renderer/uniform_buffer/bones.h"
+#include "../../renderer/uniform_buffer/camera.h"
+#include "../../renderer/uniform_buffer/light.h"
 #include <cstddef>
 #include <span>
 #include <type_traits>
@@ -87,10 +90,39 @@ namespace enishi::types {
         return OwnedRenderData{OwnedRenderData::RawDataType{}};
     }
 
-    std::unordered_map<std::string, OwnedRenderData> ModelData::to_uniforms(
-        const std::uint32_t separator) const {
-        auto uniforms = std::unordered_map<std::string, OwnedRenderData>{};
+    ModelData::Uniforms ModelData::to_uniforms(const std::uint32_t separator) const {
+        auto uniforms = Uniforms{};
 
+        this->to_uniforms_from_addon(uniforms);
+        this->to_uniforms_from_material(uniforms, separator);
+
+        return uniforms;
+    }
+
+    void ModelData::to_uniforms_from_addon(Uniforms& uniforms) const {
+        for (const auto& addon : this->addons) {
+            std::vector<std::byte> uniform;
+            if (auto data = std::get_if<AddonBones>(&addon)) {
+                // ボーンの数に応じて使用するボーン行列を決める
+                const auto size = data->size();
+                if (size < LightModelBones::CAPACITY) {
+                    append_bytes(uniform, LightModelBones{});
+                    uniforms.emplace(LightModelBones::UNIFORM_NAME, std::move(uniform));
+                } else if (size < MediumModelBones::CAPACITY) {
+                    append_bytes(uniform, MediumModelBones{});
+                    uniforms.emplace(MediumModelBones::UNIFORM_NAME, std::move(uniform));
+                } else if (size < HeavyModelBones::CAPACITY) {
+                    append_bytes(uniform, HeavyModelBones{});
+                    uniforms.emplace(HeavyModelBones::UNIFORM_NAME, std::move(uniform));
+                } else {
+                    // TODO
+                }
+            }
+        }
+    }
+
+    void ModelData::to_uniforms_from_material(
+        Uniforms& uniforms, const std::uint32_t separator) const {
         for (const auto& material : this->materials) {
             std::vector<std::byte> uniform;
 
@@ -104,21 +136,28 @@ namespace enishi::types {
                 if (auto data = std::get_if<Diffuse>(&variant)) {
                     append_bytes(uniform, data);
                 }
+                if (auto data = std::get_if<Light>(&variant)) {
+                    append_bytes(uniform, data);
+                }
+                if (auto data = std::get_if<Edge>(&variant)) {
+                    append_bytes(uniform, data);
+                }
             }
 
-            // 16Byte区切りにする(DirectX12だと256バイト区切りだからどうしようかな)
+            // 指定のByte区切りにする
+            // 基本16ByteでDirectX12なら256バイト区切り
             const auto stride = uniform.size();
-            constexpr auto SEPARATOR = 16;
             const auto padding = separator - stride % separator;
             if (padding != 0) {
                 uniform.resize(stride + padding);
             }
 
             uniforms.emplace(material.name,
-                OwnedRenderData{std::move(uniform), static_cast<std::uint32_t>(stride + padding)});
+                OwnedRenderData{
+                    std::move(uniform),
+                    static_cast<std::uint32_t>(stride + padding),
+                });
         }
-
-        return uniforms;
     }
 
     std::vector<DrawArgs> ModelData::to_draw_args(void) const {

@@ -1,6 +1,6 @@
 #pragma once
 #include "../input/input_types.h"
-#include "../renderer/buffer/camera.h"
+#include "../renderer/uniform_buffer/camera.h"
 #include "../window/window_types.h"
 #include <glm/glm.hpp>
 
@@ -11,6 +11,6 @@ namespace enishi::types {
 
         [[nodiscard]] static Ray make_ray_from_screen(const WindowSize& window_size,
             const ClientMousePosition& mouse_position,
-            const Camera& camera);
+            const UniformCamera& camera);
     };
 } // namespace enishi::types

@@ -73,21 +73,21 @@ namespace enishi::core {
             }
 
             auto&& asset_data = result.unwrap_mut();
-            if (const auto model_data = std::get_if<types::ModelData>(&asset_data)) {
+            if (const auto model_data = std::get_if<assets_system::AssetModelData>(&asset_data)) {
                 auto&& handle = this->register_model(std::move(*model_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
-            if (auto texture_data = std::get_if<types::TextureData>(&asset_data)) {
+            if (auto texture_data = std::get_if<assets_system::AssetTextureData>(&asset_data)) {
                 auto&& handle = this->register_texture(std::move(*texture_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
                     return handle;
                 }
             }
-            if (auto shader_data = std::get_if<types::ShaderData>(&asset_data)) {
+            if (auto shader_data = std::get_if<assets_system::AssetShaderData>(&asset_data)) {
                 auto&& handle = this->register_shader(std::move(*shader_data));
                 if (handle.is_ok()) {
                     this->path_to_handle[normalized_path] = handle.unwrap();
@@ -177,19 +177,19 @@ namespace enishi::core {
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
 
-    foundation::Option<const types::ModelData&> core::AssetManager::get_model_data(
+    foundation::Option<const assets_system::AssetModelData&> core::AssetManager::get_model_data(
         const assets_system::AssetHandle& handle) const noexcept {
-        return this->asset_registory.get<types::ModelData>(handle.id);
+        return this->asset_registory.get<assets_system::AssetModelData>(handle.id);
     }
 
-    foundation::Option<const types::ShaderData&> AssetManager::get_shader_data(
+    foundation::Option<const assets_system::AssetShaderData&> AssetManager::get_shader_data(
         const assets_system::AssetHandle& handle) const noexcept {
-        return this->asset_registory.get<types::ShaderData>(handle.id);
+        return this->asset_registory.get<assets_system::AssetShaderData>(handle.id);
     }
 
-    foundation::Option<const types::TextureData&> AssetManager::get_texture_data(
+    foundation::Option<const assets_system::AssetTextureData&> AssetManager::get_texture_data(
         const assets_system::AssetHandle& handle) const noexcept {
-        return this->asset_registory.get<types::TextureData>(handle.id);
+        return this->asset_registory.get<assets_system::AssetTextureData>(handle.id);
     }
 
     foundation::UTF8 core::AssetManager::model_extensions_pattern(void) const noexcept {
@@ -225,7 +225,7 @@ namespace enishi::core {
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
-    core::AssetManager::register_model(types::ModelData&& data) noexcept {
+    core::AssetManager::register_model(assets_system::AssetModelData data) noexcept {
         const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
             return asset_id.propagation(assets_system::AssetError::AlreadyHasAsset)
@@ -238,7 +238,7 @@ namespace enishi::core {
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
-    core::AssetManager::register_shader(types::ShaderData&& data) noexcept {
+    core::AssetManager::register_shader(assets_system::AssetShaderData data) noexcept {
         const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
             return asset_id.unwrap_err()
@@ -252,7 +252,7 @@ namespace enishi::core {
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
-    core::AssetManager::register_texture(types::TextureData&& data) noexcept {
+    core::AssetManager::register_texture(assets_system::AssetTextureData data) noexcept {
         const auto asset_id = this->register_asset(std::move(data));
         if (asset_id.is_err()) {
             return asset_id.propagation(assets_system::AssetError::AlreadyHasAsset)

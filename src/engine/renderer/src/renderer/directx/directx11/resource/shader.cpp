@@ -49,19 +49,43 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    foundation::Option<ShaderPool::VertexShader> ShaderPool::get_vertex_shader(
-        const types::HandleId id) const noexcept {
-        const auto opt_shader = this->get_shader(id);
+    foundation::Option<ShaderPool::VertexShader&> ShaderPool::get_vertex_shader(
+        const types::HandleId id) noexcept {
+        auto opt_shader = this->get_shader(id);
         if (opt_shader.is_none()) {
             return {};
         }
-        if (const auto shader = std::get_if<VertexShader>(&opt_shader.unwrap())) {
+        if (auto shader = std::get_if<VertexShader>(&opt_shader.unwrap_mut())) {
             return *shader;
         }
         return {};
     }
 
-    foundation::Option<ShaderPool::PixelShader> ShaderPool::get_pixel_shader(
+    foundation::Option<const ShaderPool::VertexShader&> ShaderPool::get_vertex_shader(
+        const types::HandleId id) const noexcept {
+        auto opt_shader = this->get_shader(id);
+        if (opt_shader.is_none()) {
+            return {};
+        }
+        if (auto shader = std::get_if<VertexShader>(&opt_shader.unwrap())) {
+            return *shader;
+        }
+        return {};
+    }
+
+    foundation::Option<ShaderPool::PixelShader&> ShaderPool::get_pixel_shader(
+        const types::HandleId id) noexcept {
+        auto opt_shader = this->get_shader(id);
+        if (opt_shader.is_none()) {
+            return {};
+        }
+        if (const auto shader = std::get_if<PixelShader>(&opt_shader.unwrap_mut())) {
+            return *shader;
+        }
+        return {};
+    }
+
+    foundation::Option<const ShaderPool::PixelShader&> ShaderPool::get_pixel_shader(
         const types::HandleId id) const noexcept {
         const auto opt_shader = this->get_shader(id);
         if (opt_shader.is_none()) {
@@ -73,7 +97,19 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    foundation::Option<ShaderPool::ComputeShader> ShaderPool::get_compute_shader(
+    foundation::Option<ShaderPool::ComputeShader&> ShaderPool::get_compute_shader(
+        const types::HandleId id) noexcept {
+        auto opt_shader = this->get_shader(id);
+        if (opt_shader.is_none()) {
+            return {};
+        }
+        if (const auto shader = std::get_if<ComputeShader>(&opt_shader.unwrap_mut())) {
+            return *shader;
+        }
+        return {};
+    }
+
+    foundation::Option<const ShaderPool::ComputeShader&> ShaderPool::get_compute_shader(
         const types::HandleId id) const noexcept {
         const auto opt_shader = this->get_shader(id);
         if (opt_shader.is_none()) {

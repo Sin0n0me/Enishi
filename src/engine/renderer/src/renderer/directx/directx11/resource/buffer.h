@@ -1,7 +1,7 @@
 #pragma once
-#include "../shader/shader_type.h"
 #include <cstdint>
 #include <d3d11.h>
+#include <engine_types/assets/shader/shader_kind.h>
 #include <variant>
 #include <wrl/client.h>
 
@@ -18,7 +18,7 @@ namespace enishi::renderer::directx {
     };
 
     struct UniformParameter {
-        ShaderType target_shader;
+        types::ShaderKind target_shader;
         std::uint32_t target_slot;
     };
 

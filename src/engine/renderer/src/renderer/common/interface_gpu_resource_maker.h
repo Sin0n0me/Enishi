@@ -19,8 +19,12 @@ namespace enishi::renderer {
       public:
         virtual ~GPUResourceMaker(void) noexcept = default;
 
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_shader_reflection(
+            std::shared_ptr<types::ShaderData> shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E>
-        make_input_layout_from_shader(const types::ShaderData& shader_data) = 0;
+        make_input_layout_from_shader_reflection(
+            const types::RenderHandle& shader_reflection_handle) = 0;
+
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_mesh(
             types::MeshData&& mesh_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_shader(
@@ -35,10 +39,13 @@ namespace enishi::renderer {
             const types::RenderData& data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_index_buffer(
             const types::RenderData& data) = 0;
-        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_constant_buffer(
-            const types::RenderData& data) = 0;
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_uniform_buffer(
+            const types::RenderData& data,
+            const types::ShaderKind target_shader,
+            const std::uint32_t target_slot) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_image(
             const types::ImageDescription& description) = 0;
+
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_blend_state() = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_sampler() = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_rasterizer(

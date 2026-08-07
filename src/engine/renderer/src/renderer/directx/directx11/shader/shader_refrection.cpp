@@ -3,26 +3,28 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::renderer::directx {
-    InputElementDescription::InputElementDescription(
+    ShaderReflection::InputElementDescription::InputElementDescription(
         std::string&& semantic_name, const D3D11_INPUT_ELEMENT_DESC description)
         : semantic_name(std::move(semantic_name))
         , description(description) {
         this->fix_pointer();
     }
 
-    InputElementDescription::InputElementDescription(const InputElementDescription& other)
+    ShaderReflection::InputElementDescription::InputElementDescription(
+        const InputElementDescription& other)
         : semantic_name(other.semantic_name)
         , description(other.description) {
         this->fix_pointer();
     }
 
-    InputElementDescription::InputElementDescription(InputElementDescription&& other) noexcept
+    ShaderReflection::InputElementDescription::InputElementDescription(
+        InputElementDescription&& other) noexcept
         : semantic_name(std::move(other.semantic_name))
         , description(other.description) {
         this->fix_pointer();
     }
 
-    InputElementDescription& InputElementDescription::operator=(
+    ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
         const InputElementDescription& other) {
         this->semantic_name = other.semantic_name;
         this->description = other.description;
@@ -30,7 +32,7 @@ namespace enishi::renderer::directx {
         return *this;
     }
 
-    InputElementDescription& InputElementDescription::operator=(
+    ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
         InputElementDescription&& other) noexcept {
         this->semantic_name = std::move(other.semantic_name);
         this->description = other.description;
@@ -38,65 +40,31 @@ namespace enishi::renderer::directx {
         return *this;
     }
 
-    void InputElementDescription::fix_pointer(void) {
+    void ShaderReflection::InputElementDescription::fix_pointer(void) {
         this->description.SemanticName = this->semantic_name.c_str();
     }
 
-    foundation::Result<ShaderReflection, DirectXError> ShaderReflection::make(
-        const types::ShaderData& data) {
-        ShaderReflection reflection{};
+    foundation::VoidResult<DirectXError> ShaderReflection::load(
+        std::shared_ptr<types::ShaderData> shader_data) noexcept {
+        this->shader_data = shader_data;
 
-        const HRESULT hr = D3DReflect(
-            data.code.data(), data.code.size(), IID_PPV_ARGS(reflection.reflector.GetAddressOf()));
-        if (FAILED(hr)) {
-            return foundation::Error(DirectXError::ShaderReflectionError);
+        {
+            const auto hr = D3DReflect(this->shader_data->code.data(),
+                this->shader_data->code.size(),
+                IID_PPV_ARGS(this->reflector.ReleaseAndGetAddressOf()));
+            if (FAILED(hr)) {
+                return foundation::Error(
+                    DirectXError::ShaderReflectionError, "読み込みに失敗しました");
+            }
         }
 
-        if (reflection.load().is_err()) {
-            return foundation::Error(DirectXError::ShaderReflectionError, "読み込みに失敗しました");
-        }
-
-        return reflection;
-    }
-
-    foundation::Option<std::uint32_t> ShaderReflection::get_constant_buffer_slot(
-        const std::string& name) const noexcept {
-        return this->get(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER, name);
-    }
-
-    foundation::Option<std::uint32_t> ShaderReflection::get_sampler_slot(
-        const std::string& name) const noexcept {
-        return this->get(D3D_SHADER_INPUT_TYPE::D3D_SIT_SAMPLER, name);
-    }
-
-    const std::vector<InputElementDescription>& ShaderReflection::get_input_element_descs(
-        void) const noexcept {
-        return this->input_element_descriptions;
-    }
-
-    foundation::Option<std::uint32_t> ShaderReflection::get(
-        const D3D_SHADER_INPUT_TYPE input_type, const std::string& name) const noexcept {
-        const auto& type_iter =
-            this->binding_slot_map.find(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER);
-        if (type_iter == this->binding_slot_map.end()) {
-            return {};
-        }
-
-        const auto& name_iter = type_iter->second;
-        const auto& iter2 = name_iter.find(name);
-        if (iter2 == name_iter.end()) {
-            return {};
-        }
-
-        return iter2->second;
-    }
-
-    foundation::VoidResult<DirectXError> ShaderReflection::load(void) noexcept {
         D3D11_SHADER_DESC shader_desc{};
-        const HRESULT hr = this->reflector->GetDesc(&shader_desc);
-        if (FAILED(hr)) {
-            return foundation::Error(
-                DirectXError::ShaderReflectionError, "Descriptionの取得に失敗しました");
+        {
+            const auto hr = this->reflector->GetDesc(&shader_desc);
+            if (FAILED(hr)) {
+                return foundation::Error(
+                    DirectXError::ShaderReflectionError, "Descriptionの取得に失敗しました");
+            }
         }
 
         for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
@@ -114,6 +82,46 @@ namespace enishi::renderer::directx {
         }
 
         return {};
+    }
+
+    std::shared_ptr<types::ShaderData> ShaderReflection::get_shader_data(void) const {
+        return this->shader_data;
+    }
+
+    foundation::Option<std::uint32_t> ShaderReflection::get_constant_buffer_slot(
+        const std::string& name) const noexcept {
+        return this->get(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER, name);
+    }
+
+    foundation::Option<std::uint32_t> ShaderReflection::get_sampler_slot(
+        const std::string& name) const noexcept {
+        return this->get(D3D_SHADER_INPUT_TYPE::D3D_SIT_SAMPLER, name);
+    }
+
+    std::vector<D3D11_INPUT_ELEMENT_DESC> ShaderReflection::get_input_element_descs(
+        void) const noexcept {
+        // 変換
+        return this->input_element_descriptions |
+               std::views::transform(
+                   [](const InputElementDescription& desc) { return desc.description; }) |
+               std::ranges::to<std::vector>();
+    }
+
+    foundation::Option<std::uint32_t> ShaderReflection::get(
+        const D3D_SHADER_INPUT_TYPE input_type, const std::string& name) const noexcept {
+        const auto& type_iter =
+            this->binding_slot_map.find(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER);
+        if (type_iter == this->binding_slot_map.end()) {
+            return {};
+        }
+
+        const auto& name_iter = type_iter->second;
+        const auto& iter2 = name_iter.find(name);
+        if (iter2 == name_iter.end()) {
+            return {};
+        }
+
+        return iter2->second;
     }
 
     foundation::VoidResult<DirectXError> ShaderReflection::load_binding_desc(

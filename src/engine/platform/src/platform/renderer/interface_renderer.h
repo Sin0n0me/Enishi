@@ -36,14 +36,18 @@ namespace enishi::platform {
             const types::ViewportRect& config) = 0;
 
         [[nodiscard]]
+        virtual RenderResult<types::RenderHandle> create_shader_reflection(
+            std::shared_ptr<types::ShaderData> shader_data) = 0;
+
+        [[nodiscard]]
         virtual RenderResult<std::unique_ptr<IPipelineLayout>> create_pipeline_layout(
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_pipeline_layout_from_shader(
-            const types::ShaderData& shader) = 0;
+        virtual RenderResult<types::RenderHandle> create_pipeline_layout_from_shader_reflection(
+            const types::RenderHandle& shader_reflection_handle) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_rasterizer(

@@ -16,6 +16,7 @@ namespace enishi::types {
         Topology,
         InputLayout,
         Draw,
+        ShaderReflection,
     };
 
     struct RenderHandle {
