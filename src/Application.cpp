@@ -1,10 +1,9 @@
 #include "application.h"
-#include "render_pass_constructor.h"
+#include "render_pass/constructor/model_render_pass_constructor.h"
 #include <core/system/animation/animation_system.h>
 #include <foundation/log/logger.h>
 
 #include <platform_impl/window/sdl/sdl3_window.h>
-
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
 #include <renderer/directx/directx11/d3d11_renderer.h>
 
@@ -35,13 +34,13 @@ namespace enishi {
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
 
         // ウィンドウの初期化
-        const auto root_window = this->init_window().lock();
+        const auto root_window = this->init_window();
         if (!bool(root_window)) {
             return false;
         }
 
         // レンダラーの初期化
-        const auto renderer = this->init_renderer(root_window, asset_manager).lock();
+        const auto renderer = this->init_renderer(root_window, asset_manager);
         if (!bool(renderer)) {
             return false;
         }
@@ -66,7 +65,7 @@ namespace enishi {
         }
     }
 
-    std::weak_ptr<platform::IWindow> Application::init_window(void) {
+    std::shared_ptr<platform::IWindow> Application::init_window(void) {
         const auto window_manager = this->system_scheduler.register_system<core::WindowManager>(80,
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
@@ -85,15 +84,14 @@ namespace enishi {
         return root_window;
     }
 
-    std::weak_ptr<platform::IRenderer> Application::init_renderer(
-        std::weak_ptr<platform::IWindow> root_window,
-        std::weak_ptr<assets_system::IAssetSystem> asset_system) {
-        auto window = root_window.lock();
-        if (!bool(window)) {
+    std::shared_ptr<platform::IRenderer> Application::init_renderer(
+        std::shared_ptr<platform::IWindow> root_window,
+        std::shared_ptr<assets_system::IAssetSystem> asset_system) {
+        if (!bool(root_window)) {
             return {};
         }
 
-        const auto opt_window_handle = window->get_handle();
+        const auto opt_window_handle = root_window->get_handle();
         if (opt_window_handle.is_none()) {
             return {};
         }
@@ -119,33 +117,17 @@ namespace enishi {
             return {};
         }
 
+        // レンダーパスの作成
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->rsegistory, renderer, renderer);
+        render_system->add_render_pass_constructor(
+            "Model", std::make_shared<ModelRenderPassConstructor>());
 
-        if (!this->make_render_pass(render_system.get(), asset_system)) {
+        const auto result_passes = render_system->create_render_passes(asset_system.get());
+        if (result_passes.is_err()) {
             return {};
         }
 
         return renderer;
-    }
-
-    bool Application::make_render_pass(core::RenderSystem* const render_system,
-        std::weak_ptr<assets_system::IAssetSystem> asset_system) {
-        auto result = RenderPassConstructor::make(render_system->get_renderer(), asset_system);
-        if (result.is_err()) {
-            return false;
-        }
-        auto& constructor = result.unwrap_mut();
-
-        // パスの作成
-        auto pass = constructor.make_model_render_pass();
-        if (pass.is_err()) {
-            foundation::Logger::error(pass.unwrap_err().get_message());
-            return false;
-        }
-
-        render_system->add_render_pass("Model", std::move(pass).unwrap_mut());
-
-        return true;
     }
 } // namespace enishi

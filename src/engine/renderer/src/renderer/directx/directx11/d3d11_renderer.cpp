@@ -10,34 +10,6 @@ namespace enishi::renderer::directx {
         this->resource_manager = std::make_unique<ResourceManager>(this->d3d11);
     }
 
-    platform::RenderResult<types::RenderPass> D3D11Renderer::create_render_pass(
-        const types::PipelineDescription& description) {
-        types::RenderPass pass{};
-
-        // RTVの追加
-        pass.render_target = description.render_target;
-
-        // トポロジの追加
-        pass.commands.emplace_back(types::RenderHandle{
-            .id = static_cast<types::HandleId>(description.topology),
-            .type = types::RenderHandleType::Topology,
-        });
-
-        // ラスタライザの追加
-        pass.commands.emplace_back(description.rasterizer);
-
-        // 頂点レイアウトの追加
-        pass.commands.emplace_back(description.vertex_layout);
-
-        // シェーダーの追加
-        const auto& shader_pool = this->resource_manager->get_shader_pool();
-        for (const auto& shader : description.shaders) {
-            pass.commands.emplace_back(shader);
-        }
-
-        return pass;
-    }
-
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_viewport(
         const types::ViewportRect& config) {
         const auto result = this->resource_manager->make_viewport(config);

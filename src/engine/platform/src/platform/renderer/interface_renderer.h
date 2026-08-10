@@ -28,10 +28,6 @@ namespace enishi::platform {
         virtual ~IRenderer(void) noexcept = default;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderPass> create_render_pass(
-            const types::PipelineDescription& description) = 0;
-
-        [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) = 0;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "../interface_system.h"
+#include "interface_render_pass_construstor.h"
 #include <ecs/registory.h>
 #include <engine_types/renderer/render_graph.h>
 #include <foundation/str/str.h>
@@ -10,11 +11,15 @@
 namespace enishi::core {
     class RenderSystem : public ISystem {
       private:
+        template <typename T> using NameMap = std::unordered_map<foundation::UTF8, T>;
+
         std::shared_ptr<ecs::Registory> registory;
         std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<platform::IRenderCommandEncoder> encoder;
+
         types::RenderGraph render_graph;
-        std::unordered_map<foundation::UTF8, std::uint64_t> name_to_index;
+        NameMap<std::uint64_t> name_to_index;
+        NameMap<std::shared_ptr<IRenderPassConstructor>> name_to_constructor;
 
         explicit RenderSystem(void) = delete;
 
@@ -24,12 +29,17 @@ namespace enishi::core {
             std::shared_ptr<platform::IRenderCommandEncoder> encoder);
 
       public:
-        void add_render_pass(foundation::UTF8&& pass_name, types::RenderPass&& render_pass);
+        foundation::VoidResult<SystemError> add_render_pass_constructor(
+            foundation::UTF8&& pass_name,
+            std::shared_ptr<IRenderPassConstructor> render_pass_constructor);
+
+        foundation::VoidResult<SystemError> create_render_passes(
+            assets_system::IAssetSystem* const asset_system);
 
         types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
 
-        std::weak_ptr<platform::IRenderer> get_renderer(void) const;
-        std::weak_ptr<platform::IRenderCommandEncoder> get_render_command_encoder(void) const;
+        std::shared_ptr<platform::IRenderer> get_renderer(void) const;
+        std::shared_ptr<platform::IRenderCommandEncoder> get_render_command_encoder(void) const;
 
       public:
         bool should_close(void) override;

@@ -65,7 +65,7 @@ namespace enishi::renderer::directx {
 
         return types::RenderHandle{
             .id = handle,
-            .type = types::RenderHandleType::InputLayout,
+            .type = types::RenderHandleType::VertexLayout,
         };
     }
 

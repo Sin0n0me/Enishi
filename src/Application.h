@@ -21,12 +21,9 @@ namespace enishi {
         void run(void);
 
       private:
-        std::weak_ptr<platform::IWindow> init_window(void);
-        std::weak_ptr<platform::IRenderer> init_renderer(
-            std::weak_ptr<platform::IWindow> root_window,
-            std::weak_ptr<assets_system::IAssetSystem> asset_system);
-
-        bool make_render_pass(core::RenderSystem* const render_system,
-            std::weak_ptr<assets_system::IAssetSystem> asset_system);
+        std::shared_ptr<platform::IWindow> init_window(void);
+        std::shared_ptr<platform::IRenderer> init_renderer(
+            std::shared_ptr<platform::IWindow> root_window,
+            std::shared_ptr<assets_system::IAssetSystem> asset_system);
     };
 } // namespace enishi

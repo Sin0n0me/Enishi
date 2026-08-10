@@ -14,7 +14,7 @@ namespace enishi::types {
         Rasterizer,
         ViewPort,
         Topology,
-        InputLayout,
+        VertexLayout,
         Draw,
         ShaderReflection,
     };

@@ -11,6 +11,26 @@ namespace enishi::core {
         , encoder(encoder) {
     }
 
+    foundation::VoidResult<SystemError> RenderSystem::add_render_pass_constructor(
+        foundation::UTF8&& pass_name,
+        std::shared_ptr<IRenderPassConstructor> render_pass_constructor) {
+        this->name_to_constructor[pass_name] = render_pass_constructor;
+        return {};
+    }
+
+    foundation::VoidResult<SystemError> RenderSystem::create_render_passes(
+        assets_system::IAssetSystem* const asset_system) {
+        for (auto& [name, constructor] : this->name_to_constructor) {
+            auto result = constructor->make(this->renderer.get(), asset_system)
+                              .add_message("レンダーパスの作成に失敗しました");
+            if (result.is_err()) {
+                return result.propagation(SystemError::ConstructRenderPassError);
+            }
+            auto& pass = result.unwrap();
+        }
+        return foundation::VoidResult<SystemError>();
+    }
+
     bool enishi::core::RenderSystem::should_close(void) {
         return false;
     }
@@ -87,7 +107,7 @@ namespace enishi::core {
             case types::RenderHandleType::Topology: {
                 this->encoder->bind_topology(id);
             } break;
-            case types::RenderHandleType::InputLayout: {
+            case types::RenderHandleType::VertexLayout: {
                 this->encoder->bind_input_layout(id);
             } break;
             case types::RenderHandleType::Draw: {
@@ -98,22 +118,7 @@ namespace enishi::core {
         }
     }
 
-    void core::RenderSystem::add_render_pass(
-        foundation::UTF8&& pass_name, types::RenderPass&& render_pass) {
-        auto& passes = this->render_graph.passes;
-        const auto iter = this->name_to_index.find(pass_name);
-        if (iter == this->name_to_index.end()) {
-            const auto index = passes.size();
-            passes.emplace_back(std::move(render_pass));
-            this->name_to_index[pass_name] = index;
-            return;
-        }
-
-        const auto index = iter->second;
-        passes[index] = std::move(render_pass);
-    }
-
-    std::weak_ptr<platform::IRenderer> RenderSystem::get_renderer(void) const {
+    std::shared_ptr<platform::IRenderer> RenderSystem::get_renderer(void) const {
         return this->renderer;
     }
 

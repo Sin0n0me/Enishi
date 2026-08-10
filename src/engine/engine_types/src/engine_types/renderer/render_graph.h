@@ -5,8 +5,9 @@
 
 namespace enishi::types {
     enum class SubCommand {
-        Bind,
-        Unbind,
+        Bind,   // リソースのバインド
+        Unbind, // リソースのアンバインド
+        Nop,    // 何も実行しない(デバッグ用など)
         Clear,
     };
 
