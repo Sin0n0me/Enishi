@@ -39,8 +39,14 @@ namespace enishi::platform {
             const types::RenderHandle handle,
             const std::vector<types::RenderHandle>& shaders) noexcept = 0;
 
-        [[nodiscard]] virtual foundation::VoidResult<RenderError> remove_mesh(
+        [[nodiscard]] virtual foundation::VoidResult<RenderError> remove(
             const types::RenderHandle handle) noexcept = 0;
+
+        [[nodiscard]] virtual foundation::VoidResult<RenderError> remove_latest(
+            const types::RenderHandle handle) noexcept = 0;
+
+        [[nodiscard]] virtual foundation::VoidResult<RenderError> set_sub_command(
+            const types::SubCommand sub_command, const types::RenderHandle handle) noexcept = 0;
 
         [[nodiscard]] virtual const types::RenderPass& get_render_pass(void) const noexcept = 0;
     };

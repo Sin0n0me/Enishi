@@ -5,7 +5,7 @@
 namespace enishi {
     class ModelRenderPassConstructor : public core::IRenderPassConstructor {
       public:
-        foundation::Result<types::RenderPass, core::SystemError> make(
+        foundation::Result<std::shared_ptr<platform::IRenderPass>, core::SystemError> make(
             platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system) override;
 
@@ -28,8 +28,7 @@ namespace enishi {
             const std::vector<std::filesystem::path>& asset_paths,
             platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system);
-        foundation::VoidResult<core::SystemError> make_mesh(types::RenderPass& render_pass,
-            platform::IRenderer* const renderer,
-            assets_system::IAssetSystem* const asset_system);
+        foundation::Result<types::RenderHandle, core::SystemError> make_mesh(
+            platform::IRenderer* const renderer, assets_system::IAssetSystem* const asset_system);
     };
 } // namespace enishi

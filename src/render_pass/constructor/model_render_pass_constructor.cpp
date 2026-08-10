@@ -2,6 +2,7 @@
 #include "../../settings.h"
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
+#include <renderer/common/render_pass.h>"
 
 namespace enishi {
     const std::filesystem::path SHADER_PATH = "./assets/shader";
@@ -9,8 +10,11 @@ namespace enishi {
     constexpr char VS_FILE_NAME[] = "vs_model";
     constexpr char PS_FILE_NAME[] = "ps_model";
 
-    foundation::Result<types::RenderPass, core::SystemError> ModelRenderPassConstructor::make(
+    foundation::Result<std::shared_ptr<platform::IRenderPass>, core::SystemError>
+    ModelRenderPassConstructor::make(
         platform::IRenderer* const renderer, assets_system::IAssetSystem* const asset_system) {
+        auto render_pass = std::make_shared<renderer::RenderPass>();
+
         types::PipelineDescription description{
             .topology = types::PrimitiveTopology::TriangleList,
         };
@@ -30,19 +34,19 @@ namespace enishi {
         auto shaders = this->make_shaders(description, renderer, asset_system);
 
         // レンダーパスの生成
-        auto render_pass_result = renderer->create_render_pass(description);
+        const auto render_pass_result = render_pass->make_render_pass(description);
         if (render_pass_result.is_err()) {
             return render_pass_result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        auto& render_pass = render_pass_result.unwrap_mut();
 
         // モデルのみ初期モデル追加
         // TODO: ファイルからの読み取り初期モデルを選択するように
-        auto mesh_result = this->make_mesh(render_pass, renderer, asset_system)
-                               .add_message("メッシュデータの作成に失敗しました");
+        const auto mesh_result = this->make_mesh(renderer, asset_system)
+                                     .add_message("メッシュデータの作成に失敗しました");
         if (mesh_result.is_err()) {
-            return render_pass_result.propagation(core::SystemError::ConstructRenderPassError);
+            return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
+        render_pass->add_mesh(mesh_result.unwrap(), {});
 
         return render_pass;
     }
@@ -243,10 +247,9 @@ namespace enishi {
         return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);
     }
 
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_mesh(
-        types::RenderPass& render_pass,
-        platform::IRenderer* const renderer,
-        assets_system::IAssetSystem* const asset_system) {
+    foundation::Result<types::RenderHandle, core::SystemError>
+    ModelRenderPassConstructor::make_mesh(
+        platform::IRenderer* const renderer, assets_system::IAssetSystem* const asset_system) {
         const auto pattern_model_extensions = asset_system->model_extensions_pattern();
         const auto path = MODEL_PATH / "";
         const std::regex pattern(
@@ -292,12 +295,7 @@ namespace enishi {
                 continue;
             }
 
-            render_pass.commands.push_back(types::DrawCommand{
-                .handle = mesh_handle.unwrap(),
-                .sub_command = types::SubCommand::Bind,
-            });
-
-            return {};
+            return mesh_handle.unwrap();
         }
 
         return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);

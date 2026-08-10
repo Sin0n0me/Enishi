@@ -18,8 +18,6 @@ namespace enishi::renderer::directx {
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
 
       public:
-        platform::RenderResult<types::RenderPass> create_render_pass(
-            const types::PipelineDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
         platform::RenderResult<types::RenderHandle> create_shader_reflection(
