@@ -9,14 +9,15 @@ namespace enishi::renderer {
       public:
         virtual ~IShaderReflection(void) noexcept = default;
 
-        foundation::VoidResult<E> load(std::shared_ptr<types::ShaderData> shader_data) noexcept;
+        virtual foundation::VoidResult<E> load(
+            std::shared_ptr<types::ShaderData> shader_data) noexcept = 0;
 
-        std::shared_ptr<types::ShaderData> get_shader_data(void) const;
+        virtual std::shared_ptr<types::ShaderData> get_shader_data(void) const = 0;
 
-        foundation::Option<std::uint32_t> get_constant_buffer_slot(
-            const foundation::UTF8& name) const noexcept;
+        virtual foundation::Option<std::uint32_t> get_constant_buffer_slot(
+            const foundation::UTF8& name) const noexcept = 0;
 
-        foundation::Option<std::uint32_t> get_sampler_slot(
-            const foundation::UTF8& name) const noexcept;
+        virtual foundation::Option<std::uint32_t> get_sampler_slot(
+            const foundation::UTF8& name) const noexcept = 0;
     };
 } // namespace enishi::renderer
