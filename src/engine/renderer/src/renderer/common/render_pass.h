@@ -43,5 +43,8 @@ namespace enishi::renderer {
         foundation::Option<const RenderPass::Indices&> get_indices(
             const types::RenderHandle handle) const;
         foundation::Option<RenderPass::Indices&> get_indices(const types::RenderHandle handle);
+
+        // IRenderPass を介して継承されました
+        std::span<const types::DrawCommand> get_commands(void) const noexcept override;
     };
 } // namespace enishi::renderer

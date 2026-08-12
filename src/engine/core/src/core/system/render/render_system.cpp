@@ -26,9 +26,11 @@ namespace enishi::core {
             if (result.is_err()) {
                 return result.propagation(SystemError::ConstructRenderPassError);
             }
-            auto& pass = result.unwrap();
+
+            // TODO: 順序を任意に
+            auto& pass = this->render_passes.emplace_back(result.unwrap());
         }
-        return foundation::VoidResult<SystemError>();
+        return {};
     }
 
     bool enishi::core::RenderSystem::should_close(void) {
@@ -50,18 +52,18 @@ namespace enishi::core {
     }
 
     void enishi::core::RenderSystem::render(void) const {
-        this->submit_render_graph(this->render_graph);
+        this->submit_render_graph();
         this->present();
     }
 
-    void RenderSystem::submit_render_graph(const types::RenderGraph& graph) const {
+    void RenderSystem::submit_render_graph(void) const {
         // 描画前初期化
         this->encoder->setup_viewports();
         this->encoder->setup_render_targets();
 
         // 各パイプラインに応じた描画コマンド実行
-        for (const auto& pass : graph.passes) {
-            for (const auto& command : pass.commands) {
+        for (const auto& pass : this->render_passes) {
+            for (const auto& command : pass->get_commands()) {
                 this->execute(command);
             }
         }
@@ -79,6 +81,9 @@ namespace enishi::core {
             case types::SubCommand::Clear: {
             } break;
             case types::SubCommand::Unbind: {
+            } break;
+            case types::SubCommand::Nop: {
+                // 明示的に何もしない
             } break;
         }
     }

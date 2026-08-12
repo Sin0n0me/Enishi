@@ -134,7 +134,7 @@ namespace enishi {
             }
 
             const auto input_layout =
-                renderer->create_pipeline_layout_from_shader_reflection(shader_reflection.unwrap());
+                renderer->create_vertex_layout_from_shader_reflection(shader_reflection.unwrap());
             if (input_layout.is_err()) {
                 error_message += input_layout.unwrap_err().get_message() + "\n";
                 error_message +=

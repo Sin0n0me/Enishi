@@ -20,5 +20,10 @@ namespace enishi::renderer {
             const types::HandleId handle) const = 0;
         [[nodiscard]] virtual foundation::Option<types::DrawArgs&> get_draw_args(
             const types::HandleId handle) = 0;
+
+        [[nodiscard]] virtual foundation::Option<const types::DrawArgs&> get_shader_reflection(
+            const types::HandleId handle) const = 0;
+        [[nodiscard]] virtual foundation::Option<types::DrawArgs&> get_shader_reflection(
+            const types::HandleId handle) = 0;
     };
 } // namespace enishi::renderer

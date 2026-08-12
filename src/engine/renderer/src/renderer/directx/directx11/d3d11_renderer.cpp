@@ -20,7 +20,7 @@ namespace enishi::renderer::directx {
     }
 
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
-    D3D11Renderer::create_pipeline_layout(const types::VertexLayout& layout,
+    D3D11Renderer::create_vertex_layout(const types::VertexLayout& layout,
         const types::RenderHandle& vertex_shader,
         const types::RenderHandle& pixel_shader) {
         return std::unique_ptr<platform::IPipelineLayout>{};
@@ -37,7 +37,7 @@ namespace enishi::renderer::directx {
     }
 
     platform::RenderResult<types::RenderHandle>
-    D3D11Renderer::create_pipeline_layout_from_shader_reflection(
+    D3D11Renderer::create_vertex_layout_from_shader_reflection(
         const types::RenderHandle& shader_reflection_handle) {
         const auto result = this->resource_manager->make_input_layout_from_shader_reflection(
             shader_reflection_handle);
@@ -133,6 +133,14 @@ namespace enishi::renderer::directx {
         }
 
         return result.unwrap();
+    }
+
+    foundation::VoidResult<platform::RenderError> D3D11Renderer::resolve_uniform(
+        const types::RenderHandle& target_handle,
+        const types::RenderHandle& shader_reflection_handle) {
+        this->resource_manager->get_accessor();
+
+        return {};
     }
 
     void D3D11Renderer::setup_viewports(void) const {

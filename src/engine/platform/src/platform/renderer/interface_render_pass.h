@@ -4,12 +4,15 @@
 #include <engine_types/renderer/render_graph.h>
 #include <engine_types/renderer/render_handle.h>
 #include <foundation/result/result.h>
-#include <vector>
+#include <span>
 
 namespace enishi::platform {
     class IRenderPass {
       public:
         virtual ~IRenderPass(void) noexcept = default;
+
+        [[nodiscard]] virtual std::span<const types::DrawCommand> get_commands(
+            void) const noexcept = 0;
 
         [[nodiscard]] virtual foundation::VoidResult<RenderError> make_render_pass(
             const types::PipelineDescription& description) noexcept = 0;

@@ -1,6 +1,7 @@
 #pragma once
 #include "../handle/handle_type.h"
 #include <cstdint>
+#include <functional>
 
 namespace enishi::types {
     // バッファーの種類などはHandleIDから判断する
@@ -24,6 +25,8 @@ namespace enishi::types {
         RenderHandleType type;
 
         bool is_valid(void) const noexcept;
+
+        bool operator==(const RenderHandle&) const = default;
     };
 
     constexpr static RenderHandle DEFAULT_RENDER_TARGET = RenderHandle{
@@ -31,3 +34,15 @@ namespace enishi::types {
         .type = RenderHandleType::View,
     };
 } // namespace enishi::types
+
+// ハッシュマップなどのキーとして使用できるようにする
+namespace std {
+    template <> struct hash<enishi::types::RenderHandle> {
+        std::size_t operator()(const enishi::types::RenderHandle& p) const noexcept {
+            using Type = enishi::types::RenderHandle;
+            const std::size_t h1 = std::hash<decltype(Type::id)>{}(p.id);
+            const std::size_t h2 = std::hash<decltype(Type::type)>{}(p.type);
+            return h1 | (h2 << sizeof(decltype(h1)));
+        }
+    };
+} // namespace std

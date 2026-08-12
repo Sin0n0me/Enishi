@@ -1,6 +1,10 @@
 #include "render_pass.h"
 
 namespace enishi::renderer {
+    std::span<const types::DrawCommand> RenderPass::get_commands(void) const noexcept {
+        return this->render_pass.commands;
+    }
+
     foundation::VoidResult<platform::RenderError> RenderPass::make_render_pass(
         const types::PipelineDescription& description) noexcept {
         // RTVの追加

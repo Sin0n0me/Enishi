@@ -16,8 +16,7 @@ namespace enishi::core {
         std::shared_ptr<ecs::Registory> registory;
         std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<platform::IRenderCommandEncoder> encoder;
-
-        types::RenderGraph render_graph;
+        std::vector<std::shared_ptr<platform::IRenderPass>> render_passes;
         NameMap<std::uint64_t> name_to_index;
         NameMap<std::shared_ptr<IRenderPassConstructor>> name_to_constructor;
 
@@ -49,7 +48,7 @@ namespace enishi::core {
         void render(void) const override;
 
       private:
-        void submit_render_graph(const types::RenderGraph& graph) const;
+        void submit_render_graph(void) const;
         void present(void) const;
         void execute(const types::DrawCommand& command) const;
         void bind(const types::RenderHandle& render_handle) const;
