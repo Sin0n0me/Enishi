@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace enishi::renderer::directx {
-    class ResourceEditor : public GPUResourceAccessor {
+    class ResourceEditor : public GPUResourceAccessor<DirectXError> {
       private:
         enum class ResourceType : std::uint32_t {
             RenderTarget,
@@ -53,9 +53,10 @@ namespace enishi::renderer::directx {
         foundation::Option<const types::DrawArgs&> get_draw_args(
             const types::HandleId handle) const override;
         foundation::Option<types::DrawArgs&> get_draw_args(const types::HandleId handle) override;
-
-        foundation::Option<std::shared_ptr<ShaderReflection>> get_shader_reflection(
-            const types::HandleId handle) const;
+        foundation::Option<const IShaderReflection<DirectXError>*> get_shader_reflection(
+            const types::HandleId handle) const override;
+        foundation::Option<IShaderReflection<DirectXError>*> get_shader_reflection(
+            const types::HandleId handle) override;
 
       private:
         foundation::Option<std::size_t> get_index(const ResourceIndex& index) const;

@@ -1,4 +1,6 @@
 #pragma once
+#include "../../../common/interface_shader_input_reflection.h"
+#include "../../../common/interface_shader_reflection.h"
 #include <cstdint>
 #include <d3d11.h>
 #include <d3d11shader.h>
@@ -13,11 +15,11 @@
 #include <wrl/client.h>
 
 namespace enishi::renderer::directx {
-    class ShaderReflection {
+    class ShaderReflection : public IShaderReflection<DirectXError>, public IShaderInputReflection {
       private:
         struct InputElementDescription {
             std::string semantic_name;
-            D3D11_INPUT_ELEMENT_DESC description;
+            ShaderInputInfo description;
 
             explicit InputElementDescription(
                 std::string&& semantic_name, const D3D11_INPUT_ELEMENT_DESC description);
@@ -34,8 +36,6 @@ namespace enishi::renderer::directx {
       private:
         std::shared_ptr<types::ShaderData> shader_data;
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
-        std::unordered_map<D3D_SHADER_INPUT_TYPE, std::unordered_map<std::string, std::uint32_t>>
-            binding_slot_map;
         std::vector<InputElementDescription> input_element_descriptions;
 
       public:
@@ -45,15 +45,13 @@ namespace enishi::renderer::directx {
 
       public:
         foundation::VoidResult<DirectXError> load(
-            std::shared_ptr<types::ShaderData> shader_data) noexcept;
-
-        std::shared_ptr<types::ShaderData> get_shader_data(void) const;
+            std::shared_ptr<types::ShaderData> shader_data) noexcept override;
+        std::shared_ptr<types::ShaderData> get_shader_data(void) const override;
+        const IShaderInputReflection* get_shader_input_reflection(void) const override;
 
       public:
-        foundation::Option<std::uint32_t> get_constant_buffer_slot(
-            const std::string& name) const noexcept;
-
-        foundation::Option<std::uint32_t> get_sampler_slot(const std::string& name) const noexcept;
+        std::uint32_t get_input_count(void) const noexcept override;
+        ShaderInputInfo get_input(const std::uint32_t index) const noexcept override;
 
       public:
         std::vector<D3D11_INPUT_ELEMENT_DESC> get_input_element_descs(void) const noexcept;

@@ -8,6 +8,7 @@
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer_description.h>
 #include <engine_types/renderer/description/sampler_description.h>
+#include <renderer/common/shader_input_info.h>
 
 namespace enishi::renderer::directx {
     class D3D11Converter {
@@ -23,6 +24,7 @@ namespace enishi::renderer::directx {
         static D3D11_USAGE to_usage(const types::ImageUsage& usage) noexcept;
         static D3D11_PRIMITIVE_TOPOLOGY to_topology(
             const types::PrimitiveTopology& topology) noexcept;
-        static D3D11_INPUT_ELEMENT_DESC to_() noexcept;
+        static D3D11_INPUT_ELEMENT_DESC to_input_element_description(
+            const ShaderInputInfo& info) noexcept;
     };
 } // namespace enishi::renderer::directx

@@ -25,7 +25,7 @@ namespace enishi::renderer::directx {
         explicit ResourceManager(std::shared_ptr<ID3D11Context> context);
 
       public:
-        GPUResourceAccessor* const get_accessor(void) const;
+        GPUResourceAccessor<DirectXError>* const get_accessor(void) const;
 
         // D3D11ResourceAccessor* const get_d3d11_accessor(void) const;
 

@@ -124,4 +124,14 @@ namespace enishi::renderer::directx {
 
         return D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
     }
+
+    D3D11_INPUT_ELEMENT_DESC D3D11Converter::to_input_element_description(
+        const ShaderInputInfo& info) noexcept {
+        return D3D11_INPUT_ELEMENT_DESC{
+            .SemanticName = info.name.data(),
+            .SemanticIndex = info.location,
+            .InputSlot = info.location,
+            .AlignedByteOffset = info.component_bit_width,
+        };
+    }
 } // namespace enishi::renderer::directx

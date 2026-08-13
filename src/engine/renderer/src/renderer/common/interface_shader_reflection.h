@@ -1,8 +1,11 @@
 #pragma once
+#include "interface_shader_input_reflection.h"
 #include <engine_types/assets/shader/shader_data.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <foundation/str/str.h>
+#include <memory>
+
 
 namespace enishi::renderer {
     template <typename E> class IShaderReflection {
@@ -14,10 +17,6 @@ namespace enishi::renderer {
 
         virtual std::shared_ptr<types::ShaderData> get_shader_data(void) const = 0;
 
-        virtual foundation::Option<std::uint32_t> get_constant_buffer_slot(
-            const foundation::UTF8& name) const noexcept = 0;
-
-        virtual foundation::Option<std::uint32_t> get_sampler_slot(
-            const foundation::UTF8& name) const noexcept = 0;
+        virtual const IShaderInputReflection* get_shader_input_reflection(void) const = 0;
     };
 } // namespace enishi::renderer

@@ -1,6 +1,7 @@
 #include "shader_refrection.h"
 #include <d3dcompiler.h>
 #include <foundation/log/logger.h>
+#include <renderer/directx/directx11/d3d11_converter.h>
 
 namespace enishi::renderer::directx {
     ShaderReflection::InputElementDescription::InputElementDescription(
@@ -41,7 +42,7 @@ namespace enishi::renderer::directx {
     }
 
     void ShaderReflection::InputElementDescription::fix_pointer(void) {
-        this->description.SemanticName = this->semantic_name.c_str();
+        this->description.name = this->semantic_name;
     }
 
     foundation::VoidResult<DirectXError> ShaderReflection::load(
@@ -88,23 +89,18 @@ namespace enishi::renderer::directx {
         return this->shader_data;
     }
 
-    foundation::Option<std::uint32_t> ShaderReflection::get_constant_buffer_slot(
-        const std::string& name) const noexcept {
-        return this->get(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER, name);
-    }
-
-    foundation::Option<std::uint32_t> ShaderReflection::get_sampler_slot(
-        const std::string& name) const noexcept {
-        return this->get(D3D_SHADER_INPUT_TYPE::D3D_SIT_SAMPLER, name);
-    }
-
     std::vector<D3D11_INPUT_ELEMENT_DESC> ShaderReflection::get_input_element_descs(
         void) const noexcept {
         // 変換
         return this->input_element_descriptions |
-               std::views::transform(
-                   [](const InputElementDescription& desc) { return desc.description; }) |
+               std::views::transform([](const InputElementDescription& desc) {
+                   return D3D11Converter::to_input_element_description(desc.description);
+               }) |
                std::ranges::to<std::vector>();
+    }
+
+    const IShaderInputReflection* ShaderReflection::get_shader_input_reflection(void) const {
+        return this;
     }
 
     foundation::Option<std::uint32_t> ShaderReflection::get(
@@ -133,7 +129,8 @@ namespace enishi::renderer::directx {
                 DirectXError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
         }
 
-        this->binding_slot_map[bind_desc.Type][bind_desc.Name] = bind_desc.BindPoint;
+        auto& description = this->input_element_descriptions[index].description;
+        description.location = bind_desc.BindPoint;
 
         return {};
     }
@@ -202,5 +199,19 @@ namespace enishi::renderer::directx {
                 }));
 
         return {};
+    }
+
+    std::uint32_t ShaderReflection::get_input_count(void) const noexcept {
+        return std::uint32_t();
+    }
+
+    ShaderInputInfo ShaderReflection::get_input(const std::uint32_t index) const noexcept {
+        return this->get(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER, name);
+
+        return ShaderInputInfo();
+    }
+
+    std::uint32_t ShaderReflection::get_input_count(void) const noexcept {
+        return std::uint32_t();
     }
 } // namespace enishi::renderer::directx

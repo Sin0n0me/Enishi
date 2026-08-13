@@ -10,7 +10,7 @@ namespace enishi::renderer::directx {
         , resource_editor(std::make_unique<ResourceEditor>()) {
     }
 
-    GPUResourceAccessor* const ResourceManager::get_accessor(void) const {
+    GPUResourceAccessor<DirectXError>* const ResourceManager::get_accessor(void) const {
         return this->resource_editor.get();
     }
 

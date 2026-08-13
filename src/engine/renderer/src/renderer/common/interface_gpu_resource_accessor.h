@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/interface_shader_reflection.h"
 #include <engine_types/renderer/command/draw_type.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
@@ -7,7 +8,7 @@
 #include <vector>
 
 namespace enishi::renderer {
-    class GPUResourceAccessor {
+    template <typename E> class GPUResourceAccessor {
       public:
         virtual ~GPUResourceAccessor(void) noexcept = default;
 
@@ -21,9 +22,9 @@ namespace enishi::renderer {
         [[nodiscard]] virtual foundation::Option<types::DrawArgs&> get_draw_args(
             const types::HandleId handle) = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::DrawArgs&> get_shader_reflection(
+        [[nodiscard]] virtual foundation::Option<const IShaderReflection<E>*> get_shader_reflection(
             const types::HandleId handle) const = 0;
-        [[nodiscard]] virtual foundation::Option<types::DrawArgs&> get_shader_reflection(
+        [[nodiscard]] virtual foundation::Option<IShaderReflection<E>*> get_shader_reflection(
             const types::HandleId handle) = 0;
     };
 } // namespace enishi::renderer

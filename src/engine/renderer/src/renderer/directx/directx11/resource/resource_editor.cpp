@@ -110,8 +110,16 @@ namespace enishi::renderer::directx {
         return vec.at(index);
     }
 
-    foundation::Option<std::shared_ptr<ShaderReflection>> ResourceEditor::get_shader_reflection(
-        const types::HandleId handle) const {
+    foundation::Option<std::size_t> ResourceEditor::get_index(const ResourceIndex& index) const {
+        const auto& iter = this->handle_to_index.find(index);
+        if (iter == this->handle_to_index.end()) {
+            return {};
+        }
+        return iter->second;
+    }
+
+    foundation::Option<const IShaderReflection<DirectXError>*>
+    ResourceEditor::get_shader_reflection(const types::HandleId handle) const {
         const auto& opt_index = this->get_index(ResourceIndex{
             .type = ResourceType::ShaderReflection,
             .handle_id = handle,
@@ -126,14 +134,25 @@ namespace enishi::renderer::directx {
             return {};
         }
 
-        return vec.at(index);
+        return vec.at(index).get();
     }
 
-    foundation::Option<std::size_t> ResourceEditor::get_index(const ResourceIndex& index) const {
-        const auto& iter = this->handle_to_index.find(index);
-        if (iter == this->handle_to_index.end()) {
+    foundation::Option<IShaderReflection<DirectXError>*> ResourceEditor::get_shader_reflection(
+        const types::HandleId handle) {
+        const auto& opt_index = this->get_index(ResourceIndex{
+            .type = ResourceType::ShaderReflection,
+            .handle_id = handle,
+        });
+        if (opt_index.is_none()) {
             return {};
         }
-        return iter->second;
+        const auto& index = opt_index.unwrap();
+        auto& vec = this->shader_refections;
+
+        if (vec.size() < index + 1) {
+            return {};
+        }
+
+        return vec.at(index).get();
     }
 } // namespace enishi::renderer::directx
