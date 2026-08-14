@@ -1,36 +1,33 @@
 #pragma once
 #include <cstdint>
-#include <string_view>
 #include <vector>
 
 namespace enishi::types {
     // 1要素のフォーマット
     enum class VertexFormat : std::uint8_t {
-        Float1, // float
-        Float2, // glm::vec2
-        Float3, // glm::vec3
-        Float4, // glm::vec4
-        UInt4,  // glm::uvec4(ボーンインデックス用)
-        UNorm4, // 8bit×4 正規化(色など)
-    };
-
-    // セマンティクス
-    // DirectX の POSITION, NORMAL に相当
-    enum class VertexSemantic : std::uint8_t {
-        Position,
-        Normal,
-        Tangent,
-        TexCoord0,
-        TexCoord1,
-        Color,
-        BoneWeights,
-        BoneIndices,
+        Float32x1, // f32 x1
+        Float32x2, // f32 x2
+        Float32x3, // f32 x3
+        Float32x4, // f32 x4
+        UInt16x1,  // u16 x1
+        UInt16x2,  // u16 x2
+        UInt16x4,  // u16 x4
+        Int16x1,   // i16 x1
+        Int16x2,   // i16 x2
+        Int16x4,   // i16 x4
+        UInt32x1,  // u32 x1
+        UInt32x2,  // u32 x2
+        UInt32x3,  // u32 x3
+        UInt32x4,  // u32 x4
+        Int32x1,   // i32 x1
+        Int32x2,   // i32 x2
+        Int32x3,   // i32 x3
+        Int32x4,   // i32 x4
     };
 
     // 1頂点属性の定義
     // DirectX の D3D11_INPUT_ELEMENT_DESC 1要素に相当
     struct VertexAttribute {
-        VertexSemantic semantic;
         VertexFormat format;
         std::uint32_t offset;  // 頂点構造体先頭からのバイトオフセット
         std::uint32_t binding; // バインディング番号（複数VBOの場合）
@@ -52,18 +49,31 @@ namespace enishi::types {
         [[nodiscard]]
         static constexpr std::uint32_t format_size(const VertexFormat fmt) noexcept {
             switch (fmt) {
-                case VertexFormat::Float1:
+                case VertexFormat::Int16x1:
+                case VertexFormat::UInt16x1:
+                    return 2;
+                case VertexFormat::Int16x2:
+                case VertexFormat::UInt16x2:
                     return 4;
-                case VertexFormat::Float2:
+                case VertexFormat::Int16x4:
+                case VertexFormat::UInt16x4:
                     return 8;
-                case VertexFormat::Float3:
-                    return 12;
-                case VertexFormat::Float4:
-                    return 16;
-                case VertexFormat::UInt4:
-                    return 16;
-                case VertexFormat::UNorm4:
+                case VertexFormat::Float32x1:
+                case VertexFormat::Int32x1:
+                case VertexFormat::UInt32x1:
                     return 4;
+                case VertexFormat::Float32x2:
+                case VertexFormat::Int32x2:
+                case VertexFormat::UInt32x2:
+                    return 8;
+                case VertexFormat::Float32x3:
+                case VertexFormat::Int32x3:
+                case VertexFormat::UInt32x3:
+                    return 12;
+                case VertexFormat::Float32x4:
+                case VertexFormat::Int32x4:
+                case VertexFormat::UInt32x4:
+                    return 16;
                 default:
                     return 0;
             }

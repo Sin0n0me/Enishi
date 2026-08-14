@@ -7,7 +7,8 @@ namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
         : context(context)
         , resource(std::make_unique<GPUResource>())
-        , resource_editor(std::make_unique<ResourceEditor>()) {
+        , handle_allocator(std::make_shared<types::HandleAllocator>()) {
+        this->resource_editor = std::make_unique<ResourceEditor>(this->handle_allocator);
     }
 
     GPUResourceAccessor<DirectXError>* const ResourceManager::get_accessor(void) const {
@@ -15,52 +16,47 @@ namespace enishi::renderer::directx {
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_reflection(
-        std::shared_ptr<types::ShaderData> shader_data) {
-        const auto handle_id = this->handle_allocator.create();
-        auto result = this->resource_editor->make_shader_reflection(handle_id, shader_data)
-                          .add_message("shader reflectionの作成に失敗しました");
-        if (result.is_err()) {
-            this->handle_allocator.destroy(handle_id);
-            return std::move(result).unwrap_err();
-        }
-
-        return types::RenderHandle{
-            .id = handle_id,
-            .type = types::RenderHandleType::ShaderReflection,
-        };
+        const types::ShaderData& shader_data) {
+        return this->resource_editor->make_shader_reflection(shader_data)
+            .add_message("shader reflectionの作成に失敗しました");
     }
 
     foundation::Result<types::RenderHandle, DirectXError>
-    ResourceManager::make_input_layout_from_shader_reflection(
-        const types::RenderHandle& shader_reflection_handle) {
-        if (shader_reflection_handle.type != types::RenderHandleType::ShaderReflection) {
-            return foundation::Error(DirectXError::ShaderReflectionError, "不正なハンドルです");
+    ResourceManager::make_input_layout_from_shader_data(const types::ShaderData& shader_data) {
+        const auto shader_reflection =
+            this->make_shader_reflection(shader_data)
+                .add_message("シェーダーリフレクションの作成に失敗しました");
+        if (shader_reflection.is_err()) {
+            return shader_reflection.propagation(DirectXError::ShaderReflectionError);
         }
 
         // shader reflectionでレイアウトを作成
         auto opt_refection =
-            this->resource_editor->get_shader_reflection(shader_reflection_handle.id);
+            this->resource_editor->get_shader_reflection(shader_reflection.unwrap().id);
         if (opt_refection.is_none()) {
             return foundation::Error(
                 DirectXError::ShaderReflectionError, "シェーダーリフレクションが存在しません");
         }
-        const auto& reflection = opt_refection.unwrap();
-        auto shader_data = reflection->get_shader_data();
-        auto input_elements = reflection->get_input_element_descs();
 
+        const auto& reflection = opt_refection.unwrap();
+        const auto input_elements = reflection->get_shader_input_reflection()->get_inputs() |
+                                    std::views::transform([](const ShaderInputInfo& info) {
+                                        return D3D11Converter::to_input_element_description(info);
+                                    }) |
+                                    std::ranges::to<std::vector>();
         Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateInputLayout(input_elements.data(),
             static_cast<uint32_t>(input_elements.size()),
-            shader_data->code.data(),
-            shader_data->code.size(),
+            shader_data.code.data(),
+            shader_data.code.size(),
             input_layout.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 DirectXError::InputLayoutError, "InputLayoutの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
+        const types::HandleId handle = this->handle_allocator->create();
         this->resource->input_layouts.emplace(handle, input_layout);
 
         return types::RenderHandle{
@@ -115,7 +111,7 @@ namespace enishi::renderer::directx {
             mesh.mesh_handles.emplace_back(result.unwrap());
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
+        const types::HandleId handle = this->handle_allocator->create();
 
         this->meshes.emplace(handle, mesh);
 
@@ -173,7 +169,7 @@ namespace enishi::renderer::directx {
             return foundation::Error(DirectXError::BufferError, "頂点バッファの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
+        const types::HandleId handle = this->handle_allocator->create();
         this->resource->buffers.emplace(handle, buffer);
 
         return types::RenderHandle{
@@ -216,7 +212,7 @@ namespace enishi::renderer::directx {
                 DirectXError::BufferError, "インデックスバッファの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator.create();
+        const auto handle_id = this->handle_allocator->create();
         this->resource->buffers.emplace(handle_id, buffer);
 
         return types::RenderHandle{
@@ -251,7 +247,7 @@ namespace enishi::renderer::directx {
             return foundation::Error(DirectXError::BufferError, "定数バッファの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator.create();
+        const auto handle_id = this->handle_allocator->create();
         this->resource->buffers.emplace(handle_id, buffer);
 
         return types::RenderHandle{
@@ -290,7 +286,7 @@ namespace enishi::renderer::directx {
             return foundation::Error(DirectXError::BufferError, "テクスチャの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator.create();
+        const auto handle_id = this->handle_allocator->create();
         this->resource->textures.emplace(handle_id, texture);
 
         return types::RenderHandle{
@@ -324,7 +320,7 @@ namespace enishi::renderer::directx {
             }
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
+        const types::HandleId handle = this->handle_allocator->create();
         this->resource->textures.emplace(handle, texture);
 
         return types::RenderHandle{
@@ -353,7 +349,7 @@ namespace enishi::renderer::directx {
                 DirectXError::RasterizerError, "ラスタライザの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator.create();
+        const types::HandleId handle = this->handle_allocator->create();
         this->resource->rasterizers.emplace(handle, rasterizer);
 
         return types::RenderHandle{
@@ -376,7 +372,7 @@ namespace enishi::renderer::directx {
         const auto& texture = iter->second.texture;
 
         // 先にリソースの作成
-        const types::HandleId handle_id = this->handle_allocator.create();
+        const types::HandleId handle_id = this->handle_allocator->create();
         auto result = this->resource->views.create(handle_id, types::ImageViewType::RenderTarget);
         if (result.is_err()) {
             return result.propagation(DirectXError::TargetError);
@@ -427,13 +423,15 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_draw_args(
         types::DrawArgs&& args) {
-        const auto handle_id = this->handle_allocator.create();
-        this->resource_editor->make_draw_args(handle_id, std::move(args));
+        return this->resource_editor->make_draw_args(std::move(args));
+    }
 
-        return types::RenderHandle{
-            .id = handle_id,
-            .type = types::RenderHandleType::Draw,
-        };
+    foundation::Option<Buffer&> ResourceManager::get_buffer(const types::HandleId handle) {
+        const auto& iter = this->resource->buffers.find(handle);
+        if (iter == this->resource->buffers.end()) {
+            return {};
+        }
+        return iter->second;
     }
 
     foundation::Option<const Buffer&> ResourceManager::get_buffer(
@@ -485,7 +483,7 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_from_dxbc(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
-        const auto handle = this->handle_allocator.create();
+        const auto handle = this->handle_allocator->create();
 
         foundation::VoidResult<DirectXError>&& result =
             foundation::Error(DirectXError::ShaderError);
@@ -502,7 +500,7 @@ namespace enishi::renderer::directx {
 
         // エラーがあればハンドルは削除
         if (result.is_err()) {
-            this->handle_allocator.destroy(handle);
+            this->handle_allocator->destroy(handle);
             return std::move(result).unwrap_err();
         }
 
@@ -520,7 +518,7 @@ namespace enishi::renderer::directx {
         // 先に作成
         auto&& result = shader_pool.create(handle, types::ShaderKind::Vertex);
         if (result.is_err()) {
-            this->handle_allocator.destroy(handle);
+            this->handle_allocator->destroy(handle);
             return result;
         };
 
@@ -531,7 +529,7 @@ namespace enishi::renderer::directx {
             nullptr,
             opt_shader.unwrap_mut().GetAddressOf());
         if (FAILED(hr)) {
-            this->handle_allocator.destroy(handle);
+            this->handle_allocator->destroy(handle);
             return foundation::Error(DirectXError::ShaderError);
         }
 
@@ -546,7 +544,7 @@ namespace enishi::renderer::directx {
         // 先に作成
         auto&& result = shader_pool.create(handle, types::ShaderKind::Pixel);
         if (result.is_err()) {
-            this->handle_allocator.destroy(handle);
+            this->handle_allocator->destroy(handle);
             return std::move(result);
         };
 
@@ -557,7 +555,7 @@ namespace enishi::renderer::directx {
             nullptr,
             opt_shader.unwrap_mut().GetAddressOf());
         if (FAILED(hr)) {
-            this->handle_allocator.destroy(handle);
+            this->handle_allocator->destroy(handle);
             return foundation::Error(DirectXError::ShaderError);
         }
 

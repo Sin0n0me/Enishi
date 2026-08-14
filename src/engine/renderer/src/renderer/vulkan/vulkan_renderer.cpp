@@ -26,12 +26,11 @@ namespace enishi::renderer::vulkan {
         return std::unique_ptr<platform::IPipelineLayout>{};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_shader_reflection(
-        std::shared_ptr<types::ShaderData> shader_data) {
+        const types::ShaderData& shader_data) {
         return types::RenderHandle{};
     }
     platform::RenderResult<types::RenderHandle>
-    VulkanRenderer::create_vertex_layout_from_shader_reflection(
-        const types::RenderHandle& shader_reflection_handle) {
+    VulkanRenderer::create_vertex_layout_from_shader_data(const types::ShaderData& shader) {
         return types::RenderHandle{};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_rasterizer(

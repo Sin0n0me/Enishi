@@ -29,6 +29,8 @@ namespace enishi::core {
 
             // TODO: 順序を任意に
             auto& pass = this->render_passes.emplace_back(result.unwrap());
+
+            // UniformバッファのLocation解決など
         }
         return {};
     }

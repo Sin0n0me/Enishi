@@ -19,10 +19,9 @@ namespace enishi::renderer::directx {
       private:
         struct InputElementDescription {
             std::string semantic_name;
-            ShaderInputInfo description;
+            ShaderInputInfo info;
 
-            explicit InputElementDescription(
-                std::string&& semantic_name, const D3D11_INPUT_ELEMENT_DESC description);
+            explicit InputElementDescription(std::string&& semantic_name, ShaderInputInfo&& info);
             InputElementDescription(const InputElementDescription& other);
             InputElementDescription(InputElementDescription&& other) noexcept;
 
@@ -34,7 +33,6 @@ namespace enishi::renderer::directx {
         };
 
       private:
-        std::shared_ptr<types::ShaderData> shader_data;
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
         std::vector<InputElementDescription> input_element_descriptions;
 
@@ -45,13 +43,14 @@ namespace enishi::renderer::directx {
 
       public:
         foundation::VoidResult<DirectXError> load(
-            std::shared_ptr<types::ShaderData> shader_data) noexcept override;
-        std::shared_ptr<types::ShaderData> get_shader_data(void) const override;
+            const types::ShaderData& shader_data) noexcept override;
         const IShaderInputReflection* get_shader_input_reflection(void) const override;
 
       public:
         std::uint32_t get_input_count(void) const noexcept override;
-        ShaderInputInfo get_input(const std::uint32_t index) const noexcept override;
+        foundation::Option<ShaderInputInfo> get_input(
+            const std::uint32_t index) const noexcept override;
+        std::vector<ShaderInputInfo> get_inputs(void) const noexcept override;
 
       public:
         std::vector<D3D11_INPUT_ELEMENT_DESC> get_input_element_descs(void) const noexcept;

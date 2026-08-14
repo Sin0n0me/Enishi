@@ -5,30 +5,30 @@
 
 namespace enishi::renderer::directx {
     ShaderReflection::InputElementDescription::InputElementDescription(
-        std::string&& semantic_name, const D3D11_INPUT_ELEMENT_DESC description)
+        std::string&& semantic_name, ShaderInputInfo&& info)
         : semantic_name(std::move(semantic_name))
-        , description(description) {
+        , info(std::move(info)) {
         this->fix_pointer();
     }
 
     ShaderReflection::InputElementDescription::InputElementDescription(
         const InputElementDescription& other)
         : semantic_name(other.semantic_name)
-        , description(other.description) {
+        , info(other.info) {
         this->fix_pointer();
     }
 
     ShaderReflection::InputElementDescription::InputElementDescription(
         InputElementDescription&& other) noexcept
         : semantic_name(std::move(other.semantic_name))
-        , description(other.description) {
+        , info(other.info) {
         this->fix_pointer();
     }
 
     ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
         const InputElementDescription& other) {
         this->semantic_name = other.semantic_name;
-        this->description = other.description;
+        this->info = other.info;
         this->fix_pointer();
         return *this;
     }
@@ -36,22 +36,20 @@ namespace enishi::renderer::directx {
     ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
         InputElementDescription&& other) noexcept {
         this->semantic_name = std::move(other.semantic_name);
-        this->description = other.description;
+        this->info = other.info;
         this->fix_pointer();
         return *this;
     }
 
     void ShaderReflection::InputElementDescription::fix_pointer(void) {
-        this->description.name = this->semantic_name;
+        this->info.name = this->semantic_name;
     }
 
     foundation::VoidResult<DirectXError> ShaderReflection::load(
-        std::shared_ptr<types::ShaderData> shader_data) noexcept {
-        this->shader_data = shader_data;
-
+        const types::ShaderData& shader_data) noexcept {
         {
-            const auto hr = D3DReflect(this->shader_data->code.data(),
-                this->shader_data->code.size(),
+            const auto hr = D3DReflect(shader_data.code.data(),
+                shader_data.code.size(),
                 IID_PPV_ARGS(this->reflector.ReleaseAndGetAddressOf()));
             if (FAILED(hr)) {
                 return foundation::Error(
@@ -68,13 +66,6 @@ namespace enishi::renderer::directx {
             }
         }
 
-        for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
-            const auto result_binding_desc = this->load_binding_desc(i);
-            if (result_binding_desc.is_err()) {
-                foundation::Logger::error(result_binding_desc.unwrap_err().get_message());
-            }
-        }
-
         for (std::uint32_t i = 0; i < shader_desc.InputParameters; ++i) {
             const auto result_parameter_desc = this->load_parameter_desc(i);
             if (result_parameter_desc.is_err()) {
@@ -82,11 +73,14 @@ namespace enishi::renderer::directx {
             }
         }
 
-        return {};
-    }
+        for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
+            const auto result_binding_desc = this->load_binding_desc(i);
+            if (result_binding_desc.is_err()) {
+                foundation::Logger::error(result_binding_desc.unwrap_err().get_message());
+            }
+        }
 
-    std::shared_ptr<types::ShaderData> ShaderReflection::get_shader_data(void) const {
-        return this->shader_data;
+        return {};
     }
 
     std::vector<D3D11_INPUT_ELEMENT_DESC> ShaderReflection::get_input_element_descs(
@@ -94,30 +88,13 @@ namespace enishi::renderer::directx {
         // 変換
         return this->input_element_descriptions |
                std::views::transform([](const InputElementDescription& desc) {
-                   return D3D11Converter::to_input_element_description(desc.description);
+                   return D3D11Converter::to_input_element_description(desc.info);
                }) |
                std::ranges::to<std::vector>();
     }
 
     const IShaderInputReflection* ShaderReflection::get_shader_input_reflection(void) const {
         return this;
-    }
-
-    foundation::Option<std::uint32_t> ShaderReflection::get(
-        const D3D_SHADER_INPUT_TYPE input_type, const std::string& name) const noexcept {
-        const auto& type_iter =
-            this->binding_slot_map.find(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER);
-        if (type_iter == this->binding_slot_map.end()) {
-            return {};
-        }
-
-        const auto& name_iter = type_iter->second;
-        const auto& iter2 = name_iter.find(name);
-        if (iter2 == name_iter.end()) {
-            return {};
-        }
-
-        return iter2->second;
     }
 
     foundation::VoidResult<DirectXError> ShaderReflection::load_binding_desc(
@@ -129,8 +106,60 @@ namespace enishi::renderer::directx {
                 DirectXError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
         }
 
-        auto& description = this->input_element_descriptions[index].description;
-        description.location = bind_desc.BindPoint;
+        auto& info = this->input_element_descriptions[index].info;
+        info.location = bind_desc.BindPoint;
+
+        return {};
+    }
+
+    foundation ::Option<types::VertexFormat> to_vertex_format(
+        const D3D11_SIGNATURE_PARAMETER_DESC& desc) noexcept {
+        switch (desc.ComponentType) {
+            case D3D_REGISTER_COMPONENT_FLOAT32:
+                switch (desc.Mask) {
+                    case 0x1:
+                        return types::VertexFormat::Float32x1;
+                    case 0x3:
+                        return types::VertexFormat::Float32x2;
+                    case 0x7:
+                        return types::VertexFormat::Float32x3;
+                    case 0xF:
+                        return types::VertexFormat::Float32x4;
+                    default:
+                        break;
+                }
+                break;
+            case D3D_REGISTER_COMPONENT_UINT32:
+                switch (desc.Mask) {
+                    case 0x1:
+                        return types::VertexFormat::UInt32x1;
+                    case 0x3:
+                        return types::VertexFormat::UInt32x2;
+                    case 0x7:
+                        return types::VertexFormat::UInt32x3;
+                    case 0xF:
+                        return types::VertexFormat::UInt32x4;
+                    default:
+                        break;
+                }
+                break;
+            case D3D_REGISTER_COMPONENT_SINT32:
+                switch (desc.Mask) {
+                    case 0x1:
+                        return types::VertexFormat::Int32x1;
+                    case 0x3:
+                        return types::VertexFormat::Int32x2;
+                    case 0x7:
+                        return types::VertexFormat::Int32x3;
+                    case 0xF:
+                        return types::VertexFormat::Int32x4;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
 
         return {};
     }
@@ -145,73 +174,47 @@ namespace enishi::renderer::directx {
         }
 
         // マスクからフォーマットを判定 (R, G, B, A のどれが使われているか)
-        DXGI_FORMAT format = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
-        if (param_desc.Mask == 0b0001) {
-            if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
-            }
-        } else if (param_desc.Mask <= 0b0011) {
-            if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32_UINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32_SINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT;
-            }
-        } else if (param_desc.Mask <= 0b0111) {
-            if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_UINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_SINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
-            }
-        } else if (param_desc.Mask <= 0b1111) {
-            if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_UINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_SINT;
-            } else if (param_desc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) {
-                format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
-            }
-        }
-
-        if (DXGI_FORMAT::DXGI_FORMAT_UNKNOWN == format) {
+        const auto opt_format = to_vertex_format(param_desc);
+        if (opt_format.is_none()) {
             return foundation::Error(
                 DirectXError::ShaderReflectionError, "フォーマットの取得に失敗しました");
         }
+        const auto format = opt_format.unwrap();
 
         // SemanticNameが一時的なものなのでStringで保持
         // 必要であれば取得先で書き換え
         this->input_element_descriptions.emplace_back(
             InputElementDescription(std::string(param_desc.SemanticName),
-                D3D11_INPUT_ELEMENT_DESC{
-                    .SemanticIndex = param_desc.SemanticIndex,
-                    .Format = format,
-                    .InputSlot = 0,                                    // 仮
-                    .AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT, // 自動オフセット
-                    .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
-                    .InstanceDataStepRate = 0,
+                ShaderInputInfo{
+                    .location = param_desc.SemanticIndex,
+                    .array_size = 1,
+                    .format = format,
+                    .component_count = 0,
+                    .component_bit_width = 0,
+                    .component_type = ShaderInputComponentType::Double,
+                    .offset = D3D11_APPEND_ALIGNED_ELEMENT, // 自動オフセット
                 }));
 
         return {};
     }
 
     std::uint32_t ShaderReflection::get_input_count(void) const noexcept {
-        return std::uint32_t();
+        return this->input_element_descriptions.size();
     }
 
-    ShaderInputInfo ShaderReflection::get_input(const std::uint32_t index) const noexcept {
-        return this->get(D3D_SHADER_INPUT_TYPE::D3D10_SIT_CBUFFER, name);
+    foundation::Option<ShaderInputInfo> ShaderReflection::get_input(
+        const std::uint32_t index) const noexcept {
+        if (this->input_element_descriptions.size() + 1 < index) {
+            return {};
+        }
 
-        return ShaderInputInfo();
+        return this->input_element_descriptions.at(index).info;
     }
 
-    std::uint32_t ShaderReflection::get_input_count(void) const noexcept {
-        return std::uint32_t();
+    std::vector<ShaderInputInfo> ShaderReflection::get_inputs(void) const noexcept {
+        return this->input_element_descriptions |
+               std::views::transform(
+                   [](const InputElementDescription& desc) { return desc.info; }) |
+               std::ranges::to<std::vector>();
     }
 } // namespace enishi::renderer::directx

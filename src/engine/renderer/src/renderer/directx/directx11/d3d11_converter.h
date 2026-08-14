@@ -21,6 +21,7 @@ namespace enishi::renderer::directx {
         static D3D11_FILL_MODE to_fill_mode(const types::FillMode& fill_mode) noexcept;
         static D3D11_CULL_MODE to_cull_mode(const types::CullMode& cull_mode) noexcept;
         static DXGI_FORMAT to_dxgi_format(const types::ImageFormat& format) noexcept;
+        static DXGI_FORMAT to_dxgi_format(const types::VertexFormat& format) noexcept;
         static D3D11_USAGE to_usage(const types::ImageUsage& usage) noexcept;
         static D3D11_PRIMITIVE_TOPOLOGY to_topology(
             const types::PrimitiveTopology& topology) noexcept;

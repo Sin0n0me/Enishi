@@ -15,7 +15,7 @@ namespace enishi::renderer::directx {
     class ResourceManager : public GPUResourceMaker<DirectXError> {
       private:
         std::shared_ptr<ID3D11Context> context;
-        types::HandleAllocator handle_allocator;
+        std::shared_ptr<types::HandleAllocator> handle_allocator;
         std::unordered_map<types::HandleId, types::RenderHandleType> handles;
         std::unordered_map<types::HandleId, Mesh> meshes;
         std::unique_ptr<GPUResource> resource;
@@ -31,10 +31,9 @@ namespace enishi::renderer::directx {
 
       public:
         foundation::Result<types::RenderHandle, DirectXError> make_shader_reflection(
-            std::shared_ptr<types::ShaderData> shader_data) override;
-        foundation::Result<types::RenderHandle, DirectXError>
-        make_input_layout_from_shader_reflection(
-            const types::RenderHandle& shader_reflection_handle) override;
+            const types::ShaderData& shader_data) override;
+        foundation::Result<types::RenderHandle, DirectXError> make_input_layout_from_shader_data(
+            const types::ShaderData& shader_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_mesh(
             types::MeshData&& mesh_data) override;
         foundation::Result<types::RenderHandle, DirectXError> make_shader(
@@ -69,6 +68,7 @@ namespace enishi::renderer::directx {
 
       public:
         // TODO: インターフェイス経由
+        [[nodiscard]] foundation::Option<Buffer&> get_buffer(const types::HandleId handle);
         [[nodiscard]] foundation::Option<const Buffer&> get_buffer(
             const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const Texture&> get_texture(

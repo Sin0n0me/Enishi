@@ -18,9 +18,9 @@ namespace enishi::renderer::vulkan {
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
         platform::RenderResult<types::RenderHandle> create_shader_reflection(
-            std::shared_ptr<types::ShaderData> shader_data) override;
-        platform::RenderResult<types::RenderHandle> create_vertex_layout_from_shader_reflection(
-            const types::RenderHandle& shader_reflection_handle) override;
+            const types::ShaderData& shader_data) override;
+        platform::RenderResult<types::RenderHandle> create_vertex_layout_from_shader_data(
+            const types::ShaderData& shader) override;
         platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> create_vertex_layout(
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,

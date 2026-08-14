@@ -1,26 +1,40 @@
 #include "resource_editor.h"
 
 namespace enishi::renderer::directx {
-    foundation::VoidResult<DirectXError> ResourceEditor::make_shader_reflection(
-        const types::HandleId handle_id, std::shared_ptr<types::ShaderData> shader_data) {
+    ResourceEditor::ResourceEditor(std::shared_ptr<types::HandleAllocator> handle_allocator)
+        : handle_allocator(handle_allocator) {
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceEditor::make_shader_reflection(
+        const types::ShaderData& shader_data) {
+        const auto iter = this->hash_to_shader_refection.find(shader_data.hash());
+        if (iter != this->hash_to_shader_refection.end()) {
+            // TODO:
+        }
+
         auto reflection = std::make_shared<ShaderReflection>();
         if (!bool(reflection)) {
-            return foundation::Error(
-                DirectXError::ShaderReflectionError, "メモリを確保できませんでした");
+            return foundation::Error(DirectXError::ShaderReflectionError);
         }
 
-        auto result = reflection->load(shader_data);
+        auto result =
+            reflection->load(shader_data).add_message("シェーダーの読み込みに失敗しました");
         if (result.is_err()) {
-            return result;
+            return result.propagation(DirectXError::ShaderReflectionError);
         }
 
+        const auto handle_id = this->handle_allocator->create();
         this->handle_to_index[ResourceIndex{
             .type = ResourceType::ShaderReflection,
             .handle_id = handle_id,
         }] = this->shader_refections.size();
+
         this->shader_refections.emplace_back(reflection);
 
-        return {};
+        return types::RenderHandle{
+            .id = handle_id,
+            .type = types::RenderHandleType::ShaderReflection,
+        };
     }
 
     void ResourceEditor::add_render_target(std::shared_ptr<platform::IRenderTargetView> rtv) {
@@ -34,13 +48,20 @@ namespace enishi::renderer::directx {
         this->render_targets.emplace_back(std::move(rtv));
     }
 
-    void ResourceEditor::make_draw_args(const types::HandleId handle_id, types::DrawArgs&& args) {
+    foundation::Result<types::RenderHandle, DirectXError> ResourceEditor::make_draw_args(
+        types::DrawArgs&& args) {
+        const auto handle_id = this->handle_allocator->create();
         this->handle_to_index[ResourceIndex{
             .type = ResourceType::DrawArgs,
             .handle_id = handle_id,
         }] = this->draw_args.size();
 
         this->draw_args.emplace_back(std::move(args));
+
+        return types::RenderHandle{
+            .id = handle_id,
+            .type = types::RenderHandleType::Draw,
+        };
     }
 
     foundation::Option<std::shared_ptr<platform::IRenderTargetView>>

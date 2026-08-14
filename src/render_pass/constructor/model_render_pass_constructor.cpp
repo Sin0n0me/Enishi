@@ -31,7 +31,11 @@ namespace enishi {
         }
 
         // シェーダーの作成
-        auto shaders = this->make_shaders(description, renderer, asset_system);
+        auto shader_reflections = this->make_shaders(description, renderer, asset_system)
+                                      .add_message("シェーダーの作成に失敗しました");
+        if (shader_reflections.is_err()) {
+            return shader_reflections.propagation(core::SystemError::ConstructRenderPassError);
+        }
 
         // レンダーパスの生成
         const auto render_pass_result = render_pass->make_render_pass(description);
@@ -46,7 +50,11 @@ namespace enishi {
         if (mesh_result.is_err()) {
             return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        render_pass->add_mesh(mesh_result.unwrap(), {});
+        const auto mesh_handle = mesh_result.unwrap();
+        for (const auto& shader_reflection : shader_reflections.unwrap()) {
+            renderer->resolve_uniform(mesh_handle, shader_reflection);
+        }
+        render_pass->add_mesh(mesh_handle, {});
 
         return render_pass;
     }
@@ -99,119 +107,61 @@ namespace enishi {
         return {};
     }
 
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_input_layout(
-        types::PipelineDescription& description,
-        platform::IRenderer* const renderer,
-        assets_system::IAssetSystem* const asset_system,
-        const std::vector<std::filesystem::path>& asset_paths) {
-        const bool multiple_shaders_found = 1 < asset_paths.size();
-        if (multiple_shaders_found) {
-            foundation::Logger::warning("複数のシェーダーファイルが見つかりました");
-        }
-
-        // シェーダーの作成
-        // 複数のシェーダーが見つかった場合は最初に正常に作成できたシェーダーを使用
-        foundation::UTF8 error_message;
-        for (const auto& path : asset_paths) {
-            const auto asset_handle = asset_system->load_asset(path);
-            if (asset_handle.is_err()) {
-                error_message += asset_handle.unwrap_err().get_message() + "\n";
-                error_message += std::format("読み込みに失敗しました: {}", path.string<char>());
-                continue;
-            }
-            const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
-            if (shader_data.is_none()) {
-                error_message +=
-                    std::format("シェーダーデータの取得に失敗しました: {}", path.string<char>());
-                continue;
-            }
-
-            // シェーダーリフレクションで情報の取得
-            const auto shader_reflection = renderer->create_shader_reflection(shader_data.unwrap());
-            if (shader_reflection.is_err()) {
-                error_message += shader_reflection.unwrap_err().get_message() + "\n";
-                continue;
-            }
-
-            const auto input_layout =
-                renderer->create_vertex_layout_from_shader_reflection(shader_reflection.unwrap());
-            if (input_layout.is_err()) {
-                error_message += input_layout.unwrap_err().get_message() + "\n";
-                error_message +=
-                    std::format("頂点レイアウトの作成に失敗しました: {}", path.string<char>());
-                continue;
-            }
-
-            description.vertex_layout = input_layout.unwrap();
-            return {};
-        }
-
-        return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);
-    }
-
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_shaders(
-        types::PipelineDescription& description,
+    foundation::Result<std::vector<types::RenderHandle>, core::SystemError>
+    ModelRenderPassConstructor::make_shaders(types::PipelineDescription& description,
         platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system) {
         const auto shader_paths = asset_system->find_shaders(SHADER_PATH);
         const auto pattern_shader_extensions = asset_system->shader_extensions_pattern();
+        const auto make_paths = [&](const std::filesystem::path& file_path) {
+            const auto str_pattern = std::format(
+                "{}{}", foundation::path_to_regex_str(file_path), pattern_shader_extensions);
+            const std::regex pattern(str_pattern);
+            return shader_paths.find(pattern);
+        };
+
+        auto shader_reflections = std::vector<types::RenderHandle>();
 
         {
             const auto vertex_file = SHADER_PATH / VS_FILE_NAME;
-            const auto str_pattern = std::format(
-                "{}{}", foundation::path_to_regex_str(vertex_file), pattern_shader_extensions);
-            const std::regex pattern(str_pattern);
-            const auto paths = shader_paths.find(pattern);
-
-            const auto handle =
-                this->make_shader(types::ShaderKind::Vertex, paths, renderer, asset_system)
-                    .add_message("頂点シェーダーの作成に失敗しました");
-            if (handle.is_err()) {
-                return handle.propagation(core::SystemError::ConstructRenderPassError);
+            const auto paths = make_paths(vertex_file);
+            auto result = this->make_shader_from_file_paths(
+                                  types::ShaderKind::Vertex, paths, renderer, asset_system)
+                              .add_message("頂点シェーダーの作成に失敗しました");
+            if (result.is_err()) {
+                return std::move(result).unwrap_err();
             }
+            const auto& handles = result.unwrap();
 
-            description.shaders.emplace_back(handle.unwrap());
-
-            // シェーダーからインプットレイアウトの作成
-            auto&& input_layout =
-                this->make_input_layout(description, renderer, asset_system, paths);
-            if (input_layout.is_err()) {
-                return input_layout;
-            }
+            description.shaders.emplace_back(handles.shader);
+            description.vertex_layout = handles.input_layout;
+            shader_reflections.emplace_back(handles.shader_reflection);
         }
 
         {
             const auto pixel_file = SHADER_PATH / PS_FILE_NAME;
-            const auto str_pattern = std::format(
-                "{}{}", foundation::path_to_regex_str(pixel_file), pattern_shader_extensions);
-            const std::regex pattern(str_pattern);
-
-            const auto handle = this->make_shader(types::ShaderKind::Pixel,
-                                        shader_paths.find(pattern),
-                                        renderer,
-                                        asset_system)
+            const auto paths = make_paths(pixel_file);
+            const auto result = this->make_shader_from_file_paths(
+                                        types::ShaderKind::Pixel, paths, renderer, asset_system)
                                     .add_message("ピクセルシェーダーの作成に失敗しました");
-            if (handle.is_err()) {
-                return handle.propagation(core::SystemError::ConstructRenderPassError);
+            if (result.is_err()) {
+                return result.propagation(core::SystemError::ConstructRenderPassError);
             }
+            const auto& handles = result.unwrap();
 
-            description.shaders.emplace_back(handle.unwrap());
+            description.shaders.emplace_back(handles.shader);
+            shader_reflections.emplace_back(handles.shader_reflection);
         }
 
-        return {};
+        return shader_reflections;
     }
 
-    foundation::Result<types::RenderHandle, core::SystemError>
-    ModelRenderPassConstructor::make_shader(const types::ShaderKind kind,
-        const std::vector<std::filesystem::path>& asset_paths,
+    foundation::Result<ModelRenderPassConstructor::ShaderResult, core::SystemError>
+    ModelRenderPassConstructor::make_shader_from_file_paths(const types::ShaderKind kind,
+        const std::vector<std::filesystem::path>& paths,
         platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system) {
-        if (asset_paths.empty()) {
-            return foundation::Error(
-                core::SystemError::ConstructRenderPassError, "シェーダーファイルが見つかりません");
-        }
-
-        const bool multiple_shaders_found = 1 < asset_paths.size();
+        const bool multiple_shaders_found = 1 < paths.size();
         if (multiple_shaders_found) {
             foundation::Logger::warning("複数のシェーダーファイルが見つかりました");
         }
@@ -219,32 +169,61 @@ namespace enishi {
         // シェーダーの作成
         // 複数のシェーダーが見つかった場合は最初に正常に作成できたシェーダーを使用
         foundation::UTF8 error_message;
-        for (const auto& path : asset_paths) {
-            const auto asset_handle = asset_system->load_asset(path);
-            if (asset_handle.is_err()) {
-                error_message = asset_handle.unwrap_err().get_message();
-                continue;
-            }
-            const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
-            if (shader_data.is_none()) {
+        for (const auto& path : paths) {
+            auto result = this->make_shader(kind, path, renderer, asset_system);
+            if (result.is_err()) {
+                error_message += result.unwrap_err().get_message() + "\n";
                 continue;
             }
 
-            const auto shader_handle = renderer->create_shader(kind, *shader_data.unwrap());
-            if (shader_handle.is_err()) {
-                error_message = shader_handle.unwrap_err().get_message();
-                continue;
-            }
-
-            if (multiple_shaders_found) {
-                foundation::Logger::info(
-                    std::format("使用するシェーダー: {}", path.string<char>()));
-            }
-
-            return shader_handle.unwrap();
+            return result;
         }
 
         return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);
+    }
+
+    foundation::Result<ModelRenderPassConstructor::ShaderResult, core::SystemError>
+    ModelRenderPassConstructor::make_shader(const types::ShaderKind kind,
+        const std::filesystem::path& path,
+        platform::IRenderer* const renderer,
+        assets_system::IAssetSystem* const asset_system) {
+        // ファイル読み込み
+        const auto asset_handle = asset_system->load_asset(path);
+        if (asset_handle.is_err()) {
+            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
+        }
+        const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
+        if (shader_data.is_none()) {
+            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
+        }
+
+        // シェーダーの作成
+        const auto& raw_shader_data = *shader_data.unwrap();
+        const auto shader = renderer->create_shader(kind, raw_shader_data);
+        if (shader.is_err()) {
+            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
+        }
+
+        // シェーダーリフレクションの作成(こちらは最悪失敗してもよい)
+        const auto& shader_reflection = renderer->create_shader_reflection(raw_shader_data);
+
+        // 頂点のシェーダーの場合はシェーダーデータからリフレクション作成
+        auto input_layout = types::INVALID_RENDER_HANDLE;
+        if (kind == types::ShaderKind::Vertex) {
+            const auto result_input_layout =
+                renderer->create_vertex_layout_from_shader_data(raw_shader_data)
+                    .add_message("頂点レイアウトの作成に失敗しました");
+            if (result_input_layout.is_err()) {
+                return result_input_layout.propagation(core::SystemError::ConstructRenderPassError);
+            }
+            input_layout = result_input_layout.unwrap();
+        }
+
+        return ShaderResult{
+            .shader = shader.unwrap(),
+            .shader_reflection = shader_reflection.unwrap_or(types::INVALID_RENDER_HANDLE),
+            .input_layout = input_layout,
+        };
     }
 
     foundation::Result<types::RenderHandle, core::SystemError>

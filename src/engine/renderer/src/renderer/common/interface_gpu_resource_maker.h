@@ -20,10 +20,9 @@ namespace enishi::renderer {
         virtual ~GPUResourceMaker(void) noexcept = default;
 
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_shader_reflection(
-            std::shared_ptr<types::ShaderData> shader_data) = 0;
+            const types::ShaderData& shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E>
-        make_input_layout_from_shader_reflection(
-            const types::RenderHandle& shader_reflection_handle) = 0;
+        make_input_layout_from_shader_data(const types::ShaderData& shader_data) = 0;
 
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_mesh(
             types::MeshData&& mesh_data) = 0;

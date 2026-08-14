@@ -29,9 +29,9 @@ namespace enishi::types {
         bool operator==(const RenderHandle&) const = default;
     };
 
-    constexpr static RenderHandle DEFAULT_RENDER_TARGET = RenderHandle{
+    constexpr RenderHandle INVALID_RENDER_HANDLE{
         .id = INVALID_HANDLE_ID,
-        .type = RenderHandleType::View,
+        .type = static_cast<decltype(RenderHandle::type)>(-1),
     };
 } // namespace enishi::types
 
@@ -42,7 +42,7 @@ namespace std {
             using Type = enishi::types::RenderHandle;
             const std::size_t h1 = std::hash<decltype(Type::id)>{}(p.id);
             const std::size_t h2 = std::hash<decltype(Type::type)>{}(p.type);
-            return h1 | (h2 << sizeof(decltype(h1)));
+            return h1 ^ (h2 << 1);
         }
     };
 } // namespace std

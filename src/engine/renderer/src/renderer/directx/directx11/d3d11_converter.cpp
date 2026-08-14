@@ -86,6 +86,56 @@ namespace enishi::renderer::directx {
         return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
     }
 
+    DXGI_FORMAT D3D11Converter::to_dxgi_format(const types::VertexFormat& format) noexcept {
+        switch (format) {
+            case types::VertexFormat::Float32x1:
+                return DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
+            case types::VertexFormat::Float32x2:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT;
+            case types::VertexFormat::Float32x3:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
+            case types::VertexFormat::Float32x4:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+            case types::VertexFormat::UInt16x1:
+                return DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+            case types::VertexFormat::UInt16x2:
+                return DXGI_FORMAT::DXGI_FORMAT_R16G16_UINT;
+            case types::VertexFormat::UInt16x4:
+                return DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_UINT;
+
+            case types::VertexFormat::Int16x1:
+                return DXGI_FORMAT::DXGI_FORMAT_R16_SINT;
+            case types::VertexFormat::Int16x2:
+                return DXGI_FORMAT::DXGI_FORMAT_R16G16_SINT;
+            case types::VertexFormat::Int16x4:
+                return DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_SINT;
+
+            case types::VertexFormat::UInt32x1:
+                return DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+            case types::VertexFormat::UInt32x2:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32_UINT;
+            case types::VertexFormat::UInt32x3:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_UINT;
+            case types::VertexFormat::UInt32x4:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_UINT;
+
+            case types::VertexFormat::Int32x1:
+                return DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
+            case types::VertexFormat::Int32x2:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32_SINT;
+            case types::VertexFormat::Int32x3:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_SINT;
+            case types::VertexFormat::Int32x4:
+                return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_SINT;
+
+            default:
+                break;
+        }
+
+        return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+    }
+
     D3D11_USAGE D3D11Converter::to_usage(const types::ImageUsage& usage) noexcept {
         switch (usage) {
             case types::ImageUsage::None:
@@ -130,8 +180,11 @@ namespace enishi::renderer::directx {
         return D3D11_INPUT_ELEMENT_DESC{
             .SemanticName = info.name.data(),
             .SemanticIndex = info.location,
-            .InputSlot = info.location,
-            .AlignedByteOffset = info.component_bit_width,
+            .Format = D3D11Converter::to_dxgi_format(info.format),
+            .InputSlot = 0, // TODO
+            .AlignedByteOffset = info.offset,
+            .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
+            .InstanceDataStepRate = 0, // TODO
         };
     }
 } // namespace enishi::renderer::directx

@@ -21,13 +21,13 @@ namespace enishi::renderer::directx {
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
         platform::RenderResult<types::RenderHandle> create_shader_reflection(
-            std::shared_ptr<types::ShaderData> shader_data) override;
+            const types::ShaderData& shader_data) override;
         platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> create_vertex_layout(
             const types::VertexLayout& layout,
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) override;
-        platform::RenderResult<types::RenderHandle> create_vertex_layout_from_shader_reflection(
-            const types::RenderHandle& shader_reflection_handle) override;
+        platform::RenderResult<types::RenderHandle> create_vertex_layout_from_shader_data(
+            const types::ShaderData& shader_data) override;
         platform::RenderResult<types::RenderHandle> create_rasterizer(
             const types::RasterizerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(

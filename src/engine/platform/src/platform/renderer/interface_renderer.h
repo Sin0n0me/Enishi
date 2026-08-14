@@ -33,7 +33,7 @@ namespace enishi::platform {
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_shader_reflection(
-            std::shared_ptr<types::ShaderData> shader_data) = 0;
+            const types::ShaderData& shader_data) = 0;
 
         [[nodiscard]]
         virtual RenderResult<std::unique_ptr<IPipelineLayout>> create_vertex_layout(
@@ -42,8 +42,8 @@ namespace enishi::platform {
             const types::RenderHandle& pixel_shader) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_vertex_layout_from_shader_reflection(
-            const types::RenderHandle& shader_reflection_handle) = 0;
+        virtual RenderResult<types::RenderHandle> create_vertex_layout_from_shader_data(
+            const types::ShaderData& shader_data) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_rasterizer(

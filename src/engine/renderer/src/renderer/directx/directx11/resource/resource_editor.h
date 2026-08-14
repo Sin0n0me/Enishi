@@ -1,6 +1,7 @@
 #pragma once
 #include "../../../common/interface_gpu_resource_accessor.h"
 #include "../shader/shader_refrection.h"
+#include <engine_types/handle/handle_allocator.h>
 #include <foundation/option/option.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
@@ -33,17 +34,23 @@ namespace enishi::renderer::directx {
         };
 
       private:
+        std::shared_ptr<types::HandleAllocator> handle_allocator;
         std::unordered_map<ResourceIndex, std::size_t, KeyHash> handle_to_index;
+        std::unordered_map<std::size_t, std::shared_ptr<ShaderReflection>> hash_to_shader_refection;
         std::vector<types::DrawArgs> draw_args;
         std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
         std::vector<std::shared_ptr<ShaderReflection>> shader_refections;
 
       public:
-        foundation::VoidResult<DirectXError> make_shader_reflection(
-            const types::HandleId handle_id, std::shared_ptr<types::ShaderData> shader_data);
+        explicit ResourceEditor(std::shared_ptr<types::HandleAllocator> handle_allocator);
+
+      public:
+        foundation::Result<types::RenderHandle, DirectXError> make_shader_reflection(
+            const types::ShaderData& shader_data);
 
         void add_render_target(std::shared_ptr<platform::IRenderTargetView> rtv);
-        void make_draw_args(const types::HandleId handle_id, types::DrawArgs&& args);
+        foundation::Result<types::RenderHandle, DirectXError> make_draw_args(
+            types::DrawArgs&& args);
 
       public:
         foundation::Option<std::shared_ptr<platform::IRenderTargetView>> get_render_target(
