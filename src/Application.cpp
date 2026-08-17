@@ -125,6 +125,7 @@ namespace enishi {
 
         const auto result_passes = render_system->create_render_passes(asset_system.get());
         if (result_passes.is_err()) {
+            foundation::Logger::error(result_passes.unwrap_err().get_message());
             return {};
         }
 

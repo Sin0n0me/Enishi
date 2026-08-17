@@ -4,47 +4,6 @@
 #include <renderer/directx/directx11/d3d11_converter.h>
 
 namespace enishi::renderer::directx {
-    ShaderReflection::InputElementDescription::InputElementDescription(
-        std::string&& semantic_name, ShaderInputInfo&& info)
-        : semantic_name(std::move(semantic_name))
-        , info(std::move(info)) {
-        this->fix_pointer();
-    }
-
-    ShaderReflection::InputElementDescription::InputElementDescription(
-        const InputElementDescription& other)
-        : semantic_name(other.semantic_name)
-        , info(other.info) {
-        this->fix_pointer();
-    }
-
-    ShaderReflection::InputElementDescription::InputElementDescription(
-        InputElementDescription&& other) noexcept
-        : semantic_name(std::move(other.semantic_name))
-        , info(other.info) {
-        this->fix_pointer();
-    }
-
-    ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
-        const InputElementDescription& other) {
-        this->semantic_name = other.semantic_name;
-        this->info = other.info;
-        this->fix_pointer();
-        return *this;
-    }
-
-    ShaderReflection::InputElementDescription& ShaderReflection::InputElementDescription::operator=(
-        InputElementDescription&& other) noexcept {
-        this->semantic_name = std::move(other.semantic_name);
-        this->info = other.info;
-        this->fix_pointer();
-        return *this;
-    }
-
-    void ShaderReflection::InputElementDescription::fix_pointer(void) {
-        this->info.name = this->semantic_name;
-    }
-
     foundation::VoidResult<DirectXError> ShaderReflection::load(
         const types::ShaderData& shader_data) noexcept {
         {
@@ -66,6 +25,7 @@ namespace enishi::renderer::directx {
             }
         }
 
+        this->input_layouts.resize(shader_desc.InputParameters);
         for (std::uint32_t i = 0; i < shader_desc.InputParameters; ++i) {
             const auto result_parameter_desc = this->load_parameter_desc(i);
             if (result_parameter_desc.is_err()) {
@@ -73,6 +33,7 @@ namespace enishi::renderer::directx {
             }
         }
 
+        this->input_resources.resize(shader_desc.BoundResources);
         for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
             const auto result_binding_desc = this->load_binding_desc(i);
             if (result_binding_desc.is_err()) {
@@ -80,21 +41,38 @@ namespace enishi::renderer::directx {
             }
         }
 
-        return {};
-    }
+        const D3D11_SHADER_VERSION_TYPE shaderType =
+            static_cast<D3D11_SHADER_VERSION_TYPE>(D3D11_SHVER_GET_TYPE(shader_desc.Version));
 
-    std::vector<D3D11_INPUT_ELEMENT_DESC> ShaderReflection::get_input_element_descs(
-        void) const noexcept {
-        // 変換
-        return this->input_element_descriptions |
-               std::views::transform([](const InputElementDescription& desc) {
-                   return D3D11Converter::to_input_element_description(desc.info);
-               }) |
-               std::ranges::to<std::vector>();
+        this->shader_kind = [&]() {
+            switch (shaderType) {
+                case D3D11_SHVER_VERTEX_SHADER:
+                    return types::ShaderKind::Vertex;
+                case D3D11_SHVER_PIXEL_SHADER:
+                    return types::ShaderKind::Pixel;
+                case D3D11_SHVER_HULL_SHADER:
+                    return types::ShaderKind::Hull;
+                case D3D11_SHVER_DOMAIN_SHADER:
+                    return types::ShaderKind::Domain;
+                case D3D11_SHVER_GEOMETRY_SHADER:
+                    return types::ShaderKind::Geometry;
+                case D3D11_SHVER_COMPUTE_SHADER:
+                    return types::ShaderKind::Compute;
+                default:
+                    break;
+            }
+            return types::ShaderKind::Unknown;
+        }();
+
+        return {};
     }
 
     const IShaderInputReflection* ShaderReflection::get_shader_input_reflection(void) const {
         return this;
+    }
+
+    types::ShaderKind ShaderReflection::get_shader_kind(void) const {
+        return this->shader_kind;
     }
 
     foundation::VoidResult<DirectXError> ShaderReflection::load_binding_desc(
@@ -106,60 +84,67 @@ namespace enishi::renderer::directx {
                 DirectXError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
         }
 
-        auto& info = this->input_element_descriptions[index].info;
-        info.location = bind_desc.BindPoint;
+        const auto type = [&bind_desc]() {
+            switch (bind_desc.Type) {
+                case D3D_SIT_CBUFFER:
+                case D3D_SIT_TBUFFER:
+                    return ShaderInputResourceType::UniformBuffer;
+                case D3D_SIT_STRUCTURED:
+                case D3D_SIT_BYTEADDRESS:
+                    return ShaderInputResourceType::StorageBuffer;
+                case D3D_SIT_TEXTURE:
+                    return ShaderInputResourceType::Texture;
+                case D3D_SIT_SAMPLER:
+                    return ShaderInputResourceType::Sampler;
+                case D3D_SIT_UAV_RWTYPED:
+                case D3D_SIT_UAV_RWSTRUCTURED:
+                case D3D_SIT_UAV_RWBYTEADDRESS:
+                case D3D_SIT_UAV_APPEND_STRUCTURED:
+                case D3D_SIT_UAV_CONSUME_STRUCTURED:
+                case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+                    return ShaderInputResourceType::StorageTexture;
+                default:
+                    break;
+            }
+            return ShaderInputResourceType::Unknown;
+        }();
+        const auto dimension = [&bind_desc]() {
+            switch (bind_desc.Dimension) {
+                case D3D_SRV_DIMENSION_BUFFER:
+                    return ShaderInputResourceDimension::Buffer;
+                case D3D_SRV_DIMENSION_TEXTURE1D:
+                    return ShaderInputResourceDimension::Texture1D;
+                case D3D_SRV_DIMENSION_TEXTURE2D:
+                    return ShaderInputResourceDimension::Texture2D;
+                case D3D_SRV_DIMENSION_TEXTURE3D:
+                    return ShaderInputResourceDimension::Texture3D;
+                case D3D_SRV_DIMENSION_TEXTURECUBE:
+                    return ShaderInputResourceDimension::TextureCube;
+                case D3D_SRV_DIMENSION_TEXTURE1DARRAY:
+                    return ShaderInputResourceDimension::Texture1DArray;
+                case D3D_SRV_DIMENSION_TEXTURE2DARRAY:
+                    return ShaderInputResourceDimension::Texture2DArray;
+                case D3D_SRV_DIMENSION_TEXTURECUBEARRAY:
+                    return ShaderInputResourceDimension::TextureCubeArray;
+                case D3D_SRV_DIMENSION_TEXTURE2DMS:
+                    return ShaderInputResourceDimension::Texture2DMS;
+                case D3D_SRV_DIMENSION_TEXTURE2DMSARRAY:
+                    return ShaderInputResourceDimension::Texture2DMSArray;
+                default:
+                    break;
+            }
 
-        return {};
-    }
+            return ShaderInputResourceDimension::Unknown;
+        }();
 
-    foundation ::Option<types::VertexFormat> to_vertex_format(
-        const D3D11_SIGNATURE_PARAMETER_DESC& desc) noexcept {
-        switch (desc.ComponentType) {
-            case D3D_REGISTER_COMPONENT_FLOAT32:
-                switch (desc.Mask) {
-                    case 0x1:
-                        return types::VertexFormat::Float32x1;
-                    case 0x3:
-                        return types::VertexFormat::Float32x2;
-                    case 0x7:
-                        return types::VertexFormat::Float32x3;
-                    case 0xF:
-                        return types::VertexFormat::Float32x4;
-                    default:
-                        break;
-                }
-                break;
-            case D3D_REGISTER_COMPONENT_UINT32:
-                switch (desc.Mask) {
-                    case 0x1:
-                        return types::VertexFormat::UInt32x1;
-                    case 0x3:
-                        return types::VertexFormat::UInt32x2;
-                    case 0x7:
-                        return types::VertexFormat::UInt32x3;
-                    case 0xF:
-                        return types::VertexFormat::UInt32x4;
-                    default:
-                        break;
-                }
-                break;
-            case D3D_REGISTER_COMPONENT_SINT32:
-                switch (desc.Mask) {
-                    case 0x1:
-                        return types::VertexFormat::Int32x1;
-                    case 0x3:
-                        return types::VertexFormat::Int32x2;
-                    case 0x7:
-                        return types::VertexFormat::Int32x3;
-                    case 0xF:
-                        return types::VertexFormat::Int32x4;
-                    default:
-                        break;
-                }
-                break;
-            default:
-                break;
-        }
+        this->input_resources[index] = ShaderInputResource{
+            .name = bind_desc.Name,
+            .type = type,
+            .dimension = dimension,
+            .set = 0, // DirectX11に対応するものはない
+            .binding = bind_desc.BindPoint,
+            .array_size = bind_desc.BindCount,
+        };
 
         return {};
     }
@@ -174,47 +159,79 @@ namespace enishi::renderer::directx {
         }
 
         // マスクからフォーマットを判定 (R, G, B, A のどれが使われているか)
-        const auto opt_format = to_vertex_format(param_desc);
-        if (opt_format.is_none()) {
-            return foundation::Error(
-                DirectXError::ShaderReflectionError, "フォーマットの取得に失敗しました");
-        }
-        const auto format = opt_format.unwrap();
+        const auto value_type = [&param_desc]() {
+            switch (param_desc.ComponentType) {
+                case D3D_REGISTER_COMPONENT_FLOAT32:
+                    return ShaderInputValueType::Float;
+                case D3D_REGISTER_COMPONENT_UINT32:
+                    return ShaderInputValueType::UnsignedInteger;
+                case D3D_REGISTER_COMPONENT_SINT32:
+                    return ShaderInputValueType::SignedInteger;
+                default:
+                    break;
+            }
+            return ShaderInputValueType::Unknown;
+        }();
+        const auto component_count = [&param_desc]() -> std::uint32_t {
+            switch (param_desc.Mask) {
+                case 0b0001:
+                    return 1;
+                case 0b0011:
+                    return 2;
+                case 0b0111:
+                    return 3;
+                case 0b1111:
+                    return 4;
+                default:
+                    break;
+            }
+            return 0;
+        }();
 
         // SemanticNameが一時的なものなのでStringで保持
-        // 必要であれば取得先で書き換え
-        this->input_element_descriptions.emplace_back(
-            InputElementDescription(std::string(param_desc.SemanticName),
-                ShaderInputInfo{
-                    .location = param_desc.SemanticIndex,
-                    .array_size = 1,
-                    .format = format,
-                    .component_count = 0,
-                    .component_bit_width = 0,
-                    .component_type = ShaderInputComponentType::Double,
-                    .offset = D3D11_APPEND_ALIGNED_ELEMENT, // 自動オフセット
-                }));
+        this->input_layouts[index] = ShaderInputLayout{
+            .name = param_desc.SemanticName,
+            .value_type = value_type,
+            .location = param_desc.SemanticIndex,
+            .array_size = 1,
+            .component = 0, // DirextXでは関係ない
+            .component_count = component_count,
+        };
 
         return {};
     }
 
-    std::uint32_t ShaderReflection::get_input_count(void) const noexcept {
-        return this->input_element_descriptions.size();
+    std::uint32_t ShaderReflection::get_input_layout_count(void) const noexcept {
+        return this->input_layouts.size();
     }
 
-    foundation::Option<ShaderInputInfo> ShaderReflection::get_input(
+    foundation::Option<ShaderInputLayout> ShaderReflection::get_input_layout(
         const std::uint32_t index) const noexcept {
-        if (this->input_element_descriptions.size() + 1 < index) {
+        if (this->input_layouts.size() + 1 < index) {
             return {};
         }
 
-        return this->input_element_descriptions.at(index).info;
+        return this->input_layouts.at(index);
     }
 
-    std::vector<ShaderInputInfo> ShaderReflection::get_inputs(void) const noexcept {
-        return this->input_element_descriptions |
-               std::views::transform(
-                   [](const InputElementDescription& desc) { return desc.info; }) |
-               std::ranges::to<std::vector>();
+    std::vector<ShaderInputLayout> ShaderReflection::get_input_layouts(void) const noexcept {
+        return this->input_layouts;
+    }
+
+    std::uint32_t ShaderReflection::get_input_resource_count(void) const noexcept {
+        return this->input_resources.size();
+    }
+
+    foundation::Option<ShaderInputResource> ShaderReflection::get_input_resource(
+        const std::uint32_t index) const noexcept {
+        if (this->input_resources.size() + 1 < index) {
+            return {};
+        }
+
+        return this->input_resources.at(index);
+    }
+
+    std::vector<ShaderInputResource> ShaderReflection::get_input_resources(void) const noexcept {
+        return this->input_resources;
     }
 } // namespace enishi::renderer::directx

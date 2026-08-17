@@ -3,7 +3,7 @@
 #include "resource/resource_manager.h"
 #include "resource/shader.h"
 #include <engine_types/handle/handle_allocator.h>
-#include <engine_types/renderer/render_handle.h>
+#include <engine_types/handle/renderer/render_handle.h>
 #include <memory>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
@@ -44,14 +44,12 @@ namespace enishi::renderer::directx {
         platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
         create_unordered_access_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh) override;
+        platform::RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh,
+            const std::vector<types::RenderHandle>& shader_reflections) override;
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) override;
-        foundation::VoidResult<platform::RenderError> resolve_uniform(
-            const types::RenderHandle& target_handle,
-            const types::RenderHandle& shader_reflection_handle) override;
 
       public:
         void setup_viewports(void) const override;

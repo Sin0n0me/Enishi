@@ -2,7 +2,8 @@
 #include "../../settings.h"
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
-#include <renderer/common/render_pass.h>"
+#include <foundation/str/string_builder.h>
+#include <renderer/common/render_pass.h>
 
 namespace enishi {
     const std::filesystem::path SHADER_PATH = "./assets/shader";
@@ -45,16 +46,13 @@ namespace enishi {
 
         // モデルのみ初期モデル追加
         // TODO: ファイルからの読み取り初期モデルを選択するように
-        const auto mesh_result = this->make_mesh(renderer, asset_system)
-                                     .add_message("メッシュデータの作成に失敗しました");
+        const auto mesh_result =
+            this->make_mesh(renderer, asset_system, shader_reflections.unwrap())
+                .add_message("メッシュデータの作成に失敗しました");
         if (mesh_result.is_err()) {
             return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        const auto mesh_handle = mesh_result.unwrap();
-        for (const auto& shader_reflection : shader_reflections.unwrap()) {
-            renderer->resolve_uniform(mesh_handle, shader_reflection);
-        }
-        render_pass->add_mesh(mesh_handle, {});
+        render_pass->add_mesh(mesh_result.unwrap(), {});
 
         return render_pass;
     }
@@ -168,18 +166,19 @@ namespace enishi {
 
         // シェーダーの作成
         // 複数のシェーダーが見つかった場合は最初に正常に作成できたシェーダーを使用
-        foundation::UTF8 error_message;
+        foundation::StringBuilder error_messages;
         for (const auto& path : paths) {
             auto result = this->make_shader(kind, path, renderer, asset_system);
             if (result.is_err()) {
-                error_message += result.unwrap_err().get_message() + "\n";
+                error_messages.push_back(result.unwrap_err().get_message());
                 continue;
             }
 
             return result;
         }
 
-        return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);
+        return foundation::Error(
+            core::SystemError::ConstructRenderPassError, error_messages.join("\n"));
     }
 
     foundation::Result<ModelRenderPassConstructor::ShaderResult, core::SystemError>
@@ -227,8 +226,9 @@ namespace enishi {
     }
 
     foundation::Result<types::RenderHandle, core::SystemError>
-    ModelRenderPassConstructor::make_mesh(
-        platform::IRenderer* const renderer, assets_system::IAssetSystem* const asset_system) {
+    ModelRenderPassConstructor::make_mesh(platform::IRenderer* const renderer,
+        assets_system::IAssetSystem* const asset_system,
+        const std::vector<types::RenderHandle>& shader_reflections) {
         const auto pattern_model_extensions = asset_system->model_extensions_pattern();
         const auto path = MODEL_PATH / "";
         const std::regex pattern(
@@ -242,13 +242,12 @@ namespace enishi {
         }
 
         // モデルからメッシュへ変換
-        foundation::UTF8 error_message;
-        error_message.reserve(0x1000);
+        foundation::StringBuilder error_message;
         for (const auto& path : asset_paths) {
-            error_message += std::format("loaded path: {}\n", path.string<char>());
+            error_message.push_back(std::format("loaded path: {}", path.string<char>()));
             const auto asset_handle = asset_system->load_asset(path);
             if (asset_handle.is_err()) {
-                error_message += asset_handle.unwrap_err().get_message() + "\n";
+                error_message.push_back(asset_handle.unwrap_err().get_message());
                 continue;
             }
             const auto opt_model_data = asset_system->get_model_data(asset_handle.unwrap());
@@ -262,21 +261,23 @@ namespace enishi {
                 for (const auto& texture_path : material.texture_paths) {
                     const auto asset_handle = asset_system->load_asset(texture_path);
                     if (asset_handle.is_err()) {
-                        error_message += asset_handle.unwrap_err().get_message() + "\n";
+                        error_message.push_back(asset_handle.unwrap_err().get_message());
                     }
                 }
             }
 
             // メッシュ作成
-            const auto mesh_handle = renderer->create_mesh(model_data->to_mesh_data());
+            const auto mesh_handle =
+                renderer->create_mesh(model_data->to_mesh_data(), shader_reflections);
             if (mesh_handle.is_err()) {
-                error_message += mesh_handle.unwrap_err().get_message() + "\n";
+                error_message.push_back(mesh_handle.unwrap_err().get_message());
                 continue;
             }
 
             return mesh_handle.unwrap();
         }
 
-        return foundation::Error(core::SystemError::ConstructRenderPassError, error_message);
+        return foundation::Error(
+            core::SystemError::ConstructRenderPassError, error_message.join("\n"));
     }
 } // namespace enishi

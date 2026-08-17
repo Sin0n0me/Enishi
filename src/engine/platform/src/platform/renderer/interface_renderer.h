@@ -5,6 +5,7 @@
 #include <engine_types/assets/shader/shader_data.h>
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
+#include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/renderer/description/image_description.h>
 #include <engine_types/renderer/description/image_view_description.h>
 #include <engine_types/renderer/description/pipeline_description.h>
@@ -12,11 +13,11 @@
 #include <engine_types/renderer/description/sampler_description.h>
 #include <engine_types/renderer/mesh_data.h>
 #include <engine_types/renderer/render_graph.h>
-#include <engine_types/renderer/render_handle.h>
 #include <engine_types/renderer/viewport.h>
 #include <engine_types/window/window_types.h>
 #include <foundation/result/result.h>
 #include <memory>
+#include <vector>
 
 namespace enishi::platform {
     template <typename T> using RenderResult = foundation::Result<T, RenderError>;
@@ -70,7 +71,8 @@ namespace enishi::platform {
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh) = 0;
+        virtual RenderResult<types::RenderHandle> create_mesh(
+            types::MeshData&& mesh, const std::vector<types::RenderHandle>& shader_reflections) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_texture(
@@ -79,10 +81,5 @@ namespace enishi::platform {
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
-
-        [[nodiscard]]
-        virtual foundation::VoidResult<RenderError> resolve_uniform(
-            const types::RenderHandle& target_handle,
-            const types::RenderHandle& shader_reflection_handle) = 0;
     };
 } // namespace enishi::platform

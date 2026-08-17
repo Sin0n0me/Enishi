@@ -1,4 +1,5 @@
 #include "pmd_to_model_data.h"
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/str.h>
 #include <foundation/str/to_utf8.h>
@@ -316,6 +317,7 @@ namespace enishi::assets_system {
 
         for (const auto& pmd_material : pmd_materials) {
             types::Material material{
+                .name = types::UniformMaterial::UNIFORM_NAME,
                 .count = pmd_material.index_count,
             };
 

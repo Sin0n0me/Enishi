@@ -3,13 +3,13 @@
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/handle/handle_allocator.h>
+#include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/renderer/description/image_description.h>
 #include <engine_types/renderer/description/image_view_description.h>
 #include <engine_types/renderer/description/rasterizer_description.h>
 #include <engine_types/renderer/description/sampler_description.h>
 #include <engine_types/renderer/mesh_data.h>
 #include <engine_types/renderer/render_data.h>
-#include <engine_types/renderer/render_handle.h>
 #include <engine_types/renderer/viewport.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
@@ -25,7 +25,8 @@ namespace enishi::renderer {
         make_input_layout_from_shader_data(const types::ShaderData& shader_data) = 0;
 
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_mesh(
-            types::MeshData&& mesh_data) = 0;
+            types::MeshData&& mesh_data,
+            const std::vector<types::RenderHandle>& shader_reflections) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_texture(

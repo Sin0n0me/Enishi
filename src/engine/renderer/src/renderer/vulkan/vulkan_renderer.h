@@ -1,6 +1,6 @@
 #pragma once
 #include <engine_types/handle/handle_allocator.h>
-#include <engine_types/renderer/render_handle.h>
+#include <engine_types/handle/renderer/render_handle.h>
 #include <memory>
 #include <platform/renderer/interface_render_initializer.h>
 #include <platform/renderer/interface_renderer.h>
@@ -10,7 +10,8 @@ namespace enishi::renderer::vulkan {
     class VulkanRenderer : public platform::IRenderer {
       private:
       public:
-        platform::RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh) override;
+        platform::RenderResult<types::RenderHandle> create_mesh(
+            types::MeshData&& mesh, const std::vector<types::RenderHandle>& shaders) override;
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(

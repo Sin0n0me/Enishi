@@ -17,24 +17,10 @@
 namespace enishi::renderer::directx {
     class ShaderReflection : public IShaderReflection<DirectXError>, public IShaderInputReflection {
       private:
-        struct InputElementDescription {
-            std::string semantic_name;
-            ShaderInputInfo info;
-
-            explicit InputElementDescription(std::string&& semantic_name, ShaderInputInfo&& info);
-            InputElementDescription(const InputElementDescription& other);
-            InputElementDescription(InputElementDescription&& other) noexcept;
-
-            InputElementDescription& operator=(const InputElementDescription& other);
-            InputElementDescription& operator=(InputElementDescription&& other) noexcept;
-
-          private:
-            void fix_pointer(void);
-        };
-
-      private:
+        types::ShaderKind shader_kind;
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
-        std::vector<InputElementDescription> input_element_descriptions;
+        std::vector<ShaderInputLayout> input_layouts;
+        std::vector<ShaderInputResource> input_resources;
 
       public:
         ShaderReflection(void) noexcept = default;
@@ -45,20 +31,19 @@ namespace enishi::renderer::directx {
         foundation::VoidResult<DirectXError> load(
             const types::ShaderData& shader_data) noexcept override;
         const IShaderInputReflection* get_shader_input_reflection(void) const override;
+        types::ShaderKind get_shader_kind(void) const override;
 
       public:
-        std::uint32_t get_input_count(void) const noexcept override;
-        foundation::Option<ShaderInputInfo> get_input(
+        std::uint32_t get_input_layout_count(void) const noexcept override;
+        foundation::Option<ShaderInputLayout> get_input_layout(
             const std::uint32_t index) const noexcept override;
-        std::vector<ShaderInputInfo> get_inputs(void) const noexcept override;
-
-      public:
-        std::vector<D3D11_INPUT_ELEMENT_DESC> get_input_element_descs(void) const noexcept;
+        std::vector<ShaderInputLayout> get_input_layouts(void) const noexcept override;
+        std::uint32_t get_input_resource_count(void) const noexcept override;
+        foundation::Option<ShaderInputResource> get_input_resource(
+            const std::uint32_t index) const noexcept override;
+        std::vector<ShaderInputResource> get_input_resources(void) const noexcept override;
 
       private:
-        foundation::Option<std::uint32_t> get(
-            const D3D_SHADER_INPUT_TYPE input_type, const std::string& name) const noexcept;
-
         foundation::VoidResult<DirectXError> load_binding_desc(const std::uint32_t index) noexcept;
         foundation::VoidResult<DirectXError> load_parameter_desc(
             const std::uint32_t index) noexcept;

@@ -86,7 +86,60 @@ namespace enishi::renderer::directx {
         return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
     }
 
-    DXGI_FORMAT D3D11Converter::to_dxgi_format(const types::VertexFormat& format) noexcept {
+    DXGI_FORMAT D3D11Converter::to_dxgi_format(
+        const ShaderInputValueType& type, const std::uint32_t count) noexcept {
+        switch (type) {
+            case ShaderInputValueType::Float:
+                switch (count) {
+                    case 1:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
+                    case 2:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT;
+                    case 3:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
+                    case 4:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
+                    default:
+                        break;
+                }
+                break;
+            case ShaderInputValueType::SignedInteger:
+                switch (count) {
+                    case 1:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+                    case 2:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32_UINT;
+                    case 3:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_UINT;
+                    case 4:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_UINT;
+                    default:
+                        break;
+                }
+                break;
+            case ShaderInputValueType::UnsignedInteger:
+                switch (count) {
+                    case 1:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
+                    case 2:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32_SINT;
+                    case 3:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32_SINT;
+                    case 4:
+                        return DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_SINT;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        };
+
+        return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+    }
+
+    //
+    DXGI_FORMAT to_dxgi_format(const types::VertexFormat& format) noexcept {
         switch (format) {
             case types::VertexFormat::Float32x1:
                 return DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
@@ -176,13 +229,13 @@ namespace enishi::renderer::directx {
     }
 
     D3D11_INPUT_ELEMENT_DESC D3D11Converter::to_input_element_description(
-        const ShaderInputInfo& info) noexcept {
+        const ShaderInputLayout& info) noexcept {
         return D3D11_INPUT_ELEMENT_DESC{
-            .SemanticName = info.name.data(),
+            .SemanticName = info.name.c_str(),
             .SemanticIndex = info.location,
-            .Format = D3D11Converter::to_dxgi_format(info.format),
-            .InputSlot = 0, // TODO
-            .AlignedByteOffset = info.offset,
+            .Format = D3D11Converter::to_dxgi_format(info.value_type, info.component_count),
+            .InputSlot = 0,                                    // TODO
+            .AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT, // 自動オフセット
             .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
             .InstanceDataStepRate = 0, // TODO
         };

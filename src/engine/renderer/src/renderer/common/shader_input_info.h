@@ -1,10 +1,10 @@
 #pragma once
 #include <cstdint>
 #include <engine_types/renderer/vertex/vertex_layout.h>
-#include <string_view>
+#include <string>
 
 namespace enishi::renderer {
-    enum class ShaderInputComponentType {
+    enum class ShaderInputValueType {
         Unknown,
         Float,
         SignedInteger,
@@ -12,14 +12,50 @@ namespace enishi::renderer {
         Double,
     };
 
-    struct ShaderInputInfo {
-        std::string_view name;
-        std::uint32_t location; // DirectXならSlotに該当
+    enum class ShaderInputResourceType : std::uint8_t {
+        Unknown,
+        UniformBuffer,
+        StorageBuffer,
+        Texture,
+        StorageTexture,
+        Sampler,
+    };
+
+    enum class ShaderInputResourceDimension : std::uint8_t {
+        Unknown,
+        Buffer,
+        Texture1D,
+        Texture2D,
+        Texture3D,
+        TextureCube,
+        Texture1DArray,
+        Texture2DArray,
+        TextureCubeArray,
+        Texture2DMS,
+        Texture2DMSArray,
+    };
+
+    enum class ShaderInputResourceAccess : std::uint8_t {
+        ReadOnly,
+        ReadWrite,
+    };
+
+    struct ShaderInputLayout {
+        std::string name;
+        ShaderInputValueType value_type;
+        std::uint32_t location; // DirectXならSlot
         std::uint32_t array_size;
-        types::VertexFormat format;
+        std::uint32_t component; //
         std::uint32_t component_count;
-        std::uint32_t component_bit_width;
-        ShaderInputComponentType component_type;
-        std::uint32_t offset;
+    };
+
+    struct ShaderInputResource {
+        std::string name;
+        ShaderInputResourceType type;
+        ShaderInputResourceDimension dimension;
+        ShaderInputResourceAccess read_only;
+        std::uint32_t set;
+        std::uint32_t binding;
+        std::uint32_t array_size;
     };
 } // namespace enishi::renderer

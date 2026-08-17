@@ -42,6 +42,8 @@ namespace enishi {
             platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system);
         foundation::Result<types::RenderHandle, core::SystemError> make_mesh(
-            platform::IRenderer* const renderer, assets_system::IAssetSystem* const asset_system);
+            platform::IRenderer* const renderer,
+            assets_system::IAssetSystem* const asset_system,
+            const std::vector<types::RenderHandle>& shader_reflections);
     };
 } // namespace enishi

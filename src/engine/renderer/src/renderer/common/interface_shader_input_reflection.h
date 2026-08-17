@@ -11,13 +11,23 @@ namespace enishi::renderer {
         virtual ~IShaderInputReflection(void) noexcept = default;
 
         [[nodiscard]]
-        virtual std::uint32_t get_input_count(void) const noexcept = 0;
+        virtual std::uint32_t get_input_layout_count(void) const noexcept = 0;
 
         [[nodiscard]]
-        virtual foundation::Option<ShaderInputInfo> get_input(
+        virtual foundation::Option<ShaderInputLayout> get_input_layout(
             const std::uint32_t index) const noexcept = 0;
 
         [[nodiscard]]
-        virtual std::vector<ShaderInputInfo> get_inputs(void) const noexcept = 0;
+        virtual std::vector<ShaderInputLayout> get_input_layouts(void) const noexcept = 0;
+
+        [[nodiscard]]
+        virtual std::uint32_t get_input_resource_count(void) const noexcept = 0;
+
+        [[nodiscard]]
+        virtual foundation::Option<ShaderInputResource> get_input_resource(
+            const std::uint32_t index) const noexcept = 0;
+
+        [[nodiscard]]
+        virtual std::vector<ShaderInputResource> get_input_resources(void) const noexcept = 0;
     };
 } // namespace enishi::renderer

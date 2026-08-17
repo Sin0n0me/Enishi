@@ -38,7 +38,8 @@ namespace enishi::renderer::directx {
 
     platform::RenderResult<types::RenderHandle>
     D3D11Renderer::create_vertex_layout_from_shader_data(const types::ShaderData& shader_data) {
-        const auto result = this->resource_manager->make_input_layout_from_shader_data(shader_data);
+        const auto result = this->resource_manager->make_input_layout_from_shader_data(shader_data)
+                                .add_message("シェーダーから頂点レイアウトを作成できませんでした");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
@@ -101,8 +102,9 @@ namespace enishi::renderer::directx {
         return foundation::Error(platform::RenderError::MakeError);
     }
 
-    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(types::MeshData&& mesh) {
-        const auto result = this->resource_manager->make_mesh(std::move(mesh))
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(
+        types::MeshData&& mesh, const std::vector<types::RenderHandle>& shader_reflections) {
+        const auto result = this->resource_manager->make_mesh(std::move(mesh), shader_reflections)
                                 .add_message("メッシュの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
@@ -131,66 +133,6 @@ namespace enishi::renderer::directx {
         }
 
         return result.unwrap();
-    }
-
-    foundation::VoidResult<platform::RenderError> D3D11Renderer::resolve_uniform(
-        const types::RenderHandle& target_handle,
-        const types::RenderHandle& shader_reflection_handle) {
-        if (shader_reflection_handle.type != types::RenderHandleType::ShaderReflection) {
-            return foundation::Error(platform::RenderError::ResolveError, "無効なハンドルです");
-        }
-        auto opt_reflection = this->resource_manager->get_accessor()->get_shader_reflection(
-            shader_reflection_handle.id);
-        if (opt_reflection.is_none()) {
-            return foundation::Error(
-                platform::RenderError::ResolveError, "シェーダーリフレクションが見つかりません");
-        }
-        auto reflection = opt_reflection.unwrap()->get_shader_input_reflection();
-
-        auto opt_mesh = this->resource_manager->get_mesh(target_handle.id);
-        if (opt_mesh.is_none()) {
-            return foundation::Error(
-                platform::RenderError::ResolveError, "メッシュが見つかりません");
-        }
-
-        // 定数バッファの抽出
-        auto uniform_buffers =
-            opt_mesh.unwrap().mesh_handles |
-            std::views::transform(
-                [this](const types::RenderHandle& handle) -> foundation::Option<UniformParameter*> {
-                    if (handle.type != types::RenderHandleType::Buffer) {
-                        return {};
-                    }
-                    auto opt_buffer = this->resource_manager->get_buffer(handle.id);
-                    if (!opt_buffer.has_value()) {
-                        return {};
-                    }
-                    auto& buffer = opt_buffer.unwrap_mut().parameter;
-                    auto uniform = std::get_if<UniformParameter>(&buffer);
-                    if (!bool(uniform)) {
-                        return {};
-                    }
-
-                    return uniform;
-                }) |
-            std::views::filter([](foundation::Option<UniformParameter*> uniform) -> bool {
-                return uniform.is_some();
-            }) |
-            std::views::transform(
-                [this](foundation::Option<UniformParameter*> uniform) -> UniformParameter* {
-                    return uniform.unwrap_mut();
-                }) |
-            std::ranges::to<std::vector>();
-
-        for (auto uniform : uniform_buffers) {
-        }
-
-        const auto count = reflection->get_input_count();
-        for (std::uint32_t i = 0; i < count; ++i) {
-            auto input = reflection->get_input(i);
-        }
-
-        return {};
     }
 
     void D3D11Renderer::setup_viewports(void) const {
