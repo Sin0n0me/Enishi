@@ -5,17 +5,6 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    template <typename T, typename... Args>
-    AssetManager::AssetLoader insert(AssetManager::LoaderMap& map, Args&... args) {
-        auto ptr = std::make_shared<T>(args...);
-
-        for (const auto extension : ptr->get_supported_extension()) {
-            map[extension].push_back(ptr);
-        }
-
-        return ptr;
-    }
-
     foundation::UTF8 make_extension_regex(const std::vector<foundation::UTF8>& extensions) {
         constexpr std::string_view REGEX_PREFIX = "(";
         constexpr std::string_view REGEX_SUFFIX = ")$";
@@ -35,12 +24,11 @@ namespace enishi::core {
     }
 
     AssetManager::AssetManager(void) {
-        this->asset_type_to_loader[assets_system::AssetType::Model] =
-            insert<assets_system::ModelLoader>(this->extension_to_loader);
-        this->asset_type_to_loader[assets_system::AssetType::Texture] =
-            insert<assets_system::TextureLoader>(this->extension_to_loader);
-        this->asset_type_to_loader[assets_system::AssetType::Shader] =
-            insert<assets_system::ShaderLoader>(this->extension_to_loader);
+        this->add_loader<assets_system::ShaderLoader>(assets_system::AssetType::Shader);
+        auto texture_loader =
+            this->add_loader<assets_system::TextureLoader>(assets_system::AssetType::Texture);
+        this->add_loader<assets_system::ModelLoader>(
+            assets_system::AssetType::Model, texture_loader);
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>

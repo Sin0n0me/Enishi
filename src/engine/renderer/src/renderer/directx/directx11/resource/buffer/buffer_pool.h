@@ -1,4 +1,5 @@
 #pragma once
+#include "interface_buffer_accessor.h"
 #include <cstdint>
 #include <d3d11.h>
 #include <engine_types/assets/shader/shader_kind.h>
@@ -23,14 +24,14 @@ namespace enishi::renderer::directx {
     };
 
     // parameter
-    using BufferParameter = std::variant<VertexParameter, IndexParameter, UniformParameter>;
+    using BufferParameter =
+        std::variant<std::monostate, VertexParameter, IndexParameter, UniformParameter>;
 
-    struct alignas(8) Buffer {
-        Microsoft::WRL::ComPtr<ID3D11Buffer> buffer;
+    class BufferPool : public IBufferAccessor {
+      private:
+        std::vector<Microsoft::WRL::ComPtr<ID3D11Buffer>> buffers;
         BufferParameter parameter;
 
-        explicit Buffer(const VertexParameter& parameter);
-        explicit Buffer(const IndexParameter& parameter);
-        explicit Buffer(const UniformParameter& parameter);
+      public:
     };
 } // namespace enishi::renderer::directx

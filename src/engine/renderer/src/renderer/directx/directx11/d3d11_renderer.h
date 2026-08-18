@@ -1,7 +1,7 @@
 #pragma once
 #include "d3d11.h"
 #include "resource/resource_manager.h"
-#include "resource/shader.h"
+#include "resource/shader/shader_pool.h"
 #include <engine_types/handle/handle_allocator.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <memory>

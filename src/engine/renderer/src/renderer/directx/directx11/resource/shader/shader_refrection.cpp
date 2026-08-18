@@ -4,6 +4,10 @@
 #include <renderer/directx/directx11/d3d11_converter.h>
 
 namespace enishi::renderer::directx {
+    ShaderReflection::ShaderReflection(void) noexcept
+        : shader_kind(types::ShaderKind::Unknown) {
+    }
+
     foundation::VoidResult<DirectXError> ShaderReflection::load(
         const types::ShaderData& shader_data) noexcept {
         {

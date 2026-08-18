@@ -13,6 +13,10 @@ namespace enishi::types {
         OwnedRenderData indices;
         std::unordered_map<std::string, OwnedRenderData>
             uniforms; // first: buffer name second: data
+        std::unordered_map<std::string, OwnedRenderData>
+            textures; // first: buffer name second: data
+        std::unordered_map<std::string, OwnedRenderData>
+            samplders; // first: buffer name second: data
         std::vector<DrawArgs> draw_args;
         std::vector<MeshData> children;
     };

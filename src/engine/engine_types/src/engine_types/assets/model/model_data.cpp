@@ -106,13 +106,13 @@ namespace enishi::types {
                 // ボーンの数に応じて使用するボーン行列を決める
                 const auto size = data->size();
                 if (size < LightModelBones::CAPACITY) {
-                    append_bytes(uniform, LightModelBones{});
+                    uniform.resize(sizeof(LightModelBones));
                     uniforms.emplace(LightModelBones::UNIFORM_NAME, std::move(uniform));
                 } else if (size < MediumModelBones::CAPACITY) {
-                    append_bytes(uniform, MediumModelBones{});
+                    uniform.resize(sizeof(MediumModelBones));
                     uniforms.emplace(MediumModelBones::UNIFORM_NAME, std::move(uniform));
                 } else if (size < HeavyModelBones::CAPACITY) {
-                    append_bytes(uniform, HeavyModelBones{});
+                    uniform.resize(sizeof(HeavyModelBones));
                     uniforms.emplace(HeavyModelBones::UNIFORM_NAME, std::move(uniform));
                 } else {
                     // TODO
@@ -193,7 +193,7 @@ namespace enishi::types {
             }
         } else {
             draw_args.reserve(this->materials.size());
-            auto offset = 0;
+            auto offset = 0u;
             for (const auto& material : this->materials) {
                 if (std::holds_alternative<std::monostate>(this->indices)) {
                     draw_args.emplace_back(Draw{
@@ -206,7 +206,7 @@ namespace enishi::types {
                     draw_args.emplace_back(DrawIndexed{
                         .index_count = material.count,
                         .instance_count = material.instance_count,
-                        .first_index = material.first_offset,
+                        .first_index = static_cast<std::int32_t>(material.first_offset),
                         .vertex_offset = offset,
                         .first_instance = material.first_instance_offset,
                     });

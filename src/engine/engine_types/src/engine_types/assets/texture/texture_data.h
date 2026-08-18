@@ -28,6 +28,10 @@ namespace enishi::types {
         std::uint32_t height;
         std::uint32_t row_pitch;   // 1行のバイト数
         std::uint32_t slice_pitch; // 全体のバイト数
+
+        MipData(void) = default;
+        MipData(MipData&&) = default;
+        MipData& operator=(MipData&&) = default;
     };
 
     struct TextureData {
@@ -38,6 +42,10 @@ namespace enishi::types {
         std::uint32_t depth;       // 3Dテクスチャ用
         std::uint32_t array_size;  // テクスチャ配列用
         std::vector<MipData> mips; // mips[0]が最大解像度
+
+        TextureData(void) = default;
+        TextureData(TextureData&&) = default;
+        TextureData& operator=(TextureData&&) = default;
 
         // BC圧縮用の format のブロックサイズを返す
         [[nodiscard]]

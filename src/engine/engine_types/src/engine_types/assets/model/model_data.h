@@ -4,9 +4,9 @@
 #include "../texture/texture_data.h"
 #include "addons.h"
 #include "materials.h"
-
 #include <cstdint>
 #include <glm/glm.hpp>
+#include <memory>
 #include <variant>
 #include <vector>
 
@@ -38,6 +38,7 @@ namespace enishi::types {
         IndicesVariant indices;
         std::vector<ModelAddon> addons;
         std::vector<Material> materials;
+        std::unordered_map<std::filesystem::path, std::shared_ptr<TextureData>> textures;
 
         [[nodiscard]] bool is_valid_data(void) const;
 

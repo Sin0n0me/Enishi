@@ -2,6 +2,7 @@
 #include "../../errors/errors.h"
 #include "../../interface_asset_loader.h"
 #include "../../interface_asset_system.h"
+#include "../../texture/texture_loader.h"
 #include "interface_model_loader.h"
 #include "pmd/pmd_data.h"
 #include <engine_types/assets/model/model_data.h>
@@ -12,10 +13,11 @@
 namespace enishi::assets_system {
     class ModelLoader : public IAssetLoader {
       private:
+        std::shared_ptr<TextureLoader> texture_loader;
         std::unordered_map<foundation::UTF8, std::unique_ptr<IModelLoader>> loaders;
 
       public:
-        ModelLoader(void);
+        ModelLoader(std::shared_ptr<TextureLoader> texture_loader);
 
         foundation::Result<AssetData, AssetError> load(
             const std::filesystem::path& path) noexcept override;

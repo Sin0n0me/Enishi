@@ -10,6 +10,8 @@
 namespace enishi::assets_system {
     class TextureLoader : public IAssetLoader {
       private:
+        std::unordered_map<std::filesystem::path, AssetTextureData> cache;
+
       public:
         static void generate_mip_chain(types::TextureData& data);
 

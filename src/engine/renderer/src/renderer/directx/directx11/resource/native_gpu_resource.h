@@ -1,0 +1,38 @@
+#pragma once
+#include "buffer/buffer_pool.h"
+#include "interface_native_resouce_accessor.h"
+#include "shader/shader_pool.h"
+#include "texture/texture_pool.h"
+#include "view/view_pool.h"
+#include <d3d11.h>
+#include <engine_types/handle/handle_type.h>
+#include <unordered_map>
+#include <vector>
+#include <wrl/client.h>
+
+namespace enishi::renderer::directx {
+    namespace {
+        template <typename T> using ResourceMap = std::unordered_map<types::HandleId, T>;
+    }
+
+    class NativeGPUResource : public INativeResourceAccessor {
+      private:
+        ResourceMap<Microsoft::WRL::ComPtr<ID3D11InputLayout>> input_layouts;
+        ResourceMap<Microsoft::WRL::ComPtr<ID3D11RasterizerState>> rasterizers;
+        std::unique_ptr<TexturePool> texture_pool;
+        std::unique_ptr<BufferPool> buffer_pool;
+        std::unique_ptr<ShaderPool> shader_pool;
+        std::unique_ptr<ViewPool> view_pool;
+        std::vector<D3D11_VIEWPORT> viewports;
+
+      public:
+        IBufferAccessor* get_buffer_accessor(void) noexcept override;
+        const IBufferAccessor* get_buffer_accessor(void) const noexcept override;
+        ITextureAccessor* get_texture_accessor(void) noexcept override;
+        const ITextureAccessor* get_texture_accessor(void) const noexcept override;
+        IShaderAccessor* get_shader_accessor(void) noexcept override;
+        const IShaderAccessor* get_shader_accessor(void) const noexcept override;
+        IViewAccessor* get_view_accessor(void) noexcept override;
+        const IViewAccessor* get_view_accessor(void) const noexcept override;
+    };
+} // namespace enishi::renderer::directx

@@ -4,7 +4,8 @@
 #include "../../../errors/errors.h"
 #include "../interface_d3d11_context.h"
 #include "../shader/shader_refrection.h"
-#include "gpu_resource.h"
+#include "interface_native_resouce_accessor.h"
+#include "native_gpu_resource.h"
 #include <engine_types/renderer/mesh_handles.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
@@ -15,38 +16,14 @@ namespace enishi::renderer::directx {
     class ResourceManager : public GPUResourceMaker<DirectXError>,
                             public GPUResourceAccessor<DirectXError> {
       private:
-        enum class ResourceType : std::uint32_t {
-            Mesh,
-            RenderTarget,
-            DrawArgs,
-            ShaderReflection,
-        };
-
-        struct ResourceIndex {
-            ResourceType type;
-            types::HandleId handle_id;
-
-            bool operator==(const ResourceIndex& other) const {
-                return this->type == other.type && this->handle_id == other.handle_id;
-            }
-        };
-
-        struct KeyHash {
-            std::size_t operator()(const ResourceIndex& k) const {
-                constexpr auto SHIFT1 = sizeof(decltype(ResourceIndex::type)) * 8;
-                // constexpr auto SHIFT2 = sizeof(decltype(ResourceIndex::handle_id)) * 8;
-                return k.handle_id | (static_cast<std::size_t>(k.type) << SHIFT1);
-            }
-        };
-
-      private:
         std::unique_ptr<types::HandleAllocator> handle_allocator;
-        std::unique_ptr<GPUResource> native_resource;
+        std::unique_ptr<NativeGPUResource> native_resource;
         std::shared_ptr<ID3D11Context> context;
+        std::unordered_map<types::RenderHandle, std::size_t> handle_to_index;
+
         std::unordered_map<types::HandleId, types::RenderHandleType> handles;
         std::unordered_map<types::HandleId, types::MeshHandles> meshes;
-        std::unordered_map<ResourceIndex, std::size_t, KeyHash> handle_to_index;
-        std::unordered_map<std::size_t, ResourceIndex> hash_to_shader_refection;
+        std::unordered_map<std::size_t, types::RenderHandle> hash_to_shader_refection;
         std::vector<types::MeshHandles> meshes_;
         std::vector<types::DrawArgs> draw_args;
         std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
@@ -58,6 +35,8 @@ namespace enishi::renderer::directx {
       public:
         [[nodiscard]] GPUResourceAccessor<DirectXError>* get_accessor(void);
         [[nodiscard]] const GPUResourceAccessor<DirectXError>* get_accessor(void) const;
+        [[nodiscard]] INativeResourceAccessor* get_native_resource_accessor(void);
+        [[nodiscard]] const INativeResourceAccessor* get_native_resource_accessor(void) const;
 
       public:
         foundation::Result<types::RenderHandle, DirectXError> make_shader_reflection(
@@ -111,19 +90,12 @@ namespace enishi::renderer::directx {
 
       public:
         // TODO: インターフェイス経由
-        [[nodiscard]] foundation::Option<Buffer&> get_buffer(const types::HandleId handle);
-        [[nodiscard]] foundation::Option<const Buffer&> get_buffer(
-            const types::HandleId handle) const;
-        [[nodiscard]] foundation::Option<const Texture&> get_texture(
-            const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RasterizerState>&>
         get_rasterizer(const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
         get_input_layout(const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const types::MeshHandles&> get_mesh(
             const types::HandleId handle) const;
-        [[nodiscard]] const ShaderPool& get_shader_pool(void) const;
-        [[nodiscard]] const ViewPool& get_view_pool(void) const;
         [[nodiscard]] const std::vector<D3D11_VIEWPORT>& get_viewports(void) const;
 
       private:

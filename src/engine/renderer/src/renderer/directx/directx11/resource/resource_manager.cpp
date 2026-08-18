@@ -32,7 +32,7 @@ namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
         : context(context)
         , handle_allocator(std::make_unique<types::HandleAllocator>())
-        , native_resource(std::make_unique<GPUResource>()) {
+        , native_resource(std::make_unique<NativeGPUResource>()) {
     }
 
     GPUResourceAccessor<DirectXError>* ResourceManager::get_accessor(void) {
@@ -41,6 +41,14 @@ namespace enishi::renderer::directx {
 
     const GPUResourceAccessor<DirectXError>* ResourceManager::get_accessor(void) const {
         return this;
+    }
+
+    INativeResourceAccessor* ResourceManager::get_native_resource_accessor(void) {
+        return this->native_resource.get();
+    }
+
+    const INativeResourceAccessor* ResourceManager::get_native_resource_accessor(void) const {
+        return this->native_resource.get();
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_reflection(
@@ -144,6 +152,7 @@ namespace enishi::renderer::directx {
 
         using ReturnType = foundation::Option<IShaderReflection<DirectXError>*>;
 
+        // シェーダーリフレクションから定数バッファやサンプラーなどのバインド位置を取得
         auto reflections =
             shader_reflections |
             std::views::transform([this](const types::RenderHandle& handle) -> ReturnType {
@@ -164,21 +173,34 @@ namespace enishi::renderer::directx {
 
         // 定数バッファ作成
         const auto pre_size = mesh.mesh_handles.size();
-        for (const auto& [name, uniform] : mesh_data.uniforms) {
-            for (auto& [kind, resources] : reflections) {
-                for (auto& resource : resources) {
-                    if (name != resource.name) {
-                        continue;
-                    }
+        for (auto& [kind, resources] : reflections) {
+            for (auto& resource : resources) {
+                switch (resource.type) {
+                    case ShaderInputResourceType::UniformBuffer: {
+                        const auto& iter = mesh_data.uniforms.find(resource.name);
+                        if (iter == mesh_data.uniforms.end()) {
+                            continue;
+                        }
+                        const auto& uniform = iter->second;
 
-                    auto&& result =
-                        this->make_uniform_buffer(uniform.get_render_data(), kind, resource.binding)
-                            .add_message("定数バッファの作成に失敗しました");
-                    if (result.is_err()) {
-                        return std::move(result);
-                    }
+                        auto&& result = this->make_uniform_buffer(
+                                                uniform.get_render_data(), kind, resource.binding)
+                                            .add_message("定数バッファの作成に失敗しました");
+                        if (result.is_err()) {
+                            return result;
+                        }
 
-                    mesh.mesh_handles.emplace_back(result.unwrap());
+                        mesh.mesh_handles.emplace_back(result.unwrap());
+                    } break;
+                    case ShaderInputResourceType::Texture: {
+                        // this->make_texture();
+                    } break;
+                    case ShaderInputResourceType::Sampler: {
+                        // this->make_sampler();
+                    } break;
+                    default:
+                        foundation::Logger::warning("未対応のリソースです");
+                        break;
                 }
             }
         }
@@ -249,19 +271,21 @@ namespace enishi::renderer::directx {
             .target_slot = 0,
         }};
 
+        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
+        const auto [index, buffer] = buffer_accessor->make_buffer();
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
+        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "頂点バッファの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator->create();
-        this->native_resource->buffers.emplace(handle, buffer);
-
-        return types::RenderHandle{
-            .id = handle,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
+        this->handle_to_index[handle] = index;
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_index_buffer(
@@ -291,20 +315,23 @@ namespace enishi::renderer::directx {
         }(data.stride);
 
         Buffer buffer{IndexParameter{.format = format}};
+
+        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
+        const auto [index, buffer] = buffer_accessor->make_buffer();
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
+        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
                 DirectXError::BufferError, "インデックスバッファの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator->create();
-        this->native_resource->buffers.emplace(handle_id, buffer);
-
-        return types::RenderHandle{
-            .id = handle_id,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
+        this->handle_to_index[handle] = index;
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_uniform_buffer(
@@ -327,19 +354,21 @@ namespace enishi::renderer::directx {
             .target_shader = target_shader,
             .target_slot = target_slot,
         }};
+        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
+        const auto [index, buffer] = buffer_accessor->make_buffer();
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.buffer.GetAddressOf());
+        const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "定数バッファの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator->create();
-        this->native_resource->buffers.emplace(handle_id, buffer);
-
-        return types::RenderHandle{
-            .id = handle_id,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
+        this->handle_to_index[handle] = index;
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError>
@@ -365,20 +394,21 @@ namespace enishi::renderer::directx {
         Texture texture{
             .texture_type = TextureType::Texture2D,
         };
+        const auto buffer_accessor = this->native_resource->get_texture_accessor();
+        const auto [index, texture] = buffer_accessor->make();
         const auto device = this->context->get_device();
-        const HRESULT hr =
-            device->CreateTexture2D(&desc, &subresource, texture.texture.GetAddressOf());
+        const HRESULT hr = device->CreateTexture2D(&desc, &subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(DirectXError::BufferError, "テクスチャの作成に失敗しました");
         }
 
-        const auto handle_id = this->handle_allocator->create();
-        this->native_resource->textures.emplace(handle_id, texture);
-
-        return types::RenderHandle{
-            .id = handle_id,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Texture,
         };
+        this->handle_to_index[handle] = index;
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_image(
@@ -703,7 +733,6 @@ namespace enishi::renderer::directx {
     }
 
     foundation::VoidResult<DirectXError> ResourceManager::make_pixel_shader(
-
         const types::ShaderData& shader_data, const types::HandleId handle) {
         auto& shader_pool = this->native_resource->shaders;
 

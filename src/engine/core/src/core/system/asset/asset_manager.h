@@ -62,12 +62,23 @@ namespace enishi::core {
         foundation::UTF8 script_extensions_pattern(void) const noexcept override;
 
       public:
+        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;
         void render(void) const override;
 
       private:
+        template <typename T, typename... Args>
+        std::shared_ptr<T> add_loader(const assets_system::AssetType asset_type, Args&&... args) {
+            auto loader = std::make_shared<T>(args...);
+            for (const auto& extension : loader->get_supported_extension()) {
+                this->extension_to_loader[extension].emplace_back(loader);
+            }
+            this->asset_type_to_loader[asset_type] = loader;
+            return loader;
+        }
+
         template <typename T>
         foundation::Result<types::HandleId, SystemError> register_asset(T&& data) noexcept {
             const auto id = this->asset_registory.create();
@@ -102,8 +113,5 @@ namespace enishi::core {
 
         static std::unordered_set<std::filesystem::path> convert_hash_set(
             const std::vector<foundation::UTF8>& extensions) noexcept;
-
-        // ISystem を介して継承されました
-        bool should_close(void) override;
     };
 } // namespace enishi::core

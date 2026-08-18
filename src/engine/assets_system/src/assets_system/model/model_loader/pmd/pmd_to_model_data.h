@@ -1,6 +1,7 @@
 #pragma once
 #include "../../../errors/errors.h"
 #include "../../../interface_asset_system.h"
+#include "../../../texture/texture_loader.h"
 #include "../../bone/bone_resolver.h"
 #include "../../morph/morph_resolver.h"
 #include "pmd_data.h"
@@ -17,7 +18,9 @@ namespace enishi::assets_system {
 
       public:
         static foundation::Result<AssetModelData, AssetError> to_model_data(
-            const std::filesystem::path& path, const PMDData& data);
+            const std::filesystem::path& path,
+            const PMDData& data,
+            TextureLoader* const texture_loader);
 
       private:
         [[nodiscard]] static std::tuple<std::vector<types::Bone>, BoneResolver> make_bone(
@@ -53,5 +56,9 @@ namespace enishi::assets_system {
 
         [[nodiscard]] static types::RigidBodyType make_rigid_body_type_from_pmd(
             const PMDRigidBody& rigid_body);
+
+        [[nodiscard]] static std::unordered_map<std::filesystem::path, AssetTextureData>
+        make_textures(
+            const std::vector<types::Material>& materials, TextureLoader* const texture_loader);
     };
 } // namespace enishi::assets_system

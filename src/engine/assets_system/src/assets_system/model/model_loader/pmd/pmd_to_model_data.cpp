@@ -8,7 +8,9 @@
 
 namespace enishi::assets_system {
     foundation::Result<AssetModelData, AssetError> PMDToModelData::to_model_data(
-        const std::filesystem::path& path, const PMDData& data) {
+        const std::filesystem::path& path,
+        const PMDData& data,
+        TextureLoader* const texture_loader) {
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
         auto&& utf8_name = foundation::sjis_to_utf8(sjis_name);
@@ -29,6 +31,9 @@ namespace enishi::assets_system {
 
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
         auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
+        auto materials =
+            PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
+        auto textures = PMDToModelData::make_textures(materials, texture_loader);
 
         return std::make_shared<types::ModelData>(types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
@@ -43,10 +48,9 @@ namespace enishi::assets_system {
                     PMDToModelData::make_rigid_bodies(data.rigid_bodies),
                     PMDToModelData::make_joints(data.physics_joints),
                 },
-            .materials =
-                PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures),
+            .materials = std::move(materials),
+            .textures = std::move(textures),
         });
-        ;
     }
 
     std::tuple<std::vector<types::Bone>, BoneResolver> PMDToModelData::make_bone(
@@ -99,7 +103,7 @@ namespace enishi::assets_system {
                 auto& parent = bone_data[parent_index];
                 dst_bone.bind_bone.global = parent.bind_bone.global * dst_bone.bind_bone.local;
                 dst_bone.bone_node.parent = parent_index;
-                parent.bone_node.children.push_back(bone_index);
+                parent.bone_node.children.emplace_back(bone_index);
             }
 
             // 逆変換
@@ -451,5 +455,27 @@ namespace enishi::assets_system {
         }
 
         return types::RigidBodyType::Dynamic;
+    }
+
+    std::unordered_map<std::filesystem::path, AssetTextureData> PMDToModelData::make_textures(
+        const std::vector<types::Material>& materials, TextureLoader* const texture_loader) {
+        std::unordered_map<std::filesystem::path, AssetTextureData> textures;
+
+        for (const auto& material : materials) {
+            for (const auto& path : material.texture_paths) {
+                auto result = texture_loader->load(path);
+                if (result.is_err()) {
+                    return {};
+                }
+
+                auto texture_data = std::get_if<AssetTextureData>(&result.unwrap_mut());
+                if (!bool(texture_data)) {
+                    return {}; // 本来は到達しない
+                }
+                textures.emplace(path, std::move(*texture_data));
+            }
+        }
+
+        return textures;
     }
 } // namespace enishi::assets_system

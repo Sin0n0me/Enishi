@@ -23,7 +23,7 @@ namespace enishi::renderer::directx {
         std::vector<ShaderInputResource> input_resources;
 
       public:
-        ShaderReflection(void) noexcept = default;
+        ShaderReflection(void) noexcept;
         ShaderReflection(ShaderReflection&&) noexcept = default;
         ShaderReflection& operator=(ShaderReflection&&) noexcept = default;
 

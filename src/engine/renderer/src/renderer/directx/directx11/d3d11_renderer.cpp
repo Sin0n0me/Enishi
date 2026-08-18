@@ -234,6 +234,13 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_texture(const types::HandleId id) const {
+        // const auto& sampler = this->resource_manager->get_sampler(id);
+
+        const auto context = this->d3d11->get_context();
+        // context->VSSetShaderResources(slot, 1, .GetAddressOf());
+        // context->VSSetSamplers(slot, 1, .GetAddressOf());
+        // context->PSSetShaderResources(slot, 1, .GetAddressOf());
+        // context->PSSetSamplers(slot, 1, .GetAddressOf());
     }
 
     void D3D11Renderer::bind_view(const types::HandleId id) const {
@@ -348,12 +355,12 @@ namespace enishi::renderer::directx {
             if (argument->instance_count > 1) {
                 context->DrawIndexedInstanced(argument->index_count,
                     argument->instance_count,
-                    argument->first_index,
                     argument->vertex_offset,
+                    argument->first_index,
                     argument->first_instance);
             } else {
                 context->DrawIndexed(
-                    argument->index_count, argument->first_index, argument->vertex_offset);
+                    argument->index_count, argument->vertex_offset, argument->first_index);
             }
         }
     }

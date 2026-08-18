@@ -6,6 +6,12 @@
 namespace enishi::assets_system {
     foundation::Result<AssetData, AssetError> TextureLoader::load(
         const std::filesystem::path& path) noexcept {
+        // キャッシュがあれば使用
+        const auto iter = this->cache.find(path.lexically_normal());
+        if (iter != this->cache.end()) {
+            return AssetData{iter->second};
+        }
+
         // TODO
         const bool force_srgb = false;
 
@@ -31,12 +37,11 @@ namespace enishi::assets_system {
         // ミップレベル0(元画像)
         const std::uint32_t row_pitch = data->width * 4;
         const std::uint32_t slice_pitch = row_pitch * data->height;
-        types::MipData mip0{
-            .width = data->width,
-            .height = data->height,
-            .row_pitch = row_pitch,
-            .slice_pitch = slice_pitch,
-        };
+        types::MipData mip0;
+        mip0.width = data->width;
+        mip0.height = data->height;
+        mip0.row_pitch = row_pitch;
+        mip0.slice_pitch = slice_pitch;
         mip0.pixels.assign(pixels, pixels + slice_pitch);
         data->mips.push_back(std::move(mip0));
 
@@ -76,13 +81,13 @@ namespace enishi::assets_system {
             mip_height = std::max(1u, mip_height / 2);
 
             const auto& prev_mip = data.mips.back();
-            types::MipData mip{
-                .pixels = decltype(types::MipData::pixels)(mip.slice_pitch),
-                .width = mip_width,
-                .height = mip_height,
-                .row_pitch = mip_width * 4,
-                .slice_pitch = mip.row_pitch * mip_height,
-            };
+            const auto slice_pitch = mip_width * 4 * mip_height;
+            types::MipData mip;
+            mip.pixels = decltype(types::MipData::pixels)(slice_pitch);
+            mip.width = mip_width;
+            mip.height = mip_height;
+            mip.row_pitch = mip_width * 4;
+            mip.slice_pitch = slice_pitch;
 
             // 2×2ボックスフィルタで縮小
             for (std::uint32_t y = 0; y < mip_height; ++y) {

@@ -5,7 +5,8 @@
 #include "pmd/pmd_to_model_data.h"
 
 namespace enishi::assets_system {
-    ModelLoader::ModelLoader(void) {
+    ModelLoader::ModelLoader(std::shared_ptr<TextureLoader> texture_loader)
+        : texture_loader(texture_loader) {
         std::vector<std::unique_ptr<IModelLoader>> loaders;
         loaders.push_back(std::make_unique<PMDModelLoader>());
 
@@ -36,8 +37,9 @@ namespace enishi::assets_system {
         auto&& model_data = load_data.unwrap_mut();
 
         if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
-            auto&& convert_data = PMDToModelData::to_model_data(path, *pmd_data->get())
-                                      .add_message("データの変換に失敗しました");
+            auto&& convert_data =
+                PMDToModelData::to_model_data(path, *pmd_data->get(), this->texture_loader.get())
+                    .add_message("データの変換に失敗しました");
             if (convert_data.is_err()) {
                 return convert_data;
             }
