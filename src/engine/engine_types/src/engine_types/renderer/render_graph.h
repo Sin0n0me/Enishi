@@ -1,21 +1,10 @@
 #pragma once
 #include "../handle/renderer/render_handle.h"
 #include "uniform_buffer/camera.h"
+#include <engine_types/renderer/command/draw_command.h>
 #include <glm/glm.hpp>
 
 namespace enishi::types {
-    enum class SubCommand {
-        Bind,   // リソースのバインド
-        Unbind, // リソースのアンバインド
-        Nop,    // 何も実行しない(デバッグ用など)
-        Clear,
-    };
-
-    struct DrawCommand {
-        RenderHandle handle;
-        SubCommand sub_command;
-    };
-
     struct RenderPass {
         RenderHandle render_target; // NullHandle でスワップチェーンに描く
         std::vector<DrawCommand> commands;

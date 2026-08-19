@@ -45,7 +45,6 @@ namespace enishi::types {
             .vertices = this->to_vertices(),
             .indices = this->to_indices(),
             .uniforms = this->to_uniforms(uniform_separator),
-            .draw_args = this->to_draw_args(),
         };
     }
 
@@ -160,6 +159,7 @@ namespace enishi::types {
         }
     }
 
+    /*
     std::vector<DrawArgs> ModelData::to_draw_args(void) const {
         std::vector<DrawArgs> draw_args;
 
@@ -217,4 +217,5 @@ namespace enishi::types {
 
         return draw_args;
     }
+    */
 } // namespace enishi::types

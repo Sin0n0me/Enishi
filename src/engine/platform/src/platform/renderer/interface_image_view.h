@@ -52,6 +52,6 @@ namespace enishi::platform {
     class IUnorderedAccessView : public IImageView {
       public:
         [[nodiscard]]
-        virtual uint32_t mip_level(void) const noexcept = 0;
+        virtual std::uint32_t mip_level(void) const noexcept = 0;
     };
 } // namespace enishi::platform

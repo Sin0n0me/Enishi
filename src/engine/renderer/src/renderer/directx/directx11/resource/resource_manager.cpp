@@ -1,6 +1,6 @@
 #include "resource_manager.h"
 #include "../d3d11_converter.h"
-#include "../view/render_target_view.h"
+#include "view/render_target_view.h"
 #include <foundation/log/logger.h>
 
 namespace enishi::renderer::directx {
@@ -32,15 +32,17 @@ namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
         : context(context)
         , handle_allocator(std::make_unique<types::HandleAllocator>())
-        , native_resource(std::make_unique<NativeGPUResource>()) {
+        , native_resource(std::make_unique<NativeGPUResource>())
+        , resource_binder(std::make_unique<ResourceBinder>()) {
     }
 
-    GPUResourceAccessor<DirectXError>* ResourceManager::get_accessor(void) {
-        return this;
-    }
-
-    const GPUResourceAccessor<DirectXError>* ResourceManager::get_accessor(void) const {
-        return this;
+    foundation::Option<const decltype(ResourceManager::handle_to_index)::value_type::second_type&>
+    ResourceManager::get_native_resource_index(const types::RenderHandle& handle) const noexcept {
+        const auto& iter = this->handle_to_index.find(handle);
+        if (iter == this->handle_to_index.end()) {
+            return {};
+        }
+        return iter->second;
     }
 
     INativeResourceAccessor* ResourceManager::get_native_resource_accessor(void) {
@@ -51,36 +53,33 @@ namespace enishi::renderer::directx {
         return this->native_resource.get();
     }
 
+    IResourceBinder* ResourceManager::get_resource_binder(void) {
+        return this->resource_binder.get();
+    }
+
+    const IResourceBinder* ResourceManager::get_resource_binder(void) const {
+        return this->resource_binder.get();
+    }
+
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_reflection(
         const types::ShaderData& shader_data) {
-        const auto iter = this->hash_to_shader_refection.find(shader_data.hash());
-        if (iter != this->hash_to_shader_refection.end()) {
-            // return iter->second->;
-        }
-
-        auto reflection = std::make_shared<ShaderReflection>();
-        if (!bool(reflection)) {
-            return foundation::Error(DirectXError::ShaderReflectionError);
-        }
-
+        const auto shader_accessor = this->native_resource->get_native_shader_accessor();
+        const auto [resource_index, shader_reflection] = shader_accessor->make_shader_reflection();
         auto result =
-            reflection->load(shader_data).add_message("シェーダーの読み込みに失敗しました");
+            shader_reflection->load(shader_data).add_message("シェーダーの読み込みに失敗しました");
         if (result.is_err()) {
             return result.propagation(DirectXError::ShaderReflectionError);
         }
 
-        const auto handle_id = this->handle_allocator->create();
-        this->handle_to_index[ResourceIndex{
-            .type = ResourceType::ShaderReflection,
-            .handle_id = handle_id,
-        }] = this->shader_refections.size();
-
-        this->shader_refections.emplace_back(reflection);
-
-        return types::RenderHandle{
-            .id = handle_id,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::ShaderReflection,
         };
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+        };
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError>
@@ -105,7 +104,9 @@ namespace enishi::renderer::directx {
                                         return D3D11Converter::to_input_element_description(info);
                                     }) |
                                     std::ranges::to<std::vector>();
-        Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
+
+        const auto [resource_index, input_layout] =
+            this->native_resource->get_native_input_layout_accessor()->make_native_input_layout();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateInputLayout(input_elements.data(),
             static_cast<uint32_t>(input_elements.size()),
@@ -117,13 +118,15 @@ namespace enishi::renderer::directx {
                 DirectXError::InputLayoutError, "InputLayoutの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator->create();
-        this->native_resource->input_layouts.emplace(handle, input_layout);
-
-        return types::RenderHandle{
-            .id = handle,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::VertexLayout,
         };
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+        };
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_mesh(
@@ -210,6 +213,7 @@ namespace enishi::renderer::directx {
         }
 
         // マテリアル
+        /*
         for (auto& argument : mesh_data.draw_args) {
             auto&& result = this->make_draw_args(std::move(argument))
                                 .add_message("描画引数の作成に失敗しました");
@@ -218,6 +222,7 @@ namespace enishi::renderer::directx {
             }
             mesh.mesh_handles.emplace_back(result.unwrap());
         }
+        */
 
         const types::HandleId handle = this->handle_allocator->create();
 
@@ -265,25 +270,29 @@ namespace enishi::renderer::directx {
             .pSysMem = data.raw_data(),
         };
 
-        Buffer buffer{VertexParameter{
-            .stride = data.stride,
-            .offset = 0,
-            .target_slot = 0,
-        }};
-
-        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
-        const auto [index, buffer] = buffer_accessor->make_buffer();
+        const auto buffer_accessor = this->native_resource->get_native_buffer_accessor();
+        const auto [resource_index, buffer] = buffer_accessor->make_native_buffer();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "頂点バッファの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
+        binding.parameter = VertexBufferParameter{
+            .target = 0, // 仮
+            .stride = data.stride,
+            .offset = 0,
+        };
+
         const auto handle = types::RenderHandle{
             .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
-        this->handle_to_index[handle] = index;
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .binding = binding_index,
+        };
 
         return handle;
     }
@@ -300,24 +309,8 @@ namespace enishi::renderer::directx {
             .pSysMem = data.raw_data(),
         };
 
-        const DXGI_FORMAT format = [](const std::uint32_t stride) -> DXGI_FORMAT {
-            switch (stride) {
-                case 1:
-                    return DXGI_FORMAT::DXGI_FORMAT_R8_UINT;
-                case 2:
-                    return DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
-                case 4:
-                    return DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
-                default:
-                    break;
-            }
-            return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
-        }(data.stride);
-
-        Buffer buffer{IndexParameter{.format = format}};
-
-        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
-        const auto [index, buffer] = buffer_accessor->make_buffer();
+        const auto buffer_accessor = this->native_resource->get_native_buffer_accessor();
+        const auto [resource_index, buffer] = buffer_accessor->make_native_buffer();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
@@ -325,11 +318,20 @@ namespace enishi::renderer::directx {
                 DirectXError::BufferError, "インデックスバッファの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
+        binding.parameter = IndexBufferParameter{
+            .stride = data.stride,
+            .offset = 0,
+        };
+
         const auto handle = types::RenderHandle{
             .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
-        this->handle_to_index[handle] = index;
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .binding = binding_index,
+        };
 
         return handle;
     }
@@ -350,23 +352,28 @@ namespace enishi::renderer::directx {
             .SysMemSlicePitch = data.stride,
         };
 
-        Buffer buffer{UniformParameter{
-            .target_shader = target_shader,
-            .target_slot = target_slot,
-        }};
-        const auto buffer_accessor = this->native_resource->get_buffer_accessor();
-        const auto [index, buffer] = buffer_accessor->make_buffer();
+        const auto buffer_accessor = this->native_resource->get_native_buffer_accessor();
+        const auto [resource_index, buffer] = buffer_accessor->make_native_buffer();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(DirectXError::BufferError, "定数バッファの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
+        binding.parameter = UniformBufferParameter{
+            .target = target_slot,
+            .target_shader = target_shader,
+        };
+
         const auto handle = types::RenderHandle{
             .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Buffer,
         };
-        this->handle_to_index[handle] = index;
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .binding = binding_index,
+        };
 
         return handle;
     }
@@ -391,22 +398,25 @@ namespace enishi::renderer::directx {
         };
 
         // 先に作成
-        Texture texture{
-            .texture_type = TextureType::Texture2D,
-        };
-        const auto buffer_accessor = this->native_resource->get_texture_accessor();
-        const auto [index, texture] = buffer_accessor->make();
+        const auto buffer_accessor = this->native_resource->get_native_texture_accessor();
+        const auto [resource_index, texture] = buffer_accessor->make_native_texture_2d();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateTexture2D(&desc, &subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(DirectXError::BufferError, "テクスチャの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_texture_binding();
+        binding.target = 0;
+
         const auto handle = types::RenderHandle{
             .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Texture,
         };
-        this->handle_to_index[handle] = index;
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .binding = binding_index,
+        };
 
         return handle;
     }
@@ -414,35 +424,37 @@ namespace enishi::renderer::directx {
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_image(
         const types::ImageDescription& description) {
         // 先に作成
-        Texture texture{
-            .texture_type = TextureType::Texture2D,
-        };
+        const auto buffer_accessor = this->native_resource->get_native_texture_accessor();
+        const auto [resource_index, texture] = buffer_accessor->make_native_texture_2d();
         const auto desc = D3D11Converter::to_texture2d_desc(description);
 
         if (description.contains(types::ImageUsage::BackBuffer)) {
             const auto swap_chain = this->context->get_swap_chain();
-            const HRESULT hr =
-                swap_chain->GetBuffer(0, IID_PPV_ARGS(texture.texture.GetAddressOf()));
+            const HRESULT hr = swap_chain->GetBuffer(0, IID_PPV_ARGS(texture.GetAddressOf()));
             if (FAILED(hr)) {
                 return foundation::Error(
                     DirectXError::BufferError, "バックバッファの取得に失敗しました");
             }
         } else {
             const auto device = this->context->get_device();
-            const HRESULT hr =
-                device->CreateTexture2D(&desc, nullptr, texture.texture.GetAddressOf());
+            const HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.GetAddressOf());
             if (FAILED(hr)) {
                 return foundation::Error(DirectXError::BufferError, "イメージの作成に失敗しました");
             }
         }
 
-        const types::HandleId handle = this->handle_allocator->create();
-        this->native_resource->textures.emplace(handle, texture);
+        const auto [binding_index, binding] = this->resource_binder->make_texture_binding();
 
-        return types::RenderHandle{
-            .id = handle,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Texture,
         };
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .binding = binding_index,
+        };
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_blend_state() {
@@ -457,7 +469,8 @@ namespace enishi::renderer::directx {
         const types::RasterizerDescription& description) {
         const auto desc = D3D11Converter::to_rasterizer_desc(description);
 
-        Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer;
+        const auto [resource_index, rasterizer] =
+            this->native_resource->get_native_rasterizer_accessor()->make_native_rasterizer();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateRasterizerState(&desc, rasterizer.GetAddressOf());
         if (FAILED(hr)) {
@@ -465,187 +478,63 @@ namespace enishi::renderer::directx {
                 DirectXError::RasterizerError, "ラスタライザの作成に失敗しました");
         }
 
-        const types::HandleId handle = this->handle_allocator->create();
-        this->native_resource->rasterizers.emplace(handle, rasterizer);
-
-        return types::RenderHandle{
-            .id = handle,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Rasterizer,
         };
-    }
-
-    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_render_target_view(
-        const types::RenderHandle& image_handle, const types::ImageViewDescription& description) {
-        // テクスチャから
-        if (image_handle.type != types::RenderHandleType::Texture) {
-            return foundation::Error(DirectXError::TargetError, "不正なテクスチャハンドルです");
-        }
-
-        const auto iter = this->native_resource->textures.find(image_handle.id);
-        if (iter == this->native_resource->textures.end()) {
-            return foundation::Error(DirectXError::TargetError, "イメージが見つかりませんでした");
-        }
-        const auto& texture = iter->second.texture;
-
-        // 先にリソースの作成
-        const types::HandleId handle_id = this->handle_allocator->create();
-        auto result =
-            this->native_resource->views.create(handle_id, types::ImageViewType::RenderTarget);
-        if (result.is_err()) {
-            return result.propagation(DirectXError::TargetError);
-        }
-        const auto handle = types::RenderHandle{
-            .id = handle_id,
-            .type = types::RenderHandleType::View,
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
         };
-
-        // RenderTargetViewの作成
-        auto opt_rtv = this->native_resource->views.get_render_target_view(handle_id);
-        if (opt_rtv.is_none()) {
-            return foundation::Error(DirectXError::TargetError);
-        }
-        auto& rtv = opt_rtv.unwrap_mut();
-        const auto device = this->context->get_device();
-        const HRESULT hr =
-            device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());
-        if (FAILED(hr)) {
-            return foundation::Error(
-                DirectXError::TargetError, "レンダーターゲットの作成に失敗しました");
-        }
-
-        // 外部変更用のレンダーターゲットの作成
-        this->handle_to_index[ResourceIndex{
-            .type = ResourceType::RenderTarget,
-            .handle_id = handle.id,
-        }] = this->render_targets.size();
-        this->render_targets.emplace_back(std::make_shared<RenderTargetView>(handle, description));
 
         return handle;
     }
 
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_view(
+        const types::RenderHandle& image_handle, const types::ImageViewDescription& description) {
+        // テクスチャから
+        auto opt_index = this->get_native_resource_index(image_handle);
+        if (opt_index.is_none()) {
+            return foundation::Error(DirectXError::ViewError, "イメージが見つかりませんでした");
+        }
+        const auto& index = opt_index.unwrap();
+
+        switch (description.type) {
+            case types::ImageViewType::DepthStencil:
+                return this->make_depth_stencil(index, description);
+            case types::ImageViewType::RenderTarget:
+                return this->make_render_target(index, description);
+            case types::ImageViewType::ShaderResource:
+                return this->make_shader_resource(index, description);
+            case types::ImageViewType::UnorderedAccess:
+                return this->make_unodered_access(index, description);
+            default:
+                break;
+        }
+
+        return foundation::Error(DirectXError::ViewError, "対応していないフォーマットです");
+    }
+
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_viewport(
         const types::ViewportRect& config) {
-        const auto id = this->native_resource->viewports.size();
-        this->native_resource->viewports.emplace_back(D3D11_VIEWPORT{
-            .TopLeftX = static_cast<FLOAT>(config.left_top_x),
-            .TopLeftY = static_cast<FLOAT>(config.left_top_y),
-            .Width = static_cast<FLOAT>(config.width),
-            .Height = static_cast<FLOAT>(config.height),
-            .MinDepth = static_cast<FLOAT>(config.min_depth),
-            .MaxDepth = static_cast<FLOAT>(config.max_depth),
-        });
+        const auto viewport_accessor = this->native_resource->get_native_viewport_accessor();
+        const auto [resource_index, viewport] = viewport_accessor->make_native_viewport();
 
-        return types::RenderHandle{
-            .id = static_cast<types::HandleId>(id),
+        viewport.TopLeftX = static_cast<FLOAT>(config.left_top_x);
+        viewport.TopLeftY = static_cast<FLOAT>(config.left_top_y);
+        viewport.Width = static_cast<FLOAT>(config.width);
+        viewport.Height = static_cast<FLOAT>(config.height);
+        viewport.MinDepth = static_cast<FLOAT>(config.min_depth);
+        viewport.MaxDepth = static_cast<FLOAT>(config.max_depth);
+
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::ViewPort,
         };
-    }
-
-    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_draw_args(
-        types::DrawArgs&& args) {
-        const auto handle_id = this->handle_allocator->create();
-        this->handle_to_index[ResourceIndex{
-            .type = ResourceType::DrawArgs,
-            .handle_id = handle_id,
-        }] = this->draw_args.size();
-
-        this->draw_args.emplace_back(std::move(args));
-
-        return types::RenderHandle{
-            .id = handle_id,
-            .type = types::RenderHandleType::Draw,
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
         };
-    }
 
-    foundation::Option<std::shared_ptr<platform::IRenderTargetView>>
-    ResourceManager::get_render_target(const types::HandleId handle) const {
-        return get_value(this->render_targets,
-            this->get_index(ResourceIndex{
-                .type = ResourceType::RenderTarget,
-                .handle_id = handle,
-            }));
-    }
-
-    const std::vector<std::shared_ptr<platform::IRenderTargetView>>&
-    ResourceManager::get_render_targets(void) const {
-        return this->render_targets;
-    }
-
-    foundation::Option<const types::DrawArgs&> ResourceManager::get_draw_args(
-        const types::HandleId handle) const {
-        return get_value(this->draw_args,
-            this->get_index(ResourceIndex{
-                .type = ResourceType::DrawArgs,
-                .handle_id = handle,
-            }));
-    }
-
-    foundation::Option<types::DrawArgs&> ResourceManager::get_draw_args(
-        const types::HandleId handle) {
-        return get_value(this->draw_args,
-            this->get_index(ResourceIndex{
-                .type = ResourceType::DrawArgs,
-                .handle_id = handle,
-            }));
-    }
-
-    foundation::Option<const IShaderReflection<DirectXError>*>
-    ResourceManager::get_shader_reflection(const types::HandleId handle) const {
-        return get_value(this->shader_refections,
-            this->get_index(ResourceIndex{
-                .type = ResourceType::ShaderReflection,
-                .handle_id = handle,
-            }))
-            .transform([](decltype(ResourceManager::shader_refections)::value_type reflection) {
-                return reflection.get();
-            });
-    }
-
-    foundation::Option<IShaderReflection<DirectXError>*> ResourceManager::get_shader_reflection(
-        const types::HandleId handle) {
-        return get_value(this->shader_refections,
-            this->get_index(ResourceIndex{
-                .type = ResourceType::ShaderReflection,
-                .handle_id = handle,
-            }))
-            .transform([](decltype(ResourceManager::shader_refections)::value_type reflection) {
-                return reflection.get();
-            });
-    }
-
-    foundation::Option<Buffer&> ResourceManager::get_buffer(const types::HandleId handle) {
-        const auto& iter = this->native_resource->buffers.find(handle);
-        if (iter == this->native_resource->buffers.end()) {
-            return {};
-        }
-        return iter->second;
-    }
-
-    foundation::Option<const Buffer&> ResourceManager::get_buffer(
-        const types::HandleId handle) const {
-        const auto& iter = this->native_resource->buffers.find(handle);
-        if (iter == this->native_resource->buffers.end()) {
-            return {};
-        }
-        return iter->second;
-    }
-
-    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RasterizerState>&>
-    ResourceManager::get_rasterizer(const types::HandleId handle) const {
-        const auto& iter = this->native_resource->rasterizers.find(handle);
-        if (iter == this->native_resource->rasterizers.end()) {
-            return {};
-        }
-        return iter->second;
-    }
-
-    foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
-    ResourceManager::get_input_layout(const types::HandleId handle) const {
-        const auto& iter = this->native_resource->input_layouts.find(handle);
-        if (iter == this->native_resource->input_layouts.end()) {
-            return {};
-        }
-        return iter->second;
+        return handle;
     }
 
     foundation::Option<const types::MeshHandles&> ResourceManager::get_mesh(
@@ -657,103 +546,187 @@ namespace enishi::renderer::directx {
         return iter->second;
     }
 
-    const ShaderPool& ResourceManager::get_shader_pool(void) const {
-        return this->native_resource->shaders;
-    }
-
-    const ViewPool& ResourceManager::get_view_pool(void) const {
-        return this->native_resource->views;
-    }
-
-    const std::vector<D3D11_VIEWPORT>& ResourceManager::get_viewports(void) const {
-        return this->native_resource->viewports;
-    }
-
-    foundation::Option<std::size_t> ResourceManager::get_index(const ResourceIndex& index) const {
-        const auto& iter = this->handle_to_index.find(index);
-        if (iter == this->handle_to_index.end()) {
-            return {};
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_render_target(
+        const ResourceIndex image_index, const types::ImageViewDescription& description) {
+        const auto texture_accessor = this->native_resource->get_native_texture_accessor();
+        const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
+        if (opt_texture.is_none()) {
+            return foundation::Error(DirectXError::ViewError, "イメージが見つかりませんでした");
         }
-        return iter->second;
+        const auto& texture = opt_texture.unwrap();
+
+        // RenderTargetViewの作成
+        const auto [resource_index, rtv] =
+            this->native_resource->get_native_view_accessor()->make_native_render_target_view();
+        const auto device = this->context->get_device();
+        const HRESULT hr =
+            device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(
+                DirectXError::ViewError, "レンダーターゲットの作成に失敗しました");
+        }
+
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
+            .type = types::RenderHandleType::View,
+        };
+
+        // 外部変更用のビューの作成
+        const auto configurable_index =
+            this->native_resource->get_view_accessor()->make_render_target_view(
+                std::make_shared<RenderTargetView>(handle, description));
+
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .configurable = configurable_index,
+        };
+
+        return handle;
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_depth_stencil(
+        const ResourceIndex image_index, const types::ImageViewDescription& description) {
+        const auto texture_accessor = this->native_resource->get_native_texture_accessor();
+        const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
+        if (opt_texture.is_none()) {
+            return foundation::Error(DirectXError::ViewError, "イメージが見つかりませんでした");
+        }
+        const auto& texture = opt_texture.unwrap();
+
+        // DepthStencilViewの作成
+        const auto [resource_index, dsv] =
+            this->native_resource->get_native_view_accessor()->make_native_depth_stencil_view();
+        const auto device = this->context->get_device();
+        const HRESULT hr =
+            device->CreateDepthStencilView(texture.Get(), nullptr, dsv.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(DirectXError::ViewError, "深度ステンシルの作成に失敗しました");
+        }
+
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
+            .type = types::RenderHandleType::View,
+        };
+
+        // 外部変更用のビューの作成
+        const auto configurable_index =
+            this->native_resource->get_view_accessor()->make_depth_stencil_view(
+                std::make_shared<DepthStencilView>(handle, description));
+
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .configurable = configurable_index,
+        };
+
+        return handle;
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_resource(
+        const ResourceIndex image_index, const types::ImageViewDescription& description) {
+        const auto texture_accessor = this->native_resource->get_native_texture_accessor();
+        const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
+        if (opt_texture.is_none()) {
+            return foundation::Error(DirectXError::ViewError, "イメージが見つかりませんでした");
+        }
+        const auto& texture = opt_texture.unwrap();
+
+        // ShaderResourceViewの作成
+        const auto [resource_index, srv] =
+            this->native_resource->get_native_view_accessor()->make_native_shader_resource_view();
+        const auto device = this->context->get_device();
+        const HRESULT hr =
+            device->CreateShaderResourceView(texture.Get(), nullptr, srv.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(
+                DirectXError::ViewError, "シェーダーリソースの作成に失敗しました");
+        }
+
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
+            .type = types::RenderHandleType::View,
+        };
+
+        // 外部変更用のビューの作成
+        const auto configurable_index =
+            this->native_resource->get_view_accessor()->make_render_target_view(
+                std::make_shared<RenderTargetView>(handle, description));
+
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .configurable = configurable_index,
+        };
+
+        return handle;
+    }
+
+    foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_unodered_access(
+        const ResourceIndex image_index, const types::ImageViewDescription& description) {
+        const auto texture_accessor = this->native_resource->get_native_texture_accessor();
+        const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
+        if (opt_texture.is_none()) {
+            return foundation::Error(DirectXError::ViewError, "イメージが見つかりませんでした");
+        }
+        const auto& texture = opt_texture.unwrap();
+
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
+            .type = types::RenderHandleType::View,
+        };
+
+        // 外部変更用のビューの作成
+        const auto configurable_index =
+            this->native_resource->get_view_accessor()->make_render_target_view(
+                std::make_shared<RenderTargetView>(handle, description));
+
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
+            .configurable = configurable_index,
+        };
+
+        return handle;
     }
 
     foundation::Result<types::RenderHandle, DirectXError> ResourceManager::make_shader_from_dxbc(
         const types::ShaderKind kind, const types::ShaderData& shader_data) {
-        const auto handle = this->handle_allocator->create();
+        const auto shader_accessor = this->native_resource->get_native_shader_accessor();
+        const auto device = this->context->get_device();
 
-        foundation::VoidResult<DirectXError>&& result =
-            foundation::Error(DirectXError::ShaderError);
+        auto resource_index = 0u;
         switch (kind) {
             case types::ShaderKind::Vertex: {
-                result = this->make_vertex_shader(shader_data, handle);
+                const auto [index, shader] = shader_accessor->make_native_vertex_shader();
+                const HRESULT hr = device->CreateVertexShader(shader_data.code.data(),
+                    shader_data.code.size(),
+                    nullptr,
+                    shader.GetAddressOf());
+                if (FAILED(hr)) {
+                    return foundation::Error(DirectXError::ShaderError);
+                }
+                resource_index = index;
             } break;
             case types::ShaderKind::Pixel: {
-                result = this->make_pixel_shader(shader_data, handle);
+                const auto [index, shader] = shader_accessor->make_native_pixel_shader();
+                const HRESULT hr = device->CreatePixelShader(shader_data.code.data(),
+                    shader_data.code.size(),
+                    nullptr,
+                    shader.GetAddressOf());
+                if (FAILED(hr)) {
+                    return foundation::Error(DirectXError::ShaderError);
+                }
+                resource_index = index;
             } break;
             default:
-                break;
+                return foundation::Error(DirectXError::ShaderError);
         }
 
-        // エラーがあればハンドルは削除
-        if (result.is_err()) {
-            this->handle_allocator->destroy(handle);
-            return std::move(result).unwrap_err();
-        }
-
-        return types::RenderHandle{
-            .id = handle,
+        const auto handle = types::RenderHandle{
+            .id = this->handle_allocator->create(),
             .type = types::RenderHandleType::Shader,
         };
-    }
-
-    foundation::VoidResult<DirectXError> ResourceManager::make_vertex_shader(
-
-        const types::ShaderData& shader_data, const types::HandleId handle) {
-        auto& shader_pool = this->native_resource->shaders;
-
-        // 先に作成
-        auto&& result = shader_pool.create(handle, types::ShaderKind::Vertex);
-        if (result.is_err()) {
-            this->handle_allocator->destroy(handle);
-            return result;
+        this->handle_to_index[handle] = ResourceIndex{
+            .resource = resource_index,
         };
 
-        auto opt_shader = shader_pool.get_vertex_shader(handle);
-        const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateVertexShader(shader_data.code.data(),
-            shader_data.code.size(),
-            nullptr,
-            opt_shader.unwrap_mut().GetAddressOf());
-        if (FAILED(hr)) {
-            this->handle_allocator->destroy(handle);
-            return foundation::Error(DirectXError::ShaderError);
-        }
-
-        return {};
-    }
-
-    foundation::VoidResult<DirectXError> ResourceManager::make_pixel_shader(
-        const types::ShaderData& shader_data, const types::HandleId handle) {
-        auto& shader_pool = this->native_resource->shaders;
-
-        // 先に作成
-        auto&& result = shader_pool.create(handle, types::ShaderKind::Pixel);
-        if (result.is_err()) {
-            this->handle_allocator->destroy(handle);
-            return std::move(result);
-        };
-
-        auto opt_shader = shader_pool.get_pixel_shader(handle);
-        const auto device = this->context->get_device();
-        const HRESULT hr = device->CreatePixelShader(shader_data.code.data(),
-            shader_data.code.size(),
-            nullptr,
-            opt_shader.unwrap_mut().GetAddressOf());
-        if (FAILED(hr)) {
-            this->handle_allocator->destroy(handle);
-            return foundation::Error(DirectXError::ShaderError);
-        }
-
-        return {};
+        return handle;
     }
 } // namespace enishi::renderer::directx

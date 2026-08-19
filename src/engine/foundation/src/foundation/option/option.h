@@ -4,7 +4,12 @@
 #include <vector>
 
 namespace enishi::foundation {
-    namespace {
+    template <typename T>
+    using OptionExpected = std::conditional_t<std::is_reference_v<T>,
+        std::reference_wrapper<std::remove_reference_t<T>>,
+        T>;
+
+    namespace details {
         template <typename T> class OptionBase : public std::optional<T> {
           public:
             using std::optional<T>::optional;
@@ -17,11 +22,11 @@ namespace enishi::foundation {
                 return !this->has_value();
             }
         };
-    } // namespace
+    } // namespace details
 
-    template <typename T> class Option : public OptionBase<T> {
+    template <typename T> class Option : public details::OptionBase<T> {
       public:
-        using OptionBase<T>::OptionBase;
+        using details::OptionBase<T>::OptionBase;
 
         [[nodiscard]] const T& unwrap(void) const {
             return this->value();
@@ -42,9 +47,9 @@ namespace enishi::foundation {
         */
     };
 
-    template <typename T> class Option<T&> : public OptionBase<std::reference_wrapper<T>> {
+    template <typename T> class Option<T&> : public details::OptionBase<std::reference_wrapper<T>> {
       public:
-        using OptionBase<std::reference_wrapper<T>>::OptionBase;
+        using details::OptionBase<std::reference_wrapper<T>>::OptionBase;
 
         [[nodiscard]] const T& unwrap(void) const {
             return this->value().get();

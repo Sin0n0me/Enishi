@@ -50,12 +50,10 @@ namespace enishi::renderer {
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_sampler() = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_rasterizer(
             const types::RasterizerDescription& description) = 0;
-        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_render_target_view(
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_view(
             const types::RenderHandle& image_handle,
             const types::ImageViewDescription& description) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_viewport(
             const types::ViewportRect& config) = 0;
-        [[nodiscard]] virtual foundation::Result<types::RenderHandle, E> make_draw_args(
-            types::DrawArgs&& args) = 0;
     };
 } // namespace enishi::renderer

@@ -7,6 +7,7 @@
 #include <memory>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
+#include <renderer/common/resource_binder.h>
 
 namespace enishi::renderer::directx {
     class D3D11Renderer : public platform::IRenderer, public platform::IRenderCommandEncoder {
@@ -32,16 +33,16 @@ namespace enishi::renderer::directx {
             const types::RasterizerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(
             const types::ImageDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
+        platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
         create_render_target_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IDepthStencilView>>
+        platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
         create_depth_stencil_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IShaderResourceView>>
+        platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
         create_shader_resource_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
+        platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
         create_unordered_access_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_mesh(types::MeshData&& mesh,
@@ -54,15 +55,15 @@ namespace enishi::renderer::directx {
       public:
         void setup_viewports(void) const override;
         void setup_render_targets(void) const override;
-        void bind_buffer(const types::HandleId id) const override;
-        void bind_shader(const types::HandleId id) const override;
-        void bind_view(const types::HandleId id) const override;
-        void bind_rasterizer(const types::HandleId id) const override;
-        void bind_texture(const types::HandleId id) const override;
-        void bind_mesh(const types::HandleId id) const override;
-        void bind_topology(const types::HandleId id) const override;
-        void bind_input_layout(const types::HandleId id) const override;
-        void draw(const types::HandleId id) const override;
+        void bind_buffer(const types::RenderHandle& handle) const override;
+        void bind_shader(const types::RenderHandle& handle) const override;
+        void bind_view(const types::RenderHandle& handle) const override;
+        void bind_rasterizer(const types::RenderHandle& handle) const override;
+        void bind_texture(const types::RenderHandle& handle) const override;
+        void bind_mesh(const types::RenderHandle& handle) const override;
+        void bind_topology(const types::RenderHandle& handle) const override;
+        void bind_input_layout(const types::RenderHandle& handle) const override;
+        void draw(const types::RenderHandle& handle) const override;
         void present(void) const override;
     };
 } // namespace enishi::renderer::directx

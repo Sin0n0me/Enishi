@@ -1,5 +1,4 @@
 #pragma once
-#include "command/draw_type.h"
 #include "render_data.h"
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -17,7 +16,6 @@ namespace enishi::types {
             textures; // first: buffer name second: data
         std::unordered_map<std::string, OwnedRenderData>
             samplders; // first: buffer name second: data
-        std::vector<DrawArgs> draw_args;
         std::vector<MeshData> children;
     };
 } // namespace enishi::types

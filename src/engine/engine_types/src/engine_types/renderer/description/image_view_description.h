@@ -3,6 +3,7 @@
 
 namespace enishi::types {
     enum class ImageViewType : std::uint8_t {
+        Unknown,
         RenderTarget,   // DirectXでいうところのRTV カラーバッファへの描画
         DepthStencil,   // DirectXでいうところのDSV 深度・ステンシル
         ShaderResource, // DirectXでいうところのSRV シェーダからの読み取り

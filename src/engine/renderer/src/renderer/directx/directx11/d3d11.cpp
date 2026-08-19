@@ -125,7 +125,7 @@ namespace enishi::renderer::directx {
 
         if (FAILED(hr)) {
             return foundation::Error(
-                DirectXError::TargetError, "Target(Composition)の作成に失敗しました");
+                DirectXError::ViewError, "Target(Composition)の作成に失敗しました");
         }
 
         return {};

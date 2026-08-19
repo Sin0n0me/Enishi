@@ -89,34 +89,33 @@ namespace enishi::core {
     }
 
     void RenderSystem::bind(const types::RenderHandle& render_handle) const {
-        const auto id = render_handle.id;
         switch (render_handle.type) {
             case types::RenderHandleType::Buffer: {
-                this->encoder->bind_buffer(id);
+                this->encoder->bind_buffer(render_handle);
             } break;
             case types::RenderHandleType::Shader: {
-                this->encoder->bind_shader(id);
+                this->encoder->bind_shader(render_handle);
             } break;
             case types::RenderHandleType::Mesh: {
-                this->encoder->bind_mesh(id);
+                this->encoder->bind_mesh(render_handle);
             } break;
             case types::RenderHandleType::Texture: {
-                this->encoder->bind_texture(id);
+                this->encoder->bind_texture(render_handle);
             } break;
             case types::RenderHandleType::View: {
-                this->encoder->bind_view(id);
+                this->encoder->bind_view(render_handle);
             } break;
             case types::RenderHandleType::Rasterizer: {
-                this->encoder->bind_rasterizer(id);
+                this->encoder->bind_rasterizer(render_handle);
             } break;
             case types::RenderHandleType::Topology: {
-                this->encoder->bind_topology(id);
+                this->encoder->bind_topology(render_handle);
             } break;
             case types::RenderHandleType::VertexLayout: {
-                this->encoder->bind_input_layout(id);
+                this->encoder->bind_input_layout(render_handle);
             } break;
             case types::RenderHandleType::Draw: {
-                this->encoder->draw(id);
+                this->encoder->draw(render_handle);
             } break;
             default:
                 break;

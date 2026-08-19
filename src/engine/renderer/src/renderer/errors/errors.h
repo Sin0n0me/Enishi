@@ -7,7 +7,7 @@ namespace enishi::renderer {
             FactoryError,
             SurfaceError,
             SwapchainError,
-            TargetError,
+            ViewError,
             VisualError,
             ShaderError,
             ShaderReflectionError,

@@ -1,6 +1,4 @@
 #pragma once
-#include "../../../common/interface_shader_input_reflection.h"
-#include "../../../common/interface_shader_reflection.h"
 #include <cstdint>
 #include <d3d11.h>
 #include <d3d11shader.h>
@@ -8,6 +6,8 @@
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <optional>
+#include <renderer/common/interface_shader_input_reflection.h>
+#include <renderer/common/interface_shader_reflection.h>
 #include <renderer/errors/errors.h>
 #include <string>
 #include <unordered_map>

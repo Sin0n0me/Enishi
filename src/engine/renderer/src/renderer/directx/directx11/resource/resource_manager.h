@@ -1,42 +1,50 @@
 #pragma once
-#include "../../../common/interface_gpu_resource_accessor.h"
 #include "../../../common/interface_gpu_resource_maker.h"
 #include "../../../errors/errors.h"
 #include "../interface_d3d11_context.h"
-#include "../shader/shader_refrection.h"
 #include "interface_native_resouce_accessor.h"
 #include "native_gpu_resource.h"
-#include <engine_types/renderer/mesh_handles.h>
+#include <engine_types/handle/renderer/handles/mesh_handles.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
 #include <platform/renderer/interface_pipeline_layout.h>
+#include <renderer/common/resource_binder.h>
 #include <unordered_map>
 
 namespace enishi::renderer::directx {
-    class ResourceManager : public GPUResourceMaker<DirectXError>,
-                            public GPUResourceAccessor<DirectXError> {
+    class ResourceManager : public GPUResourceMaker<DirectXError> {
+      public:
+        struct ResourceIndex {
+            static constexpr std::size_t INVALID_INDEX = 0xFFFF'FFFF;
+            std::size_t resource = INVALID_INDEX;
+            std::size_t binding = INVALID_INDEX;
+            std::size_t configurable = INVALID_INDEX;
+        };
+
       private:
         std::unique_ptr<types::HandleAllocator> handle_allocator;
         std::unique_ptr<NativeGPUResource> native_resource;
+        std::unique_ptr<ResourceBinder> resource_binder;
         std::shared_ptr<ID3D11Context> context;
-        std::unordered_map<types::RenderHandle, std::size_t> handle_to_index;
+        std::unordered_map<types::RenderHandle, ResourceIndex> handle_to_index;
 
-        std::unordered_map<types::HandleId, types::RenderHandleType> handles;
         std::unordered_map<types::HandleId, types::MeshHandles> meshes;
         std::unordered_map<std::size_t, types::RenderHandle> hash_to_shader_refection;
         std::vector<types::MeshHandles> meshes_;
-        std::vector<types::DrawArgs> draw_args;
-        std::vector<std::shared_ptr<platform::IRenderTargetView>> render_targets;
-        std::vector<std::shared_ptr<ShaderReflection>> shader_refections;
 
       public:
         explicit ResourceManager(std::shared_ptr<ID3D11Context> context);
 
       public:
-        [[nodiscard]] GPUResourceAccessor<DirectXError>* get_accessor(void);
-        [[nodiscard]] const GPUResourceAccessor<DirectXError>* get_accessor(void) const;
+        [[nodiscard]] foundation::Option<
+            const decltype(ResourceManager::handle_to_index)::value_type::second_type&>
+        get_native_resource_index(const types::RenderHandle& handle) const noexcept;
+        [[nodiscard]] IGPUResourceAccessor<DirectXError>* get_accessor(void);
+        [[nodiscard]] const IGPUResourceAccessor<DirectXError>* get_accessor(void) const;
         [[nodiscard]] INativeResourceAccessor* get_native_resource_accessor(void);
         [[nodiscard]] const INativeResourceAccessor* get_native_resource_accessor(void) const;
+        [[nodiscard]] IResourceBinder* get_resource_binder(void);
+        [[nodiscard]] const IResourceBinder* get_resource_binder(void) const;
 
       public:
         foundation::Result<types::RenderHandle, DirectXError> make_shader_reflection(
@@ -67,39 +75,25 @@ namespace enishi::renderer::directx {
         foundation::Result<types::RenderHandle, DirectXError> make_sampler() override;
         foundation::Result<types::RenderHandle, DirectXError> make_rasterizer(
             const types::RasterizerDescription& description) override;
-        foundation::Result<types::RenderHandle, DirectXError> make_render_target_view(
+        foundation::Result<types::RenderHandle, DirectXError> make_view(
             const types::RenderHandle& image_handle,
             const types::ImageViewDescription& description) override;
         foundation::Result<types::RenderHandle, DirectXError> make_viewport(
             const types::ViewportRect& config) override;
-        foundation::Result<types::RenderHandle, DirectXError> make_draw_args(
-            types::DrawArgs&& args) override;
 
       public:
-        foundation::Option<std::shared_ptr<platform::IRenderTargetView>> get_render_target(
-            const types::HandleId handle) const override;
-        const std::vector<std::shared_ptr<platform::IRenderTargetView>>& get_render_targets(
-            void) const override;
-        foundation::Option<const types::DrawArgs&> get_draw_args(
-            const types::HandleId handle) const override;
-        foundation::Option<types::DrawArgs&> get_draw_args(const types::HandleId handle) override;
-        foundation::Option<const IShaderReflection<DirectXError>*> get_shader_reflection(
-            const types::HandleId handle) const override;
-        foundation::Option<IShaderReflection<DirectXError>*> get_shader_reflection(
-            const types::HandleId handle) override;
-
-      public:
-        // TODO: インターフェイス経由
-        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11RasterizerState>&>
-        get_rasterizer(const types::HandleId handle) const;
-        [[nodiscard]] foundation::Option<const Microsoft::WRL::ComPtr<ID3D11InputLayout>&>
-        get_input_layout(const types::HandleId handle) const;
         [[nodiscard]] foundation::Option<const types::MeshHandles&> get_mesh(
             const types::HandleId handle) const;
-        [[nodiscard]] const std::vector<D3D11_VIEWPORT>& get_viewports(void) const;
 
       private:
-        [[nodiscard]] foundation::Option<std::size_t> get_index(const ResourceIndex& index) const;
+        [[nodiscard]] foundation::Result<types::RenderHandle, DirectXError> make_render_target(
+            const ResourceIndex image_index, const types::ImageViewDescription& description);
+        [[nodiscard]] foundation::Result<types::RenderHandle, DirectXError> make_depth_stencil(
+            const ResourceIndex image_index, const types::ImageViewDescription& description);
+        [[nodiscard]] foundation::Result<types::RenderHandle, DirectXError> make_shader_resource(
+            const ResourceIndex image_index, const types::ImageViewDescription& description);
+        [[nodiscard]] foundation::Result<types::RenderHandle, DirectXError> make_unodered_access(
+            const ResourceIndex image_index, const types::ImageViewDescription& description);
 
         [[nodiscard]] foundation::Result<types::RenderHandle, DirectXError> make_shader_from_dxbc(
             const types::ShaderKind kind, const types::ShaderData& shader_data);

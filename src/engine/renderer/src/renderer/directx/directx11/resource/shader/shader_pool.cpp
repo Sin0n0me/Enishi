@@ -1,151 +1,215 @@
 #include "shader_pool.h"
 
 namespace enishi::renderer::directx {
-    std::tuple<std::size_t, ShaderPool::VertexShader&> ShaderPool::make_vertex_shader(
+    std::tuple<std::size_t, ShaderPool::NativeVertexShader&> ShaderPool::make_native_vertex_shader(
         void) noexcept {
-        const auto index = this->shaders.size();
-        auto shader = VertexShader{};
-        this->shaders.emplace_back(shader);
-        return {index, shader};
+        auto [index, info] = this->shaders.emplace(ShaderInfo{
+            .shader = NativeVertexShader{},
+            .kind = types::ShaderKind::Vertex,
+        });
+        return {index, std::get<NativeVertexShader>(info.shader)};
     }
 
-    std::tuple<std::size_t, ShaderPool::PixelShader&> ShaderPool::make_pixel_shader(void) noexcept {
-        const auto index = this->shaders.size();
-        auto shader = PixelShader{};
-        this->shaders.emplace_back(shader);
-        return {index, shader};
+    std::tuple<std::size_t, ShaderPool::NativePixelShader&> ShaderPool::make_native_pixel_shader(void) noexcept {
+        auto [index, info] = this->shaders.emplace(ShaderInfo{
+            .shader = NativePixelShader{},
+            .kind = types::ShaderKind::Vertex,
+        });
+        return {index, std::get<NativePixelShader>(info.shader)};
     }
 
-    std::tuple<std::size_t, ShaderPool::ComputeShader&> ShaderPool::make_compute_shader(
+    std::tuple<std::size_t, ShaderPool::NativeComputeShader&> ShaderPool::make_native_compute_shader(
         void) noexcept {
-        const auto index = this->shaders.size();
-        auto shader = ComputeShader{};
-        this->shaders.emplace_back(shader);
-        return {index, shader};
+        auto [index, info] = this->shaders.emplace(ShaderInfo{
+            .shader = NativeComputeShader{},
+            .kind = types::ShaderKind::Vertex,
+        });
+        return {index, std::get<NativeComputeShader>(info.shader)};
     }
 
-    std::tuple<std::size_t, ShaderPool::HullShader&> ShaderPool::make_hull_shader(void) noexcept {
-        const auto index = this->shaders.size();
-        auto shader = HullShader{};
-        this->shaders.emplace_back(shader);
-        return {index, shader};
+    std::tuple<std::size_t, ShaderPool::NativeHullShader&> ShaderPool::make_native_hull_shader(void) noexcept {
+        auto [index, info] = this->shaders.emplace(ShaderInfo{
+            .shader = NativeHullShader{},
+            .kind = types::ShaderKind::Vertex,
+        });
+        return {index, std::get<NativeHullShader>(info.shader)};
     }
 
-    void ShaderPool::remove_shader(
+    void ShaderPool::remove_native_shader(
         const types::ShaderKind shader_kind, const std::size_t index) noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt = this->shaders.get(index);
+        if (opt.is_none()) {
             return;
         }
 
-        auto& shader = this->shaders.at(index);
-        if (std::holds_alternative<VertexShader>(shader) &&
+        auto& shader = opt.unwrap_mut().shader;
+        if (std::holds_alternative<NativeVertexShader>(shader) &&
             shader_kind == types::ShaderKind::Vertex) {
             shader = std::monostate{};
-        } else if (std::holds_alternative<PixelShader>(shader) &&
+        } else if (std::holds_alternative<NativePixelShader>(shader) &&
                    shader_kind == types::ShaderKind::Pixel) {
             shader = std::monostate{};
-        } else if (std::holds_alternative<ComputeShader>(shader) &&
+        } else if (std::holds_alternative<NativeComputeShader>(shader) &&
                    shader_kind == types::ShaderKind::Compute) {
             shader = std::monostate{};
-        } else if (std::holds_alternative<HullShader>(shader) &&
+        } else if (std::holds_alternative<NativeHullShader>(shader) &&
                    shader_kind == types::ShaderKind::Hull) {
             shader = std::monostate{};
         }
     }
 
-    foundation::Option<ShaderPool::VertexShader&> ShaderPool::get_vertex_shader(
-        const std::size_t index) noexcept {
-        if (this->shaders.size() < index + 1) {
-            return {};
-        }
-        auto shader = std::get_if<VertexShader>(&this->shaders.at(index));
-        if (!bool(shader)) {
-            return {};
-        }
-        return *shader;
-    }
+    // TODO: Optionのmapメソッド
 
-    foundation::Option<const ShaderPool::VertexShader&> ShaderPool::get_vertex_shader(
+    foundation::Option<types::ShaderKind> ShaderPool::get_shader_kind(
         const std::size_t index) const noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.kind; });
+        if (!opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<VertexShader>(&this->shaders.at(index));
-        if (!bool(shader)) {
-            return {};
-        }
-        return *shader;
+        return opt.value();
     }
 
-    foundation::Option<ShaderPool::PixelShader&> ShaderPool::get_pixel_shader(
+    foundation::Option<ShaderPool::NativeVertexShader&> ShaderPool::get_native_vertex_shader(
         const std::size_t index) noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<PixelShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativeVertexShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
     }
 
-    foundation::Option<const ShaderPool::PixelShader&> ShaderPool::get_pixel_shader(
+    foundation::Option<const ShaderPool::NativeVertexShader&> ShaderPool::get_native_vertex_shader(
         const std::size_t index) const noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<PixelShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativeVertexShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
     }
 
-    foundation::Option<ShaderPool::ComputeShader&> ShaderPool::get_compute_shader(
+    foundation::Option<ShaderPool::NativePixelShader&> ShaderPool::get_native_pixel_shader(
         const std::size_t index) noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<ComputeShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativePixelShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
     }
 
-    foundation::Option<const ShaderPool::ComputeShader&> ShaderPool::get_compute_shader(
+    foundation::Option<const ShaderPool::NativePixelShader&> ShaderPool::get_native_pixel_shader(
         const std::size_t index) const noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<ComputeShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativePixelShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
     }
 
-    foundation::Option<ShaderPool::HullShader&> ShaderPool::get_hull_shader(
+    foundation::Option<ShaderPool::NativeComputeShader&> ShaderPool::get_native_compute_shader(
         const std::size_t index) noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<HullShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativeComputeShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
     }
 
-    foundation::Option<const ShaderPool::HullShader&> ShaderPool::get_hull_shader(
+    foundation::Option<const ShaderPool::NativeComputeShader&> ShaderPool::get_native_compute_shader(
         const std::size_t index) const noexcept {
-        if (this->shaders.size() < index + 1) {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
             return {};
         }
-        auto shader = std::get_if<HullShader>(&this->shaders.at(index));
+        auto shader = std::get_if<NativeComputeShader>(&opt.value());
         if (!bool(shader)) {
-            return {};
         }
         return *shader;
+    }
+
+    foundation::Option<ShaderPool::NativeHullShader&> ShaderPool::get_native_hull_shader(
+        const std::size_t index) noexcept {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
+            return {};
+        }
+        auto shader = std::get_if<NativeHullShader>(&opt.value());
+        if (!bool(shader)) {
+        }
+        return *shader;
+    }
+
+    foundation::Option<const ShaderPool::NativeHullShader&> ShaderPool::get_native_hull_shader(
+        const std::size_t index) const noexcept {
+        auto opt =
+            this->shaders.get(index).transform([](const ShaderInfo& info) { return info.shader; });
+        if (opt.has_value()) {
+            return {};
+        }
+        auto shader = std::get_if<NativeHullShader>(&opt.value());
+        if (!bool(shader)) {
+        }
+        return *shader;
+    }
+
+    foundation::Option<IShaderReflection<DirectXError>*> ShaderPool::get_shader_reflection(
+        const std::size_t index) noexcept {
+        auto opt = this->shader_reflections.get(index);
+        if (opt.has_value()) {
+            return {};
+        }
+        auto& reflecttion = opt.unwrap_mut();
+        if (!bool(reflecttion)) {
+        }
+        return reflecttion.get();
+    }
+
+    foundation::Option<IShaderReflection<DirectXError>* const> ShaderPool::get_shader_reflection(
+        const std::size_t index) const noexcept {
+        auto opt = this->shader_reflections.get(index);
+        if (opt.has_value()) {
+            return {};
+        }
+        auto& reflecttion = opt.unwrap();
+        if (!bool(reflecttion)) {
+        }
+        return reflecttion.get();
+    }
+
+    std::tuple<std::size_t, IShaderReflection<DirectXError>*> ShaderPool::make_shader_reflection(
+        void) noexcept {
+        auto [index, reflection] =
+            this->shader_reflections.emplace(std::make_unique<ShaderReflection>());
+        return {index, reflection.get()};
+    }
+
+    void ShaderPool::remove_shader_reflection(const std::size_t index) noexcept {
+        auto opt = this->shader_reflections.get(index);
+        if (opt.is_none()) {
+            return;
+        }
+        opt.reset();
     }
 } // namespace enishi::renderer::directx

@@ -1,8 +1,9 @@
 #pragma once
-#include "interface_texture_accessor.h"
+#include "interface_native_texture_accessor.h"
 #include <cstdint>
 #include <d3d11.h>
 #include <engine_types/assets/shader/shader_kind.h>
+#include <renderer/common/resource_pool.h>
 #include <variant>
 #include <wrl/client.h>
 
@@ -13,26 +14,36 @@ namespace enishi::renderer::directx {
         std::uint32_t target_slot;
     };
 
-    class TexturePool : public ITextureAccessor {
+    class TexturePool : public INativeTextureAccessor {
       private:
-        using Texture = std::variant<std::monostate, Texture1D, Texture2D, Texture3D>;
+        using NativeTexture =
+            std::variant<std::monostate, NativeTexture1D, NativeTexture2D, NativeTexture3D>;
 
-        std::vector<Texture> textures;
+        ResourcePool<NativeTexture> textures;
+        ResourcePool<NativeSampler> samplers;
 
       public:
-        std::tuple<std::size_t, Texture1D&> make_texture_1d(void) noexcept override;
-        std::tuple<std::size_t, Texture2D&> make_texture_2d(void) noexcept override;
-        std::tuple<std::size_t, Texture3D&> make_texture_3d(void) noexcept override;
-        void remove_texture(
+        std::tuple<std::size_t, NativeTexture1D&> make_native_texture_1d(void) noexcept override;
+        std::tuple<std::size_t, NativeTexture2D&> make_native_texture_2d(void) noexcept override;
+        std::tuple<std::size_t, NativeTexture3D&> make_native_texture_3d(void) noexcept override;
+        std::tuple<std::size_t, NativeSampler&> make_native_sampler(void) noexcept override;
+        void remove_native_texture(
             const TextureType texture_kind, const std::size_t index) noexcept override;
-        foundation::Option<Texture1D&> get_texture_1d(const std::size_t index) noexcept override;
-        foundation::Option<const Texture1D&> get_texture_1d(
+        void remove_native_sampler(const std::size_t index) noexcept override;
+        foundation::Option<NativeTexture1D&> get_native_texture_1d(
+            const std::size_t index) noexcept override;
+        foundation::Option<const NativeTexture1D&> get_native_texture_1d(
             const std::size_t index) const noexcept override;
-        foundation::Option<Texture2D&> get_texture_2d(const std::size_t index) noexcept override;
-        foundation::Option<const Texture2D&> get_texture_2d(
+        foundation::Option<NativeTexture2D&> get_native_texture_2d(
+            const std::size_t index) noexcept override;
+        foundation::Option<const NativeTexture2D&> get_native_texture_2d(
             const std::size_t index) const noexcept override;
-        foundation::Option<Texture3D&> get_texture_3d(const std::size_t index) noexcept override;
-        foundation::Option<const Texture3D&> get_texture_3d(
+        foundation::Option<NativeTexture3D&> get_native_texture_3d(
+            const std::size_t index) noexcept override;
+        foundation::Option<const NativeTexture3D&> get_native_texture_3d(
             const std::size_t index) const noexcept override;
+        foundation::Option<NativeSampler&> get_native_sampler(const size_t index) noexcept override;
+        foundation::Option<const NativeSampler&> get_native_sampler(
+            const size_t index) const noexcept override;
     };
 } // namespace enishi::renderer::directx

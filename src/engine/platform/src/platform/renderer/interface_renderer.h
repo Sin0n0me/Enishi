@@ -55,19 +55,19 @@ namespace enishi::platform {
             const types::ImageDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<std::weak_ptr<IRenderTargetView>> create_render_target_view(
+        virtual RenderResult<std::shared_ptr<IRenderTargetView>> create_render_target_view(
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<std::weak_ptr<IDepthStencilView>> create_depth_stencil_view(
+        virtual RenderResult<std::shared_ptr<IDepthStencilView>> create_depth_stencil_view(
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<std::weak_ptr<IShaderResourceView>> create_shader_resource_view(
+        virtual RenderResult<std::shared_ptr<IShaderResourceView>> create_shader_resource_view(
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<std::weak_ptr<IUnorderedAccessView>> create_unordered_access_view(
+        virtual RenderResult<std::shared_ptr<IUnorderedAccessView>> create_unordered_access_view(
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]

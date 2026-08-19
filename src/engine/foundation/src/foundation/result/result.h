@@ -118,6 +118,28 @@ namespace enishi::foundation {
             template <typename U> [[nodiscard]] constexpr Error<U> propagation(U&& e) const {
                 return this->expected.error().propagation(std::forward<U>(e));
             }
+
+            template <typename F>
+            [[nodiscard]]
+            constexpr auto map(F&& f) && {
+                using U = std::invoke_result_t<F, T>;
+                if (this->is_err()) {
+                    return ResultBase<Derived, U, E>{std::move(this->expected.error())};
+                }
+                return ResultBase<Derived, U, E>{
+                    std::invoke(std::forward<F>(f), std::move(this->expected.value()))};
+            }
+
+            template <typename F>
+            [[nodiscard]]
+            constexpr auto map(F&& f) const& {
+                using U = std::invoke_result_t<F, const T&>;
+                if (this->is_err()) {
+                    return ResultBase<Derived, U, E>{std::move(this->expected.error())};
+                }
+                return ResultBase<Derived, U, E>{
+                    std::invoke(std::forward<F>(f), std::move(this->expected.value()))};
+            }
         };
     } // namespace details
 

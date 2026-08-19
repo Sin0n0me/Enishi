@@ -54,7 +54,5 @@ namespace enishi::types {
         [[nodiscard]] void to_uniforms_from_addon(Uniforms& uniforms) const;
         [[nodiscard]] void to_uniforms_from_material(
             Uniforms& uniforms, const std::uint32_t separator) const;
-
-        [[nodiscard]] std::vector<DrawArgs> to_draw_args(void) const;
     };
 } // namespace enishi::types
