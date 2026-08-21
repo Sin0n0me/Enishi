@@ -1,6 +1,6 @@
 #include "d3d11_renderer.h"
 #include "d3d11_converter.h"
-#include "view/render_target_view.h"
+#include "resource/view/render_target_view.h"
 #include <ranges>
 
 namespace enishi::renderer::directx {
@@ -69,15 +69,23 @@ namespace enishi::renderer::directx {
     platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
     D3D11Renderer::create_render_target_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        const auto result =
-            this->resource_manager->make_render_target_view(image_handle, description);
+        const auto result = this->resource_manager->make_view(image_handle, description)
+                                .add_message("ビューの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
-        auto handle = result.unwrap();
-        auto opt_rtv = this->resource_manager->get_accessor()->get_render_target(handle.id);
-        if (opt_rtv.is_none()) {
+        const auto& handle = result.unwrap();
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
+        }
+        const auto& index = opt_index.unwrap();
+        auto opt_rtv = this->resource_manager->get_resource_accessor()
+                           ->get_view_accessor()
+                           ->get_render_target_view(index.configurable);
+        if (opt_rtv.is_none()) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "レンダーターゲットが見つかりません");
         }
 
         return opt_rtv.unwrap();
@@ -86,12 +94,20 @@ namespace enishi::renderer::directx {
     platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
     D3D11Renderer::create_depth_stencil_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        const auto result = this->resource_manager->make_depth_(image_handle, description);
+        const auto result = this->resource_manager->make_view(image_handle, description)
+                                .add_message("ビューの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
-        auto handle = result.unwrap();
-        auto opt_rtv = this->resource_manager->get_accessor()->get_render_target(handle.id);
+        const auto& handle = result.unwrap();
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
+        const auto& index = opt_index.unwrap();
+        auto opt_rtv = this->resource_manager->get_resource_accessor()
+                           ->get_view_accessor()
+                           ->get_depth_stencil_view(index.configurable);
         if (opt_rtv.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }
@@ -102,13 +118,49 @@ namespace enishi::renderer::directx {
     platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
     D3D11Renderer::create_shader_resource_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return foundation::Error(platform::RenderError::MakeError);
+        const auto result = this->resource_manager->make_view(image_handle, description)
+                                .add_message("ビューの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+        const auto& handle = result.unwrap();
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
+        const auto& index = opt_index.unwrap();
+        auto opt_rtv = this->resource_manager->get_resource_accessor()
+                           ->get_view_accessor()
+                           ->get_shader_resource_view(index.configurable);
+        if (opt_rtv.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
+
+        return opt_rtv.unwrap();
     }
 
     platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
     D3D11Renderer::create_unordered_access_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return foundation::Error(platform::RenderError::MakeError);
+        const auto result = this->resource_manager->make_view(image_handle, description)
+                                .add_message("ビューの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+        const auto& handle = result.unwrap();
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
+        const auto& index = opt_index.unwrap();
+        auto opt_rtv = this->resource_manager->get_resource_accessor()
+                           ->get_view_accessor()
+                           ->get_unodered_access_view(index.configurable);
+        if (opt_rtv.is_none()) {
+            return foundation::Error(platform::RenderError::MakeError);
+        }
+
+        return opt_rtv.unwrap();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_mesh(
@@ -158,15 +210,15 @@ namespace enishi::renderer::directx {
         const auto& context = this->d3d11->get_context();
         const auto& view_accessor =
             this->resource_manager->get_native_resource_accessor()->get_native_view_accessor();
-        const auto& accessor = this->resource_manager->get_accessor();
+        const auto& accessor = this->resource_manager->get_resource_accessor()->get_view_accessor();
 
-        for (const auto& render_target : accessor->get_render_targets()) {
+        for (const auto& render_target : accessor->get_render_target_views()) {
             const auto handle = render_target->get_handle();
-            const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+            const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
             if (opt_index.is_none()) {
                 continue;
             }
-            const auto index = opt_index.unwrap();
+            const auto& index = opt_index.unwrap();
             const auto opt_target = view_accessor->get_native_render_target_view(index.resource);
             if (opt_target.is_none()) {
                 continue;
@@ -180,11 +232,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_buffer(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto opt_buffer = this->resource_manager->get_native_resource_accessor()
                                     ->get_native_buffer_accessor()
                                     ->get_native_buffer(index.resource);
@@ -235,15 +287,15 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_shader(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto shader_accessor =
             this->resource_manager->get_native_resource_accessor()->get_native_shader_accessor();
         const auto shader_type =
-            shader_accessor->get_shader_kind(index.resource).value_or(types::ShaderKind::Unknown);
+            shader_accessor->get_shader_kind(index.resource).unwrap_or(types::ShaderKind::Unknown);
         const auto opt_binding =
             this->resource_manager->get_resource_binder()->get_buffer_binding(index.binding);
         if (opt_binding.is_none()) {
@@ -286,11 +338,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_texture(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto texture_accessor =
             this->resource_manager->get_native_resource_accessor()->get_native_texture_accessor();
         const auto opt_binding =
@@ -309,11 +361,11 @@ namespace enishi::renderer::directx {
 
         switch (binding.target_shader) {
             case types::ShaderKind::Vertex: {
-                context->VSSetShaderResources(binding.target, 1, sampler.GetAddressOf());
+                // context->VSSetShaderResources(binding.target, 1, sampler.GetAddressOf());
                 context->VSSetSamplers(binding.target, 1, sampler.GetAddressOf());
             } break;
             case types::ShaderKind::Pixel: {
-                context->PSSetShaderResources(binding.target, 1, sampler.GetAddressOf());
+                // context->PSSetShaderResources(binding.target, 1, sampler.GetAddressOf());
                 context->PSSetSamplers(binding.target, 1, sampler.GetAddressOf());
             } break;
             case types::ShaderKind::Compute: {
@@ -331,15 +383,15 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_view(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto view_accessor =
             this->resource_manager->get_native_resource_accessor()->get_native_view_accessor();
         const auto view_type =
-            view_accessor->get_view_type(index.resource).value_or(types::ImageViewType::Unknown);
+            view_accessor->get_view_type(index.resource).unwrap_or(types::ImageViewType::Unknown);
 
         const auto context = this->d3d11->get_context();
         switch (view_type) {
@@ -377,11 +429,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_rasterizer(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto opt_rasterizer = this->resource_manager->get_native_resource_accessor()
                                         ->get_native_rasterizer_accessor()
                                         ->get_native_rasterizer(index.resource);
@@ -419,7 +471,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_topology(const types::RenderHandle& handle) const {
-        const auto topology = static_cast<types::PrimitiveTopology>(handle.id);
+        const auto topology = static_cast<types::PrimitiveTopology>(handle.id.handle_id);
         const auto d3d11_topology = D3D11Converter::to_topology(topology);
         if (d3d11_topology == D3D11_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED) {
             return;
@@ -430,11 +482,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_input_layout(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto opt_input_layout = this->resource_manager->get_native_resource_accessor()
                                           ->get_native_input_layout_accessor()
                                           ->get_native_input_layout(index.resource);
@@ -447,11 +499,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::draw(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_index(handle);
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
-        const auto index = opt_index.unwrap();
+        const auto& index = opt_index.unwrap();
         const auto opt_buffer = this->resource_manager->get_native_resource_accessor()
                                     ->get_native_buffer_accessor()
                                     ->get_native_buffer(index.resource);

@@ -1,10 +1,10 @@
 #pragma once
-#include "../common/interface_shader_reflection.h"
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
-#include <renderer/common/interface_view_accessor.h>
+#include <renderer/common/shader/interface_shader_accessor.h>
+#include <renderer/common/view/interface_view_accessor.h>
 #include <vector>
 
 namespace enishi::renderer {
@@ -14,5 +14,7 @@ namespace enishi::renderer {
 
         [[nodiscard]] virtual IViewAccessor* get_view_accessor(void) noexcept = 0;
         [[nodiscard]] virtual const IViewAccessor* get_view_accessor(void) const noexcept = 0;
+        [[nodiscard]] virtual IShaderAccessor* get_shader_accessor(void) noexcept = 0;
+        [[nodiscard]] virtual const IShaderAccessor* get_shader_accessor(void) const noexcept = 0;
     };
 } // namespace enishi::renderer

@@ -2,6 +2,6 @@
 
 namespace enishi::types {
     bool SystemHandle::is_valid(void) const noexcept {
-        return this->id != INVALID_HANDLE_ID;
+        return this->id.is_valid();
     }
 } // namespace enishi::types

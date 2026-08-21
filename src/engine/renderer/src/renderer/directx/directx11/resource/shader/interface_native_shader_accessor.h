@@ -1,7 +1,8 @@
 #pragma once
 #include <d3d11.h>
+#include <engine_types/handle/handle_type.h>
 #include <foundation/option/option.h>
-#include <renderer/common/interface_shader_reflection.h>
+#include <renderer/common/shader/interface_shader_reflection.h>
 #include <renderer/errors/errors.h>
 #include <wrl/client.h>
 
@@ -16,43 +17,34 @@ namespace enishi::renderer::directx {
       public:
         virtual ~INativeShaderAccessor(void) noexcept = default;
 
-        [[nodiscard]] virtual std::tuple<std::size_t, IShaderReflection<DirectXError>*>
-        make_shader_reflection(void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeVertexShader&>
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeVertexShader&>
         make_native_vertex_shader(void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativePixelShader&> make_native_pixel_shader(
-            void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeComputeShader&>
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativePixelShader&>
+        make_native_pixel_shader(void) noexcept = 0;
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeComputeShader&>
         make_native_compute_shader(void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeHullShader&> make_native_hull_shader(
-            void) noexcept = 0;
-        [[nodiscard]] virtual void remove_native_shader(
-            const types::ShaderKind shader_kind, const std::size_t index) noexcept = 0;
-        [[nodiscard]] virtual void remove_shader_reflection(const std::size_t index) noexcept = 0;
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeHullShader&>
+        make_native_hull_shader(void) noexcept = 0;
+        [[nodiscard]] virtual void remove_native_shader(const types::HandleId handle) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<types::ShaderKind> get_shader_kind(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<NativeVertexShader&> get_native_vertex_shader(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeVertexShader&>
-        get_native_vertex_shader(const std::size_t index) const noexcept = 0;
+        get_native_vertex_shader(const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativePixelShader&> get_native_pixel_shader(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativePixelShader&> get_native_pixel_shader(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativeComputeShader&> get_native_compute_shader(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeComputeShader&>
-        get_native_compute_shader(const std::size_t index) const noexcept = 0;
+        get_native_compute_shader(const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativeHullShader&> get_native_hull_shader(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeHullShader&> get_native_hull_shader(
-            const std::size_t index) const noexcept = 0;
-
-        [[nodiscard]] virtual foundation::Option<IShaderReflection<DirectXError>*>
-        get_shader_reflection(const std::size_t index) noexcept = 0;
-        [[nodiscard]] virtual foundation::Option<IShaderReflection<DirectXError>* const>
-        get_shader_reflection(const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
     };
 } // namespace enishi::renderer::directx

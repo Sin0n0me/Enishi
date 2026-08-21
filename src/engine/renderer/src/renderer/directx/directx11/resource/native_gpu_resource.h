@@ -26,6 +26,9 @@ namespace enishi::renderer::directx {
         std::unique_ptr<ViewportPool> viewport_pool;
 
       public:
+        NativeGPUResource(void);
+
+      public:
         INativeBufferAccessor* get_native_buffer_accessor(void) noexcept override;
         const INativeBufferAccessor* get_native_buffer_accessor(void) const noexcept override;
         INativeTextureAccessor* get_native_texture_accessor(void) noexcept override;
@@ -46,5 +49,7 @@ namespace enishi::renderer::directx {
       public:
         IViewAccessor* get_view_accessor(void) noexcept override;
         const IViewAccessor* get_view_accessor(void) const noexcept override;
+        IShaderAccessor* get_shader_accessor(void) noexcept override;
+        const IShaderAccessor* get_shader_accessor(void) const noexcept override;
     };
 } // namespace enishi::renderer::directx

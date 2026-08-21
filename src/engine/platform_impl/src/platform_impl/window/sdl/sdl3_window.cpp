@@ -141,7 +141,7 @@ namespace enishi::platform_impl {
         }
 
         const platform::WindowHandle handle{
-            .id = 0,
+            .id = types::HandleId{},
             .tag = this->window_system,
             .native_handle = opt_window_handle.unwrap(),
         };

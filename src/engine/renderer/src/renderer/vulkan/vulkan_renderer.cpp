@@ -41,24 +41,24 @@ namespace enishi::renderer::vulkan {
         const types::ImageDescription& description) {
         return types::RenderHandle{};
     }
-    platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
+    platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
     VulkanRenderer::create_render_target_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return std::weak_ptr<platform::IRenderTargetView>{};
+        return std::shared_ptr<platform::IRenderTargetView>{};
     }
-    platform::RenderResult<std::weak_ptr<platform::IDepthStencilView>>
+    platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
     VulkanRenderer::create_depth_stencil_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return std::weak_ptr<platform::IDepthStencilView>{};
+        return std::shared_ptr<platform::IDepthStencilView>{};
     }
-    platform::RenderResult<std::weak_ptr<platform::IShaderResourceView>>
+    platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
     VulkanRenderer::create_shader_resource_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return std::weak_ptr<platform::IShaderResourceView>{};
+        return std::shared_ptr<platform::IShaderResourceView>{};
     }
-    platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
+    platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
     VulkanRenderer::create_unordered_access_view(
         types::RenderHandle image_handle, const types::ImageViewDescription& description) {
-        return std::weak_ptr<platform::IUnorderedAccessView>{};
+        return std::shared_ptr<platform::IUnorderedAccessView>{};
     }
 } // namespace enishi::renderer::vulkan

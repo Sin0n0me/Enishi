@@ -4,11 +4,11 @@
 #include <renderer/directx/directx11/d3d11_converter.h>
 
 namespace enishi::renderer::directx {
-    ShaderReflection::ShaderReflection(void) noexcept
+    D3D11ShaderReflection::D3D11ShaderReflection(void) noexcept
         : shader_kind(types::ShaderKind::Unknown) {
     }
 
-    foundation::VoidResult<DirectXError> ShaderReflection::load(
+    foundation::VoidResult<RendererError> D3D11ShaderReflection::load(
         const types::ShaderData& shader_data) noexcept {
         {
             const auto hr = D3DReflect(shader_data.code.data(),
@@ -16,7 +16,7 @@ namespace enishi::renderer::directx {
                 IID_PPV_ARGS(this->reflector.ReleaseAndGetAddressOf()));
             if (FAILED(hr)) {
                 return foundation::Error(
-                    DirectXError::ShaderReflectionError, "読み込みに失敗しました");
+                    RendererError::ShaderReflectionError, "読み込みに失敗しました");
             }
         }
 
@@ -25,7 +25,7 @@ namespace enishi::renderer::directx {
             const auto hr = this->reflector->GetDesc(&shader_desc);
             if (FAILED(hr)) {
                 return foundation::Error(
-                    DirectXError::ShaderReflectionError, "Descriptionの取得に失敗しました");
+                    RendererError::ShaderReflectionError, "Descriptionの取得に失敗しました");
             }
         }
 
@@ -68,24 +68,26 @@ namespace enishi::renderer::directx {
             return types::ShaderKind::Unknown;
         }();
 
+        this->hash = shader_data.hash();
+
         return {};
     }
 
-    const IShaderInputReflection* ShaderReflection::get_shader_input_reflection(void) const {
+    const IShaderInputReflection* D3D11ShaderReflection::get_shader_input_reflection(void) const {
         return this;
     }
 
-    types::ShaderKind ShaderReflection::get_shader_kind(void) const {
+    types::ShaderKind D3D11ShaderReflection::get_shader_kind(void) const {
         return this->shader_kind;
     }
 
-    foundation::VoidResult<DirectXError> ShaderReflection::load_binding_desc(
+    foundation::VoidResult<RendererError> D3D11ShaderReflection::load_binding_desc(
         const std::uint32_t index) noexcept {
         D3D11_SHADER_INPUT_BIND_DESC bind_desc{};
         const HRESULT hr = this->reflector->GetResourceBindingDesc(index, &bind_desc);
         if (FAILED(hr)) {
             return foundation::Error(
-                DirectXError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
+                RendererError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
         }
 
         const auto type = [&bind_desc]() {
@@ -153,13 +155,13 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    foundation::VoidResult<DirectXError> ShaderReflection::load_parameter_desc(
+    foundation::VoidResult<RendererError> D3D11ShaderReflection::load_parameter_desc(
         const std::uint32_t index) noexcept {
         D3D11_SIGNATURE_PARAMETER_DESC param_desc;
         const HRESULT hr = this->reflector->GetInputParameterDesc(index, &param_desc);
         if (FAILED(hr)) {
             return foundation::Error(
-                DirectXError::ShaderReflectionError, "InputParameterDescの取得に失敗しました");
+                RendererError::ShaderReflectionError, "InputParameterDescの取得に失敗しました");
         }
 
         // マスクからフォーマットを判定 (R, G, B, A のどれが使われているか)
@@ -205,11 +207,15 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    std::uint32_t ShaderReflection::get_input_layout_count(void) const noexcept {
+    std::size_t D3D11ShaderReflection::get_shader_hash(void) const {
+        return this->hash;
+    }
+
+    std::uint32_t D3D11ShaderReflection::get_input_layout_count(void) const noexcept {
         return this->input_layouts.size();
     }
 
-    foundation::Option<ShaderInputLayout> ShaderReflection::get_input_layout(
+    foundation::Option<ShaderInputLayout> D3D11ShaderReflection::get_input_layout(
         const std::uint32_t index) const noexcept {
         if (this->input_layouts.size() + 1 < index) {
             return {};
@@ -218,15 +224,15 @@ namespace enishi::renderer::directx {
         return this->input_layouts.at(index);
     }
 
-    std::vector<ShaderInputLayout> ShaderReflection::get_input_layouts(void) const noexcept {
+    std::vector<ShaderInputLayout> D3D11ShaderReflection::get_input_layouts(void) const noexcept {
         return this->input_layouts;
     }
 
-    std::uint32_t ShaderReflection::get_input_resource_count(void) const noexcept {
+    std::uint32_t D3D11ShaderReflection::get_input_resource_count(void) const noexcept {
         return this->input_resources.size();
     }
 
-    foundation::Option<ShaderInputResource> ShaderReflection::get_input_resource(
+    foundation::Option<ShaderInputResource> D3D11ShaderReflection::get_input_resource(
         const std::uint32_t index) const noexcept {
         if (this->input_resources.size() + 1 < index) {
             return {};
@@ -235,7 +241,8 @@ namespace enishi::renderer::directx {
         return this->input_resources.at(index);
     }
 
-    std::vector<ShaderInputResource> ShaderReflection::get_input_resources(void) const noexcept {
+    std::vector<ShaderInputResource> D3D11ShaderReflection::get_input_resources(
+        void) const noexcept {
         return this->input_resources;
     }
 } // namespace enishi::renderer::directx

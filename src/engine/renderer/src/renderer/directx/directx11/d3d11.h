@@ -23,17 +23,17 @@ namespace enishi::renderer::directx {
         Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 
       private:
-        foundation::VoidResult<DirectXError> init(const HWND hwnd, const types::WindowSize& size);
-        foundation::VoidResult<DirectXError> make_device(void);
-        foundation::VoidResult<DirectXError> make_factory(void);
-        foundation::VoidResult<DirectXError> make_surface(const types::WindowSize& size);
-        foundation::VoidResult<DirectXError> make_swap_chain(const types::WindowSize& size);
-        foundation::VoidResult<DirectXError> make_target(const HWND hwnd);
-        foundation::VoidResult<DirectXError> make_visual(void);
-        foundation::VoidResult<DirectXError> commit(void);
+        foundation::VoidResult<RendererError> init(const HWND hwnd, const types::WindowSize& size);
+        foundation::VoidResult<RendererError> make_device(void);
+        foundation::VoidResult<RendererError> make_factory(void);
+        foundation::VoidResult<RendererError> make_surface(const types::WindowSize& size);
+        foundation::VoidResult<RendererError> make_swap_chain(const types::WindowSize& size);
+        foundation::VoidResult<RendererError> make_target(const HWND hwnd);
+        foundation::VoidResult<RendererError> make_visual(void);
+        foundation::VoidResult<RendererError> commit(void);
 
       public:
-        static foundation::Result<std::unique_ptr<D3D11>, DirectXError> make(
+        static foundation::Result<std::unique_ptr<D3D11>, RendererError> make(
             const HWND hwnd, const types::WindowSize& size);
 
         Microsoft::WRL::ComPtr<ID3D11Device> get_device(void) const override;

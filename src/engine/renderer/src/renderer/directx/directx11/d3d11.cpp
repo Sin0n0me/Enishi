@@ -2,7 +2,7 @@
 #include <foundation/debug/debug.h>
 
 namespace enishi::renderer::directx {
-    foundation::VoidResult<DirectXError> D3D11::init(
+    foundation::VoidResult<RendererError> D3D11::init(
         const HWND hwnd, const types::WindowSize& size) {
         auto reuslt = this->make_device();
         if (reuslt.is_err()) {
@@ -37,7 +37,7 @@ namespace enishi::renderer::directx {
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_device(void) {
+    foundation::VoidResult<RendererError> D3D11::make_device(void) {
         const HRESULT result_device = D3D11CreateDevice(nullptr,
             D3D_DRIVER_TYPE_HARDWARE,
             nullptr,
@@ -51,12 +51,12 @@ namespace enishi::renderer::directx {
             this->context.GetAddressOf());
         if (FAILED(result_device)) {
             return foundation::Error(
-                DirectXError::DeviceError, "D3D11デバイスの作成に失敗しました");
+                RendererError::DeviceError, "D3D11デバイスの作成に失敗しました");
         }
 
         const HRESULT result_dxgi_device = this->device.As(&this->dxgi_device);
         if (FAILED(result_dxgi_device)) {
-            return foundation::Error(DirectXError::DeviceError, "DXGIデバイスの作成に失敗しました");
+            return foundation::Error(RendererError::DeviceError, "DXGIデバイスの作成に失敗しました");
         }
 
         const HRESULT result_dcom_device = DCompositionCreateDevice(dxgi_device.Get(),
@@ -64,24 +64,24 @@ namespace enishi::renderer::directx {
             reinterpret_cast<void**>(this->dcomp_device.GetAddressOf()));
         if (FAILED(result_dcom_device)) {
             return foundation::Error(
-                DirectXError::DeviceError, "DCompositionデバイスの作成に失敗しました");
+                RendererError::DeviceError, "DCompositionデバイスの作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_factory(void) {
+    foundation::VoidResult<RendererError> D3D11::make_factory(void) {
         const HRESULT result_factory = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG,
             __uuidof(this->dxgi_factory),
             reinterpret_cast<void**>(this->dxgi_factory.GetAddressOf()));
         if (FAILED(result_factory)) {
-            return foundation::Error(DirectXError::FactoryError, "DXGIFactoryの作成に失敗しました");
+            return foundation::Error(RendererError::FactoryError, "DXGIFactoryの作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_surface(const types::WindowSize& size) {
+    foundation::VoidResult<RendererError> D3D11::make_surface(const types::WindowSize& size) {
         const HRESULT result = this->dcomp_device->CreateSurface(size.width,
             size.height,
             DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -89,13 +89,13 @@ namespace enishi::renderer::directx {
             this->dcomp_surface.GetAddressOf());
         if (FAILED(result)) {
             return foundation::Error(
-                DirectXError::SurfaceError, "Surface(Composition)の作成に失敗しました");
+                RendererError::SurfaceError, "Surface(Composition)の作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_swap_chain(const types::WindowSize& size) {
+    foundation::VoidResult<RendererError> D3D11::make_swap_chain(const types::WindowSize& size) {
         constexpr DXGI_SAMPLE_DESC sample{.Count = 1};
         const DXGI_SWAP_CHAIN_DESC1 description{
             .Width = static_cast<UINT>(size.width),
@@ -112,59 +112,59 @@ namespace enishi::renderer::directx {
 
         if (FAILED(result_swap_chain)) {
             return foundation::Error(
-                DirectXError::SwapchainError, "SwapChain(Composition)の作成に失敗しました");
+                RendererError::SwapchainError, "SwapChain(Composition)の作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_target(const HWND hwnd) {
+    foundation::VoidResult<RendererError> D3D11::make_target(const HWND hwnd) {
         const HRESULT hr = this->dcomp_device->CreateTargetForHwnd(hwnd,
             true, // Top most
             this->dcomp_target.GetAddressOf());
 
         if (FAILED(hr)) {
             return foundation::Error(
-                DirectXError::ViewError, "Target(Composition)の作成に失敗しました");
+                RendererError::ViewError, "Target(Composition)の作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::make_visual(void) {
+    foundation::VoidResult<RendererError> D3D11::make_visual(void) {
         const HRESULT hr = this->dcomp_device->CreateVisual(this->dcomp_visual.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                DirectXError::VisualError, "Visual(Composition)の作成に失敗しました");
+                RendererError::VisualError, "Visual(Composition)の作成に失敗しました");
         }
 
         return {};
     }
 
-    foundation::VoidResult<DirectXError> D3D11::commit(void) {
+    foundation::VoidResult<RendererError> D3D11::commit(void) {
         const HRESULT result_set_context =
             this->dcomp_visual->SetContent(this->dxgi_swap_chain.Get());
         if (FAILED(result_set_context)) {
             return foundation::Error(
-                DirectXError::SwapchainError, "SwapChain(Composition)のセットに失敗しました");
+                RendererError::SwapchainError, "SwapChain(Composition)のセットに失敗しました");
         }
 
         const HRESULT result_set_root = this->dcomp_target->SetRoot(this->dcomp_visual.Get());
         if (FAILED(result_set_root)) {
             return foundation::Error(
-                DirectXError::VisualError, "Visual(Composition)のセットに失敗しました");
+                RendererError::VisualError, "Visual(Composition)のセットに失敗しました");
         }
 
         // 合成エンジンに完了を通知
         const HRESULT result_commit = this->dcomp_device->Commit();
         if (FAILED(result_commit)) {
-            return foundation::Error(DirectXError::DeviceError, "Commitに失敗しました");
+            return foundation::Error(RendererError::DeviceError, "Commitに失敗しました");
         }
 
         return {};
     }
 
-    foundation::Result<std::unique_ptr<D3D11>, DirectXError> D3D11::make(
+    foundation::Result<std::unique_ptr<D3D11>, RendererError> D3D11::make(
         const HWND hwnd, const types::WindowSize& size) {
         std::unique_ptr<D3D11> d3d11 = std::make_unique<D3D11>();
 

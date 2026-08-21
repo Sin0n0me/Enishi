@@ -1,22 +1,27 @@
 #pragma once
 #include "interface_native_buffer_accessor.h"
-#include <cstdint>
-#include <d3d11.h>
-#include <engine_types/assets/shader/shader_kind.h>
+#include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
-#include <variant>
-#include <wrl/client.h>
+#include <renderer/common/view/interface_view_accessor.h>
 
 namespace enishi::renderer::directx {
     class BufferPool : public INativeBufferAccessor {
       private:
-        ResourcePool<NativeBuffer> buffers;
+        struct BufferHandle {
+            std::size_t resource_index;
+            std::size_t interface_index;
+        };
+
+      private:
+        HandleMapper<BufferHandle> handle_mapper;
+        ResourcePool<NativeBuffer> native_buffers;
 
       public:
-        std::tuple<std::size_t, NativeBuffer&> make_native_buffer(void) noexcept override;
-        void remove_native_buffer(const std::size_t index) noexcept override;
-        foundation::Option<NativeBuffer&> get_native_buffer(const std::size_t index) noexcept override;
+        std::tuple<types::HandleId, NativeBuffer&> make_native_buffer(void) noexcept override;
+        void remove_native_buffer(const types::HandleId handle) noexcept override;
+        foundation::Option<NativeBuffer&> get_native_buffer(
+            const types::HandleId handle) noexcept override;
         foundation::Option<const NativeBuffer&> get_native_buffer(
-            const std::size_t index) const noexcept override;
+            const types::HandleId handle) const noexcept override;
     };
 } // namespace enishi::renderer::directx

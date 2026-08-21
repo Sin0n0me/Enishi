@@ -8,7 +8,7 @@
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer_description.h>
 #include <engine_types/renderer/description/sampler_description.h>
-#include <renderer/common/shader_input_info.h>
+#include <renderer/common/shader/shader_input_info.h>
 
 namespace enishi::renderer::directx {
     class D3D11Converter {

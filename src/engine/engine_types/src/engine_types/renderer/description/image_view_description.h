@@ -43,65 +43,65 @@ namespace enishi::types {
         std::uint32_t mip_Level_count;
         std::uint32_t base_array_layer;
         std::uint32_t array_layer_count;
+
+        // RTV用のデフォルト記述子を生成するヘルパー
+        [[nodiscard]]
+        static constexpr ImageViewDescription make_render_target_view_description(
+            const ImageFormat format) noexcept {
+            return ImageViewDescription{
+                .type = ImageViewType::RenderTarget,
+                .format = format,
+                .aspect = ImageAspect::Color,
+                .base_mip_level = 0,
+                .mip_Level_count = 1,
+                .base_array_layer = 0,
+                .array_layer_count = 1,
+            };
+        }
+
+        // DSV用
+        [[nodiscard]]
+        static constexpr ImageViewDescription make_depth_stencil_view_description(
+            const ImageFormat format) noexcept {
+            return ImageViewDescription{
+                .type = ImageViewType::DepthStencil,
+                .format = format,
+                .aspect = ImageAspect::DepthStencil,
+                .base_mip_level = 0,
+                .mip_Level_count = 1,
+                .base_array_layer = 0,
+                .array_layer_count = 1,
+            };
+        }
+
+        // SRV用（ミップマップあり）
+        [[nodiscard]]
+        static constexpr ImageViewDescription make_shader_resource_view_description(
+            const ImageFormat format, const std::uint32_t mip_level = 1) noexcept {
+            return ImageViewDescription{
+                .type = ImageViewType::ShaderResource,
+                .format = format,
+                .aspect = ImageAspect::Color,
+                .base_mip_level = mip_level,
+                .mip_Level_count = 1,
+                .base_array_layer = 0,
+                .array_layer_count = 1,
+            };
+        }
+
+        // UAV用
+        [[nodiscard]]
+        static constexpr ImageViewDescription make_unordered_access_view_description(
+            ImageFormat format, uint32_t mip_level = 0) noexcept {
+            return ImageViewDescription{
+                .type = ImageViewType::UnorderedAccess,
+                .format = format,
+                .aspect = ImageAspect::Color,
+                .base_mip_level = mip_level,
+                .mip_Level_count = 1,
+                .base_array_layer = 0,
+                .array_layer_count = 1,
+            };
+        }
     };
-
-    // RTV用のデフォルト記述子を生成するヘルパー
-    [[nodiscard]]
-    constexpr ImageViewDescription make_render_target_view_description(
-        const ImageFormat format) noexcept {
-        return ImageViewDescription{
-            .type = ImageViewType::RenderTarget,
-            .format = format,
-            .aspect = ImageAspect::Color,
-            .base_mip_level = 0,
-            .mip_Level_count = 1,
-            .base_array_layer = 0,
-            .array_layer_count = 1,
-        };
-    }
-
-    // DSV用
-    [[nodiscard]]
-    constexpr ImageViewDescription make_depth_stencil_view_description(
-        const ImageFormat format) noexcept {
-        return ImageViewDescription{
-            .type = ImageViewType::DepthStencil,
-            .format = format,
-            .aspect = ImageAspect::DepthStencil,
-            .base_mip_level = 0,
-            .mip_Level_count = 1,
-            .base_array_layer = 0,
-            .array_layer_count = 1,
-        };
-    }
-
-    // SRV用（ミップマップあり）
-    [[nodiscard]]
-    constexpr ImageViewDescription make_shader_resource_view_description(
-        const ImageFormat format, const std::uint32_t mip_level = 1) noexcept {
-        return ImageViewDescription{
-            .type = ImageViewType::ShaderResource,
-            .format = format,
-            .aspect = ImageAspect::Color,
-            .base_mip_level = mip_level,
-            .mip_Level_count = 1,
-            .base_array_layer = 0,
-            .array_layer_count = 1,
-        };
-    }
-
-    // UAV用
-    [[nodiscard]]
-    constexpr ImageViewDescription make_unordered_access_view_description(
-        ImageFormat format, uint32_t mip_level = 0) noexcept {
-        return ImageViewDescription{
-            .type = ImageViewType::UnorderedAccess,
-            .format = format,
-            .aspect = ImageAspect::Color,
-            .base_mip_level = mip_level,
-            .mip_Level_count = 1,
-            .base_array_layer = 0,
-            .array_layer_count = 1,
-        };
-    }
 } // namespace enishi::types

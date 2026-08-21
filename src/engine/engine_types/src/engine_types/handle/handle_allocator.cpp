@@ -8,27 +8,30 @@ namespace enishi::types {
     HandleId HandleAllocator::create(void) {
         if (!this->free_list.empty()) {
             // 削除済みIDを再利用
-            HandleId id = this->free_list.back();
+            const HandleId handle = this->free_list.back();
+            const auto index = handle.handle_id;
             this->free_list.pop_back();
-            this->alive[id] = true;
-            return id;
+            this->alive[index] = true;
+            return handle;
         }
 
-        this->next_id += 1;
-        HandleId id = this->next_id;
+        const HandleId handle = this->next_id;
+        this->next_id.handle_id += 1;
         this->alive.push_back(true);
 
-        return id;
+        return handle;
     }
 
-    void HandleAllocator::destroy(const HandleId id) {
-        if (id < this->alive.size()) {
-            this->alive[id] = false;
-            this->free_list.push_back(id);
+    void HandleAllocator::destroy(const HandleId handle) {
+        const auto index = handle.handle_id;
+        if (index < this->alive.size()) {
+            this->alive[index] = false;
+            this->free_list.push_back(handle);
         }
     }
 
-    bool HandleAllocator::is_alive(const HandleId id) const noexcept {
-        return id < this->alive.size() && this->alive[id];
+    bool HandleAllocator::is_alive(const HandleId handle) const noexcept {
+        const auto index = handle.handle_id;
+        return index < this->alive.size() && this->alive[index];
     }
 } // namespace enishi::types

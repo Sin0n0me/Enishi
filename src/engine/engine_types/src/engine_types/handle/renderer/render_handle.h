@@ -7,6 +7,7 @@ namespace enishi::types {
     // バッファーの種類などはHandleIDから判断する
     // あくまで何かを示すだけ
     enum class RenderHandleType : std::uint32_t {
+        Unknown = 0,
         Mesh,
         Texture,
         Shader,
@@ -24,14 +25,16 @@ namespace enishi::types {
         HandleId id;
         RenderHandleType type;
 
+        explicit RenderHandle(const HandleId id, const RenderHandleType type);
+        RenderHandle(void);
+        RenderHandle(RenderHandle&&) = default;
+        RenderHandle(const RenderHandle& handle);
+
         bool is_valid(void) const noexcept;
 
-        bool operator==(const RenderHandle&) const = default;
-    };
-
-    constexpr RenderHandle INVALID_RENDER_HANDLE{
-        .id = INVALID_HANDLE_ID,
-        .type = static_cast<decltype(RenderHandle::type)>(-1),
+        constexpr bool operator==(const RenderHandle&) const = default;
+        constexpr RenderHandle& operator=(const RenderHandle&) noexcept = default;
+        constexpr RenderHandle& operator=(RenderHandle&&) noexcept = default;
     };
 } // namespace enishi::types
 

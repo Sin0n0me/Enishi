@@ -74,36 +74,38 @@ namespace enishi::ecs {
                 return;
             }
 
-            const std::uint32_t idx = this->sparse[id];
-            const EntityID lastId = this->dense.back();
+            const auto index = id.handle_id;
+            const auto component_index = this->sparse[index];
+            const EntityID last_id = this->dense.back();
 
             // 末尾要素を削除位置に移動
-            this->components[idx] = std::move(this->components.back());
-            this->dense[idx] = lastId;
-            this->sparse[lastId] = idx;
+            this->components[component_index] = std::move(this->components.back());
+            this->dense[component_index] = last_id;
+            this->sparse[last_id.handle_id] = component_index;
 
             // 末尾を削除
             this->components.pop_back();
             this->dense.pop_back();
-            this->sparse[id] = ComponentPool::INVALID;
+            this->sparse[index] = ComponentPool::INVALID;
         }
 
         bool has(const EntityID id) const noexcept override {
-            return id < this->sparse.size() && this->sparse[id] != ComponentPool::INVALID;
+            const auto index = id.handle_id;
+            return index < this->sparse.size() && this->sparse[index] != ComponentPool::INVALID;
         }
 
         foundation::Option<T&> get(const EntityID id) {
             if (!this->has(id)) {
                 return {};
             }
-            return this->components[this->sparse[id]];
+            return this->components[this->sparse[id.handle_id]];
         }
 
         foundation::Option<const T&> get(const EntityID id) const {
             if (!this->has(id)) {
                 return {};
             }
-            return this->components[this->sparse[id]];
+            return this->components[this->sparse[id.handle_id]];
         }
 
         // イテレーション用
@@ -118,12 +120,12 @@ namespace enishi::ecs {
       private:
         T& emplace_component(const EntityID id, T&& component) {
             // sparse を id の大きさに合わせて拡張
-            const auto next_id = id + 1;
+            const auto next_id = id.handle_id + 1;
             if (this->sparse.size() < next_id) {
                 this->sparse.resize(next_id, ComponentPool::INVALID);
             }
 
-            this->sparse[id] = static_cast<std::uint32_t>(this->dense.size());
+            this->sparse[id.handle_id] = static_cast<std::uint32_t>(this->dense.size());
             this->dense.push_back(id);
             this->components.emplace_back(component);
 

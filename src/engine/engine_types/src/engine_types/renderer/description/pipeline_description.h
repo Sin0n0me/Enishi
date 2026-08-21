@@ -34,8 +34,8 @@ namespace enishi::types {
         PrimitiveTopology topology;
 
         [[nodiscard]]
-        static constexpr PipelineDescription make_opaque(RenderHandle vs,
-            RenderHandle fs,
+        static constexpr PipelineDescription make_opaque(const RenderHandle& vs,
+            const RenderHandle& fs,
             const RenderHandle& layout,
             const RenderHandle& rasterizer) noexcept {
             return PipelineDescription{

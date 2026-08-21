@@ -67,7 +67,9 @@ namespace enishi {
             return image_handle.propagation(core::SystemError::ConstructRenderPassError);
         }
 
-        const auto image_view_description = types::ImageViewDescription{};
+        const auto image_view_description =
+            types::ImageViewDescription::make_render_target_view_description(
+                types::ImageFormat::BGRA8_UNORM);
         const auto result =
             renderer->create_render_target_view(image_handle.unwrap(), image_view_description)
                 .add_message("レンダーターゲットの作成に失敗しました");
@@ -75,7 +77,7 @@ namespace enishi {
         if (result.is_err()) {
             return result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        auto render_target_view = result.unwrap().lock();
+        auto& render_target_view = result.unwrap();
         if (!bool(render_target_view)) {
             return foundation::Error(core::SystemError::ConstructRenderPassError);
         }
@@ -207,7 +209,7 @@ namespace enishi {
         const auto& shader_reflection = renderer->create_shader_reflection(raw_shader_data);
 
         // 頂点のシェーダーの場合はシェーダーデータからリフレクション作成
-        auto input_layout = types::INVALID_RENDER_HANDLE;
+        auto input_layout = types::RenderHandle{};
         if (kind == types::ShaderKind::Vertex) {
             const auto result_input_layout =
                 renderer->create_vertex_layout_from_shader_data(raw_shader_data)
@@ -220,7 +222,7 @@ namespace enishi {
 
         return ShaderResult{
             .shader = shader.unwrap(),
-            .shader_reflection = shader_reflection.unwrap_or(types::INVALID_RENDER_HANDLE),
+            .shader_reflection = shader_reflection.unwrap_or(types::RenderHandle{}),
             .input_layout = input_layout,
         };
     }

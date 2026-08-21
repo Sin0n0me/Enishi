@@ -4,5 +4,4 @@
 
 namespace enishi::ecs {
     using EntityID = types::HandleId;
-    constexpr EntityID NULL_ENTITY = UINT32_MAX;
 } // namespace enishi::ecs

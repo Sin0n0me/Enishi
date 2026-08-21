@@ -1,7 +1,7 @@
 #include "registory.h"
 namespace enishi::ecs {
     EntityID Registory::create(void) {
-        return this->entity_manager.create();
+        return this->handle_allocator.create();
     }
 
     void Registory::destroy(const EntityID id) {
@@ -11,10 +11,10 @@ namespace enishi::ecs {
                 pool->remove(id);
             }
         }
-        this->entity_manager.destroy(id);
+        this->handle_allocator.destroy(id);
     }
 
     bool Registory::is_alive(const EntityID id) const noexcept {
-        return this->entity_manager.is_alive(id);
+        return this->handle_allocator.is_alive(id);
     }
 } // namespace enishi::ecs

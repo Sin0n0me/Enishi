@@ -6,8 +6,8 @@
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <optional>
-#include <renderer/common/interface_shader_input_reflection.h>
-#include <renderer/common/interface_shader_reflection.h>
+#include <renderer/common/shader/interface_shader_input_reflection.h>
+#include <renderer/common/shader/interface_shader_reflection.h>
 #include <renderer/errors/errors.h>
 #include <string>
 #include <unordered_map>
@@ -15,20 +15,21 @@
 #include <wrl/client.h>
 
 namespace enishi::renderer::directx {
-    class ShaderReflection : public IShaderReflection<DirectXError>, public IShaderInputReflection {
+    class D3D11ShaderReflection : public IShaderReflection, public IShaderInputReflection {
       private:
         types::ShaderKind shader_kind;
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
         std::vector<ShaderInputLayout> input_layouts;
         std::vector<ShaderInputResource> input_resources;
+        std::size_t hash;
 
       public:
-        ShaderReflection(void) noexcept;
-        ShaderReflection(ShaderReflection&&) noexcept = default;
-        ShaderReflection& operator=(ShaderReflection&&) noexcept = default;
+        D3D11ShaderReflection(void) noexcept;
+        D3D11ShaderReflection(D3D11ShaderReflection&&) noexcept = default;
+        D3D11ShaderReflection& operator=(D3D11ShaderReflection&&) noexcept = default;
 
       public:
-        foundation::VoidResult<DirectXError> load(
+        foundation::VoidResult<RendererError> load(
             const types::ShaderData& shader_data) noexcept override;
         const IShaderInputReflection* get_shader_input_reflection(void) const override;
         types::ShaderKind get_shader_kind(void) const override;
@@ -44,8 +45,9 @@ namespace enishi::renderer::directx {
         std::vector<ShaderInputResource> get_input_resources(void) const noexcept override;
 
       private:
-        foundation::VoidResult<DirectXError> load_binding_desc(const std::uint32_t index) noexcept;
-        foundation::VoidResult<DirectXError> load_parameter_desc(
+        foundation::VoidResult<RendererError> load_binding_desc(const std::uint32_t index) noexcept;
+        foundation::VoidResult<RendererError> load_parameter_desc(
             const std::uint32_t index) noexcept;
+        std::size_t get_shader_hash(void) const override;
     };
 } // namespace enishi::renderer::directx

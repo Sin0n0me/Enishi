@@ -22,7 +22,7 @@ namespace enishi::core {
         assets_system::IAssetSystem* const asset_system) {
         for (auto& [name, constructor] : this->name_to_constructor) {
             auto result = constructor->make(this->renderer.get(), asset_system)
-                              .add_message("レンダーパスの作成に失敗しました");
+                              .add_message("レンダーパスの構築に失敗しました");
             if (result.is_err()) {
                 return result.propagation(SystemError::ConstructRenderPassError);
             }

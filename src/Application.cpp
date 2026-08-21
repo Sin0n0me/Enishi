@@ -38,12 +38,14 @@ namespace enishi {
         if (!bool(root_window)) {
             return false;
         }
+        foundation::Logger::info("ウィンドウの初期化に成功しました");
 
         // レンダラーの初期化
         const auto renderer = this->init_renderer(root_window, asset_manager);
         if (!bool(renderer)) {
             return false;
         }
+        foundation::Logger::info("レンダラーの初期化に成功しました");
 
         return true;
     }

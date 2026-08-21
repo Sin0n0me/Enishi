@@ -1,5 +1,6 @@
 #pragma once
 #include <foundation/option/option.h>
+#include <span>
 #include <tuple>
 #include <vector>
 
@@ -37,6 +38,10 @@ namespace enishi::renderer {
                 return {};
             }
             return vec.at(index);
+        }
+
+        [[nodiscard]] std::span<const T> get_all(void) const noexcept {
+            return this->resources;
         }
     };
 } // namespace enishi::renderer

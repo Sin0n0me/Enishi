@@ -30,8 +30,8 @@ namespace enishi::renderer {
     foundation::VoidResult<platform::RenderError> RenderPass::set_topology(
         const types::PrimitiveTopology topology) noexcept {
         return this->add_command(types::RenderHandle{
-            .id = static_cast<types::HandleId>(topology),
-            .type = types::RenderHandleType::Topology,
+            types::HandleId{static_cast<types::HandleId::HandleType>(topology)},
+            types::RenderHandleType::Topology,
         });
     }
 

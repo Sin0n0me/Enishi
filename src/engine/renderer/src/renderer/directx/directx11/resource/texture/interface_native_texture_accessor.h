@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d11.h>
+#include <engine_types/handle/handle_type.h>
 #include <foundation/option/option.h>
 #include <tuple>
 #include <wrl/client.h>
@@ -21,33 +22,33 @@ namespace enishi::renderer::directx {
       public:
         virtual ~INativeTextureAccessor(void) noexcept = default;
 
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeTexture1D&> make_native_texture_1d(
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture1D&> make_native_texture_1d(
             void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeTexture2D&> make_native_texture_2d(
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture2D&> make_native_texture_2d(
             void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeTexture3D&> make_native_texture_3d(
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture3D&> make_native_texture_3d(
             void) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<std::size_t, NativeSampler&> make_native_sampler(
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeSampler&> make_native_sampler(
             void) noexcept = 0;
         [[nodiscard]] virtual void remove_native_texture(
-            const TextureType texture_kind, const std::size_t index) noexcept = 0;
-        [[nodiscard]] virtual void remove_native_sampler(const std::size_t index) noexcept = 0;
+            const TextureType texture_kind, const types::HandleId handle) noexcept = 0;
+        [[nodiscard]] virtual void remove_native_sampler(const types::HandleId handle) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<NativeTexture1D&> get_native_texture_1d(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeTexture1D&> get_native_texture_1d(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativeTexture2D&> get_native_texture_2d(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeTexture2D&> get_native_texture_2d(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativeTexture3D&> get_native_texture_3d(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeTexture3D&> get_native_texture_3d(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<NativeSampler&> get_native_sampler(
-            const std::size_t index) noexcept = 0;
+            const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeSampler&> get_native_sampler(
-            const std::size_t index) const noexcept = 0;
+            const types::HandleId handle) const noexcept = 0;
     };
 } // namespace enishi::renderer::directx

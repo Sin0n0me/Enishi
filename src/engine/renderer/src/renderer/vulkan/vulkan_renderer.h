@@ -30,16 +30,16 @@ namespace enishi::renderer::vulkan {
             const types::RasterizerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(
             const types::ImageDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IRenderTargetView>>
+        platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
         create_render_target_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IDepthStencilView>>
+        platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
         create_depth_stencil_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IShaderResourceView>>
+        platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
         create_shader_resource_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
-        platform::RenderResult<std::weak_ptr<platform::IUnorderedAccessView>>
+        platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
         create_unordered_access_view(types::RenderHandle image_handle,
             const types::ImageViewDescription& description) override;
     };

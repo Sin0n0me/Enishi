@@ -1,10 +1,10 @@
 #pragma once
 #include "component/component_pool.h"
 #include "entity/entity.h"
-#include "entity/entity_manager.h"
 #include "view.h"
 #include <cassert>
 #include <cstdint>
+#include <engine_types/handle/handle_allocator.h>
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
@@ -27,7 +27,7 @@ namespace enishi::ecs {
 
     class Registory {
       private:
-        EntityManager entity_manager;
+        types::HandleAllocator handle_allocator;
         std::unordered_map<ComponentId, std::unique_ptr<IComponentPool>> pools;
 
       public:

@@ -40,7 +40,7 @@ namespace enishi::animation {
                 foundation::Logger::warning("モデルに存在しないボーンが含まれています");
                 continue;
             };
-            const auto bone_index = opt_index.value();
+            const auto bone_index = opt_index.unwrap();
 
             if (!tmep.contains(bone_index)) {
                 const auto track_index = bone_tracks.size() - 1;
@@ -102,7 +102,7 @@ namespace enishi::animation {
                 foundation::Logger::warning("モデルに存在しないボーンが含まれています");
                 continue;
             };
-            const auto index = opt_index.value();
+            const auto index = opt_index.unwrap();
 
             // 0はすべてのベースなので除外
             if (index == 0) {

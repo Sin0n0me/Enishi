@@ -78,6 +78,22 @@ namespace enishi::foundation {
                 }
             }
 
+            template <typename U> [[nodiscard]] T unwrap_or_default(void) const& {
+                if constexpr (std::is_reference_v<T>) {
+                    return this->expected.value_or(T{}).get();
+                } else {
+                    return this->expected.value_or(T{});
+                }
+            }
+
+            template <typename U> [[nodiscard]] T unwrap_or_default(void) && {
+                if constexpr (std::is_reference_v<T>) {
+                    return this->expected.value_or(T{}).get();
+                } else {
+                    return this->expected.value_or(T{});
+                }
+            }
+
             [[nodiscard]] const Error<E>& unwrap_err(void) const& {
                 return this->expected.error();
             }

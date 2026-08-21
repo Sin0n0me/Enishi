@@ -1,21 +1,27 @@
 #pragma once
 #include "interface_native_input_layout_accessor.h"
-#include <cstdint>
-#include <d3d11.h>
+#include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
-#include <wrl/client.h>
 
 namespace enishi::renderer::directx {
     class InputLayoutPool : public INativeInputLayoutAccessor {
       private:
-        ResourcePool<NativeInputLayout> input_layouts;
+        struct InputLayoutHandle {
+            std::size_t resource_index;
+            std::size_t interface_index;
+        };
+
+      private:
+        HandleMapper<InputLayoutHandle> handle_mapper;
+        ResourcePool<NativeInputLayout> native_input_layouts;
 
       public:
-        std::tuple<std::size_t, NativeInputLayout&> make_native_input_layout(void) noexcept override;
-        void remove_native_input_layout(const std::size_t index) noexcept override;
+        std::tuple<types::HandleId, NativeInputLayout&> make_native_input_layout(
+            void) noexcept override;
+        void remove_native_input_layout(const types::HandleId handle) noexcept override;
         foundation::Option<NativeInputLayout&> get_native_input_layout(
-            const std::size_t index) noexcept override;
+            const types::HandleId handle) noexcept override;
         foundation::Option<const NativeInputLayout&> get_native_input_layout(
-            const std::size_t index) const noexcept override;
+            const types::HandleId handle) const noexcept override;
     };
 } // namespace enishi::renderer::directx
