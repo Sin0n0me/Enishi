@@ -36,11 +36,8 @@ namespace enishi::renderer::directx {
         static foundation::Result<std::unique_ptr<D3D11>, RendererError> make(
             const HWND hwnd, const types::WindowSize& size);
 
-        Microsoft::WRL::ComPtr<ID3D11Device> get_device(void) const override;
-        Microsoft::WRL::ComPtr<ID3D11DeviceContext> get_context(void) const override;
-        Microsoft::WRL::ComPtr<IDXGISwapChain1> get_swap_chain(void) const override;
-        ID3D11Device* get_device_ptr(void) const override;
-        ID3D11DeviceContext* get_context_ptr(void) const override;
-        IDXGISwapChain1* get_swap_chain_ptr(void) const override;
+        D3D11::Device get_device(void) const override;
+        D3D11::Context get_context(void) const override;
+        D3D11::SwapChain get_swap_chain(void) const override;
     };
 } // namespace enishi::renderer::directx

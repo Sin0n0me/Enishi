@@ -1,18 +1,19 @@
 #pragma once
-#include "../../../common/interface_gpu_resource_maker.h"
-#include "../../../errors/errors.h"
 #include "../interface_d3d11_context.h"
 #include "interface_native_resouce_accessor.h"
 #include "native_gpu_resource.h"
-#include <engine_types/handle/renderer/handles/mesh_handles.h>
+#include <engine_types/assets/model/model_data.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
 #include <platform/renderer/interface_pipeline_layout.h>
+#include <renderer/common/interface_gpu_resource_maker.h>
 #include <renderer/common/resource_binder.h>
+#include <renderer/common/updater/updater_pool.h>
+#include <renderer/errors/errors.h>
 #include <unordered_map>
 
 namespace enishi::renderer::directx {
-    class ResourceManager : public GPUResourceMaker<RendererError> {
+    class ResourceManager : public GPUResourceMaker {
       public:
         struct ResourceHandles {
             types::HandleId resource;     // リソースそのもの
@@ -25,11 +26,9 @@ namespace enishi::renderer::directx {
         std::unique_ptr<NativeGPUResource> native_resource;
         std::unique_ptr<ResourceBinder> resource_binder;
         std::shared_ptr<ID3D11Context> context;
-        std::unordered_map<types::RenderHandle, ResourceHandles> handle_mapper;
 
-        std::unordered_map<types::HandleId, types::MeshHandles> meshes;
+        std::unordered_map<types::RenderHandle, ResourceHandles> handle_mapper;
         std::unordered_map<std::size_t, types::RenderHandle> hash_to_shader_refection;
-        std::vector<types::MeshHandles> meshes_;
 
       public:
         explicit ResourceManager(std::shared_ptr<ID3D11Context> context);
@@ -50,8 +49,7 @@ namespace enishi::renderer::directx {
             const types::ShaderData& shader_data) override;
         foundation::Result<types::RenderHandle, RendererError> make_input_layout_from_shader_data(
             const types::ShaderData& shader_data) override;
-        foundation::Result<types::RenderHandle, RendererError> make_mesh(
-            types::MeshData&& mesh_data,
+        foundation::Result<types::RenderHandle, RendererError> make_mesh(MeshData&& mesh_data,
             const std::vector<types::RenderHandle>& shader_reflections) override;
         foundation::Result<types::RenderHandle, RendererError> make_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) override;
@@ -66,13 +64,12 @@ namespace enishi::renderer::directx {
         foundation::Result<types::RenderHandle, RendererError> make_index_buffer(
             const types::RenderData& data) override;
         foundation::Result<types::RenderHandle, RendererError> make_uniform_buffer(
-            const types::RenderData& data,
-            const types::ShaderKind target_shader,
-            const std::uint32_t target_slot) override;
+            const types::RenderData& data) override;
         foundation::Result<types::RenderHandle, RendererError> make_image(
             const types::ImageDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_blend_state() override;
-        foundation::Result<types::RenderHandle, RendererError> make_sampler() override;
+        foundation::Result<types::RenderHandle, RendererError> make_sampler(
+            const types::SamplerDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_rasterizer(
             const types::RasterizerDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_view(
@@ -80,10 +77,6 @@ namespace enishi::renderer::directx {
             const types::ImageViewDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_viewport(
             const types::ViewportRect& config) override;
-
-      public:
-        [[nodiscard]] foundation::Option<const types::MeshHandles&> get_mesh(
-            const types::HandleId handle) const;
 
       private:
         [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_render_target(
@@ -101,5 +94,17 @@ namespace enishi::renderer::directx {
             const types::ShaderData& shader_data, const types::HandleId handle);
         [[nodiscard]] foundation::VoidResult<RendererError> make_pixel_shader(
             const types::ShaderData& shader_data, const types::HandleId handle);
+        [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
+        resolve_mesh_binding(MeshData&& mesh_data,
+            std::vector<IShaderAccessor::ShaderReflection>&& shader_reflections,
+            types::HandleId&& mapped_index_buffer);
+        [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
+        resolve_uniforms(MeshData::UniformMap&& uniforms,
+            const std::vector<IShaderAccessor::ShaderReflection>& shader_reflections);
+        [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
+        resolve_texture(const MeshMaterial& mesh_material,
+            const std::vector<IShaderAccessor::ShaderReflection>& shader_reflections);
+        [[nodiscard]] std::vector<IShaderAccessor::ShaderReflection> get_shader_reflections(
+            const std::vector<types::RenderHandle>& shader_reflections) const;
     };
 } // namespace enishi::renderer::directx

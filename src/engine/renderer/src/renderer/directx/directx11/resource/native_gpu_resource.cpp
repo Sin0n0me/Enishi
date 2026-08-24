@@ -8,7 +8,8 @@ namespace enishi::renderer::directx {
         , buffer_pool(std::make_unique<BufferPool>())
         , shader_pool(std::make_unique<ShaderPool>())
         , view_pool(std::make_unique<ViewPool>())
-        , viewport_pool(std::make_unique<ViewportPool>()) {
+        , viewport_pool(std::make_unique<ViewportPool>())
+        , mesh_pool(std::make_unique<MeshPool>()) {
     }
 
     INativeBufferAccessor* NativeGPUResource::get_native_buffer_accessor(void) noexcept {
@@ -71,5 +72,11 @@ namespace enishi::renderer::directx {
     }
     const IShaderAccessor* NativeGPUResource::get_shader_accessor(void) const noexcept {
         return this->shader_pool.get();
+    }
+    IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) noexcept {
+        return this->mesh_pool.get();
+    }
+    const IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) const noexcept {
+        return this->mesh_pool.get();
     }
 } // namespace enishi::renderer::directx

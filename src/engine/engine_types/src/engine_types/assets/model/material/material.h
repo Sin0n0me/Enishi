@@ -56,10 +56,16 @@ namespace enishi::types {
         glm::f32mat3x3,
         glm::f32mat4x4>;
 
+    struct MaterialTexture {
+        std::filesystem::path path;
+        std::string texture_target_name;
+        std::string sampler_target_name;
+    };
+
     struct Material {
         std::string name;
         std::vector<MaterialVariant> variants; // Vectorに渡した順序に統合されたバイト列になる
-        std::vector<std::filesystem::path> texture_paths;
+        std::vector<MaterialTexture> textures;
         std::uint32_t first_offset;
         std::uint32_t first_instance_offset;
         std::uint32_t count; // 頂点 or インデックス

@@ -1,4 +1,5 @@
 #include "pmd_to_model_data.h"
+#include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/str.h>
@@ -317,6 +318,12 @@ namespace enishi::assets_system {
         const std::filesystem::path& model_path,
         const std::vector<PMDMaterial>& pmd_materials,
         const PMDToonTexture& toon_textures) {
+        enum class SphereMode {
+            None,
+            Add,
+            Multiply,
+        };
+
         std::vector<types::Material> materials;
 
         for (const auto& pmd_material : pmd_materials) {
@@ -325,14 +332,55 @@ namespace enishi::assets_system {
                 .count = pmd_material.index_count,
             };
 
-            material.variants.emplace_back(types::Ambient{
-                .color =
-                    glm::vec3{
-                        pmd_material.ambient[0],
-                        pmd_material.ambient[1],
-                        pmd_material.ambient[2],
-                    },
-            });
+            auto normalized_path = [](const std::string& path) {
+                return std::filesystem::path{path}.lexically_normal();
+            };
+
+            // 使用するテクスチャパスのセット
+            const auto toon_index = pmd_material.toon_index;
+            if (toon_index < PMDToonTexture::MAX_FILE_COUNT) {
+                material.textures.emplace_back(types::MaterialTexture{
+                    .path = model_path / normalized_path(toon_textures.file_names[toon_index]),
+                    .texture_target_name = types::ModelTexture::MODEL_SAMPLER_NAME,
+                    .sampler_target_name = types::ModelTexture::MODEL_TEXTURE_NAME,
+                });
+            }
+
+            // スフィアがついている場合があるので分離
+            auto texture_path = std::string{pmd_material.texture_file};
+            const auto pos = texture_path.find('*');
+            auto sphere_mode = SphereMode::None;
+            if (pos == std::string::npos) {
+                // スフィアがない場合
+                material.textures.emplace_back(types::MaterialTexture{
+                    .path = model_path / normalized_path(texture_path),
+                    .texture_target_name = types::ModelTexture::TOON_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::TOON_SAMPLER_NAME,
+                });
+            } else {
+                const auto toon = model_path / normalized_path(texture_path.substr(0, pos));
+                const auto sphere = model_path / normalized_path(texture_path.substr(pos + 1));
+                const auto extension = sphere.extension();
+                if (extension == ".sph") {
+                    sphere_mode = SphereMode::Multiply;
+                } else if (extension == ".spa") {
+                    sphere_mode = SphereMode::Add;
+                }
+
+                // スフィア付きの場合
+                material.textures.emplace_back(types::MaterialTexture{
+                    .path = toon,
+                    .texture_target_name = types::ModelTexture::TOON_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::TOON_SAMPLER_NAME,
+                });
+                material.textures.emplace_back(types::MaterialTexture{
+                    .path = sphere,
+                    .texture_target_name = types::ModelTexture::SPHERE_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::SPHERE_SAMPLER_NAME,
+                });
+            }
+
+            // uniform用
             material.variants.emplace_back(types::Diffuse{
                 .color =
                     glm::vec4{
@@ -351,36 +399,34 @@ namespace enishi::assets_system {
                     },
                 .shininess = pmd_material.shininess,
             });
-
-            std::vector<std::filesystem::path> paths{};
-
-            auto normalized_path = [](const std::string& path) {
-                return std::filesystem::path{path}.lexically_normal();
-            };
-
-            // 使用するテクスチャパスのセット
-            const auto toon_index = pmd_material.toon_index;
-            if (toon_index < PMDToonTexture::MAX_FILE_COUNT) {
-                paths.emplace_back(
-                    model_path / normalized_path(toon_textures.file_names[toon_index]));
-            }
-
-            // スフィアがついている場合があるので分離
-            auto texture_path = std::string{pmd_material.texture_file};
-            const auto pos = texture_path.find('*');
-            if (pos == std::string::npos) {
-                // スフィアがない場合
-                paths.emplace_back(model_path / normalized_path(texture_path));
-            } else {
-                // スフィア付きの場合
-                auto texture = model_path / normalized_path(texture_path.substr(0, pos));
-                auto sphere = model_path / normalized_path(texture_path.substr(pos + 1));
-
-                paths.emplace_back(texture);
-                paths.emplace_back(sphere);
-            }
-
-            material.texture_paths = std::move(paths);
+            material.variants.emplace_back(types::Ambient{
+                .color =
+                    glm::vec3{
+                        pmd_material.ambient[0],
+                        pmd_material.ambient[1],
+                        pmd_material.ambient[2],
+                    },
+            });
+            material.variants.emplace_back(types::Ambient{
+                .color =
+                    glm::vec3{
+                        pmd_material.ambient[0],
+                        pmd_material.ambient[1],
+                        pmd_material.ambient[2],
+                    },
+            });
+            // sphere_mul
+            material.variants.emplace_back(glm::vec1{
+                sphere_mode == SphereMode::Multiply ? 1.0f : 0.0f,
+            });
+            // sphere_add
+            material.variants.emplace_back(glm::vec1{
+                sphere_mode == SphereMode::Add ? 1.0f : 0.0f,
+            });
+            // edge_flag
+            material.variants.emplace_back(glm::vec1{
+                pmd_material.edge_flag != 0 ? 1.0f : 0.0f,
+            });
 
             materials.emplace_back(material);
         }
@@ -462,8 +508,8 @@ namespace enishi::assets_system {
         std::unordered_map<std::filesystem::path, AssetTextureData> textures;
 
         for (const auto& material : materials) {
-            for (const auto& path : material.texture_paths) {
-                auto result = texture_loader->load(path);
+            for (const auto& texture : material.textures) {
+                auto result = texture_loader->load(texture.path);
                 if (result.is_err()) {
                     return {};
                 }
@@ -472,7 +518,7 @@ namespace enishi::assets_system {
                 if (!bool(texture_data)) {
                     return {}; // 本来は到達しない
                 }
-                textures.emplace(path, std::move(*texture_data));
+                textures.emplace(texture.path, std::move(*texture_data));
             }
         }
 

@@ -15,11 +15,17 @@ namespace enishi::renderer::directx {
       public:
         static D3D11_TEXTURE2D_DESC to_texture2d_desc(
             const types::ImageDescription& description) noexcept;
+        static D3D11_TEXTURE2D_DESC to_texture2d_desc(
+            const types::TextureData& texture_data) noexcept;
+
         static D3D11_RASTERIZER_DESC to_rasterizer_desc(
             const types::RasterizerDescription& description) noexcept;
+        static D3D11_SAMPLER_DESC to_sampler_desc(
+            const types::SamplerDescription& description) noexcept;
 
         static D3D11_FILL_MODE to_fill_mode(const types::FillMode& fill_mode) noexcept;
         static D3D11_CULL_MODE to_cull_mode(const types::CullMode& cull_mode) noexcept;
+        static DXGI_FORMAT to_dxgi_format(const types::TextureFormat& format) noexcept;
         static DXGI_FORMAT to_dxgi_format(const types::ImageFormat& format) noexcept;
         static DXGI_FORMAT to_dxgi_format(
             const ShaderInputValueType& type, const std::uint32_t count) noexcept;
@@ -28,5 +34,11 @@ namespace enishi::renderer::directx {
             const types::PrimitiveTopology& topology) noexcept;
         static D3D11_INPUT_ELEMENT_DESC to_input_element_description(
             const ShaderInputLayout& info) noexcept;
+        static D3D11_TEXTURE_ADDRESS_MODE to_texture_address_mode(
+            const types::AddressMode& address_mode) noexcept;
+        static D3D11_FILTER to_d3d11_filter(const types::FilterMode& min,
+            const types::FilterMode& mag,
+            const types::FilterMode& mip,
+            const types::AnisotropyLevel& anisotropy) noexcept;
     };
 } // namespace enishi::renderer::directx

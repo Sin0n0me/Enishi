@@ -143,7 +143,8 @@ namespace enishi::renderer::directx {
             return ShaderInputResourceDimension::Unknown;
         }();
 
-        this->input_resources[index] = ShaderInputResource{
+        auto& resource = this->input_resources[index];
+        resource = ShaderInputResource{
             .name = bind_desc.Name,
             .type = type,
             .dimension = dimension,
@@ -151,6 +152,7 @@ namespace enishi::renderer::directx {
             .binding = bind_desc.BindPoint,
             .array_size = bind_desc.BindCount,
         };
+        this->name_to_resource_index[resource.name] = index;
 
         return {};
     }
@@ -209,6 +211,16 @@ namespace enishi::renderer::directx {
 
     std::size_t D3D11ShaderReflection::get_shader_hash(void) const {
         return this->hash;
+    }
+
+    foundation::Option<ShaderInputResource> D3D11ShaderReflection::resolve_input_resource(
+        const foundation::UTF8& name) const noexcept {
+        const auto iter = this->name_to_resource_index.find(name);
+        if (iter == this->name_to_resource_index.end()) {
+            return {};
+        }
+        const auto index = iter->second;
+        return this->get_input_resource(index);
     }
 
     std::uint32_t D3D11ShaderReflection::get_input_layout_count(void) const noexcept {

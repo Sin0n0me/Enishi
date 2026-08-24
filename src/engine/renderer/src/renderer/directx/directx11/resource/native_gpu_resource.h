@@ -10,6 +10,7 @@
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
 #include <renderer/common/interface_gpu_resource_accessor.h>
+#include <renderer/common/mesh/mesh_handles_pool.h>
 #include <unordered_map>
 #include <vector>
 #include <wrl/client.h>
@@ -24,6 +25,8 @@ namespace enishi::renderer::directx {
         std::unique_ptr<ShaderPool> shader_pool;
         std::unique_ptr<ViewPool> view_pool;
         std::unique_ptr<ViewportPool> viewport_pool;
+
+        std::unique_ptr<MeshPool> mesh_pool;
 
       public:
         NativeGPUResource(void);
@@ -51,5 +54,9 @@ namespace enishi::renderer::directx {
         const IViewAccessor* get_view_accessor(void) const noexcept override;
         IShaderAccessor* get_shader_accessor(void) noexcept override;
         const IShaderAccessor* get_shader_accessor(void) const noexcept override;
+        const IMeshAccessor* get_mesh_accessor(void) const noexcept override;
+
+        // IGPUResourceAccessor を介して継承されました
+        IMeshAccessor* get_mesh_accessor(void) noexcept override;
     };
 } // namespace enishi::renderer::directx

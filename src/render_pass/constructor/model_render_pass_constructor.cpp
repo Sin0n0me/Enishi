@@ -3,7 +3,7 @@
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <foundation/str/string_builder.h>
-#include <renderer/common/render_pass.h>
+#include <renderer/common/render_pass/render_pass.h>
 
 namespace enishi {
     const std::filesystem::path SHADER_PATH = "./assets/shader";
@@ -20,11 +20,18 @@ namespace enishi {
             .topology = types::PrimitiveTopology::TriangleList,
         };
 
-        // RTVの作成
+        // レンダーターゲットの作成
         auto rtv = this->make_render_target(description, renderer);
         if (rtv.is_err()) {
             return std::move(rtv).unwrap_err();
         }
+
+        // 深度ステンシルの作成
+        auto dsv = this->make_depth_stencil(description, renderer);
+        if (dsv.is_err()) {
+            return std::move(dsv).unwrap_err();
+        }
+
         // ラスタライザの作成
         auto rasterizer = this->make_rasterizer(description, renderer);
         if (rasterizer.is_err()) {
@@ -52,7 +59,8 @@ namespace enishi {
         if (mesh_result.is_err()) {
             return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        render_pass->add_mesh(mesh_result.unwrap(), {});
+        auto& [name, handle] = mesh_result.unwrap();
+        render_pass->add_mesh(name, handle);
 
         return render_pass;
     }
@@ -62,7 +70,8 @@ namespace enishi {
         const auto image_description =
             types::ImageDescription::make_default_render_target(WINDOW_SIZE);
         const auto image_handle =
-            renderer->create_image(image_description).add_message("イメージの作成に失敗しました");
+            renderer->create_image(image_description)
+                .add_message("レンダーターゲット用イメージの作成に失敗しました");
         if (image_handle.is_err()) {
             return image_handle.propagation(core::SystemError::ConstructRenderPassError);
         }
@@ -87,6 +96,35 @@ namespace enishi {
         description.render_target = render_target_view->get_handle();
 
         return {};
+    }
+
+    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_depth_stencil(
+        types::PipelineDescription& description, platform::IRenderer* const renderer) {
+        const auto image_description = types::ImageDescription::make_depth_stencil(
+            WINDOW_SIZE, types::ImageFormat::D24_UNORM_S8_UINT);
+        const auto image_handle = renderer->create_image(image_description)
+                                      .add_message("深度ステンシル用イメージの作成に失敗しました");
+        if (image_handle.is_err()) {
+            return image_handle.propagation(core::SystemError::ConstructRenderPassError);
+        }
+
+        const auto image_view_description =
+            types::ImageViewDescription::make_depth_stencil_view_description(
+                types::ImageFormat::BGRA8_UNORM);
+        const auto result =
+            renderer->create_depth_stencil_view(image_handle.unwrap(), image_view_description)
+                .add_message("深度ステンシルの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(core::SystemError::ConstructRenderPassError);
+        }
+        auto& render_target_view = result.unwrap();
+        if (!bool(render_target_view)) {
+            return foundation::Error(core::SystemError::ConstructRenderPassError);
+        }
+
+        description.depth_stencil = render_target_view->get_handle();
+
+        return foundation::VoidResult<core::SystemError>();
     }
 
     foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_rasterizer(
@@ -227,7 +265,7 @@ namespace enishi {
         };
     }
 
-    foundation::Result<types::RenderHandle, core::SystemError>
+    foundation::Result<std::tuple<foundation::UTF8, types::RenderHandle>, core::SystemError>
     ModelRenderPassConstructor::make_mesh(platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system,
         const std::vector<types::RenderHandle>& shader_reflections) {
@@ -260,8 +298,8 @@ namespace enishi {
 
             // 先にテクスチャ読み込み
             for (const auto& material : model_data->materials) {
-                for (const auto& texture_path : material.texture_paths) {
-                    const auto asset_handle = asset_system->load_asset(texture_path);
+                for (const auto& material_texture : material.textures) {
+                    const auto asset_handle = asset_system->load_asset(material_texture.path);
                     if (asset_handle.is_err()) {
                         error_message.push_back(asset_handle.unwrap_err().get_message());
                     }
@@ -269,14 +307,16 @@ namespace enishi {
             }
 
             // メッシュ作成
-            const auto mesh_handle =
-                renderer->create_mesh(model_data->to_mesh_data(), shader_reflections);
+            const auto mesh_handle = renderer->create_mesh(*model_data, shader_reflections);
             if (mesh_handle.is_err()) {
                 error_message.push_back(mesh_handle.unwrap_err().get_message());
                 continue;
             }
 
-            return mesh_handle.unwrap();
+            return std::tuple{
+                model_data->name,
+                mesh_handle.unwrap(),
+            };
         }
 
         return foundation::Error(

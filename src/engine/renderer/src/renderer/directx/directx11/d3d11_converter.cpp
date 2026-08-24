@@ -1,6 +1,29 @@
 #include "d3d11_converter.h"
 
 namespace enishi::renderer::directx {
+    constexpr bool has_flag(types::ImageUsage flags, types::ImageUsage flag) noexcept {
+        return (static_cast<std::uint32_t>(flags) & static_cast<std::uint32_t>(flag)) != 0;
+    }
+
+    constexpr UINT to_d3d11_bind_flags(types::ImageUsage usage) noexcept {
+        UINT bind_flags = 0;
+
+        if (has_flag(usage, types::ImageUsage::RenderTarget)) {
+            bind_flags |= D3D11_BIND_RENDER_TARGET;
+        }
+        if (has_flag(usage, types::ImageUsage::DepthStencil)) {
+            bind_flags |= D3D11_BIND_DEPTH_STENCIL;
+        }
+        if (has_flag(usage, types::ImageUsage::ShaderResource)) {
+            bind_flags |= D3D11_BIND_SHADER_RESOURCE;
+        }
+        if (has_flag(usage, types::ImageUsage::UnorderedAccess)) {
+            bind_flags |= D3D11_BIND_UNORDERED_ACCESS;
+        }
+
+        return bind_flags;
+    }
+
     D3D11_TEXTURE2D_DESC D3D11Converter::to_texture2d_desc(
         const types::ImageDescription& description) noexcept {
         const DXGI_SAMPLE_DESC sample{
@@ -15,7 +38,37 @@ namespace enishi::renderer::directx {
             .Format = D3D11Converter::to_dxgi_format(description.format),
             .SampleDesc = sample,
             .Usage = D3D11Converter::to_usage(description.usage),
-            .BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, // TODO
+            .BindFlags = to_d3d11_bind_flags(description.usage),
+        };
+    }
+
+    D3D11_TEXTURE2D_DESC D3D11Converter::to_texture2d_desc(
+        const types::TextureData& texture_data) noexcept {
+        // キューブマップの場合は ArraySize が6の倍数(各面)となる
+        const UINT array_size =
+            texture_data.is_cubemap ? texture_data.array_size * 6 : texture_data.array_size;
+
+        // MiscFlags の設定
+        UINT misc_flags = 0;
+        if (texture_data.is_cubemap) {
+            misc_flags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
+        }
+
+        return D3D11_TEXTURE2D_DESC{
+            .Width = texture_data.width,
+            .Height = texture_data.height,
+            .MipLevels = static_cast<UINT>(texture_data.mips.size()),
+            .ArraySize = array_size,
+            .Format = D3D11Converter::to_dxgi_format(texture_data.format),
+            .SampleDesc =
+                {
+                    .Count = 1,
+                    .Quality = 0,
+                },
+            .Usage = D3D11_USAGE_IMMUTABLE,          // 通常のGPU読み取り用
+            .BindFlags = D3D11_BIND_SHADER_RESOURCE, // シェーダーリソース（SRV）として使用
+            .CPUAccessFlags = 0,                     // CPUアクセスなし
+            .MiscFlags = misc_flags,
         };
     }
 
@@ -30,6 +83,27 @@ namespace enishi::renderer::directx {
             .DepthBias = static_cast<INT>(description.depth_bias.constant_factor),
             .SlopeScaledDepthBias = description.depth_bias.clamp,
             .DepthClipEnable = description.depth_bias.enable ? TRUE : FALSE,
+        };
+    }
+
+    D3D11_SAMPLER_DESC D3D11Converter::to_sampler_desc(
+        const types::SamplerDescription& description) noexcept {
+        description.min_filter;
+
+        return D3D11_SAMPLER_DESC{
+            .Filter = D3D11Converter::to_d3d11_filter(description.min_filter,
+                description.mag_filter,
+                description.mip_filter,
+                description.anisotropy),
+            .AddressU = D3D11Converter::to_texture_address_mode(description.address_u),
+            .AddressV = D3D11Converter::to_texture_address_mode(description.address_v),
+            .AddressW = D3D11Converter::to_texture_address_mode(description.address_w),
+            .MipLODBias = description.mip_lod_bias,
+            .MaxAnisotropy = static_cast<UINT>(description.anisotropy),
+            .ComparisonFunc = D3D11_COMPARISON_ALWAYS,
+            .BorderColor = {0, 0, 0, 0},
+            .MinLOD = description.min_lod,
+            .MaxLOD = description.max_lod,
         };
     }
 
@@ -59,6 +133,34 @@ namespace enishi::renderer::directx {
         }
 
         return D3D11_CULL_MODE::D3D11_CULL_FRONT;
+    }
+
+    DXGI_FORMAT D3D11Converter::to_dxgi_format(const types::TextureFormat& format) noexcept {
+        switch (format) {
+            case types::TextureFormat::R8_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_R8_UNORM;
+            case types::TextureFormat::RG8_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_R8G8_UNORM;
+            case types::TextureFormat::RGBA8_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+            case types::TextureFormat::RGBA8_SRGB:
+                return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            case types::TextureFormat::RGBA16_FLOAT:
+                return DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT;
+            case types::TextureFormat::BC1_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_BC1_UNORM;
+            case types::TextureFormat::BC3_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_BC3_UNORM;
+            case types::TextureFormat::BC4_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_BC4_UNORM;
+            case types::TextureFormat::BC5_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_BC5_UNORM;
+            case types::TextureFormat::BC7_UNORM:
+                return DXGI_FORMAT::DXGI_FORMAT_BC7_UNORM;
+            case types::TextureFormat::BC7_SRGB:
+                return DXGI_FORMAT::DXGI_FORMAT_BC7_UNORM_SRGB;
+        }
+        return DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
     }
 
     DXGI_FORMAT D3D11Converter::to_dxgi_format(const types::ImageFormat& format) noexcept {
@@ -239,5 +341,54 @@ namespace enishi::renderer::directx {
             .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
             .InstanceDataStepRate = 0, // TODO
         };
+    }
+
+    D3D11_TEXTURE_ADDRESS_MODE D3D11Converter::to_texture_address_mode(
+        const types::AddressMode& address_mode) noexcept {
+        switch (address_mode) {
+            case types::AddressMode::Repeat:
+                return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+            case types::AddressMode::Clamp:
+                return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_CLAMP;
+            case types::AddressMode::Mirror:
+                return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_MIRROR;
+            default:
+                break;
+        };
+
+        return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+    }
+
+    D3D11_FILTER D3D11Converter::to_d3d11_filter(const types::FilterMode& min,
+        const types::FilterMode& mag,
+        const types::FilterMode& mip,
+        const types::AnisotropyLevel& anisotropy) noexcept {
+        // 異方性フィルタリングが有効（>1）な場合
+        if (anisotropy != types::AnisotropyLevel::None) {
+            return D3D11_FILTER::D3D11_FILTER_ANISOTROPIC;
+        }
+
+        // Min / Mag / Mip の組み合わせ
+        if (min == types::FilterMode::Nearest) {
+            if (mag == types::FilterMode::Nearest) {
+                return (mip == types::FilterMode::Nearest)
+                           ? D3D11_FILTER::D3D11_FILTER_MIN_MAG_MIP_POINT
+                           : D3D11_FILTER::D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+            }
+
+            return (mip == types::FilterMode::Nearest)
+                       ? D3D11_FILTER::D3D11_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT
+                       : D3D11_FILTER::D3D11_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+        }
+
+        if (mag == types::FilterMode::Nearest) {
+            return (mip == types::FilterMode::Nearest)
+                       ? D3D11_FILTER::D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT
+                       : D3D11_FILTER::D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+        }
+
+        return (mip == types::FilterMode::Nearest)
+                   ? D3D11_FILTER::D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT
+                   : D3D11_FILTER::D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     }
 } // namespace enishi::renderer::directx

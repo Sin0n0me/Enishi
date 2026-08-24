@@ -4,6 +4,10 @@
 #include <platform/window/common_settings.h>
 
 namespace enishi::platform_impl {
+    SDL_HitTestResult SDLCALL hit_test_callback(SDL_Window* win, const SDL_Point* pt, void* data) {
+        return SDL_HITTEST_DRAGGABLE;
+    }
+
     void SDLWindowDeleter::operator()(SDL_Window* const ptr) const {
         if (ptr) {
             SDL_DestroyWindow(ptr);
@@ -40,6 +44,11 @@ namespace enishi::platform_impl {
 
         if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
             foundation::Logger::error(SDL_GetError());
+            return foundation::Error(platform::WindowError::InitError);
+        }
+
+        // ヒットテストのコールバックを登録
+        if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, nullptr)) {
             return foundation::Error(platform::WindowError::InitError);
         }
 

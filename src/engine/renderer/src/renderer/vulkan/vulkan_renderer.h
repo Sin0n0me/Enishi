@@ -10,8 +10,8 @@ namespace enishi::renderer::vulkan {
     class VulkanRenderer : public platform::IRenderer {
       private:
       public:
-        platform::RenderResult<types::RenderHandle> create_mesh(
-            types::MeshData&& mesh, const std::vector<types::RenderHandle>& shaders) override;
+        platform::RenderResult<types::RenderHandle> create_mesh(const types::ModelData& model_data,
+            const std::vector<types::RenderHandle>& shaders) override;
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(

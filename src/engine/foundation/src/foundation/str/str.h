@@ -10,4 +10,30 @@ namespace enishi ::foundation {
         EncodeError,
         DecodeError,
     };
+
+    enum class Encoding {
+        ASCII,
+        UTF8,
+        SJIS,
+    };
+
+    class _WIP_UTF8 {
+      private:
+        std::string str;
+
+      public:
+    };
+
+    class _WIP_StringWithEncoding {
+      private:
+        Encoding encoding;
+        std::string str;
+
+      public:
+        _WIP_StringWithEncoding(_WIP_StringWithEncoding&&) = default;
+
+        _WIP_StringWithEncoding& operator=(_WIP_StringWithEncoding&&) = default;
+
+        _WIP_StringWithEncoding convert_encoding(const Encoding encoding);
+    };
 } // namespace enishi::foundation

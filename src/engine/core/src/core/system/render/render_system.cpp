@@ -46,6 +46,11 @@ namespace enishi::core {
 
         for (auto [entity, animation, model] : view) {
         }
+
+        // 各パイプラインに応じた描画コマンド実行
+        for (const auto& pass : this->render_passes) {
+            pass->update();
+        }
     }
 
     void enishi::core::RenderSystem::post_update(void) {
@@ -59,12 +64,42 @@ namespace enishi::core {
     void RenderSystem::submit_render_graph(void) const {
         // 描画前初期化
         this->encoder->setup_viewports();
-        this->encoder->setup_render_targets();
+        this->encoder->setup_views();
 
         // 各パイプラインに応じた描画コマンド実行
         for (const auto& pass : this->render_passes) {
             for (const auto& command : pass->get_commands()) {
-                this->execute(command);
+                switch (command.handle.type) {
+                    case types::RenderHandleType::Buffer: {
+                        this->encoder->submit_command_buffer(command);
+                    } break;
+                    case types::RenderHandleType::Shader: {
+                        this->encoder->submit_command_shader(command);
+                    } break;
+                    case types::RenderHandleType::Mesh: {
+                        this->encoder->submit_command_mesh(command);
+                    } break;
+                    case types::RenderHandleType::Texture: {
+                        this->encoder->submit_command_texture(command);
+                    } break;
+                    case types::RenderHandleType::View: {
+                        this->encoder->submit_command_view(command, pass->get_render_target());
+                    } break;
+                    case types::RenderHandleType::Rasterizer: {
+                        this->encoder->submit_command_rasterizer(command);
+                    } break;
+                    case types::RenderHandleType::Topology: {
+                        this->encoder->submit_command_topology(command);
+                    } break;
+                    case types::RenderHandleType::VertexLayout: {
+                        this->encoder->submit_command_vertex_layout(command);
+                    } break;
+                    case types::RenderHandleType::Draw: {
+                        this->encoder->draw(command.handle);
+                    } break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -73,59 +108,7 @@ namespace enishi::core {
         this->encoder->present();
     }
 
-    void RenderSystem::execute(const types::DrawCommand& command) const {
-        switch (command.sub_command) {
-            case types::SubCommand::Bind: {
-                this->bind(command.handle);
-            } break;
-            case types::SubCommand::Clear: {
-            } break;
-            case types::SubCommand::Unbind: {
-            } break;
-            case types::SubCommand::Nop: {
-                // 明示的に何もしない
-            } break;
-        }
-    }
-
-    void RenderSystem::bind(const types::RenderHandle& render_handle) const {
-        switch (render_handle.type) {
-            case types::RenderHandleType::Buffer: {
-                this->encoder->bind_buffer(render_handle);
-            } break;
-            case types::RenderHandleType::Shader: {
-                this->encoder->bind_shader(render_handle);
-            } break;
-            case types::RenderHandleType::Mesh: {
-                this->encoder->bind_mesh(render_handle);
-            } break;
-            case types::RenderHandleType::Texture: {
-                this->encoder->bind_texture(render_handle);
-            } break;
-            case types::RenderHandleType::View: {
-                this->encoder->bind_view(render_handle);
-            } break;
-            case types::RenderHandleType::Rasterizer: {
-                this->encoder->bind_rasterizer(render_handle);
-            } break;
-            case types::RenderHandleType::Topology: {
-                this->encoder->bind_topology(render_handle);
-            } break;
-            case types::RenderHandleType::VertexLayout: {
-                this->encoder->bind_input_layout(render_handle);
-            } break;
-            case types::RenderHandleType::Draw: {
-                this->encoder->draw(render_handle);
-            } break;
-            default:
-                break;
-        }
-    }
-
     std::shared_ptr<platform::IRenderer> RenderSystem::get_renderer(void) const {
         return this->renderer;
-    }
-
-    void core::RenderSystem::add_command() {
     }
 } // namespace enishi::core

@@ -21,6 +21,7 @@ namespace enishi::renderer::directx {
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
         std::vector<ShaderInputLayout> input_layouts;
         std::vector<ShaderInputResource> input_resources;
+        std::unordered_map<foundation::UTF8, std::size_t> name_to_resource_index;
         std::size_t hash;
 
       public:
@@ -43,6 +44,8 @@ namespace enishi::renderer::directx {
         foundation::Option<ShaderInputResource> get_input_resource(
             const std::uint32_t index) const noexcept override;
         std::vector<ShaderInputResource> get_input_resources(void) const noexcept override;
+        foundation::Option<ShaderInputResource> resolve_input_resource(
+            const foundation::UTF8& name) const noexcept override;
 
       private:
         foundation::VoidResult<RendererError> load_binding_desc(const std::uint32_t index) noexcept;

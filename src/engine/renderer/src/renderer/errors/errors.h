@@ -8,10 +8,13 @@ namespace enishi::renderer {
         SwapchainError,
         ViewError,
         VisualError,
+        TextureError,
+        SamplerError,
         ShaderError,
         ShaderReflectionError,
         BufferError,
         RasterizerError,
         InputLayoutError,
+        ConvertError,
     };
 } // namespace enishi::renderer

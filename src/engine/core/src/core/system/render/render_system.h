@@ -52,9 +52,5 @@ namespace enishi::core {
         void present(void) const;
         void execute(const types::DrawCommand& command) const;
         void bind(const types::RenderHandle& render_handle) const;
-
-        void add_command();
-
-        void update_command();
     };
 } // namespace enishi::core

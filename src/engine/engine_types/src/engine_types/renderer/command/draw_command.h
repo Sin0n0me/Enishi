@@ -4,10 +4,9 @@
 
 namespace enishi::types {
     enum class SubCommand {
-        Bind,   // リソースのバインド
-        Unbind, // リソースのアンバインド
-        Nop,    // 何も実行しない(デバッグ用など)
-        Clear,
+        Bind,        // リソースのバインド
+        Unbind,      // リソースのアンバインド
+        NoOperation, // 何も実行しない(デバッグ用など)
     };
 
     struct DrawCommand {

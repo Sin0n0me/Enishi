@@ -5,10 +5,7 @@
 #include <glm/glm.hpp>
 
 namespace enishi::types {
-    struct RenderPass {
-        RenderHandle render_target; // NullHandle でスワップチェーンに描く
-        std::vector<DrawCommand> commands;
-    };
+    struct RenderPass {};
 
     // フレーム全体の描画記述
     struct RenderGraph {

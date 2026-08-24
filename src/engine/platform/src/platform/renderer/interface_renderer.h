@@ -2,6 +2,8 @@
 #include "../errors/renderer_errors.h"
 #include "interface_image_view.h"
 #include "interface_pipeline_layout.h"
+#include "updater/interface_resource_updater.h"
+#include <engine_types/assets/model/model_data.h>
 #include <engine_types/assets/shader/shader_data.h>
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
@@ -11,7 +13,6 @@
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer_description.h>
 #include <engine_types/renderer/description/sampler_description.h>
-#include <engine_types/renderer/mesh_data.h>
 #include <engine_types/renderer/render_graph.h>
 #include <engine_types/renderer/viewport.h>
 #include <engine_types/window/window_types.h>
@@ -71,8 +72,12 @@ namespace enishi::platform {
             types::RenderHandle image_handle, const types::ImageViewDescription& description) = 0;
 
         [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_mesh(
-            types::MeshData&& mesh, const std::vector<types::RenderHandle>& shader_reflections) = 0;
+        virtual RenderResult<types::RenderHandle> create_mesh(const types::ModelData& model_data,
+            const std::vector<types::RenderHandle>& shader_reflections) = 0;
+
+        [[nodiscard]]
+        virtual RenderResult<types::RenderHandle> create_sampler(
+            const types::SamplerDescription& description) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_texture(

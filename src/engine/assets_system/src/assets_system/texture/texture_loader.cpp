@@ -33,6 +33,7 @@ namespace enishi::assets_system {
         data->format = format;
         data->width = static_cast<std::uint32_t>(width);
         data->height = static_cast<std::uint32_t>(height);
+        data->array_size = 1;
 
         // ミップレベル0(元画像)
         const std::uint32_t row_pitch = data->width * 4;

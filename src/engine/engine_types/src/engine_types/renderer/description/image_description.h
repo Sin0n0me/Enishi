@@ -84,16 +84,15 @@ namespace enishi::types {
         [[nodiscard]]
         static constexpr ImageDescription make_depth_stencil(
             const glm::ivec2& size, const ImageFormat format = ImageFormat::D32_FLOAT) noexcept {
-            return ImageDescription::make_default(
-                size, format, ImageUsage::DepthStencil | ImageUsage::ShaderResource);
+            return ImageDescription::make_default(size, format, ImageUsage::DepthStencil);
         }
 
         [[nodiscard]]
         static constexpr ImageDescription make_texture(const glm::ivec2& size,
             const ImageFormat format = ImageFormat::RGBA8_UNORM,
             const std::uint32_t mip_levels = 1) noexcept {
-            auto description = ImageDescription::make_default(
-                size, format, ImageUsage::ShaderResource | ImageUsage::ShaderResource);
+            auto description =
+                ImageDescription::make_default(size, format, ImageUsage::ShaderResource);
             description.mip_levels = mip_levels;
 
             return description;

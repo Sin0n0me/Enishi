@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <foundation/str/str.h>
 #include <memory>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 

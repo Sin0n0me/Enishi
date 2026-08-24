@@ -1,10 +1,10 @@
 #pragma once
-#include "../../renderer/mesh_data.h"
 #include "../../renderer/render_data.h"
 #include "../texture/texture_data.h"
 #include "addons.h"
 #include "materials.h"
 #include <cstdint>
+#include <foundation/str/str.h>
 #include <glm/glm.hpp>
 #include <memory>
 #include <variant>
@@ -32,7 +32,7 @@ namespace enishi::types {
     // このアプリケーション向けに設定されたモデルデータ
     // 基本的には不変
     struct ModelData {
-        std::string name;
+        foundation::UTF8 name;
         std::filesystem::path path;
         std::vector<VertexVariants> vertices;
         IndicesVariant indices;
@@ -41,18 +41,5 @@ namespace enishi::types {
         std::unordered_map<std::filesystem::path, std::shared_ptr<TextureData>> textures;
 
         [[nodiscard]] bool is_valid_data(void) const;
-
-        // 大量のコピーが発生するので頻繁に呼ばないこと
-        [[nodiscard]] MeshData to_mesh_data(const std::uint32_t uniform_separator = 16) const;
-
-      private:
-        using Uniforms = std::unordered_map<std::string, OwnedRenderData>;
-
-        [[nodiscard]] OwnedRenderData to_vertices(void) const;
-        [[nodiscard]] OwnedRenderData to_indices(void) const;
-        [[nodiscard]] Uniforms to_uniforms(const std::uint32_t separator) const;
-        [[nodiscard]] void to_uniforms_from_addon(Uniforms& uniforms) const;
-        [[nodiscard]] void to_uniforms_from_material(
-            Uniforms& uniforms, const std::uint32_t separator) const;
     };
 } // namespace enishi::types

@@ -157,11 +157,27 @@ namespace enishi::renderer::directx {
 
     types::HandleId ViewPool::make_render_target_view(
         const types::HandleId& handle, RenderTargetView&& rtv) noexcept {
-        return types::HandleId();
+        auto opt_view_handle = this->handle_mapper.get(handle);
+        if (opt_view_handle.is_none()) {
+            return {};
+        }
+        auto& view_handle = opt_view_handle.unwrap_mut();
+        const auto [interface_index, _] = this->render_targets.emplace(std::move(rtv));
+        view_handle.interface_index = interface_index;
+
+        return handle;
     }
     types::HandleId ViewPool::make_shader_resource_view(
         const types::HandleId& handle, ShaderResourceView&& srv) noexcept {
-        return types::HandleId();
+        auto opt_view_handle = this->handle_mapper.get(handle);
+        if (opt_view_handle.is_none()) {
+            return {};
+        }
+        auto& view_handle = opt_view_handle.unwrap_mut();
+        const auto [interface_index, _] = this->shader_resources.emplace(std::move(srv));
+        view_handle.interface_index = interface_index;
+
+        return handle;
     }
     types::HandleId ViewPool::make_depth_stencil_view(
         const types::HandleId& handle, DepthStencilView&& dsv) noexcept {
@@ -170,15 +186,22 @@ namespace enishi::renderer::directx {
             return {};
         }
         auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] =
-            this->depth_stencil.emplace(std::make_shared<D3D11DepthStencilView>());
+        const auto [interface_index, _] = this->depth_stencil.emplace(std::move(dsv));
         view_handle.interface_index = interface_index;
 
         return handle;
     }
     types::HandleId ViewPool::make_unodered_access_view(
         const types::HandleId& handle, UnorderedAccessView&& uav) noexcept {
-        return types::HandleId();
+        auto opt_view_handle = this->handle_mapper.get(handle);
+        if (opt_view_handle.is_none()) {
+            return {};
+        }
+        auto& view_handle = opt_view_handle.unwrap_mut();
+        const auto [interface_index, _] = this->unodered_access.emplace(std::move(uav));
+        view_handle.interface_index = interface_index;
+
+        return handle;
     }
     foundation::Option<ViewPool::RenderTargetView&> ViewPool::get_render_target_view(
         const types::HandleId handle) noexcept {

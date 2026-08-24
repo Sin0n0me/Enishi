@@ -56,7 +56,8 @@ namespace enishi::renderer::directx {
 
         const HRESULT result_dxgi_device = this->device.As(&this->dxgi_device);
         if (FAILED(result_dxgi_device)) {
-            return foundation::Error(RendererError::DeviceError, "DXGIデバイスの作成に失敗しました");
+            return foundation::Error(
+                RendererError::DeviceError, "DXGIデバイスの作成に失敗しました");
         }
 
         const HRESULT result_dcom_device = DCompositionCreateDevice(dxgi_device.Get(),
@@ -75,7 +76,8 @@ namespace enishi::renderer::directx {
             __uuidof(this->dxgi_factory),
             reinterpret_cast<void**>(this->dxgi_factory.GetAddressOf()));
         if (FAILED(result_factory)) {
-            return foundation::Error(RendererError::FactoryError, "DXGIFactoryの作成に失敗しました");
+            return foundation::Error(
+                RendererError::FactoryError, "DXGIFactoryの作成に失敗しました");
         }
 
         return {};
@@ -176,27 +178,15 @@ namespace enishi::renderer::directx {
         return d3d11;
     }
 
-    Microsoft::WRL::ComPtr<ID3D11Device> D3D11::get_device(void) const {
+    D3D11::Device D3D11::get_device(void) const {
         return this->device;
     }
 
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext> D3D11::get_context(void) const {
+    D3D11::Context D3D11::get_context(void) const {
         return this->context;
     }
 
-    Microsoft::WRL::ComPtr<IDXGISwapChain1> D3D11::get_swap_chain(void) const {
+    D3D11::SwapChain D3D11::get_swap_chain(void) const {
         return this->dxgi_swap_chain;
-    }
-
-    ID3D11Device* D3D11::get_device_ptr(void) const {
-        return this->device.Get();
-    }
-
-    ID3D11DeviceContext* D3D11::get_context_ptr(void) const {
-        return this->context.Get();
-    }
-
-    IDXGISwapChain1* D3D11::get_swap_chain_ptr(void) const {
-        return this->dxgi_swap_chain.Get();
     }
 } // namespace enishi::renderer::directx

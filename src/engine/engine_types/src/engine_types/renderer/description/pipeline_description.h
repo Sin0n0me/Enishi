@@ -29,6 +29,7 @@ namespace enishi::types {
         RenderHandle vertex_layout;
         RenderHandle rasterizer;
         RenderHandle render_target;
+        RenderHandle depth_stencil;
         BlendMode blend_mode;
         DepthTestMode depth_test;
         PrimitiveTopology topology;

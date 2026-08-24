@@ -19,6 +19,8 @@ namespace enishi {
       private:
         foundation::VoidResult<core::SystemError> make_render_target(
             types::PipelineDescription& description, platform::IRenderer* const renderer);
+        foundation::VoidResult<core::SystemError> make_depth_stencil(
+            types::PipelineDescription& description, platform::IRenderer* const renderer);
         foundation::VoidResult<core::SystemError> make_rasterizer(
             types::PipelineDescription& description, platform::IRenderer* const renderer);
         foundation::Result<types::RenderHandle, core::SystemError> make_input_layout(
@@ -41,8 +43,8 @@ namespace enishi {
             const std::filesystem::path& shader_path,
             platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system);
-        foundation::Result<types::RenderHandle, core::SystemError> make_mesh(
-            platform::IRenderer* const renderer,
+        foundation::Result<std::tuple<foundation::UTF8, types::RenderHandle>, core::SystemError>
+        make_mesh(platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system,
             const std::vector<types::RenderHandle>& shader_reflections);
     };

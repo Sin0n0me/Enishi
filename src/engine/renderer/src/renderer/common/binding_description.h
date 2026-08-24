@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
+#include <foundation/option/option.h>
 #include <variant>
 #include <vector>
 
@@ -57,6 +58,81 @@ namespace enishi::renderer {
     };
 
     struct SamplerBinding {};
+
+    struct ShaderBinding {};
+
+    struct DepthStencilParameter {};
+    struct RenderTargetParameter {};
+    struct ShaderResourceParameter {
+        types::ShaderKind target_shader;
+        std::uint32_t target;
+    };
+    struct UnorderedAccessParameter {
+        std::uint32_t target;
+        std::uint32_t stride;
+        std::uint32_t offset;
+    };
+
+    struct ViewBinding {
+        using ViewParameter = std::variant<DepthStencilParameter,
+            RenderTargetParameter,
+            ShaderResourceParameter,
+            UnorderedAccessParameter>;
+        ViewParameter parameter;
+
+        foundation::Option<const DepthStencilParameter&> get_depth_stencil_param(
+            void) const noexcept {
+            if (auto p = std::get_if<DepthStencilParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<DepthStencilParameter&> get_depth_stencil_param(void) noexcept {
+            if (auto p = std::get_if<DepthStencilParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<const RenderTargetParameter&> get_render_target_param(
+            void) const noexcept {
+            if (auto p = std::get_if<RenderTargetParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<RenderTargetParameter&> get_render_target_param(void) noexcept {
+            if (auto p = std::get_if<RenderTargetParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<const ShaderResourceParameter&> get_shader_resource_param(
+            void) const noexcept {
+            if (auto p = std::get_if<ShaderResourceParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<ShaderResourceParameter&> get_shader_resource_param(void) noexcept {
+            if (auto p = std::get_if<ShaderResourceParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<const UnorderedAccessParameter&> get_unodered_access_param(
+            void) const noexcept {
+            if (auto p = std::get_if<UnorderedAccessParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<UnorderedAccessParameter&> get_unodered_access_param(void) noexcept {
+            if (auto p = std::get_if<UnorderedAccessParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+    };
 
     struct DrawParameter {
         std::uint32_t vertex_count;

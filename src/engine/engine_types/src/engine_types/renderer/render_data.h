@@ -38,23 +38,28 @@ namespace enishi::types {
 
       private:
         RawDataType buffer;
-        std::uint32_t stride; // 1つのデータ間隔
+        std::size_t stride; // 1つのデータ間隔
 
       public:
         // 任意のVec<T>をバイト列へ
         template <typename T>
             requires std::is_trivially_copyable_v<T>
-        explicit OwnedRenderData(const std::vector<T>& buffer)
+        explicit constexpr OwnedRenderData(const std::vector<T>& buffer)
             : buffer(OwnedRenderData::to_byte_vector(buffer))
-            , stride(static_cast<std::uint32_t>(sizeof(T))) {
+            , stride(sizeof(T)) {
+        }
+        template <typename T>
+            requires std::is_trivially_copyable_v<T>
+        explicit constexpr OwnedRenderData(std::vector<T>&& buffer)
+            : buffer(OwnedRenderData::to_byte_vector(buffer))
+            , stride(sizeof(T)) {
         }
 
         explicit OwnedRenderData(RawDataType&& buffer, const std::uint32_t stride)
             : buffer(std::move(buffer))
             , stride(stride) {
         }
-        explicit OwnedRenderData(OwnedRenderData&&) noexcept = default;
-
+        OwnedRenderData(OwnedRenderData&&) noexcept = default;
         OwnedRenderData& operator=(OwnedRenderData&&) noexcept = default;
 
         explicit operator bool(void) const noexcept {
@@ -68,10 +73,25 @@ namespace enishi::types {
             return this->buffer[index];
         }
 
-        [[nodiscard]] RenderData get_render_data(void) const {
+        template <typename T>
+            requires std::is_trivially_copyable_v<T>
+        void update(const T& new_value, const std::size_t index) {
+            constexpr auto INPUT_STRIDE = sizeof(T);
+            if (INPUT_STRIDE != this->stride) {
+                return;
+            }
+            const auto offset = index * this->stride;
+            if (this->buffer.size() < offset + 1) {
+                return;
+            }
+            auto target_span = std::span(this->buffer).subspan(offset, INPUT_STRIDE);
+            std::memcpy(target_span.data(), std::addressof(new_value), INPUT_STRIDE);
+        }
+
+        [[nodiscard]] constexpr RenderData get_render_data(void) const {
             return RenderData{
                 .bytes = std::as_bytes(std::span{this->buffer}),
-                .stride = this->stride,
+                .stride = static_cast<decltype(RenderData::stride)>(this->stride),
             };
         }
 
