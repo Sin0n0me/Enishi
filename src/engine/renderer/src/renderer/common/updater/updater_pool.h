@@ -16,5 +16,6 @@ namespace enishi::renderer {
         ResourcePool<std::shared_ptr<platform::IResourceUpdater>> updater;
 
       public:
+        foundation::Option<ResourceUpdater&> get_updater(const types::HandleId handle) override;
     };
 } // namespace enishi::renderer

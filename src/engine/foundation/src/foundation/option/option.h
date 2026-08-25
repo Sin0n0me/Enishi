@@ -126,5 +126,27 @@ namespace enishi::foundation {
                 return std::remove_cvref_t<U>();
             }
         }
+
+        template <typename F>
+        [[nodiscard]]
+        constexpr auto map(F&& f) && {
+            using U = std::invoke_result_t<F, T>;
+            if (this->is_some()) {
+                return Option<U>{std::invoke(std::forward<F>(f), std::move(this->unwrap_mut()))};
+            } else {
+                return Option<U>{};
+            }
+        }
+
+        template <typename F>
+        [[nodiscard]]
+        constexpr auto map(F&& f) const& {
+            using U = std::invoke_result_t<F, const T&>;
+            if (this->is_some()) {
+                return Option<U>{std::invoke(std::forward<F>(f), std::move(this->unwrap()))};
+            } else {
+                return Option<U>{};
+            }
+        }
     };
 } // namespace enishi::foundation

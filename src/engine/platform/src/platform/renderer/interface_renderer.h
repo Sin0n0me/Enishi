@@ -8,11 +8,11 @@
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/handle/renderer/render_handle.h>
-#include <engine_types/renderer/description/image_description.h>
-#include <engine_types/renderer/description/image_view_description.h>
 #include <engine_types/renderer/description/pipeline_description.h>
-#include <engine_types/renderer/description/rasterizer_description.h>
-#include <engine_types/renderer/description/sampler_description.h>
+#include <engine_types/renderer/description/rasterizer/rasterizer_description.h>
+#include <engine_types/renderer/description/sampler/sampler_description.h>
+#include <engine_types/renderer/description/view/image_description.h>
+#include <engine_types/renderer/description/view/image_view_description.h>
 #include <engine_types/renderer/render_graph.h>
 #include <engine_types/renderer/viewport.h>
 #include <engine_types/window/window_types.h>
@@ -49,7 +49,19 @@ namespace enishi::platform {
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_rasterizer(
-            const types::RasterizerDescription& description) = 0;
+            const types::RasterizerStateDescription& description) = 0;
+
+        [[nodiscard]]
+        virtual RenderResult<types::RenderHandle> create_sampler(
+            const types::SamplerStateDescription& description) = 0;
+
+        [[nodiscard]]
+        virtual RenderResult<types::RenderHandle> create_depth_stencil(
+            const types::DepthStencilStateDescription& description) = 0;
+
+        [[nodiscard]]
+        virtual RenderResult<types::RenderHandle> create_blend(
+            const types::BlendStateDescription& description) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_image(
@@ -74,10 +86,6 @@ namespace enishi::platform {
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_mesh(const types::ModelData& model_data,
             const std::vector<types::RenderHandle>& shader_reflections) = 0;
-
-        [[nodiscard]]
-        virtual RenderResult<types::RenderHandle> create_sampler(
-            const types::SamplerDescription& description) = 0;
 
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_texture(

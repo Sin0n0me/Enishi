@@ -6,8 +6,13 @@
 
 namespace enishi::renderer::directx {
     D3D11Renderer::D3D11Renderer(std::unique_ptr<D3D11> d3d11)
-        : d3d11(std::move(d3d11)) {
+        : d3d11(std::move(d3d11))
+        , updater_pool(std::make_unique<UpdaterPool>()) {
         this->resource_manager = std::make_unique<ResourceManager>(this->d3d11);
+    }
+
+    platform::IUpdaterAccessor* D3D11Renderer::get_updater_accessor(void) noexcept {
+        return this->updater_pool.get();
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_viewport(
@@ -48,11 +53,48 @@ namespace enishi::renderer::directx {
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_rasterizer(
-        const types::RasterizerDescription& description) {
-        const auto result = this->resource_manager->make_rasterizer(description);
+        const types::RasterizerStateDescription& description) {
+        const auto result = this->resource_manager->make_rasterizer_state(description)
+                                .add_message("ラスタライザステートの作成に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
+
+        return result.unwrap();
+    }
+
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_sampler(
+        const types::SamplerStateDescription& description) {
+        const auto result = this->resource_manager->make_sampler_state(description)
+                                .add_message("サンプラーステートの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+        const auto& handle = result.unwrap();
+
+        return result.unwrap();
+    }
+
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_depth_stencil(
+        const types::DepthStencilStateDescription& description) {
+        const auto result = this->resource_manager->make_depth_stencil_state(description)
+                                .add_message("サンプラーステートの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+        const auto& handle = result.unwrap();
+
+        return result.unwrap();
+    }
+
+    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_blend(
+        const types::BlendStateDescription& description) {
+        const auto result = this->resource_manager->make_blend_state(description)
+                                .add_message("ブレンドステートの作成に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::RenderError::MakeError);
+        }
+        const auto& handle = result.unwrap();
 
         return result.unwrap();
     }
@@ -182,18 +224,6 @@ namespace enishi::renderer::directx {
         return result.unwrap();
     }
 
-    platform::RenderResult<types::RenderHandle> D3D11Renderer::create_sampler(
-        const types::SamplerDescription& description) {
-        const auto result = this->resource_manager->make_sampler(description)
-                                .add_message("サンプラーの作成に失敗しました");
-        if (result.is_err()) {
-            return result.propagation(platform::RenderError::MakeError);
-        }
-        const auto& handle = result.unwrap();
-
-        return result.unwrap();
-    }
-
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_texture(
         const types::TextureData& texture) {
         const auto result = this->resource_manager->make_texture(texture).add_message(
@@ -309,30 +339,6 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::submit_command_rasterizer(const types::DrawCommand& command) const {
-        switch (command.sub_command) {
-            case types::SubCommand::Bind: {
-                this->bind_rasterizer(command.handle);
-            } break;
-            case types::SubCommand::Unbind: {
-            } break;
-            default:
-                break;
-        }
-    }
-
-    void D3D11Renderer::submit_command_texture(const types::DrawCommand& command) const {
-        switch (command.sub_command) {
-            case types::SubCommand::Bind: {
-                this->bind_texture(command.handle);
-            } break;
-            case types::SubCommand::Unbind: {
-            } break;
-            default:
-                break;
-        }
-    }
-
     void D3D11Renderer::submit_command_mesh(const types::DrawCommand& command) const {
         switch (command.sub_command) {
             case types::SubCommand::Bind: {
@@ -361,6 +367,29 @@ namespace enishi::renderer::directx {
         switch (command.sub_command) {
             case types::SubCommand::Bind: {
                 this->bind_input_layout(command.handle);
+            } break;
+            case types::SubCommand::Unbind: {
+            } break;
+            default:
+                break;
+        }
+    }
+
+    void D3D11Renderer::submit_command_viewport(const types::DrawCommand& command) const {
+        switch (command.sub_command) {
+            case types::SubCommand::Bind: {
+            } break;
+            case types::SubCommand::Unbind: {
+            } break;
+            default:
+                break;
+        }
+    }
+
+    void D3D11Renderer::submit_command_state(const types::DrawCommand& command) const {
+        switch (command.sub_command) {
+            case types::SubCommand::Bind: {
+                this->bind_state(command.handle);
             } break;
             case types::SubCommand::Unbind: {
             } break;
@@ -523,45 +552,6 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::bind_texture(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
-        if (opt_index.is_none()) {
-            return;
-        }
-        const auto& index = opt_index.unwrap();
-        const auto texture_accessor =
-            this->resource_manager->get_native_resource_accessor()->get_native_texture_accessor();
-        const auto opt_binding =
-            this->resource_manager->get_resource_binder()->get_texture_binding(index.binding);
-        if (opt_binding.is_none()) {
-            return;
-        }
-        const auto opt_sampler = texture_accessor->get_native_sampler(index.resource);
-        if (opt_sampler.is_none()) {
-            return;
-        }
-
-        const auto& sampler = opt_sampler.unwrap();
-        const auto& binding = opt_binding.unwrap();
-        const auto context = this->d3d11->get_context();
-        switch (binding.target_shader) {
-            case types::ShaderKind::Vertex: {
-                context->VSSetSamplers(binding.target, 1, sampler.GetAddressOf());
-            } break;
-            case types::ShaderKind::Pixel: {
-                context->PSSetSamplers(binding.target, 1, sampler.GetAddressOf());
-            } break;
-            case types::ShaderKind::Compute: {
-                context->CSSetSamplers(binding.target, 1, sampler.GetAddressOf());
-            } break;
-            case types::ShaderKind::Hull: {
-                context->HSSetSamplers(binding.target, 1, sampler.GetAddressOf());
-            } break;
-            default:
-                break;
-        }
-    }
-
     void D3D11Renderer::bind_view(const types::RenderHandle& bind_handle,
         const types::RenderHandle& render_target_handle) const {
         const auto opt_index = this->resource_manager->get_native_resource_handle(bind_handle);
@@ -569,16 +559,18 @@ namespace enishi::renderer::directx {
             return;
         }
         const auto& index = opt_index.unwrap();
-        const auto view_accessor =
-            this->resource_manager->get_native_resource_accessor()->get_native_view_accessor();
-        const auto view_type =
-            view_accessor->get_view_type(index.resource).unwrap_or(types::ImageViewType::Unknown);
+        const auto view_type = this->resource_manager->get_resource_accessor()
+                                   ->get_view_accessor()
+                                   ->get_view_type(index.resource)
+                                   .unwrap_or(types::ImageViewType::Unknown);
         const auto opt_binding =
             this->resource_manager->get_resource_binder()->get_view_binding(index.binding);
         if (opt_binding.is_none()) {
             return;
         }
 
+        const auto view_accessor =
+            this->resource_manager->get_native_resource_accessor()->get_native_view_accessor();
         const auto& binding = opt_binding.unwrap();
         const auto context = this->d3d11->get_context();
         switch (view_type) {
@@ -586,12 +578,6 @@ namespace enishi::renderer::directx {
                 const auto opt_rtv_index =
                     this->resource_manager->get_native_resource_handle(render_target_handle);
                 if (opt_rtv_index.is_none()) {
-                    return;
-                }
-                const auto& rtv_index = opt_rtv_index.unwrap();
-                const auto opt_rtv =
-                    view_accessor->get_native_render_target_view(rtv_index.resource);
-                if (opt_rtv.is_none()) {
                     return;
                 }
                 const auto opt_dsv = view_accessor->get_native_depth_stencil_view(index.resource);
@@ -602,10 +588,17 @@ namespace enishi::renderer::directx {
                 if (opt_bind_param.is_none()) {
                     return;
                 }
-
-                const auto& rtv = opt_rtv.unwrap();
                 const auto& dsv = opt_dsv.unwrap();
-                context->OMSetRenderTargets(1, rtv.GetAddressOf(), dsv.Get());
+
+                const auto& rtv_index = opt_rtv_index.unwrap();
+                const auto opt_rtv =
+                    view_accessor->get_native_render_target_view(rtv_index.resource);
+                if (opt_rtv.is_some()) {
+                    const auto& rtv = opt_rtv.unwrap();
+                    context->OMSetRenderTargets(1, rtv.GetAddressOf(), dsv.Get());
+                } else {
+                    context->OMSetRenderTargets(0, nullptr, dsv.Get());
+                }
             } break;
             case types::ImageViewType::RenderTarget: {
                 const auto opt_view = view_accessor->get_native_render_target_view(index.resource);
@@ -667,22 +660,88 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::bind_rasterizer(const types::RenderHandle& handle) const {
+    void D3D11Renderer::bind_state(const types::RenderHandle& handle) const {
         const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
         }
         const auto& index = opt_index.unwrap();
-        const auto opt_rasterizer = this->resource_manager->get_native_resource_accessor()
-                                        ->get_native_rasterizer_accessor()
-                                        ->get_native_rasterizer(index.resource);
-        if (opt_rasterizer.is_none()) {
+        const auto state_kind = this->resource_manager->get_resource_accessor()
+                                    ->get_state_accessor()
+                                    ->get_state_kind(index.resource)
+                                    .unwrap_or(types::StateKind::Unknown);
+        const auto opt_state_binding =
+            this->resource_manager->get_resource_binder()->get_state_binding(index.binding);
+        if (opt_state_binding.is_none()) {
             return;
         }
 
+        const auto state_accessor =
+            this->resource_manager->get_native_resource_accessor()->get_native_state_accessor();
+        const auto& state_binding = opt_state_binding.unwrap();
         const auto context = this->d3d11->get_context();
-        const auto& rasterizer = opt_rasterizer.unwrap();
-        context->RSSetState(rasterizer.Get());
+        switch (state_kind) {
+            case types::StateKind::Rasterizer: {
+                const auto opt_state = state_accessor->get_native_rasterizer_state(index.resource);
+                if (opt_state.is_none()) {
+                    return;
+                }
+                const auto& state = opt_state.unwrap();
+                context->RSSetState(state.Get());
+            } break;
+            case types::StateKind::Blend: {
+                const auto opt_state = state_accessor->get_native_blend_state(index.resource);
+                if (opt_state.is_none()) {
+                    return;
+                }
+                const auto& state = opt_state.unwrap();
+
+                // TODO: インターフェイス経由で変更可能にする
+                constexpr float BLEND_COLOR[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+                context->OMSetBlendState(state.Get(), BLEND_COLOR, 0xFFFFFFFF);
+            } break;
+            case types::StateKind::DepthStencil: {
+                const auto opt_state =
+                    state_accessor->get_native_depth_stencil_state(index.resource);
+                if (opt_state.is_none()) {
+                    return;
+                }
+                const auto& state = opt_state.unwrap();
+                context->OMSetDepthStencilState(state.Get(), 0);
+            } break;
+            case types::StateKind::Sampler: {
+                const auto opt_state = state_accessor->get_native_sampler_state(index.resource);
+                if (opt_state.is_none()) {
+                    return;
+                }
+                const auto opt_binding = state_binding.get_sampler_state_param();
+                if (opt_binding.is_none()) {
+                    return;
+                }
+                const auto& binding = opt_binding.unwrap();
+
+                const auto& state = opt_state.unwrap();
+                switch (binding.target_shader) {
+                    case types::ShaderKind::Vertex: {
+                        context->VSSetSamplers(binding.target, 1, state.GetAddressOf());
+                    } break;
+                    case types::ShaderKind::Pixel: {
+                        context->PSSetSamplers(binding.target, 1, state.GetAddressOf());
+                    } break;
+                    case types::ShaderKind::Compute: {
+                        context->CSSetSamplers(binding.target, 1, state.GetAddressOf());
+                    } break;
+                    case types::ShaderKind::Hull: {
+                        context->HSSetSamplers(binding.target, 1, state.GetAddressOf());
+                    } break;
+                    default:
+                        break;
+                }
+            } break;
+
+            default:
+                break;
+        }
     }
 
     void D3D11Renderer::bind_mesh(const types::RenderHandle& handle) const {
@@ -704,8 +763,11 @@ namespace enishi::renderer::directx {
                 case types::RenderHandleType::Buffer: {
                     this->bind_buffer(handle);
                 } break;
-                case types::RenderHandleType::Texture: {
-                    this->bind_texture(handle);
+                case types::RenderHandleType::Shader: {
+                    this->bind_shader(handle);
+                } break;
+                case types::RenderHandleType::State: {
+                    this->bind_state(handle);
                 } break;
                 case types::RenderHandleType::Draw: {
                     this->draw(handle);

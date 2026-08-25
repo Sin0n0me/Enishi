@@ -1,7 +1,6 @@
 #pragma once
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
-#include <engine_types/renderer/description/image_view_description.h>
 #include <foundation/option/option.h>
 #include <tuple>
 #include <wrl/client.h>
@@ -25,11 +24,7 @@ namespace enishi::renderer::directx {
         make_native_shader_resource_view(void) noexcept = 0;
         [[nodiscard]] virtual std::tuple<types::HandleId, NativeUnorderedAccessView&>
         make_native_unordered_access_view(void) noexcept = 0;
-        [[nodiscard]] virtual void remove_native_view(
-            const types::ImageViewType view_kind, const types::HandleId handle) noexcept = 0;
-
-        [[nodiscard]] virtual foundation::Option<types::ImageViewType> get_view_type(
-            const types::HandleId& handle) const noexcept = 0;
+        [[nodiscard]] virtual void remove_native_view(const types::HandleId handle) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<const NativeDepthStencilView&>
         get_native_depth_stencil_view(const types::HandleId handle) const noexcept = 0;

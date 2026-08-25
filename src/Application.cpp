@@ -1,5 +1,7 @@
 #include "application.h"
+#include "render_pass/constructor/back_ground_render_pass_constructor.h"
 #include "render_pass/constructor/model_render_pass_constructor.h"
+#include "render_pass/constructor/shadow_map_render_pass_constructor.h"
 #include <core/system/animation/animation_system.h>
 #include <foundation/log/logger.h>
 
@@ -122,9 +124,16 @@ namespace enishi {
         // レンダーパスの作成
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->rsegistory, renderer, renderer);
-        render_system->add_render_pass_constructor(
-            "Model", std::make_shared<ModelRenderPassConstructor>());
+        auto result = {
+            render_system->add_render_pass_constructor(
+                std::make_shared<ModelRenderPassConstructor>()),
+            render_system->add_render_pass_constructor(
+                std::make_shared<BackGroundRenderPassConstructor>()),
+            render_system->add_render_pass_constructor(
+                std::make_shared<ShadowMapRenderPassConstructor>()),
+        };
 
+        // 一括構築
         const auto result_passes = render_system->create_render_passes(asset_system.get());
         if (result_passes.is_err()) {
             foundation::Logger::error(result_passes.unwrap_err().get_message());

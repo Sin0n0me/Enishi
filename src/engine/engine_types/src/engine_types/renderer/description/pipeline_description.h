@@ -1,10 +1,15 @@
 #pragma once
-#include "../../handle/renderer/render_handle.h"
-#include "../vertex/vertex_layout.h"
-#include "rasterizer_description.h"
 #include <cstdint>
+#include <engine_types/handle/renderer/render_handle.h>
+#include <engine_types/renderer/description/blend/blend_description.h>
+#include <engine_types/renderer/description/depth/depth_stencil_description.h>
+#include <engine_types/renderer/description/rasterizer/rasterizer_description.h>
+#include <engine_types/renderer/description/sampler/sampler_description.h>
+#include <engine_types/renderer/topology/topology.h>
+#include <engine_types/renderer/vertex/vertex_layout.h>
 
 namespace enishi::types {
+    /*
     enum class BlendMode : std::uint8_t {
         Opaque,        // 不透明
         AlphaBlend,    // 通常アルファブレンド
@@ -17,64 +22,17 @@ namespace enishi::types {
         ReadOnly,  // 深度テストあり, 書き込みなし(半透明)
         Disabled,  // 深度テストなし(UI, デバッグ)
     };
-
-    enum class PrimitiveTopology : std::uint8_t {
-        TriangleList, // 三角形リスト
-        LineList,     // 線分リスト
-        PointList,    // 点リスト
-    };
+    */
 
     struct PipelineDescription {
         std::vector<RenderHandle> shaders;
-        RenderHandle vertex_layout;
-        RenderHandle rasterizer;
-        RenderHandle render_target;
-        RenderHandle depth_stencil;
-        BlendMode blend_mode;
-        DepthTestMode depth_test;
         PrimitiveTopology topology;
-
-        [[nodiscard]]
-        static constexpr PipelineDescription make_opaque(const RenderHandle& vs,
-            const RenderHandle& fs,
-            const RenderHandle& layout,
-            const RenderHandle& rasterizer) noexcept {
-            return PipelineDescription{
-                .shaders = {vs, fs},
-                .vertex_layout = layout,
-                .rasterizer = rasterizer,
-                .blend_mode = BlendMode::Opaque,
-                .depth_test = DepthTestMode::ReadWrite,
-                .topology = PrimitiveTopology::TriangleList,
-            };
-        }
-
-        [[nodiscard]]
-        static PipelineDescription make_shadow(const RenderHandle& vs,
-            const RenderHandle& fs,
-            const RenderHandle& layout,
-            const RenderHandle& rasterizer) noexcept {
-            return PipelineDescription{
-                .shaders = {vs, fs},
-                .vertex_layout = layout,
-                .rasterizer = rasterizer,
-                .depth_test = DepthTestMode::ReadWrite,
-                .topology = PrimitiveTopology::TriangleList,
-            };
-        }
-
-        [[nodiscard]]
-        static PipelineDescription make_wireframe(const RenderHandle& vs,
-            const RenderHandle& fs,
-            const RenderHandle& layout,
-            const RenderHandle& rasterizer) noexcept {
-            return PipelineDescription{
-                .shaders = {vs, fs},
-                .vertex_layout = layout,
-                .rasterizer = rasterizer,
-                .depth_test = DepthTestMode::ReadOnly,
-                .topology = PrimitiveTopology::TriangleList,
-            };
-        }
+        RenderHandle vertex_layout;
+        RenderHandle render_target_view;
+        RenderHandle depth_stencil_view;
+        RenderHandle rasterizer_state;
+        RenderHandle sampler_state;
+        RenderHandle depth_stencil_state;
+        RenderHandle blend_state;
     };
 } // namespace enishi::types

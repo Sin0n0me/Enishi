@@ -33,8 +33,7 @@ namespace enishi::renderer::directx {
             void) noexcept override;
         std::tuple<types::HandleId, NativeUnorderedAccessView&> make_native_unordered_access_view(
             void) noexcept override;
-        void remove_native_view(
-            const types::ImageViewType view_kind, const types::HandleId handle) noexcept override;
+        void remove_native_view(const types::HandleId handle) noexcept override;
         foundation::Option<types::ImageViewType> get_view_type(
             const types::HandleId& handle) const noexcept override;
         foundation::Option<const NativeDepthStencilView&> get_native_depth_stencil_view(

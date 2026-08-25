@@ -3,7 +3,7 @@
 namespace enishi::core {
     ApplicationTimer::ApplicationTimer(void)
         : last_time(std::chrono::steady_clock::now())
-        , elapsed(0.0f) {
+        , elapsed(0) {
     }
 
     void ApplicationTimer::reset(void) noexcept {

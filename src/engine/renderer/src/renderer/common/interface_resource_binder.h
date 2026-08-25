@@ -42,5 +42,12 @@ namespace enishi::renderer {
             const types::HandleId handle) const noexcept = 0;
         [[nodiscard]] virtual foundation::Option<ViewBinding&> get_view_binding(
             const types::HandleId handle) noexcept = 0;
+
+        [[nodiscard]] virtual std::tuple<types::HandleId, StateBinding&> make_state_binding(
+            void) noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<const StateBinding&> get_state_binding(
+            const types::HandleId handle) const noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<StateBinding&> get_state_binding(
+            const types::HandleId handle) noexcept = 0;
     };
 } // namespace enishi::renderer

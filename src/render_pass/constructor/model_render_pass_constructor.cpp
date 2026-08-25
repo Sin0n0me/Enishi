@@ -1,9 +1,11 @@
 #include "model_render_pass_constructor.h"
-#include "../../settings.h"
+#include "back_ground_render_pass_constructor.h"
+#include "shadow_map_render_pass_constructor.h"
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <foundation/str/string_builder.h>
 #include <renderer/common/render_pass/render_pass.h>
+#include <settings.h>
 
 namespace enishi {
     const std::filesystem::path SHADER_PATH = "./assets/shader";
@@ -21,28 +23,54 @@ namespace enishi {
         };
 
         // レンダーターゲットの作成
-        auto rtv = this->make_render_target(description, renderer);
+        auto rtv =
+            make_render_target(types::ImageDescription::make_default_render_target(WINDOW_SIZE),
+                types::ImageFormat::BGRA8_UNORM,
+                renderer);
         if (rtv.is_err()) {
             return std::move(rtv).unwrap_err();
         }
+        description.render_target_view = rtv.unwrap();
 
         // 深度ステンシルの作成
-        auto dsv = this->make_depth_stencil(description, renderer);
+        auto dsv = make_depth_stencil(types::ImageDescription::make_depth_stencil(
+                                          WINDOW_SIZE, types::ImageFormat::D24_UNORM_S8_UINT),
+            types::ImageFormat::BGRA8_UNORM,
+            renderer);
         if (dsv.is_err()) {
             return std::move(dsv).unwrap_err();
         }
+        description.depth_stencil_view = dsv.unwrap();
 
         // ラスタライザの作成
-        auto rasterizer = this->make_rasterizer(description, renderer);
+        auto rasterizer = make_rasterizer(
+            types::RasterizerStateDescription{
+                .cull_mode = types::CullMode::None,
+                .front_face = types::FrontFace::CounterClockwise,
+            },
+            renderer);
         if (rasterizer.is_err()) {
             return std::move(rasterizer).unwrap_err();
         }
+        description.rasterizer_state = rasterizer.unwrap();
 
         // シェーダーの作成
-        auto shader_reflections = this->make_shaders(description, renderer, asset_system)
-                                      .add_message("シェーダーの作成に失敗しました");
-        if (shader_reflections.is_err()) {
-            return shader_reflections.propagation(core::SystemError::ConstructRenderPassError);
+        ShaderPaths paths = {
+            {types::ShaderKind::Vertex, {VS_FILE_NAME}},
+            {types::ShaderKind::Pixel, {PS_FILE_NAME}},
+        };
+        auto shader_result = make_shaders(renderer, asset_system, std::move(paths))
+                                 .add_message("シェーダーの作成に失敗しました");
+        if (shader_result.is_err()) {
+            return shader_result.propagation(core::SystemError::ConstructRenderPassError);
+        }
+        std::vector<types::RenderHandle> shader_refrections;
+        for (auto& s : shader_result.unwrap()) {
+            if (s.input_layout.is_valid()) {
+                description.vertex_layout = s.input_layout;
+            }
+            description.shaders.emplace_back(s.shader);
+            shader_refrections.emplace_back(s.shader_reflection);
         }
 
         // レンダーパスの生成
@@ -53,9 +81,8 @@ namespace enishi {
 
         // モデルのみ初期モデル追加
         // TODO: ファイルからの読み取り初期モデルを選択するように
-        const auto mesh_result =
-            this->make_mesh(renderer, asset_system, shader_reflections.unwrap())
-                .add_message("メッシュデータの作成に失敗しました");
+        const auto mesh_result = this->make_mesh(renderer, asset_system, shader_refrections)
+                                     .add_message("メッシュデータの作成に失敗しました");
         if (mesh_result.is_err()) {
             return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
@@ -63,206 +90,6 @@ namespace enishi {
         render_pass->add_mesh(name, handle);
 
         return render_pass;
-    }
-
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_render_target(
-        types::PipelineDescription& description, platform::IRenderer* const renderer) {
-        const auto image_description =
-            types::ImageDescription::make_default_render_target(WINDOW_SIZE);
-        const auto image_handle =
-            renderer->create_image(image_description)
-                .add_message("レンダーターゲット用イメージの作成に失敗しました");
-        if (image_handle.is_err()) {
-            return image_handle.propagation(core::SystemError::ConstructRenderPassError);
-        }
-
-        const auto image_view_description =
-            types::ImageViewDescription::make_render_target_view_description(
-                types::ImageFormat::BGRA8_UNORM);
-        const auto result =
-            renderer->create_render_target_view(image_handle.unwrap(), image_view_description)
-                .add_message("レンダーターゲットの作成に失敗しました");
-
-        if (result.is_err()) {
-            return result.propagation(core::SystemError::ConstructRenderPassError);
-        }
-        auto& render_target_view = result.unwrap();
-        if (!bool(render_target_view)) {
-            return foundation::Error(core::SystemError::ConstructRenderPassError);
-        }
-
-        render_target_view->set_clear_color(CLEAR_COLOR);
-
-        description.render_target = render_target_view->get_handle();
-
-        return {};
-    }
-
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_depth_stencil(
-        types::PipelineDescription& description, platform::IRenderer* const renderer) {
-        const auto image_description = types::ImageDescription::make_depth_stencil(
-            WINDOW_SIZE, types::ImageFormat::D24_UNORM_S8_UINT);
-        const auto image_handle = renderer->create_image(image_description)
-                                      .add_message("深度ステンシル用イメージの作成に失敗しました");
-        if (image_handle.is_err()) {
-            return image_handle.propagation(core::SystemError::ConstructRenderPassError);
-        }
-
-        const auto image_view_description =
-            types::ImageViewDescription::make_depth_stencil_view_description(
-                types::ImageFormat::BGRA8_UNORM);
-        const auto result =
-            renderer->create_depth_stencil_view(image_handle.unwrap(), image_view_description)
-                .add_message("深度ステンシルの作成に失敗しました");
-        if (result.is_err()) {
-            return result.propagation(core::SystemError::ConstructRenderPassError);
-        }
-        auto& render_target_view = result.unwrap();
-        if (!bool(render_target_view)) {
-            return foundation::Error(core::SystemError::ConstructRenderPassError);
-        }
-
-        description.depth_stencil = render_target_view->get_handle();
-
-        return foundation::VoidResult<core::SystemError>();
-    }
-
-    foundation::VoidResult<core::SystemError> ModelRenderPassConstructor::make_rasterizer(
-        types::PipelineDescription& description, platform::IRenderer* const renderer) {
-        const auto rasterizer = renderer
-                                    ->create_rasterizer(types::RasterizerDescription{
-                                        .cull_mode = types::CullMode::None,
-                                        .front_face = types::FrontFace::CounterClockwise,
-                                    })
-                                    .add_message("ラスタライザの作成に失敗しました");
-
-        if (rasterizer.is_err()) {
-            return rasterizer.propagation(core::SystemError::ConstructRenderPassError);
-        }
-
-        description.rasterizer = rasterizer.unwrap();
-
-        return {};
-    }
-
-    foundation::Result<std::vector<types::RenderHandle>, core::SystemError>
-    ModelRenderPassConstructor::make_shaders(types::PipelineDescription& description,
-        platform::IRenderer* const renderer,
-        assets_system::IAssetSystem* const asset_system) {
-        const auto shader_paths = asset_system->find_shaders(SHADER_PATH);
-        const auto pattern_shader_extensions = asset_system->shader_extensions_pattern();
-        const auto make_paths = [&](const std::filesystem::path& file_path) {
-            const auto str_pattern = std::format(
-                "{}{}", foundation::path_to_regex_str(file_path), pattern_shader_extensions);
-            const std::regex pattern(str_pattern);
-            return shader_paths.find(pattern);
-        };
-
-        auto shader_reflections = std::vector<types::RenderHandle>();
-
-        {
-            const auto vertex_file = SHADER_PATH / VS_FILE_NAME;
-            const auto paths = make_paths(vertex_file);
-            auto result = this->make_shader_from_file_paths(
-                                  types::ShaderKind::Vertex, paths, renderer, asset_system)
-                              .add_message("頂点シェーダーの作成に失敗しました");
-            if (result.is_err()) {
-                return std::move(result).unwrap_err();
-            }
-            const auto& handles = result.unwrap();
-
-            description.shaders.emplace_back(handles.shader);
-            description.vertex_layout = handles.input_layout;
-            shader_reflections.emplace_back(handles.shader_reflection);
-        }
-
-        {
-            const auto pixel_file = SHADER_PATH / PS_FILE_NAME;
-            const auto paths = make_paths(pixel_file);
-            const auto result = this->make_shader_from_file_paths(
-                                        types::ShaderKind::Pixel, paths, renderer, asset_system)
-                                    .add_message("ピクセルシェーダーの作成に失敗しました");
-            if (result.is_err()) {
-                return result.propagation(core::SystemError::ConstructRenderPassError);
-            }
-            const auto& handles = result.unwrap();
-
-            description.shaders.emplace_back(handles.shader);
-            shader_reflections.emplace_back(handles.shader_reflection);
-        }
-
-        return shader_reflections;
-    }
-
-    foundation::Result<ModelRenderPassConstructor::ShaderResult, core::SystemError>
-    ModelRenderPassConstructor::make_shader_from_file_paths(const types::ShaderKind kind,
-        const std::vector<std::filesystem::path>& paths,
-        platform::IRenderer* const renderer,
-        assets_system::IAssetSystem* const asset_system) {
-        const bool multiple_shaders_found = 1 < paths.size();
-        if (multiple_shaders_found) {
-            foundation::Logger::warning("複数のシェーダーファイルが見つかりました");
-        }
-
-        // シェーダーの作成
-        // 複数のシェーダーが見つかった場合は最初に正常に作成できたシェーダーを使用
-        foundation::StringBuilder error_messages;
-        for (const auto& path : paths) {
-            auto result = this->make_shader(kind, path, renderer, asset_system);
-            if (result.is_err()) {
-                error_messages.push_back(result.unwrap_err().get_message());
-                continue;
-            }
-
-            return result;
-        }
-
-        return foundation::Error(
-            core::SystemError::ConstructRenderPassError, error_messages.join("\n"));
-    }
-
-    foundation::Result<ModelRenderPassConstructor::ShaderResult, core::SystemError>
-    ModelRenderPassConstructor::make_shader(const types::ShaderKind kind,
-        const std::filesystem::path& path,
-        platform::IRenderer* const renderer,
-        assets_system::IAssetSystem* const asset_system) {
-        // ファイル読み込み
-        const auto asset_handle = asset_system->load_asset(path);
-        if (asset_handle.is_err()) {
-            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
-        }
-        const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
-        if (shader_data.is_none()) {
-            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
-        }
-
-        // シェーダーの作成
-        const auto& raw_shader_data = *shader_data.unwrap();
-        const auto shader = renderer->create_shader(kind, raw_shader_data);
-        if (shader.is_err()) {
-            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
-        }
-
-        // シェーダーリフレクションの作成(こちらは最悪失敗してもよい)
-        const auto& shader_reflection = renderer->create_shader_reflection(raw_shader_data);
-
-        // 頂点のシェーダーの場合はシェーダーデータからリフレクション作成
-        auto input_layout = types::RenderHandle{};
-        if (kind == types::ShaderKind::Vertex) {
-            const auto result_input_layout =
-                renderer->create_vertex_layout_from_shader_data(raw_shader_data)
-                    .add_message("頂点レイアウトの作成に失敗しました");
-            if (result_input_layout.is_err()) {
-                return result_input_layout.propagation(core::SystemError::ConstructRenderPassError);
-            }
-            input_layout = result_input_layout.unwrap();
-        }
-
-        return ShaderResult{
-            .shader = shader.unwrap(),
-            .shader_reflection = shader_reflection.unwrap_or(types::RenderHandle{}),
-            .input_layout = input_layout,
-        };
     }
 
     foundation::Result<std::tuple<foundation::UTF8, types::RenderHandle>, core::SystemError>
@@ -321,5 +148,17 @@ namespace enishi {
 
         return foundation::Error(
             core::SystemError::ConstructRenderPassError, error_message.join("\n"));
+    }
+
+    types::DependencyNode ModelRenderPassConstructor::get_node(void) const noexcept {
+        return NODE;
+    }
+
+    foundation::Option<types::DependencyBounds> ModelRenderPassConstructor::get_dependencies(
+        void) const noexcept {
+        return types::DependencyBounds{.precedents = {
+                                           ShadowMapRenderPassConstructor::NODE,
+                                           BackGroundRenderPassConstructor::NODE,
+                                       }};
     }
 } // namespace enishi

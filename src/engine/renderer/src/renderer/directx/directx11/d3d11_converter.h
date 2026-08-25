@@ -3,11 +3,11 @@
 #include <dcomp.h>
 #include <engine_types/assets/shader/shader_data.h>
 #include <engine_types/assets/texture/texture_data.h>
-#include <engine_types/renderer/description/image_description.h>
-#include <engine_types/renderer/description/image_view_description.h>
 #include <engine_types/renderer/description/pipeline_description.h>
-#include <engine_types/renderer/description/rasterizer_description.h>
-#include <engine_types/renderer/description/sampler_description.h>
+#include <engine_types/renderer/description/rasterizer/rasterizer_description.h>
+#include <engine_types/renderer/description/sampler/sampler_description.h>
+#include <engine_types/renderer/description/view/image_description.h>
+#include <engine_types/renderer/description/view/image_view_description.h>
 #include <renderer/common/shader/shader_input_info.h>
 
 namespace enishi::renderer::directx {
@@ -19,9 +19,13 @@ namespace enishi::renderer::directx {
             const types::TextureData& texture_data) noexcept;
 
         static D3D11_RASTERIZER_DESC to_rasterizer_desc(
-            const types::RasterizerDescription& description) noexcept;
+            const types::RasterizerStateDescription& description) noexcept;
         static D3D11_SAMPLER_DESC to_sampler_desc(
-            const types::SamplerDescription& description) noexcept;
+            const types::SamplerStateDescription& description) noexcept;
+        static D3D11_BLEND_DESC to_blend_desc(
+            const types::BlendStateDescription& description) noexcept;
+        static D3D11_DEPTH_STENCIL_DESC to_depth_stencil_desc(
+            const types::DepthStencilStateDescription& description) noexcept;
 
         static D3D11_FILL_MODE to_fill_mode(const types::FillMode& fill_mode) noexcept;
         static D3D11_CULL_MODE to_cull_mode(const types::CullMode& cull_mode) noexcept;
@@ -40,5 +44,13 @@ namespace enishi::renderer::directx {
             const types::FilterMode& mag,
             const types::FilterMode& mip,
             const types::AnisotropyLevel& anisotropy) noexcept;
+        static D3D11_BLEND to_d3d11_blend(const types::BlendFactor& factor) noexcept;
+        static D3D11_BLEND_OP to_d3d11_blend_op(const types::BlendOperator& op) noexcept;
+        static UINT8 to_d3d11_color_write_mask(const std::uint8_t mask) noexcept;
+        static D3D11_COMPARISON_FUNC to_d3d11_comparison_func(
+            const types::CompareOperator op) noexcept;
+        static D3D11_STENCIL_OP to_d3d11_stencil_op(const types::StencilOpeartor op) noexcept;
+        static D3D11_DEPTH_STENCILOP_DESC to_d3d11_depth_stencilop_desc(
+            const types::StencilFaceState& face) noexcept;
     };
 } // namespace enishi::renderer::directx

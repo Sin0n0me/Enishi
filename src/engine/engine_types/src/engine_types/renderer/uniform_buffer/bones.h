@@ -1,11 +1,13 @@
 #pragma once
+#include <cstdint>
 #include <glm/glm.hpp>
 
 namespace enishi::types {
-    template <int SIZE = 512> struct alignas(16) UniformBoneMatrices {
+    template <std::uint32_t SIZE = 512> struct alignas(16) UniformBoneMatrices {
+        using MatrixType = glm::mat4;
         static constexpr char UNIFORM_NAME[] = "Bones"; // シェーダ側の名前と一致させる必要がある
-        static constexpr int CAPACITY = SIZE;
-        glm::mat4 bone_matrices[CAPACITY];
+        static constexpr std::uint32_t CAPACITY = SIZE;
+        MatrixType bone_matrices[CAPACITY];
     };
 
     using LightModelBones = UniformBoneMatrices<256>;

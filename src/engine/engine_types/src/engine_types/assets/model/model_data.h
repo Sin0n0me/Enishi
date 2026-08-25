@@ -17,12 +17,16 @@ namespace enishi::types {
         glm::vec2 uv;
     };
 
+    struct VertexPosition {
+        glm::vec3 position;
+    };
+
     struct Skinning {
         glm::u16vec2 bone_index; // ボーン番号(GPU上では1つのu32扱い)
         glm::vec2 bone_weight;   // 0-1
     };
 
-    using VertexVariant = std::variant<Vertex, Skinning>;
+    using VertexVariant = std::variant<VertexPosition, Vertex, Skinning>;
     using VertexVariants = std::vector<VertexVariant>;
     using IndicesVariant = std::variant<std::monostate,
         std::vector<std::uint8_t>,

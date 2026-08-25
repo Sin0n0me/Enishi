@@ -47,9 +47,6 @@ namespace enishi::renderer {
     };
 
     struct TextureBinding {
-        types::ShaderKind target_shader;
-        std::uint32_t target;
-
         std::uint32_t mip_level;
         std::uint32_t mip_count;
         std::uint32_t array_slice;
@@ -57,12 +54,85 @@ namespace enishi::renderer {
         // TextureViewType view_type;
     };
 
-    struct SamplerBinding {};
+    struct BlendStateParameter {};
+
+    struct DepthStencilStateParameter {};
+
+    struct SamplerStateParameter {
+        types::ShaderKind target_shader;
+        std::uint32_t target;
+    };
+
+    struct RasterizerStateParameter {};
+
+    struct StateBinding {
+        using ViewParameter = std::variant<BlendStateParameter,
+            DepthStencilStateParameter,
+            SamplerStateParameter,
+            RasterizerStateParameter>;
+        ViewParameter parameter;
+
+        foundation::Option<const BlendStateParameter&> get_blend_state_param(void) const noexcept {
+            if (auto p = std::get_if<BlendStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<BlendStateParameter&> get_blend_state_param(void) noexcept {
+            if (auto p = std::get_if<BlendStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<const DepthStencilStateParameter&> get_depth_stencil_state_param(
+            void) const noexcept {
+            if (auto p = std::get_if<DepthStencilStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<DepthStencilStateParameter&> get_depth_stencil_state_param(
+            void) noexcept {
+            if (auto p = std::get_if<DepthStencilStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+
+        foundation::Option<const SamplerStateParameter&> get_sampler_state_param(
+            void) const noexcept {
+            if (auto p = std::get_if<SamplerStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<SamplerStateParameter&> get_sampler_state_param(void) noexcept {
+            if (auto p = std::get_if<SamplerStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<const RasterizerStateParameter&> get_rasterizer_state_param(
+            void) const noexcept {
+            if (auto p = std::get_if<RasterizerStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+        foundation::Option<RasterizerStateParameter&> get_rasterizer_state_param(void) noexcept {
+            if (auto p = std::get_if<RasterizerStateParameter>(&this->parameter)) {
+                return *p;
+            }
+            return {};
+        }
+    };
 
     struct ShaderBinding {};
 
     struct DepthStencilParameter {};
+
     struct RenderTargetParameter {};
+
     struct ShaderResourceParameter {
         types::ShaderKind target_shader;
         std::uint32_t target;

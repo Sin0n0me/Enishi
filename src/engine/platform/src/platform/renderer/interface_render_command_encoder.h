@@ -14,11 +14,11 @@ namespace enishi::platform {
         virtual void submit_command_shader(const types::DrawCommand& command) const = 0;
         virtual void submit_command_view(
             const types::DrawCommand& command, const types::RenderHandle& handle) const = 0;
-        virtual void submit_command_rasterizer(const types::DrawCommand& command) const = 0;
-        virtual void submit_command_texture(const types::DrawCommand& command) const = 0;
+        virtual void submit_command_viewport(const types::DrawCommand& command) const = 0;
         virtual void submit_command_mesh(const types::DrawCommand& command) const = 0;
         virtual void submit_command_topology(const types::DrawCommand& command) const = 0;
         virtual void submit_command_vertex_layout(const types::DrawCommand& command) const = 0;
+        virtual void submit_command_state(const types::DrawCommand& command) const = 0;
 
         virtual void draw(const types::RenderHandle& handle) const = 0;
 

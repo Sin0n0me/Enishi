@@ -13,7 +13,7 @@ namespace enishi::platform {
       public:
         virtual ~IUpdaterAccessor(void) noexcept = default;
 
-        [[nodiscard]] virtual RenderResult<types::RenderHandle> get_updater(
-            const foundation::UTF8& name) = 0;
+        [[nodiscard]] virtual foundation::Option<ResourceUpdater&> get_updater(
+            const types::HandleId handle) = 0;
     };
 } // namespace enishi::platform

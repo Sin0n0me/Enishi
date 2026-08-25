@@ -20,6 +20,8 @@ namespace enishi::renderer {
             const types::PipelineDescription& description) noexcept;
 
         void add_mesh(const foundation::UTF8& mesh_name, const types::RenderHandle handle);
+
+        // 舞フレーム更新する場合
         void add_updater(std::shared_ptr<platform::IResourceUpdater> updater);
 
       public:

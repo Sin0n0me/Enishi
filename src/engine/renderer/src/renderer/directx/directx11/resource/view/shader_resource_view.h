@@ -13,6 +13,6 @@ namespace enishi::renderer::directx {
 
         types::ImageViewDescription get_description(void) const noexcept override;
         types::RenderHandle get_handle(void) const noexcept override;
-        types::SamplerDescription sampler_description(void) const noexcept override;
+        types::SamplerStateDescription sampler_description(void) const noexcept override;
     };
 } // namespace enishi::renderer::directx

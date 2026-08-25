@@ -27,7 +27,7 @@ namespace enishi::renderer::vulkan {
             const types::RenderHandle& vertex_shader,
             const types::RenderHandle& pixel_shader) override;
         platform::RenderResult<types::RenderHandle> create_rasterizer(
-            const types::RasterizerDescription& description) override;
+            const types::RasterizerStateDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(
             const types::ImageDescription& description) override;
         platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>

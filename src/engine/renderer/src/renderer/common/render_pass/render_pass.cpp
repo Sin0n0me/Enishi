@@ -18,10 +18,10 @@ namespace enishi::renderer {
     foundation::VoidResult<platform::RenderError> RenderPass::make_render_pass(
         const types::PipelineDescription& description) noexcept {
         // RTVの追加
-        this->render_target = description.render_target;
+        this->render_target = description.render_target_view;
 
         // DSVの追加
-        this->add_command(description.depth_stencil);
+        this->add_command(description.depth_stencil_view);
 
         // トポロジの追加
         this->add_command(types::RenderHandle{
@@ -30,7 +30,7 @@ namespace enishi::renderer {
         });
 
         // ラスタライザの追加
-        this->add_command(description.rasterizer);
+        this->add_command(description.rasterizer_state);
 
         // 頂点レイアウトの追加
         this->add_command(description.vertex_layout);

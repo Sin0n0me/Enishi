@@ -49,15 +49,14 @@ namespace enishi::renderer::directx {
             });
     }
 
-    void ViewPool::remove_native_view(
-        const types::ImageViewType view_kind, const types::HandleId handle) noexcept {
+    void ViewPool::remove_native_view(const types::HandleId handle) noexcept {
         const auto opt_mapped_handle = this->handle_mapper.get(handle);
         if (opt_mapped_handle.is_none()) {
             return;
         }
         const auto& mapped_handle = opt_mapped_handle.unwrap();
 
-        switch (view_kind) {
+        switch (mapped_handle.type) {
             case types::ImageViewType::DepthStencil: {
                 auto opt_native_resource =
                     this->native_depth_stencils.get(mapped_handle.resource_index);

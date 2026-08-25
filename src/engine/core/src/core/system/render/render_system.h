@@ -11,14 +11,11 @@
 namespace enishi::core {
     class RenderSystem : public ISystem {
       private:
-        template <typename T> using NameMap = std::unordered_map<foundation::UTF8, T>;
-
         std::shared_ptr<ecs::Registory> registory;
         std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<platform::IRenderCommandEncoder> encoder;
         std::vector<std::shared_ptr<platform::IRenderPass>> render_passes;
-        NameMap<std::uint64_t> name_to_index;
-        NameMap<std::shared_ptr<IRenderPassConstructor>> name_to_constructor;
+        std::vector<std::shared_ptr<IRenderPassConstructor>> constructors;
 
         explicit RenderSystem(void) = delete;
 
@@ -28,17 +25,17 @@ namespace enishi::core {
             std::shared_ptr<platform::IRenderCommandEncoder> encoder);
 
       public:
-        foundation::VoidResult<SystemError> add_render_pass_constructor(
-            foundation::UTF8&& pass_name,
+        [[nodiscard]] foundation::VoidResult<SystemError> add_render_pass_constructor(
             std::shared_ptr<IRenderPassConstructor> render_pass_constructor);
 
-        foundation::VoidResult<SystemError> create_render_passes(
+        [[nodiscard]] foundation::VoidResult<SystemError> create_render_passes(
             assets_system::IAssetSystem* const asset_system);
 
-        types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
+        [[nodiscard]] types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
 
-        std::shared_ptr<platform::IRenderer> get_renderer(void) const;
-        std::shared_ptr<platform::IRenderCommandEncoder> get_render_command_encoder(void) const;
+        [[nodiscard]] std::shared_ptr<platform::IRenderer> get_renderer(void) const;
+        [[nodiscard]] std::shared_ptr<platform::IRenderCommandEncoder> get_render_command_encoder(
+            void) const;
 
       public:
         bool should_close(void) override;

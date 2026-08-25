@@ -19,6 +19,8 @@ namespace enishi::renderer::directx {
       public:
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
 
+        [[nodiscard]] platform::IUpdaterAccessor* get_updater_accessor(void) noexcept;
+
       public:
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect& config) override;
@@ -31,7 +33,13 @@ namespace enishi::renderer::directx {
         platform::RenderResult<types::RenderHandle> create_vertex_layout_from_shader_data(
             const types::ShaderData& shader_data) override;
         platform::RenderResult<types::RenderHandle> create_rasterizer(
-            const types::RasterizerDescription& description) override;
+            const types::RasterizerStateDescription& description) override;
+        platform::RenderResult<types::RenderHandle> create_depth_stencil(
+            const types::DepthStencilStateDescription& description) override;
+        platform::RenderResult<types::RenderHandle> create_sampler(
+            const types::SamplerStateDescription& description) override;
+        platform::RenderResult<types::RenderHandle> create_blend(
+            const types::BlendStateDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_image(
             const types::ImageDescription& description) override;
         platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
@@ -48,8 +56,6 @@ namespace enishi::renderer::directx {
             const types::ImageViewDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_mesh(const types::ModelData& model_data,
             const std::vector<types::RenderHandle>& shader_reflections) override;
-        platform::RenderResult<types::RenderHandle> create_sampler(
-            const types::SamplerDescription& description) override;
         platform::RenderResult<types::RenderHandle> create_texture(
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(
@@ -62,11 +68,12 @@ namespace enishi::renderer::directx {
         void submit_command_shader(const types::DrawCommand& command) const override;
         void submit_command_view(
             const types::DrawCommand& command, const types::RenderHandle& handle) const override;
-        void submit_command_rasterizer(const types::DrawCommand& command) const override;
-        void submit_command_texture(const types::DrawCommand& command) const override;
         void submit_command_mesh(const types::DrawCommand& command) const override;
         void submit_command_topology(const types::DrawCommand& command) const override;
         void submit_command_vertex_layout(const types::DrawCommand& command) const override;
+        void submit_command_viewport(const types::DrawCommand& command) const override;
+        void submit_command_state(const types::DrawCommand& command) const override;
+
         void draw(const types::RenderHandle& handle) const override;
         void present(void) const override;
 
@@ -75,8 +82,7 @@ namespace enishi::renderer::directx {
         void bind_shader(const types::RenderHandle& handle) const;
         void bind_view(const types::RenderHandle& bind_handle,
             const types::RenderHandle& render_target_handle) const;
-        void bind_rasterizer(const types::RenderHandle& handle) const;
-        void bind_texture(const types::RenderHandle& handle) const;
+        void bind_state(const types::RenderHandle& handle) const;
         void bind_mesh(const types::RenderHandle& handle) const;
         void bind_topology(const types::RenderHandle& handle) const;
         void bind_input_layout(const types::RenderHandle& handle) const;

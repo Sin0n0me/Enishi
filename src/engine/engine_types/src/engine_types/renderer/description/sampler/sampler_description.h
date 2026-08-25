@@ -1,27 +1,9 @@
 #pragma once
+#include "detail/sampler_mode.h"
 #include <cstdint>
 
 namespace enishi::types {
-    enum class FilterMode : std::uint8_t {
-        Nearest, // ニアレスト
-        Linear,  // リニア
-    };
-
-    enum class AddressMode : std::uint8_t {
-        Repeat, // タイリング
-        Clamp,  // 端をクランプ
-        Mirror, // ミラーリング
-    };
-
-    enum class AnisotropyLevel : std::uint8_t {
-        None = 1,
-        X2 = 2,
-        X4 = 4,
-        X8 = 8,
-        X16 = 16,
-    };
-
-    struct SamplerDescription {
+    struct SamplerStateDescription {
         FilterMode mag_filter;
         FilterMode min_filter;
         FilterMode mip_filter;
@@ -34,8 +16,8 @@ namespace enishi::types {
         float max_lod;
 
         [[nodiscard]]
-        static constexpr SamplerDescription default_linear(void) noexcept {
-            return SamplerDescription{
+        static constexpr SamplerStateDescription default_linear(void) noexcept {
+            return SamplerStateDescription{
                 .mag_filter = FilterMode::Linear,
                 .min_filter = FilterMode::Linear,
                 .mip_filter = FilterMode::Linear,
@@ -50,8 +32,8 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static constexpr SamplerDescription default_nearest(void) noexcept {
-            return SamplerDescription{
+        static constexpr SamplerStateDescription default_nearest(void) noexcept {
+            return SamplerStateDescription{
                 .mag_filter = FilterMode::Nearest,
                 .min_filter = FilterMode::Nearest,
                 .mip_filter = FilterMode::Nearest,
@@ -66,8 +48,8 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static SamplerDescription clamp_linear(void) noexcept {
-            return SamplerDescription{
+        static SamplerStateDescription clamp_linear(void) noexcept {
+            return SamplerStateDescription{
                 .mag_filter = FilterMode::Linear,
                 .min_filter = FilterMode::Linear,
                 .mip_filter = FilterMode::Linear,

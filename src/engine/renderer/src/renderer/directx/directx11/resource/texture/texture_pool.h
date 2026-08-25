@@ -18,7 +18,6 @@ namespace enishi::renderer::directx {
         ResourcePool<NativeTexture1D> textures_1d;
         ResourcePool<NativeTexture2D> textures_2d;
         ResourcePool<NativeTexture3D> textures_3d;
-        ResourcePool<NativeSampler> samplers;
 
       public:
         std::tuple<types::HandleId, NativeTexture1D&> make_native_texture_1d(
@@ -27,10 +26,7 @@ namespace enishi::renderer::directx {
             void) noexcept override;
         std::tuple<types::HandleId, NativeTexture3D&> make_native_texture_3d(
             void) noexcept override;
-        std::tuple<types::HandleId, NativeSampler&> make_native_sampler(void) noexcept override;
-        void remove_native_texture(
-            const TextureType texture_kind, const types::HandleId handle) noexcept override;
-        void remove_native_sampler(const types::HandleId handle) noexcept override;
+        void remove_native_texture(const types::HandleId handle) noexcept override;
         foundation::Option<NativeTexture1D&> get_native_texture_1d(
             const types::HandleId handle) noexcept override;
         foundation::Option<const NativeTexture1D&> get_native_texture_1d(
@@ -42,10 +38,6 @@ namespace enishi::renderer::directx {
         foundation::Option<NativeTexture3D&> get_native_texture_3d(
             const types::HandleId handle) noexcept override;
         foundation::Option<const NativeTexture3D&> get_native_texture_3d(
-            const types::HandleId handle) const noexcept override;
-        foundation::Option<NativeSampler&> get_native_sampler(
-            const types::HandleId handle) noexcept override;
-        foundation::Option<const NativeSampler&> get_native_sampler(
             const types::HandleId handle) const noexcept override;
     };
 } // namespace enishi::renderer::directx

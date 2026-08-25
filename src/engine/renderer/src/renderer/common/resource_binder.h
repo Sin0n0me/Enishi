@@ -18,6 +18,7 @@ namespace enishi::renderer {
         ResourcePool<TextureBinding> texture_bindings;
         ResourcePool<ShaderBinding> shader_bindings;
         ResourcePool<ViewBinding> view_bindings;
+        ResourcePool<StateBinding> state_bindings;
 
       public:
         std::tuple<types::HandleId, DrawBinding&> make_draw_binding(void) noexcept override;
@@ -44,6 +45,11 @@ namespace enishi::renderer {
         foundation::Option<const ViewBinding&> get_view_binding(
             const types::HandleId handle) const noexcept override;
         foundation::Option<ViewBinding&> get_view_binding(
+            const types::HandleId handle) noexcept override;
+        std::tuple<types::HandleId, StateBinding&> make_state_binding(void) noexcept override;
+        foundation::Option<const StateBinding&> get_state_binding(
+            const types::HandleId handle) const noexcept override;
+        foundation::Option<StateBinding&> get_state_binding(
             const types::HandleId handle) noexcept override;
     };
 } // namespace enishi::renderer

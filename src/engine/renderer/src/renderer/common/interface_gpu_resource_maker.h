@@ -4,10 +4,12 @@
 #include <engine_types/assets/texture/texture_data.h>
 #include <engine_types/handle/handle_allocator.h>
 #include <engine_types/handle/renderer/render_handle.h>
-#include <engine_types/renderer/description/image_description.h>
-#include <engine_types/renderer/description/image_view_description.h>
-#include <engine_types/renderer/description/rasterizer_description.h>
-#include <engine_types/renderer/description/sampler_description.h>
+#include <engine_types/renderer/description/blend/blend_description.h>
+#include <engine_types/renderer/description/depth/depth_stencil_description.h>
+#include <engine_types/renderer/description/rasterizer/rasterizer_description.h>
+#include <engine_types/renderer/description/sampler/sampler_description.h>
+#include <engine_types/renderer/description/view/image_description.h>
+#include <engine_types/renderer/description/view/image_view_description.h>
 #include <engine_types/renderer/render_data.h>
 #include <engine_types/renderer/viewport.h>
 #include <foundation/option/option.h>
@@ -45,11 +47,14 @@ namespace enishi::renderer {
             const types::ImageDescription& description) = 0;
 
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError>
-        make_blend_state() = 0;
-        [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError> make_sampler(
-            const types::SamplerDescription& description) = 0;
+        make_blend_state(const types::BlendStateDescription& description) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError>
-        make_rasterizer(const types::RasterizerDescription& description) = 0;
+        make_sampler_state(const types::SamplerStateDescription& description) = 0;
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError>
+        make_rasterizer_state(const types::RasterizerStateDescription& description) = 0;
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError>
+        make_depth_stencil_state(const types::DepthStencilStateDescription& description) = 0;
+
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError> make_view(
             const types::RenderHandle& image_handle,
             const types::ImageViewDescription& description) = 0;

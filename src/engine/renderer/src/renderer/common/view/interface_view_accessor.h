@@ -1,4 +1,5 @@
 #pragma once
+#include <engine_types/renderer/description/view/image_view_description.h>
 #include <foundation/option/option.h>
 #include <memory>
 #include <platform/renderer/interface_image_view.h>
@@ -13,6 +14,9 @@ namespace enishi::renderer {
 
       public:
         virtual ~IViewAccessor(void) noexcept = default;
+
+        [[nodiscard]] virtual foundation::Option<types::ImageViewType> get_view_type(
+            const types::HandleId& handle) const noexcept = 0;
 
         /**
          * @param handle ネイティブなリソースへのハンドル

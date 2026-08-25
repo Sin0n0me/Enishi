@@ -8,16 +8,17 @@ namespace enishi::types {
     // あくまで何かを示すだけ
     enum class RenderHandleType : std::uint32_t {
         Unknown = 0,
-        Mesh,
-        Texture,
-        Shader,
         Buffer,
+        Mesh,
+        Shader,
+        Image,
         View,
-        Rasterizer,
         ViewPort,
+        State,
         Topology,
         VertexLayout,
         Draw,
+
         ShaderReflection,
     };
 

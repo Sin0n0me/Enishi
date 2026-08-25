@@ -50,12 +50,7 @@ namespace enishi::renderer {
 
         const auto append_vertex = [&vertices](const std::vector<types::VertexVariant>& vertex) {
             for (const auto& variant : vertex) {
-                if (auto data = std::get_if<types::Vertex>(&variant)) {
-                    append_bytes(vertices, *data);
-                }
-                if (auto data = std::get_if<types::Skinning>(&variant)) {
-                    append_bytes(vertices, *data);
-                }
+                std::visit([&](const auto& data) { append_bytes(vertices, &data); }, variant);
             }
         };
 
@@ -145,28 +140,55 @@ namespace enishi::renderer {
         const types::ModelData& model_data, Uniforms& uniforms) {
         for (const auto& addon : model_data.addons) {
             if (auto data = std::get_if<types::AddonBones>(&addon)) {
+                using LightModel = types::LightModelBones;
+                using MediumModel = types::MediumModelBones;
+                using HeavyModel = types::HeavyModelBones;
+
                 // ボーンの数に応じて使用するボーン行列を決める
                 const auto size = data->size();
-                if (size < types::LightModelBones::CAPACITY) {
-                    // std::vector<std::byte> uniform(sizeof(types::LightModelBones));
-                    // uniforms.emplace(types::LightModelBones::UNIFORM_NAME, std::move(uniform));
 
-                    // 仮で中規模モデルを使用
-                    std::vector<std::byte> uniform(sizeof(types::MediumModelBones));
-                    uniforms.emplace(types::MediumModelBones::UNIFORM_NAME, std::move(uniform));
-                } else if (size < types::MediumModelBones::CAPACITY) {
-                    std::vector<std::byte> uniform(sizeof(types::MediumModelBones));
-                    uniforms.emplace(types::MediumModelBones::UNIFORM_NAME, std::move(uniform));
-                } else if (size < types::HeavyModelBones::CAPACITY) {
-                    std::vector<std::byte> uniform(sizeof(types::HeavyModelBones));
-                    uniforms.emplace(types::HeavyModelBones::UNIFORM_NAME, std::move(uniform));
+                // シェーダー側が対応できていないので
+                // 今は仮で中規模モデルを使用する
+                if (size < LightModel::CAPACITY && false) {
+                    constexpr auto STRIDE = sizeof(LightModel::MatrixType);
+                    auto [iter, is_override] = uniforms.emplace(LightModel::UNIFORM_NAME,
+                        types::OwnedRenderData{
+                            std::vector<std::byte>(sizeof(LightModel)),
+                            STRIDE,
+                        });
+                    auto& [name, bones] = *iter;
+                    for (auto i = 0; i < LightModel::CAPACITY; ++i) {
+                        bones.update(LightModel::MatrixType{1.0}, i);
+                    }
+                } else if (size < MediumModel::CAPACITY) {
+                    constexpr auto STRIDE = sizeof(MediumModel::MatrixType);
+                    auto [iter, is_override] = uniforms.emplace(MediumModel::UNIFORM_NAME,
+                        types::OwnedRenderData{
+                            std::vector<std::byte>(sizeof(MediumModel)),
+                            STRIDE,
+                        });
+                    auto& [name, bones] = *iter;
+                    for (auto i = 0; i < MediumModel::CAPACITY; ++i) {
+                        bones.update(MediumModel::MatrixType{1.0}, i);
+                    }
+                } else if (size < HeavyModel::CAPACITY) {
+                    constexpr auto STRIDE = sizeof(HeavyModel::MatrixType);
+                    auto [iter, is_override] = uniforms.emplace(HeavyModel::UNIFORM_NAME,
+                        types::OwnedRenderData{
+                            std::vector<std::byte>(sizeof(HeavyModel)),
+                            STRIDE,
+                        });
+                    auto& [name, bones] = *iter;
+                    for (auto i = 0; i < HeavyModel::CAPACITY; ++i) {
+                        bones.update(HeavyModel::MatrixType{1.0}, i);
+                    }
                 } else {
                     foundation::StringBuilder strings;
                     strings.push_back("ボーンの数が多すぎます. 非対応です.");
                     strings.push_back(
                         std::format("読み込んだボーンサイズ: {}, 対応可能な最大ボーンサイズ: {}",
                             size,
-                            types::HeavyModelBones::CAPACITY));
+                            HeavyModel::CAPACITY));
 
                     return foundation::Error(RendererError::ConvertError, strings.join("\n"));
                 }

@@ -1,23 +1,8 @@
 #pragma once
+#include "detail/rasterizer_mode.h"
 #include <cstdint>
 
 namespace enishi::types {
-    enum class FillMode : std::uint8_t {
-        Solid,     // 塗りつぶし
-        Wireframe, // ワイヤーフレーム
-    };
-
-    enum class CullMode : std::uint8_t {
-        None,  // カリングなし
-        Front, // 前面カリング
-        Back,  // 背面カリング
-    };
-
-    enum class FrontFace : std::uint8_t {
-        CounterClockwise, // 反時計回りが表(OpenGL, Vulkan標準)
-        Clockwise,        // 時計回りが表(DirectX標準)
-    };
-
     struct DepthBiasDescription {
         bool enable;
         float constant_factor; // 固定オフセット
@@ -25,7 +10,7 @@ namespace enishi::types {
         float clamp;           // バイアスの最大値
     };
 
-    struct RasterizerDescription {
+    struct RasterizerStateDescription {
         FillMode fill_mode;
         CullMode cull_mode;
         FrontFace front_face;
@@ -34,8 +19,8 @@ namespace enishi::types {
         DepthBiasDescription depth_bias;
 
         [[nodiscard]]
-        static constexpr RasterizerDescription default_solid(void) noexcept {
-            return RasterizerDescription{
+        static constexpr RasterizerStateDescription default_solid(void) noexcept {
+            return RasterizerStateDescription{
                 .fill_mode = FillMode::Solid,
                 .cull_mode = CullMode::Back,
                 .front_face = FrontFace::CounterClockwise,
@@ -52,24 +37,24 @@ namespace enishi::types {
         }
 
         [[nodiscard]]
-        static constexpr RasterizerDescription wireframe(void) noexcept {
-            RasterizerDescription desc = RasterizerDescription::default_solid();
+        static constexpr RasterizerStateDescription wireframe(void) noexcept {
+            RasterizerStateDescription desc = RasterizerStateDescription::default_solid();
             desc.fill_mode = FillMode::Wireframe;
             desc.cull_mode = CullMode::None;
             return desc;
         }
 
         [[nodiscard]]
-        static constexpr RasterizerDescription no_cull(void) noexcept {
-            RasterizerDescription desc = RasterizerDescription::default_solid();
+        static constexpr RasterizerStateDescription no_cull(void) noexcept {
+            RasterizerStateDescription desc = RasterizerStateDescription::default_solid();
             desc.cull_mode = CullMode::None;
             return desc;
         }
 
         // シャドウマップ用
         [[nodiscard]]
-        static constexpr RasterizerDescription shadow_map(void) noexcept {
-            RasterizerDescription desc = RasterizerDescription::default_solid();
+        static constexpr RasterizerStateDescription shadow_map(void) noexcept {
+            RasterizerStateDescription desc = RasterizerStateDescription::default_solid();
             desc.cull_mode = CullMode::Front;
             desc.depth_bias = {
                 .enable = true,

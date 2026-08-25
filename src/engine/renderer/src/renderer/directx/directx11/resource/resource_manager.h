@@ -67,11 +67,14 @@ namespace enishi::renderer::directx {
             const types::RenderData& data) override;
         foundation::Result<types::RenderHandle, RendererError> make_image(
             const types::ImageDescription& description) override;
-        foundation::Result<types::RenderHandle, RendererError> make_blend_state() override;
-        foundation::Result<types::RenderHandle, RendererError> make_sampler(
-            const types::SamplerDescription& description) override;
-        foundation::Result<types::RenderHandle, RendererError> make_rasterizer(
-            const types::RasterizerDescription& description) override;
+        foundation::Result<types::RenderHandle, RendererError> make_blend_state(
+            const types::BlendStateDescription& description) override;
+        foundation::Result<types::RenderHandle, RendererError> make_sampler_state(
+            const types::SamplerStateDescription& description) override;
+        foundation::Result<types::RenderHandle, RendererError> make_rasterizer_state(
+            const types::RasterizerStateDescription& description) override;
+        foundation::Result<types::RenderHandle, RendererError> make_depth_stencil_state(
+            const types::DepthStencilStateDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_view(
             const types::RenderHandle& image_handle,
             const types::ImageViewDescription& description) override;
@@ -79,13 +82,17 @@ namespace enishi::renderer::directx {
             const types::ViewportRect& config) override;
 
       private:
-        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_render_target(
+        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError>
+        make_render_target_view(
             const ResourceHandles image_index, const types::ImageViewDescription& description);
-        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_depth_stencil(
+        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError>
+        make_depth_stencil_view(
             const ResourceHandles image_index, const types::ImageViewDescription& description);
-        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_shader_resource(
+        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError>
+        make_shader_resource_view(
             const ResourceHandles image_index, const types::ImageViewDescription& description);
-        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_unodered_access(
+        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError>
+        make_unodered_access_view(
             const ResourceHandles image_index, const types::ImageViewDescription& description);
 
         [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> make_shader_from_dxbc(
@@ -101,6 +108,10 @@ namespace enishi::renderer::directx {
         [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
         resolve_uniforms(MeshData::UniformMap&& uniforms,
             const std::vector<IShaderAccessor::ShaderReflection>& shader_reflections);
+        [[nodiscard]] foundation::Result<types::RenderHandle, RendererError> resolve_uniform(
+            const ShaderInputResource& input_resource,
+            const types::ShaderKind& shader_kind,
+            types::OwnedRenderData&& render_data);
         [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
         resolve_texture(const MeshMaterial& mesh_material,
             const std::vector<IShaderAccessor::ShaderReflection>& shader_reflections);

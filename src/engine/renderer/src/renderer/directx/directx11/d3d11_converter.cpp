@@ -73,7 +73,7 @@ namespace enishi::renderer::directx {
     }
 
     D3D11_RASTERIZER_DESC D3D11Converter::to_rasterizer_desc(
-        const types::RasterizerDescription& description) noexcept {
+        const types::RasterizerStateDescription& description) noexcept {
         const bool is_clockwise = description.front_face == types::FrontFace::CounterClockwise;
 
         return D3D11_RASTERIZER_DESC{
@@ -87,7 +87,7 @@ namespace enishi::renderer::directx {
     }
 
     D3D11_SAMPLER_DESC D3D11Converter::to_sampler_desc(
-        const types::SamplerDescription& description) noexcept {
+        const types::SamplerStateDescription& description) noexcept {
         description.min_filter;
 
         return D3D11_SAMPLER_DESC{
@@ -104,6 +104,44 @@ namespace enishi::renderer::directx {
             .BorderColor = {0, 0, 0, 0},
             .MinLOD = description.min_lod,
             .MaxLOD = description.max_lod,
+        };
+    }
+
+    D3D11_BLEND_DESC D3D11Converter::to_blend_desc(
+        const types::BlendStateDescription& description) noexcept {
+        D3D11_BLEND_DESC desc{};
+        desc.AlphaToCoverageEnable = description.alpha_to_coverage ? TRUE : FALSE;
+        desc.IndependentBlendEnable = description.independent_blend ? TRUE : FALSE;
+
+        for (std::size_t i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i) {
+            const auto& src_rt = description.render_targets[i];
+            auto& dst_rt = desc.RenderTarget[i];
+
+            dst_rt.BlendEnable = src_rt.enabled ? TRUE : FALSE;
+            dst_rt.SrcBlend = to_d3d11_blend(src_rt.src_color);
+            dst_rt.DestBlend = to_d3d11_blend(src_rt.dst_color);
+            dst_rt.BlendOp = to_d3d11_blend_op(src_rt.color_operator);
+            dst_rt.SrcBlendAlpha = to_d3d11_blend(src_rt.src_alpha);
+            dst_rt.DestBlendAlpha = to_d3d11_blend(src_rt.dst_alpha);
+            dst_rt.BlendOpAlpha = to_d3d11_blend_op(src_rt.alpha_operator);
+            dst_rt.RenderTargetWriteMask = to_d3d11_color_write_mask(src_rt.write_mask);
+        }
+
+        return desc;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC D3D11Converter::to_depth_stencil_desc(
+        const types::DepthStencilStateDescription& description) noexcept {
+        return D3D11_DEPTH_STENCIL_DESC{
+            .DepthEnable = description.depth.enabled ? TRUE : FALSE,
+            .DepthWriteMask = description.depth.write_enabled ? D3D11_DEPTH_WRITE_MASK_ALL
+                                                              : D3D11_DEPTH_WRITE_MASK_ZERO,
+            .DepthFunc = to_d3d11_comparison_func(description.depth.compare_operator),
+            .StencilEnable = description.stencil.enabled ? TRUE : FALSE,
+            .StencilReadMask = static_cast<UINT8>(description.stencil.front.compare_mask),
+            .StencilWriteMask = static_cast<UINT8>(description.stencil.front.write_mask),
+            .FrontFace = to_d3d11_depth_stencilop_desc(description.stencil.front),
+            .BackFace = to_d3d11_depth_stencilop_desc(description.stencil.back),
         };
     }
 
@@ -205,7 +243,7 @@ namespace enishi::renderer::directx {
                         break;
                 }
                 break;
-            case ShaderInputValueType::SignedInteger:
+            case ShaderInputValueType::UnsignedInteger:
                 switch (count) {
                     case 1:
                         return DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
@@ -219,7 +257,7 @@ namespace enishi::renderer::directx {
                         break;
                 }
                 break;
-            case ShaderInputValueType::UnsignedInteger:
+            case ShaderInputValueType::SignedInteger:
                 switch (count) {
                     case 1:
                         return DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
@@ -390,5 +428,137 @@ namespace enishi::renderer::directx {
         return (mip == types::FilterMode::Nearest)
                    ? D3D11_FILTER::D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT
                    : D3D11_FILTER::D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    }
+
+    D3D11_BLEND D3D11Converter::to_d3d11_blend(const types::BlendFactor& factor) noexcept {
+        switch (factor) {
+            case types::BlendFactor::Zero:
+                return D3D11_BLEND::D3D11_BLEND_ZERO;
+            case types::BlendFactor::One:
+                return D3D11_BLEND::D3D11_BLEND_ONE;
+            case types::BlendFactor::SrcColor:
+                return D3D11_BLEND::D3D11_BLEND_SRC_COLOR;
+            case types::BlendFactor::OneMinusSrcColor:
+                return D3D11_BLEND::D3D11_BLEND_INV_SRC_COLOR;
+            case types::BlendFactor::DstColor:
+                return D3D11_BLEND::D3D11_BLEND_DEST_COLOR;
+            case types::BlendFactor::OneMinusDstColor:
+                return D3D11_BLEND::D3D11_BLEND_INV_DEST_COLOR;
+            case types::BlendFactor::SrcAlpha:
+                return D3D11_BLEND::D3D11_BLEND_SRC_ALPHA;
+            case types::BlendFactor::OneMinusSrcAlpha:
+                return D3D11_BLEND::D3D11_BLEND_INV_SRC_ALPHA;
+            case types::BlendFactor::DstAlpha:
+                return D3D11_BLEND::D3D11_BLEND_DEST_ALPHA;
+            case types::BlendFactor::OneMinusDstAlpha:
+                return D3D11_BLEND::D3D11_BLEND_INV_DEST_ALPHA;
+            case types::BlendFactor::ConstantColor:
+                return D3D11_BLEND::D3D11_BLEND_BLEND_FACTOR;
+            case types::BlendFactor::OneMinusConstantColor:
+                return D3D11_BLEND::D3D11_BLEND_INV_BLEND_FACTOR;
+            case types::BlendFactor::ConstantAlpha:
+                return D3D11_BLEND::D3D11_BLEND_BLEND_FACTOR; // D3D11はColor/Alpha共通
+            case types::BlendFactor::OneMinusConstantAlpha:
+                return D3D11_BLEND::D3D11_BLEND_INV_BLEND_FACTOR;
+            case types::BlendFactor::SrcAlphaSaturate:
+                return D3D11_BLEND::D3D11_BLEND_SRC_ALPHA_SAT;
+            case types::BlendFactor::Src1Color:
+                return D3D11_BLEND::D3D11_BLEND_SRC1_COLOR;
+            case types::BlendFactor::OneMinusSrc1Color:
+                return D3D11_BLEND::D3D11_BLEND_INV_SRC1_COLOR;
+            case types::BlendFactor::Src1Alpha:
+                return D3D11_BLEND::D3D11_BLEND_SRC1_ALPHA;
+            case types::BlendFactor::OneMinusSrc1Alpha:
+                return D3D11_BLEND::D3D11_BLEND_INV_SRC1_ALPHA;
+        }
+        return D3D11_BLEND::D3D11_BLEND_ONE;
+    }
+
+    D3D11_BLEND_OP D3D11Converter::to_d3d11_blend_op(const types::BlendOperator& op) noexcept {
+        switch (op) {
+            case types::BlendOperator::Add:
+                return D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+            case types::BlendOperator::Subtract:
+                return D3D11_BLEND_OP::D3D11_BLEND_OP_SUBTRACT;
+            case types::BlendOperator::ReverseSubtract:
+                return D3D11_BLEND_OP::D3D11_BLEND_OP_REV_SUBTRACT;
+            case types::BlendOperator::Min:
+                return D3D11_BLEND_OP::D3D11_BLEND_OP_MIN;
+            case types::BlendOperator::Max:
+                return D3D11_BLEND_OP::D3D11_BLEND_OP_MAX;
+        }
+        return D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+    }
+
+    UINT8 D3D11Converter::to_d3d11_color_write_mask(const std::uint8_t mask) noexcept {
+        UINT8 result = 0;
+        if (mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteR)) {
+            result |= D3D11_COLOR_WRITE_ENABLE::D3D11_COLOR_WRITE_ENABLE_RED;
+        }
+        if (mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteG)) {
+            result |= D3D11_COLOR_WRITE_ENABLE::D3D11_COLOR_WRITE_ENABLE_GREEN;
+        }
+        if (mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteB)) {
+            result |= D3D11_COLOR_WRITE_ENABLE::D3D11_COLOR_WRITE_ENABLE_BLUE;
+        }
+        if (mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteA)) {
+            result |= D3D11_COLOR_WRITE_ENABLE::D3D11_COLOR_WRITE_ENABLE_ALPHA;
+        }
+        return result;
+    }
+
+    D3D11_COMPARISON_FUNC D3D11Converter::to_d3d11_comparison_func(
+        const types::CompareOperator op) noexcept {
+        switch (op) {
+            case types::CompareOperator::Never:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_NEVER;
+            case types::CompareOperator::Less:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
+            case types::CompareOperator::Equal:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_EQUAL;
+            case types::CompareOperator::LessEqual:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+            case types::CompareOperator::Greater:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER;
+            case types::CompareOperator::NotEqual:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_NOT_EQUAL;
+            case types::CompareOperator::GreaterEqual:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER_EQUAL;
+            case types::CompareOperator::Always:
+                return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_ALWAYS;
+        }
+        return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_ALWAYS;
+    }
+
+    D3D11_STENCIL_OP D3D11Converter::to_d3d11_stencil_op(types::StencilOpeartor op) noexcept {
+        switch (op) {
+            case types::StencilOpeartor::Keep:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_KEEP;
+            case types::StencilOpeartor::Zero:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_ZERO;
+            case types::StencilOpeartor::Replace:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_REPLACE;
+            case types::StencilOpeartor::IncrementClamp:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_INCR_SAT;
+            case types::StencilOpeartor::DecrementClamp:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_DECR_SAT;
+            case types::StencilOpeartor::Invert:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_INVERT;
+            case types::StencilOpeartor::IncrementWrap:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_INCR;
+            case types::StencilOpeartor::DecrementWrap:
+                return D3D11_STENCIL_OP::D3D11_STENCIL_OP_DECR;
+        }
+        return D3D11_STENCIL_OP_KEEP;
+    }
+
+    D3D11_DEPTH_STENCILOP_DESC D3D11Converter::to_d3d11_depth_stencilop_desc(
+        const types::StencilFaceState& face) noexcept {
+        return D3D11_DEPTH_STENCILOP_DESC{
+            .StencilFailOp = to_d3d11_stencil_op(face.stencil_fail_operator),
+            .StencilDepthFailOp = to_d3d11_stencil_op(face.depth_fail_operator),
+            .StencilPassOp = to_d3d11_stencil_op(face.pass_operator),
+            .StencilFunc = to_d3d11_comparison_func(face.compare_operator),
+        };
     }
 } // namespace enishi::renderer::directx

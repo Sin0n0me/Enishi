@@ -34,7 +34,7 @@ namespace enishi::renderer::vulkan {
         return types::RenderHandle{};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_rasterizer(
-        const types::RasterizerDescription& description) {
+        const types::RasterizerStateDescription& description) {
         return types::RenderHandle{};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_image(

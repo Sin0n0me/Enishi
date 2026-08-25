@@ -116,4 +116,27 @@ namespace enishi::renderer {
             return this->view_bindings.get(handle.resource_index);
         });
     }
+
+    std::tuple<types::HandleId, StateBinding&> ResourceBinder::make_state_binding(void) noexcept {
+        return this->handle_mapper.make_from(
+            this->state_bindings.make(), [](const std::size_t index) {
+                return BindHandle{
+                    .resource_index = index,
+                };
+            });
+    }
+
+    foundation::Option<const StateBinding&> ResourceBinder::get_state_binding(
+        const types::HandleId handle) const noexcept {
+        return this->handle_mapper.get(handle).and_then([this](const BindHandle handle) {
+            return this->state_bindings.get(handle.resource_index);
+        });
+    }
+
+    foundation::Option<StateBinding&> ResourceBinder::get_state_binding(
+        const types::HandleId handle) noexcept {
+        return this->handle_mapper.get(handle).and_then([this](const BindHandle handle) {
+            return this->state_bindings.get(handle.resource_index);
+        });
+    }
 } // namespace enishi::renderer

@@ -1,9 +1,14 @@
 #include "resource_manager.h"
 #include "../d3d11_converter.h"
+#include "buffer/updater/bone_updater.h"
 #include "view/depth_stencil_view.h"
 #include "view/render_target_view.h"
 #include "view/shader_resource_view.h"
 #include "view/unodered_access_view.h"
+#include <engine_types/renderer/uniform_buffer/bones.h>
+#include <engine_types/renderer/uniform_buffer/camera.h>
+#include <engine_types/renderer/uniform_buffer/light.h>
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <ranges>
@@ -212,7 +217,7 @@ namespace enishi::renderer::directx {
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::Texture,
+            types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -255,7 +260,7 @@ namespace enishi::renderer::directx {
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::Texture,
+            types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -282,8 +287,7 @@ namespace enishi::renderer::directx {
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
-            return foundation::Error(
-                RendererError::BufferError, "頂点バッファの作成に失敗しました");
+            return foundation::Error(RendererError::BufferError, "バッファの作成に失敗しました");
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -322,8 +326,7 @@ namespace enishi::renderer::directx {
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
-            return foundation::Error(
-                RendererError::BufferError, "インデックスバッファの作成に失敗しました");
+            return foundation::Error(RendererError::BufferError, "バッファの作成に失敗しました");
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -362,8 +365,7 @@ namespace enishi::renderer::directx {
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
-            return foundation::Error(
-                RendererError::BufferError, "定数バッファの作成に失敗しました");
+            return foundation::Error(RendererError::BufferError, "バッファの作成に失敗しました");
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -408,7 +410,7 @@ namespace enishi::renderer::directx {
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::Texture,
+            types::RenderHandleType::Image,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -418,24 +420,43 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_blend_state() {
-        return types::RenderHandle{};
-    }
-
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_sampler(
-        const types::SamplerDescription& description) {
-        const auto [resource_handle, sampler_satate] =
-            this->native_resource->get_native_texture_accessor()->make_native_sampler();
-        const auto desc = D3D11Converter::to_sampler_desc(description);
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_blend_state(
+        const types::BlendStateDescription& description) {
+        const auto [resource_handle, satate] =
+            this->native_resource->get_native_state_accessor()->make_native_blend_state();
+        const auto desc = D3D11Converter::to_blend_desc(description);
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateSamplerState(&desc, sampler_satate.GetAddressOf());
+        const HRESULT hr = device->CreateBlendState(&desc, satate.GetAddressOf());
         if (FAILED(hr)) {
-            return foundation::Error(RendererError::SamplerError, "サンプラーの作成に失敗しました");
+            return foundation::Error(
+                RendererError::SamplerError, "ブレンドステートの作成に失敗しました");
         }
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::Texture,
+            types::RenderHandleType::State,
+        };
+        this->handle_mapper[handle] = ResourceHandles{
+            .resource = resource_handle,
+        };
+
+        return handle;
+    }
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_sampler_state(
+        const types::SamplerStateDescription& description) {
+        const auto [resource_handle, satate] =
+            this->native_resource->get_native_state_accessor()->make_native_sampler_state();
+        const auto desc = D3D11Converter::to_sampler_desc(description);
+        const auto device = this->context->get_device();
+        const HRESULT hr = device->CreateSamplerState(&desc, satate.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(
+                RendererError::SamplerError, "サンプラーステートの作成に失敗しました");
+        }
+
+        const auto handle = types::RenderHandle{
+            this->handle_allocator->create(),
+            types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -444,12 +465,12 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_rasterizer(
-        const types::RasterizerDescription& description) {
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_rasterizer_state(
+        const types::RasterizerStateDescription& description) {
         const auto desc = D3D11Converter::to_rasterizer_desc(description);
 
         const auto [resource_handle, rasterizer] =
-            this->native_resource->get_native_rasterizer_accessor()->make_native_rasterizer();
+            this->native_resource->get_native_state_accessor()->make_native_rasterizer_state();
         const auto device = this->context->get_device();
         const HRESULT hr = device->CreateRasterizerState(&desc, rasterizer.GetAddressOf());
         if (FAILED(hr)) {
@@ -459,7 +480,31 @@ namespace enishi::renderer::directx {
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::Rasterizer,
+            types::RenderHandleType::State,
+        };
+        this->handle_mapper[handle] = ResourceHandles{
+            .resource = resource_handle,
+        };
+
+        return handle;
+    }
+
+    foundation::Result<types::RenderHandle, RendererError>
+    ResourceManager::make_depth_stencil_state(
+        const types::DepthStencilStateDescription& description) {
+        const auto [resource_handle, satate] =
+            this->native_resource->get_native_state_accessor()->make_native_depth_stencil_state();
+        const auto desc = D3D11Converter::to_depth_stencil_desc(description);
+        const auto device = this->context->get_device();
+        const HRESULT hr = device->CreateDepthStencilState(&desc, satate.GetAddressOf());
+        if (FAILED(hr)) {
+            return foundation::Error(
+                RendererError::SamplerError, "深度ステンシルステートの作成に失敗しました");
+        }
+
+        const auto handle = types::RenderHandle{
+            this->handle_allocator->create(),
+            types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -479,13 +524,13 @@ namespace enishi::renderer::directx {
 
         switch (description.type) {
             case types::ImageViewType::DepthStencil:
-                return this->make_depth_stencil(index, description);
+                return this->make_depth_stencil_view(index, description);
             case types::ImageViewType::RenderTarget:
-                return this->make_render_target(index, description);
+                return this->make_render_target_view(index, description);
             case types::ImageViewType::ShaderResource:
-                return this->make_shader_resource(index, description);
+                return this->make_shader_resource_view(index, description);
             case types::ImageViewType::UnorderedAccess:
-                return this->make_unodered_access(index, description);
+                return this->make_unodered_access_view(index, description);
             default:
                 break;
         }
@@ -516,7 +561,7 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_render_target(
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_render_target_view(
         const ResourceHandles image_index, const types::ImageViewDescription& description) {
         const auto texture_accessor = this->native_resource->get_native_texture_accessor();
         const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
@@ -559,7 +604,7 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_depth_stencil(
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_depth_stencil_view(
         const ResourceHandles image_index, const types::ImageViewDescription& description) {
         const auto texture_accessor = this->native_resource->get_native_texture_accessor();
         const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
@@ -602,7 +647,8 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_shader_resource(
+    foundation::Result<types::RenderHandle, RendererError>
+    ResourceManager::make_shader_resource_view(
         const ResourceHandles image_index, const types::ImageViewDescription& description) {
         const auto texture_accessor = this->native_resource->get_native_texture_accessor();
         const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
@@ -645,7 +691,8 @@ namespace enishi::renderer::directx {
         return handle;
     }
 
-    foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_unodered_access(
+    foundation::Result<types::RenderHandle, RendererError>
+    ResourceManager::make_unodered_access_view(
         const ResourceHandles image_index, const types::ImageViewDescription& description) {
         const auto texture_accessor = this->native_resource->get_native_texture_accessor();
         const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
@@ -816,38 +863,19 @@ namespace enishi::renderer::directx {
         std::vector<types::RenderHandle> mesh_handles;
 
         // 定数バッファの作成
-        for (auto iter = uniforms.begin(); iter != uniforms.end();) {
-            const auto& [name, owned_render_data] = *iter;
-            for (const auto& shader_reflection : shader_reflections) {
-                const auto& shader_kind = shader_reflection->get_shader_kind();
-                const auto& input_reflection = shader_reflection->get_shader_input_reflection();
+        for (const auto& shader_reflection : shader_reflections) {
+            const auto& shader_kind = shader_reflection->get_shader_kind();
+            const auto& input_reflection = shader_reflection->get_shader_input_reflection();
+            for (auto iter = uniforms.begin(); iter != uniforms.end();) {
+                auto& [name, owned_render_data] = *iter;
                 const auto opt_input_resource = input_reflection->resolve_input_resource(name);
 
                 if (opt_input_resource.is_some()) {
-                    const auto& render_data = owned_render_data.get_render_data();
-                    const auto& input_resource = opt_input_resource.unwrap();
-                    auto&& result = this->make_uniform_buffer(render_data)
-                                        .add_message("定数バッファの作成に失敗しました");
+                    auto&& result = this->resolve_uniform(
+                        opt_input_resource.unwrap(), shader_kind, std::move(owned_render_data));
                     if (result.is_err()) {
                         return std::move(result).unwrap_err();
                     }
-
-                    // バインド情報の更新
-                    const auto& handle = result.unwrap();
-                    const auto& binding_handle = this->handle_mapper[handle].binding;
-                    auto opt_binding = this->resource_binder->get_buffer_binding(binding_handle);
-                    if (opt_binding.is_none()) {
-                        return foundation::Error(RendererError::BufferError);
-                    }
-                    auto& binding = opt_binding.unwrap_mut();
-                    if (auto param = std::get_if<UniformBufferParameter>(&binding.parameter)) {
-                        param->target_shader = shader_kind;
-                        param->target = input_resource.binding;
-                    } else {
-                        return foundation::Error(RendererError::BufferError);
-                    }
-
-                    // 名前に対応したUniformBufferのUpderterの作成
 
                     mesh_handles.emplace_back(result.unwrap());
 
@@ -873,6 +901,59 @@ namespace enishi::renderer::directx {
         }
 
         return mesh_handles;
+    }
+
+    foundation::Result<types::RenderHandle, RendererError> ResourceManager::resolve_uniform(
+        const ShaderInputResource& input_resource,
+        const types::ShaderKind& shader_kind,
+        types::OwnedRenderData&& render_data) {
+        auto&& result = this->make_uniform_buffer(render_data.get_render_data())
+                            .add_message("定数バッファの作成に失敗しました");
+        if (result.is_err()) {
+            return std::move(result).unwrap_err();
+        }
+
+        // バインド情報の更新
+        const auto& handle = result.unwrap();
+        const auto& binding_handle = this->handle_mapper[handle].binding;
+        auto opt_binding = this->resource_binder->get_buffer_binding(binding_handle);
+        if (opt_binding.is_none()) {
+            return foundation::Error(RendererError::BufferError);
+        }
+        auto& binding = opt_binding.unwrap_mut();
+        if (auto param = std::get_if<UniformBufferParameter>(&binding.parameter)) {
+            param->target_shader = shader_kind;
+            param->target = input_resource.binding;
+        } else {
+            return foundation::Error(RendererError::BufferError);
+        }
+
+        // 名前に対応したUniformBufferのUpderterの作成
+        const auto opt_index = this->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
+            return foundation::Error(RendererError::BufferError, "リソースが取得できませんでした");
+        }
+        const auto& index = opt_index.unwrap();
+        const auto opt_buffer =
+            this->get_native_resource_accessor()->get_native_buffer_accessor()->get_native_buffer(
+                index.resource);
+        if (opt_buffer.is_none()) {
+            return foundation::Error(RendererError::BufferError, "リソースが取得できませんでした");
+        }
+        const auto& buffer = opt_buffer.unwrap();
+        if (types::LightModelBones::UNIFORM_NAME) {
+            auto updater = std::make_shared<BoneUpdater>(
+                std::move(render_data), this->context->get_context(), buffer);
+        } else if (types::MediumModelBones::UNIFORM_NAME) {
+            auto updater = std::make_shared<BoneUpdater>(
+                std::move(render_data), this->context->get_context(), buffer);
+        } else if (types::HeavyModelBones::UNIFORM_NAME) {
+            auto updater = std::make_shared<BoneUpdater>(
+                std::move(render_data), this->context->get_context(), buffer);
+        } else if (types::UniformCamera::UNIFORM_NAME) {
+        }
+
+        return handle;
     }
 
     foundation::Result<std::vector<types::RenderHandle>, RendererError>
@@ -922,8 +1003,8 @@ namespace enishi::renderer::directx {
                     } break;
                     case ShaderInputResourceType::Sampler: {
                         // TODO
-                        auto&& result =
-                            this->make_sampler(types::SamplerDescription::default_linear());
+                        auto&& result = this->make_sampler_state(
+                            types::SamplerStateDescription::default_linear());
                         if (result.is_err()) {
                             return std::move(result).unwrap_err();
                         }
