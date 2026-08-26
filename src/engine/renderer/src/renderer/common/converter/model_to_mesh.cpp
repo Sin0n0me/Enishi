@@ -92,7 +92,8 @@ namespace enishi::renderer {
             // 仮
             // TODO:
 
-            std::vector<std::byte> uniform(sizeof(types::UniformCamera));
+            std::vector<std::byte> uniform;
+            uniform.reserve(sizeof(types::UniformCamera));
             constexpr float eye_position = 11.0f;
             constexpr float distance = 25.0f;
             constexpr float fov = 45.0f * (3.1415926535f / 180.0f);

@@ -26,7 +26,11 @@ namespace enishi::types {
         glm::vec2 bone_weight;   // 0-1
     };
 
-    using VertexVariant = std::variant<VertexPosition, Vertex, Skinning>;
+    struct EdgeFlag {
+        float flag; // 0-1
+    };
+
+    using VertexVariant = std::variant<VertexPosition, Vertex, Skinning, EdgeFlag>;
     using VertexVariants = std::vector<VertexVariant>;
     using IndicesVariant = std::variant<std::monostate,
         std::vector<std::uint8_t>,

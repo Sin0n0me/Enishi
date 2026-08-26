@@ -155,8 +155,11 @@ namespace enishi::assets_system {
                         },
                     .bone_weight = bone_weight,
                 },
+                types::EdgeFlag{
+                    .flag = vertex.edge_flag != 0 ? 1.0f : 0.0f,
+                },
             });
-        }
+        } // namespace enishi::assets_system
 
         return skinning_vertices;
     }
