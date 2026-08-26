@@ -31,7 +31,7 @@ namespace enishi::renderer {
             const types::HandleId handle) const noexcept override;
         foundation::Option<BufferBinding&> get_buffer_binding(
             const types::HandleId handle) noexcept override;
-        std::tuple<types::HandleId, TextureBinding&> make_texture_binding(void) noexcept override;
+        std::tuple<types::HandleId, TextureBinding&> make_image_binding(void) noexcept override;
         foundation::Option<const TextureBinding&> get_texture_binding(
             const types::HandleId handle) const noexcept override;
         foundation::Option<TextureBinding&> get_texture_binding(

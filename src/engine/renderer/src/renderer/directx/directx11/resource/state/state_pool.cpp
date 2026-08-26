@@ -56,7 +56,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<NativeRasterizerState&> {
-                if (mapped_handle.state_kind == types::StateKind::Rasterizer) {
+                if (mapped_handle.state_kind != types::StateKind::Rasterizer) {
                     return {};
                 }
                 return this->native_rasterizer_states.get(mapped_handle.resource_index);
@@ -68,7 +68,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<const NativeRasterizerState&> {
-                if (mapped_handle.state_kind == types::StateKind::Rasterizer) {
+                if (mapped_handle.state_kind != types::StateKind::Rasterizer) {
                     return {};
                 }
                 return this->native_rasterizer_states.get(mapped_handle.resource_index);
@@ -91,7 +91,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<NativeBlendState&> {
-                if (mapped_handle.state_kind == types::StateKind::Blend) {
+                if (mapped_handle.state_kind != types::StateKind::Blend) {
                     return {};
                 }
                 return this->native_blend_states.get(mapped_handle.resource_index);
@@ -103,7 +103,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<const NativeBlendState&> {
-                if (mapped_handle.state_kind == types::StateKind::Blend) {
+                if (mapped_handle.state_kind != types::StateKind::Blend) {
                     return {};
                 }
                 return this->native_blend_states.get(mapped_handle.resource_index);
@@ -126,7 +126,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<NativeDepthStencilState&> {
-                if (mapped_handle.state_kind == types::StateKind::DepthStencil) {
+                if (mapped_handle.state_kind != types::StateKind::DepthStencil) {
                     return {};
                 }
                 return this->native_depth_stencil_states.get(mapped_handle.resource_index);
@@ -138,7 +138,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<const NativeDepthStencilState&> {
-                if (mapped_handle.state_kind == types::StateKind::DepthStencil) {
+                if (mapped_handle.state_kind != types::StateKind::DepthStencil) {
                     return {};
                 }
                 return this->native_depth_stencil_states.get(mapped_handle.resource_index);
@@ -161,7 +161,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<NativeSamplerState&> {
-                if (mapped_handle.state_kind == types::StateKind::Sampler) {
+                if (mapped_handle.state_kind != types::StateKind::Sampler) {
                     return {};
                 }
                 return this->native_sampler_states.get(mapped_handle.resource_index);
@@ -173,7 +173,7 @@ namespace enishi::renderer::directx {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle)
                 -> foundation::Option<const NativeSamplerState&> {
-                if (mapped_handle.state_kind == types::StateKind::Sampler) {
+                if (mapped_handle.state_kind != types::StateKind::Sampler) {
                     return {};
                 }
                 return this->native_sampler_states.get(mapped_handle.resource_index);

@@ -127,10 +127,13 @@ namespace enishi {
         auto result = {
             render_system->add_render_pass_constructor(
                 std::make_shared<ModelRenderPassConstructor>()),
-            render_system->add_render_pass_constructor(
-                std::make_shared<BackGroundRenderPassConstructor>()),
-            render_system->add_render_pass_constructor(
-                std::make_shared<ShadowMapRenderPassConstructor>()),
+
+            /*
+        render_system->add_render_pass_constructor(
+            std::make_shared<BackGroundRenderPassConstructor>()),
+        render_system->add_render_pass_constructor(
+            std::make_shared<ShadowMapRenderPassConstructor>()),
+            */
         };
 
         // 一括構築

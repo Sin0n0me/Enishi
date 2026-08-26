@@ -50,7 +50,7 @@ namespace enishi::renderer {
 
         const auto append_vertex = [&vertices](const std::vector<types::VertexVariant>& vertex) {
             for (const auto& variant : vertex) {
-                std::visit([&](const auto& data) { append_bytes(vertices, &data); }, variant);
+                std::visit([&](const auto& data) { append_bytes(vertices, data); }, variant);
             }
         };
 
@@ -203,7 +203,7 @@ namespace enishi::renderer {
         std::vector<std::byte> uniform;
         for (const auto& material : model_data.materials) {
             for (const auto& variant : material.variants) {
-                std::visit([&](const auto& data) { append_bytes(uniform, &data); }, variant);
+                std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
             }
 
             // 指定のByte区切りにする

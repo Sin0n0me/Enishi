@@ -83,8 +83,12 @@ namespace enishi::renderer::directx {
         void bind_view(const types::RenderHandle& bind_handle,
             const types::RenderHandle& render_target_handle) const;
         void bind_state(const types::RenderHandle& handle) const;
+        void bind_image(const types::RenderHandle& handle) const;
         void bind_mesh(const types::RenderHandle& handle) const;
         void bind_topology(const types::RenderHandle& handle) const;
         void bind_input_layout(const types::RenderHandle& handle) const;
+
+        // IRenderCommandEncoder を介して継承されました
+        void submit_command_image(const types::DrawCommand& command) const override;
     };
 } // namespace enishi::renderer::directx

@@ -193,6 +193,9 @@ namespace enishi::core {
                     case types::RenderHandleType::State: {
                         this->encoder->submit_command_state(command);
                     } break;
+                    case types::RenderHandleType::Image: {
+                        this->encoder->submit_command_image(command);
+                    } break;
                     case types::RenderHandleType::Topology: {
                         this->encoder->submit_command_topology(command);
                     } break;

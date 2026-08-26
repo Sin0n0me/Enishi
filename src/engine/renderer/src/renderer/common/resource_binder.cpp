@@ -47,7 +47,7 @@ namespace enishi::renderer {
         });
     }
 
-    std::tuple<types::HandleId, TextureBinding&> ResourceBinder::make_texture_binding(
+    std::tuple<types::HandleId, TextureBinding&> ResourceBinder::make_image_binding(
         void) noexcept {
         return this->handle_mapper.make_from(
             this->texture_bindings.make(), [](const std::size_t index) {

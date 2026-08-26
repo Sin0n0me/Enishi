@@ -213,11 +213,11 @@ namespace enishi::renderer::directx {
             return foundation::Error(RendererError::BufferError, "テクスチャの作成に失敗しました");
         }
 
-        const auto [binding_index, binding] = this->resource_binder->make_texture_binding();
+        const auto [binding_index, binding] = this->resource_binder->make_image_binding();
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::State,
+            types::RenderHandleType::Image,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -256,11 +256,11 @@ namespace enishi::renderer::directx {
             return foundation::Error(RendererError::BufferError, "テクスチャの作成に失敗しました");
         }
 
-        const auto [binding_index, binding] = this->resource_binder->make_texture_binding();
+        const auto [binding_index, binding] = this->resource_binder->make_image_binding();
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
-            types::RenderHandleType::State,
+            types::RenderHandleType::Image,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -406,7 +406,7 @@ namespace enishi::renderer::directx {
             }
         }
 
-        const auto [binding_index, binding] = this->resource_binder->make_texture_binding();
+        const auto [binding_index, binding] = this->resource_binder->make_image_binding();
 
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
@@ -432,16 +432,21 @@ namespace enishi::renderer::directx {
                 RendererError::SamplerError, "ブレンドステートの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_state_binding();
+        binding.parameter = BlendStateParameter{};
+
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
             types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
+            .binding = binding_index,
         };
 
         return handle;
     }
+
     foundation::Result<types::RenderHandle, RendererError> ResourceManager::make_sampler_state(
         const types::SamplerStateDescription& description) {
         const auto [resource_handle, satate] =
@@ -454,12 +459,16 @@ namespace enishi::renderer::directx {
                 RendererError::SamplerError, "サンプラーステートの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_state_binding();
+        binding.parameter = SamplerStateParameter{};
+
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
             types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
+            .binding = binding_index,
         };
 
         return handle;
@@ -478,12 +487,16 @@ namespace enishi::renderer::directx {
                 RendererError::RasterizerError, "ラスタライザの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_state_binding();
+        binding.parameter = RasterizerStateParameter{};
+
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
             types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
+            .binding = binding_index,
         };
 
         return handle;
@@ -502,12 +515,16 @@ namespace enishi::renderer::directx {
                 RendererError::SamplerError, "深度ステンシルステートの作成に失敗しました");
         }
 
+        const auto [binding_index, binding] = this->resource_binder->make_state_binding();
+        binding.parameter = DepthStencilStateParameter{};
+
         const auto handle = types::RenderHandle{
             this->handle_allocator->create(),
             types::RenderHandleType::State,
         };
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
+            .binding = binding_index,
         };
 
         return handle;
@@ -679,8 +696,8 @@ namespace enishi::renderer::directx {
 
         // 外部変更用のビューの作成
         const auto configurable_index =
-            this->native_resource->get_view_accessor()->make_render_target_view(
-                resource_handle, std::make_shared<D3D11RenderTargetView>(handle, description));
+            this->native_resource->get_view_accessor()->make_shader_resource_view(
+                resource_handle, std::make_shared<D3D11ShaderResourceView>(handle, description));
 
         this->handle_mapper[handle] = ResourceHandles{
             .resource = resource_handle,
@@ -985,19 +1002,31 @@ namespace enishi::renderer::directx {
                         if (result.is_err()) {
                             return std::move(result).unwrap_err();
                         }
+                        const auto& handle = result.unwrap();
+
+                        // SRVの作成(Formatは仮)
+                        auto&& result_srv = this->make_view(handle,
+                            types::ImageViewDescription::make_shader_resource_view_description(
+                                types::ImageFormat::RGBA8_UNORM));
+                        if (result_srv.is_err()) {
+                            return std::move(result_srv).unwrap_err();
+                        }
+                        mesh_handles.emplace_back(result_srv.unwrap());
 
                         // バインド情報の更新
-                        const auto& handle = result.unwrap();
                         const auto& binding_handle = this->handle_mapper[handle].binding;
-                        auto opt_binding =
-                            this->resource_binder->get_texture_binding(binding_handle);
+                        auto opt_binding = this->resource_binder->get_state_binding(binding_handle);
                         if (opt_binding.is_none()) {
-                            //
                             continue;
                         }
                         auto& binding = opt_binding.unwrap_mut();
-                        binding.target_shader = shader_kind;
-                        binding.target = input_resource.binding;
+                        auto opt_sampler_binding = binding.get_sampler_state_param();
+                        if (opt_sampler_binding.is_none()) {
+                            continue;
+                        }
+                        auto& sampler_binding = opt_sampler_binding.unwrap_mut();
+                        sampler_binding.target_shader = shader_kind;
+                        sampler_binding.target = input_resource.binding;
 
                         mesh_handles.emplace_back(result.unwrap());
                     } break;
@@ -1012,15 +1041,18 @@ namespace enishi::renderer::directx {
                         // バインド情報の更新
                         const auto& handle = result.unwrap();
                         const auto& binding_handle = this->handle_mapper[handle].binding;
-                        auto opt_binding =
-                            this->resource_binder->get_texture_binding(binding_handle);
+                        auto opt_binding = this->resource_binder->get_state_binding(binding_handle);
                         if (opt_binding.is_none()) {
-                            //
                             continue;
                         }
                         auto& binding = opt_binding.unwrap_mut();
-                        binding.target_shader = shader_kind;
-                        binding.target = input_resource.binding;
+                        auto opt_sampler_binding = binding.get_sampler_state_param();
+                        if (opt_sampler_binding.is_none()) {
+                            continue;
+                        }
+                        auto& sampler_binding = opt_sampler_binding.unwrap_mut();
+                        sampler_binding.target_shader = shader_kind;
+                        sampler_binding.target = input_resource.binding;
 
                         mesh_handles.emplace_back(result.unwrap());
                     } break;

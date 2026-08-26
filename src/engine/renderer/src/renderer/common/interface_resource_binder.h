@@ -22,7 +22,7 @@ namespace enishi::renderer {
         [[nodiscard]] virtual foundation::Option<BufferBinding&> get_buffer_binding(
             const types::HandleId handle) noexcept = 0;
 
-        [[nodiscard]] virtual std::tuple<types::HandleId, TextureBinding&> make_texture_binding(
+        [[nodiscard]] virtual std::tuple<types::HandleId, TextureBinding&> make_image_binding(
             void) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const TextureBinding&> get_texture_binding(
             const types::HandleId handle) const noexcept = 0;

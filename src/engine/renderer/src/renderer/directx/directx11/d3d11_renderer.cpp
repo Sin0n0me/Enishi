@@ -398,6 +398,18 @@ namespace enishi::renderer::directx {
         }
     }
 
+    void D3D11Renderer::submit_command_image(const types::DrawCommand& command) const {
+        switch (command.sub_command) {
+            case types::SubCommand::Bind: {
+                this->bind_image(command.handle);
+            } break;
+            case types::SubCommand::Unbind: {
+            } break;
+            default:
+                break;
+        }
+    }
+
     void D3D11Renderer::draw(const types::RenderHandle& handle) const {
         const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
@@ -742,6 +754,14 @@ namespace enishi::renderer::directx {
             default:
                 break;
         }
+    }
+
+    void D3D11Renderer::bind_image(const types::RenderHandle& handle) const {
+        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        if (opt_index.is_none()) {
+            return;
+        }
+        const auto& index = opt_index.unwrap();
     }
 
     void D3D11Renderer::bind_mesh(const types::RenderHandle& handle) const {
