@@ -173,6 +173,7 @@ namespace enishi::core {
 
         // 各パイプラインに応じた描画コマンド実行
         for (const auto& pass : this->render_passes) {
+            const auto render_target = pass->get_render_target();
             for (const auto& command : pass->get_commands()) {
                 switch (command.handle.type) {
                     case types::RenderHandleType::Buffer: {
@@ -182,10 +183,10 @@ namespace enishi::core {
                         this->encoder->submit_command_shader(command);
                     } break;
                     case types::RenderHandleType::Mesh: {
-                        this->encoder->submit_command_mesh(command);
+                        this->encoder->submit_command_mesh(command, render_target);
                     } break;
                     case types::RenderHandleType::View: {
-                        this->encoder->submit_command_view(command, pass->get_render_target());
+                        this->encoder->submit_command_view(command, render_target);
                     } break;
                     case types::RenderHandleType::ViewPort: {
                         this->encoder->submit_command_viewport(command);

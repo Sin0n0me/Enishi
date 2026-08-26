@@ -67,6 +67,8 @@ namespace enishi::renderer::directx {
             const types::RenderData& data) override;
         foundation::Result<types::RenderHandle, RendererError> make_image(
             const types::ImageDescription& description) override;
+        foundation::Result<types::RenderHandle, RendererError> make_image(
+            const types::TextureData& texture_data) override;
         foundation::Result<types::RenderHandle, RendererError> make_blend_state(
             const types::BlendStateDescription& description) override;
         foundation::Result<types::RenderHandle, RendererError> make_sampler_state(
@@ -115,6 +117,11 @@ namespace enishi::renderer::directx {
         [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, RendererError>
         resolve_texture(const MeshMaterial& mesh_material,
             const std::vector<IShaderAccessor::ShaderReflection>& shader_reflections);
+        [[nodiscard]] foundation::Result<foundation::Option<types::RenderHandle>, RendererError>
+        resolve_texture(const IShaderAccessor::ShaderReflection& shader_reflection,
+            const foundation::UTF8& target_name,
+            const std::shared_ptr<types::TextureData>& texture);
+
         [[nodiscard]] std::vector<IShaderAccessor::ShaderReflection> get_shader_reflections(
             const std::vector<types::RenderHandle>& shader_reflections) const;
     };

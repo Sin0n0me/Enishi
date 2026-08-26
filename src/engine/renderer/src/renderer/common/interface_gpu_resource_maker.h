@@ -45,6 +45,8 @@ namespace enishi::renderer {
         make_uniform_buffer(const types::RenderData& data) = 0;
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError> make_image(
             const types::ImageDescription& description) = 0;
+        [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError> make_image(
+            const types::TextureData& texture_data) = 0;
 
         [[nodiscard]] virtual foundation::Result<types::RenderHandle, RendererError>
         make_blend_state(const types::BlendStateDescription& description) = 0;

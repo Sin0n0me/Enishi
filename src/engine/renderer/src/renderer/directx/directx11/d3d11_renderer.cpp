@@ -339,10 +339,11 @@ namespace enishi::renderer::directx {
         }
     }
 
-    void D3D11Renderer::submit_command_mesh(const types::DrawCommand& command) const {
+    void D3D11Renderer::submit_command_mesh(
+        const types::DrawCommand& command, const types::RenderHandle& handle) const {
         switch (command.sub_command) {
             case types::SubCommand::Bind: {
-                this->bind_mesh(command.handle);
+                this->bind_mesh(command.handle, handle);
             } break;
             case types::SubCommand::Unbind: {
             } break;
@@ -764,7 +765,8 @@ namespace enishi::renderer::directx {
         const auto& index = opt_index.unwrap();
     }
 
-    void D3D11Renderer::bind_mesh(const types::RenderHandle& handle) const {
+    void D3D11Renderer::bind_mesh(
+        const types::RenderHandle& handle, const types::RenderHandle& render_target_handle) const {
         const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
         if (opt_index.is_none()) {
             return;
@@ -788,6 +790,9 @@ namespace enishi::renderer::directx {
                 } break;
                 case types::RenderHandleType::State: {
                     this->bind_state(handle);
+                } break;
+                case types::RenderHandleType::View: {
+                    this->bind_view(handle, render_target_handle);
                 } break;
                 case types::RenderHandleType::Draw: {
                     this->draw(handle);

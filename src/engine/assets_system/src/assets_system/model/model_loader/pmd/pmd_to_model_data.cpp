@@ -344,8 +344,8 @@ namespace enishi::assets_system {
             if (toon_index < PMDToonTexture::MAX_FILE_COUNT) {
                 material.textures.emplace_back(types::MaterialTexture{
                     .path = model_path / normalized_path(toon_textures.file_names[toon_index]),
-                    .texture_target_name = types::ModelTexture::MODEL_SAMPLER_NAME,
-                    .sampler_target_name = types::ModelTexture::MODEL_TEXTURE_NAME,
+                    .texture_target_name = types::ModelTexture::TOON_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::TOON_SAMPLER_NAME,
                 });
             }
 
@@ -357,11 +357,11 @@ namespace enishi::assets_system {
                 // スフィアがない場合
                 material.textures.emplace_back(types::MaterialTexture{
                     .path = model_path / normalized_path(texture_path),
-                    .texture_target_name = types::ModelTexture::TOON_TEXTURE_NAME,
-                    .sampler_target_name = types::ModelTexture::TOON_SAMPLER_NAME,
+                    .texture_target_name = types::ModelTexture::MODEL_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::MODEL_SAMPLER_NAME,
                 });
             } else {
-                const auto toon = model_path / normalized_path(texture_path.substr(0, pos));
+                const auto model = model_path / normalized_path(texture_path.substr(0, pos));
                 const auto sphere = model_path / normalized_path(texture_path.substr(pos + 1));
                 const auto extension = sphere.extension();
                 if (extension == ".sph") {
@@ -372,9 +372,9 @@ namespace enishi::assets_system {
 
                 // スフィア付きの場合
                 material.textures.emplace_back(types::MaterialTexture{
-                    .path = toon,
-                    .texture_target_name = types::ModelTexture::TOON_TEXTURE_NAME,
-                    .sampler_target_name = types::ModelTexture::TOON_SAMPLER_NAME,
+                    .path = model,
+                    .texture_target_name = types::ModelTexture::MODEL_TEXTURE_NAME,
+                    .sampler_target_name = types::ModelTexture::MODEL_SAMPLER_NAME,
                 });
                 material.textures.emplace_back(types::MaterialTexture{
                     .path = sphere,
@@ -401,14 +401,6 @@ namespace enishi::assets_system {
                         pmd_material.specular[2],
                     },
                 .shininess = pmd_material.shininess,
-            });
-            material.variants.emplace_back(types::Ambient{
-                .color =
-                    glm::vec3{
-                        pmd_material.ambient[0],
-                        pmd_material.ambient[1],
-                        pmd_material.ambient[2],
-                    },
             });
             material.variants.emplace_back(types::Ambient{
                 .color =
