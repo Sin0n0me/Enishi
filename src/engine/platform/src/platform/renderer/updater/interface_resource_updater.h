@@ -7,7 +7,7 @@ namespace enishi::platform {
       public:
         virtual ~IResourceUpdater(void) noexcept = default;
 
-        virtual void update(void) = 0;
+        virtual void on_update(void) = 0;
 
         [[nodiscard]] virtual types::OwnedRenderData& get_resource(void) = 0;
     };
