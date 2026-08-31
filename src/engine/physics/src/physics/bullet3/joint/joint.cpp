@@ -2,8 +2,8 @@
 
 namespace enishi::physics::bullet3 {
     BulletJoint::BulletJoint(const types::PhysicsJoint& joint,
-        const BulletRigidBody& rigid_body_a,
-        const BulletRigidBody& rigid_body_b) {
+        BulletRigidBody& rigid_body_a,
+        BulletRigidBody& rigid_body_b) {
         btMatrix3x3 rotate_matrix;
         rotate_matrix.setEulerZYX(joint.rotation.x, joint.rotation.y, joint.rotation.z);
 
@@ -15,10 +15,11 @@ namespace enishi::physics::bullet3 {
             ));
         transform.setBasis(rotate_matrix);
 
-        const auto bt_rigid_body_a = rigid_body_a.get_native_rigid_body();
-        const auto bt_rigid_body_b = rigid_body_b.get_native_rigid_body();
+        auto bt_rigid_body_a = rigid_body_a.get_native_rigid_body();
+        auto bt_rigid_body_b = rigid_body_b.get_native_rigid_body();
         const btTransform inverse_a = bt_rigid_body_a->getWorldTransform().inverse() * transform;
         const btTransform inverse_b = bt_rigid_body_b->getWorldTransform().inverse() * transform;
+
         auto constraint = std::make_unique<btGeneric6DofSpringConstraint>(
             *bt_rigid_body_a, *bt_rigid_body_b, inverse_a, inverse_b, true);
         constraint->setLinearLowerLimit(btVector3(joint.constrain_position_min[0],
@@ -61,5 +62,7 @@ namespace enishi::physics::bullet3 {
         }
 
         this->constraint = std::move(constraint);
+        /*
+         */
     }
 } // namespace enishi::physics::bullet3

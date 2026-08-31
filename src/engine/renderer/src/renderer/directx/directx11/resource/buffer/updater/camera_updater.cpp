@@ -9,7 +9,7 @@ namespace enishi::renderer::directx {
         , buffer(buffer) {
     }
 
-    void CameraUpdater::update(void) {
+    void CameraUpdater::on_update(void) {
         const auto render_data = this->camera.get_render_data();
 
         D3D11_MAPPED_SUBRESOURCE mapped;

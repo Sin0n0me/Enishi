@@ -15,7 +15,7 @@ namespace enishi::renderer::directx {
             ID3D11Context::Context context,
             INativeBufferAccessor::NativeBuffer buffer);
 
-        void update(void) override;
+        void on_update(void) override;
         types::OwnedRenderData& get_resource(void) override;
     };
 } // namespace enishi::renderer::directx

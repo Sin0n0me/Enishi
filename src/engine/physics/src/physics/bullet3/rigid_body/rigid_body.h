@@ -29,8 +29,8 @@ namespace enishi::physics::bullet3 {
 
         [[nodiscard]] static foundation::Result<std::unique_ptr<BulletRigidBody>, PhysicsError>
         make(types::PhysicsRigidBody&& rb,
-            std::shared_ptr<platform::IBoneAccessor> bone_node,
-            const platform::IBoneListAccessor* bone_list);
+            const std::shared_ptr<platform::IBoneAccessor> bone_node,
+            const std::shared_ptr<platform::IBoneListAccessor> bone_list);
 
         [[nodiscard]] static std::unique_ptr<btCollisionShape> make_shape(
             const types::PhysicsRigidBody& rb);
@@ -46,12 +46,12 @@ namespace enishi::physics::bullet3 {
         btRigidBody* get_native_rigid_body(void) noexcept override;
 
       private:
-        [[nodiscard]] static glm::mat4 make_offset(
-            const types::PhysicsRigidBody& rigid_body, const platform::IBoneAccessor* node);
+        [[nodiscard]] static glm::mat4 make_offset(const types::PhysicsRigidBody& rigid_body,
+            const std::shared_ptr<platform::IBoneAccessor> node);
 
         [[nodiscard]] static std::tuple<MotionState, MotionState> make_motion_state(
             const types::PhysicsRigidBody& rigid_body,
-            const platform::IBoneAccessor* node,
-            const platform::IBoneListAccessor* bone_list);
+            const std::shared_ptr<platform::IBoneAccessor> node,
+            const std::shared_ptr<platform::IBoneListAccessor> bone_list);
     };
 } // namespace enishi::physics::bullet3

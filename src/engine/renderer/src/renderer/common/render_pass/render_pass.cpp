@@ -11,7 +11,7 @@ namespace enishi::renderer {
 
     void RenderPass::update(void) {
         for (auto& updater : this->resource_updater) {
-            updater->update();
+            updater->on_update();
         }
     }
 

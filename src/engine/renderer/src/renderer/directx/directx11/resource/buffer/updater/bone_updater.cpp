@@ -9,7 +9,7 @@ namespace enishi::renderer::directx {
         , buffer(buffer) {
     }
 
-    void BoneUpdater::update(void) {
+    void BoneUpdater::on_update(void) {
         const auto render_data = this->bones.get_render_data();
 
         D3D11_MAPPED_SUBRESOURCE mapped;

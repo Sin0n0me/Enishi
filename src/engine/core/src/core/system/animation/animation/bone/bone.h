@@ -6,6 +6,8 @@
 #include <platform/renderer/updater/interface_uniform_updater.h>
 
 namespace enishi::core {
+    /*
+
     // ボーンデータのやり取りはここで行う
     class Bone : public platform::IBoneAccessor,
                  public platform::IBoneUpdater
@@ -39,4 +41,5 @@ namespace enishi::core {
         // void on_update(void) override;
         //  types::OwnedRenderData& get_resource(void) override;
     };
+        */
 } // namespace enishi::core

@@ -1,6 +1,8 @@
 #include "bone.h"
 
 namespace enishi::core {
+    /*
+
     glm::mat4& Bone::get_bone_local(void) noexcept {
         return this->bone.animation_bone.local;
     }
@@ -63,7 +65,6 @@ namespace enishi::core {
     }
     void Bone::update_local(void) noexcept {
         // 累積を合成
-        /*
         const auto anim_translate = MMDMatrix::make_translation_from_vector(this->translate);
         const auto translate_matrix = this->bind_bone.local * anim_translate;
         const auto rotate = DirectX::XMQuaternionMultiply(this->ik_rotate, this->animation_rotate);
@@ -73,8 +74,8 @@ namespace enishi::core {
             rotate_matrix,
             MMDMatrix::make_identity_matrix() // MMDにスケールはない
         );
-        */
-    }
+}
+
     void Bone::update_global(void) noexcept {
         const auto opt_parent = this->get_parent_accessor();
         if (opt_parent.is_some()) {
@@ -102,7 +103,6 @@ namespace enishi::core {
         }
     }
 
-    /*
     void Bone::on_update(void) {
     }
 

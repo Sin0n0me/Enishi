@@ -14,8 +14,8 @@ namespace enishi::physics::bullet3 {
 
       public:
         explicit BulletJoint(const types::PhysicsJoint& joint,
-            const BulletRigidBody& rigid_body_a,
-            const BulletRigidBody& rigid_body_b);
+            BulletRigidBody& rigid_body_a,
+            BulletRigidBody& rigid_body_b);
 
         const btTypedConstraint* get_constraint(void) const noexcept;
     };

@@ -3,6 +3,7 @@
 #include <engine_types/assets/model/addons/bone.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <foundation/option/option.h>
+#include <memory>
 #include <platform/errors/renderer_errors.h>
 
 namespace enishi::platform {
@@ -10,10 +11,10 @@ namespace enishi::platform {
       public:
         virtual ~IBoneListAccessor(void) noexcept = default;
 
-        virtual foundation::Option<IBoneAccessor*> get_bone_accessor(
+        virtual foundation::Option<std::shared_ptr<IBoneAccessor>> get_bone_accessor(
             const types::BoneIndex& index) noexcept = 0;
 
-        virtual foundation::Option<const IBoneAccessor*> get_bone_accessor(
+        virtual foundation::Option<std::shared_ptr<const IBoneAccessor>> get_bone_accessor(
             const types::BoneIndex& index) const noexcept = 0;
     };
 } // namespace enishi::platform

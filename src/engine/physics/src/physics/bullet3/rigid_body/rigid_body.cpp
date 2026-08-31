@@ -13,8 +13,8 @@ namespace enishi::physics::bullet3 {
 
     foundation::Result<std::unique_ptr<BulletRigidBody>, PhysicsError> BulletRigidBody::make(
         types::PhysicsRigidBody&& rb,
-        std::shared_ptr<platform::IBoneAccessor> bone_node,
-        const platform::IBoneListAccessor* bone_list) {
+        const std::shared_ptr<platform::IBoneAccessor> bone_node,
+        const std::shared_ptr<platform::IBoneListAccessor> bone_list) {
         const bool is_kinematic = rb.kind == types::RigidBodyKind::Kinematic;
         const btScalar mass = is_kinematic ? 0.0f : rb.mass;
         btVector3 local_inertia(0, 0, 0);
@@ -26,7 +26,7 @@ namespace enishi::physics::bullet3 {
         }
 
         auto [active_motion_state, kinematic_motion_state] =
-            BulletRigidBody::make_motion_state(rb, bone_node.get(), bone_list);
+            BulletRigidBody::make_motion_state(rb, bone_node, bone_list);
         if (!bool(active_motion_state) && !bool(kinematic_motion_state)) {
             return foundation::Error(PhysicsError::MotionStateError);
         }
@@ -61,13 +61,13 @@ namespace enishi::physics::bullet3 {
     std::unique_ptr<btCollisionShape> BulletRigidBody::make_shape(
         const types::PhysicsRigidBody& rb) {
         if (auto shape = std::get_if<types::RBShapeBox>(&rb.shape)) {
-            return std::make_unique<btCollisionShape>(shape->width, shape->height, shape->depth);
+            // return std::make_unique<btCollisionShape>(shape->width, shape->height, shape->depth);
         }
         if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            return std::make_unique<btCollisionShape>(shape->height, shape->raius);
+            // return std::make_unique<btCollisionShape>(shape->height, shape->raius);
         }
         if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
-            return std::make_unique<btCollisionShape>(shape->radius);
+            // return std::make_unique<btCollisionShape>(shape->radius);
         }
 
         return std::unique_ptr<btCollisionShape>();
@@ -116,7 +116,7 @@ namespace enishi::physics::bullet3 {
         const auto& global = this->bone_node->get_bone_global();
         const auto opt_parent = this->bone_node->get_parent_accessor();
         if (opt_parent.is_some()) {
-            const auto parent_node = opt_parent.unwrap();
+            const auto& parent_node = opt_parent.unwrap();
             const auto& parent_global = parent_node->get_bone_global();
             const auto& local = glm::inverse(parent_global) * global;
 
@@ -139,8 +139,8 @@ namespace enishi::physics::bullet3 {
     // Offset = T * R
     // PMXの場合はモデル座標での数値なので以下で求める(列優先の場合)
     // Offset = Inverse(global) * T * R
-    glm::mat4 BulletRigidBody::make_offset(
-        const types::PhysicsRigidBody& rigid_body, const platform::IBoneAccessor* node) {
+    glm::mat4 BulletRigidBody::make_offset(const types::PhysicsRigidBody& rigid_body,
+        const std::shared_ptr<platform::IBoneAccessor> node) {
         const glm::mat4 rx =
             glm::rotate(glm::mat4{1.0f}, rigid_body.rotation.x, glm::vec3{1.0f, 0.0f, 0.0f});
         const glm::mat4 ry =
@@ -156,41 +156,42 @@ namespace enishi::physics::bullet3 {
 
     std::tuple<BulletRigidBody::MotionState, BulletRigidBody::MotionState>
     BulletRigidBody::make_motion_state(const types::PhysicsRigidBody& rigid_body,
-        const platform::IBoneAccessor* node,
-        const platform::IBoneListAccessor* bone_list) {
+        const std::shared_ptr<platform::IBoneAccessor> node,
+        const std::shared_ptr<platform::IBoneListAccessor> bone_list) {
         const bool has_node = bool(node);
         const auto opt_root_node = bone_list->get_bone_accessor(0);
         if (opt_root_node.is_none()) {
             return {};
         }
-        const auto root_node = opt_root_node.unwrap();
-        const auto& kinematic_node = has_node ? node : root_node;
+        const auto& kinematic_node = has_node ? node : opt_root_node.unwrap();
 
         const auto offset = BulletRigidBody::make_offset(rigid_body, kinematic_node);
         const bool override_with_physics = has_node;
 
         MotionState active_motion_state;
         MotionState kinematic_motion_state;
+        /*
         switch (rigid_body.kind) {
             case types::RigidBodyKind::Kinematic:
-                kinematic_motion_state =
-                    std::make_unique<MMDKinematicMotionState>(kinematic_node, offset);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
+                    kinematic_node->get_updater(), offset);
                 break;
             case types::RigidBodyKind::Dynamic:
                 active_motion_state = std::make_unique<MMDDynamicMotionState>(
                     kinematic_node, offset, override_with_physics);
-                kinematic_motion_state =
-                    std::make_unique<MMDKinematicMotionState>(kinematic_node, offset);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
+                    kinematic_node->get_updater(), offset);
                 break;
             case types::RigidBodyKind::DynamicAdjustBone:
                 active_motion_state = std::make_unique<MMDDynamicAndBoneMergeMotionState>(
                     kinematic_node, offset, override_with_physics);
-                kinematic_motion_state =
-                    std::make_unique<MMDKinematicMotionState>(kinematic_node, offset);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
+                    kinematic_node->get_updater(), offset);
                 break;
             default:
                 return {};
         }
+        */
 
         return {
             std::move(active_motion_state),
