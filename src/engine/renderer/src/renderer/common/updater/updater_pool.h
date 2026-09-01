@@ -1,6 +1,6 @@
 #pragma once
-#include <platform/renderer/interface_updater_accessor.h>
 #include <platform/renderer/updater/interface_resource_updater.h>
+#include <platform/renderer/updater/interface_updater_accessor.h>
 #include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
 

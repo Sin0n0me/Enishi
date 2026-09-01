@@ -61,13 +61,17 @@ namespace enishi::physics::bullet3 {
     std::unique_ptr<btCollisionShape> BulletRigidBody::make_shape(
         const types::PhysicsRigidBody& rb) {
         if (auto shape = std::get_if<types::RBShapeBox>(&rb.shape)) {
-            // return std::make_unique<btCollisionShape>(shape->width, shape->height, shape->depth);
+            return std::make_unique<btBoxShape>(btVector3{
+                shape->width,
+                shape->height,
+                shape->depth,
+            });
         }
         if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            // return std::make_unique<btCollisionShape>(shape->height, shape->raius);
+            return std::make_unique<btCapsuleShape>(shape->height, shape->raius);
         }
         if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
-            // return std::make_unique<btCollisionShape>(shape->radius);
+            return std::make_unique<btSphereShape>(shape->radius);
         }
 
         return std::unique_ptr<btCollisionShape>();
@@ -164,34 +168,30 @@ namespace enishi::physics::bullet3 {
             return {};
         }
         const auto& kinematic_node = has_node ? node : opt_root_node.unwrap();
+        const auto updater = kinematic_node->get_updater();
 
         const auto offset = BulletRigidBody::make_offset(rigid_body, kinematic_node);
         const bool override_with_physics = has_node;
 
         MotionState active_motion_state;
         MotionState kinematic_motion_state;
-        /*
         switch (rigid_body.kind) {
-            case types::RigidBodyKind::Kinematic:
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
-                    kinematic_node->get_updater(), offset);
-                break;
-            case types::RigidBodyKind::Dynamic:
-                active_motion_state = std::make_unique<MMDDynamicMotionState>(
-                    kinematic_node, offset, override_with_physics);
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
-                    kinematic_node->get_updater(), offset);
-                break;
-            case types::RigidBodyKind::DynamicAdjustBone:
+            case types::RigidBodyKind::Kinematic: {
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(updater, offset);
+            } break;
+            case types::RigidBodyKind::Dynamic: {
+                active_motion_state =
+                    std::make_unique<MMDDynamicMotionState>(updater, offset, override_with_physics);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(updater, offset);
+            } break;
+            case types::RigidBodyKind::DynamicAdjustBone: {
                 active_motion_state = std::make_unique<MMDDynamicAndBoneMergeMotionState>(
-                    kinematic_node, offset, override_with_physics);
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(
-                    kinematic_node->get_updater(), offset);
-                break;
+                    updater, offset, override_with_physics);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(updater, offset);
+            } break;
             default:
                 return {};
         }
-        */
 
         return {
             std::move(active_motion_state),

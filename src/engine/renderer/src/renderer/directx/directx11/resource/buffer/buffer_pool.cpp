@@ -41,4 +41,32 @@ namespace enishi::renderer::directx {
                 return this->native_buffers.get(mapped_handle.resource_index);
             });
     }
+
+    void BufferPool::add_interface(
+        const types::HandleId handle, const BufferInterface buffer_interface) noexcept {
+        auto opt_mapped_handle = this->handle_mapper.get(handle);
+        if (opt_mapped_handle.is_none()) {
+            return;
+        }
+        auto& mapped_handle = opt_mapped_handle.unwrap_mut();
+
+        auto [index, _] = this->buffer_interfaces.make(buffer_interface);
+        mapped_handle.interface_index = index;
+    }
+
+    foundation::Option<BufferPool::BufferInterface&> BufferPool::get_buffer_interface(
+        const types::HandleId handle) noexcept {
+        return this->handle_mapper.get(handle).and_then(
+            [this](const decltype(handle_mapper)::ValueType mapped_handle) {
+                return this->buffer_interfaces.get(mapped_handle.interface_index);
+            });
+    }
+
+    foundation::Option<const BufferPool::BufferInterface&> BufferPool::get_buffer_interface(
+        const types::HandleId handle) const noexcept {
+        return this->handle_mapper.get(handle).and_then(
+            [this](const decltype(handle_mapper)::ValueType mapped_handle) {
+                return this->buffer_interfaces.get(mapped_handle.interface_index);
+            });
+    }
 } // namespace enishi::renderer::directx

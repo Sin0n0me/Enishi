@@ -23,6 +23,7 @@ namespace enishi::types {
         std::span<const std::byte> bytes; // GPUへ渡すデータ
         std::uint32_t stride;             // 1つのデータ間隔
 
+        // 全要素のサイズ
         constexpr std::size_t byte_width(void) const noexcept {
             return this->bytes.size_bytes();
         }

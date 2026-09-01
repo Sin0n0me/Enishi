@@ -12,7 +12,7 @@ namespace enishi::renderer {
     void MeshPool::remove_mesh_handles(const types::HandleId handle) noexcept {
     }
 
-    foundation::Option<MeshPool::MeshHandles&> MeshPool::get_mesh_handles(
+    foundation::Option<MeshPool::MeshHandles&> MeshPool::get_mesh_handle(
         const types::HandleId handle) noexcept {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType mapped_handle) {
@@ -20,7 +20,7 @@ namespace enishi::renderer {
             });
     }
 
-    foundation::Option<const MeshPool::MeshHandles&> MeshPool::get_mesh_handles(
+    foundation::Option<const MeshPool::MeshHandles&> MeshPool::get_mesh_handle(
         const types::HandleId handle) const noexcept {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType mapped_handle) {

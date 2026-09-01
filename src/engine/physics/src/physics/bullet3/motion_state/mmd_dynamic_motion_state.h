@@ -1,6 +1,7 @@
 #pragma once
 #include "interface_mmd_motion_state.h"
 #include <LinearMath/btMotionState.h>
+#include <glm/glm.hpp>
 #include <memory>
 #include <platform/animation/updater/interface_bone_updater.h>
 

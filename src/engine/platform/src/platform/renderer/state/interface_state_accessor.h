@@ -4,7 +4,7 @@
 #include <foundation/option/option.h>
 #include <memory>
 
-namespace enishi::renderer {
+namespace enishi::platform {
     class IStateAccessor {
       public:
       public:
@@ -13,4 +13,4 @@ namespace enishi::renderer {
         [[nodiscard]] virtual foundation::Option<types::StateKind> get_state_kind(
             const types::HandleId& handle) const noexcept = 0;
     };
-} // namespace enishi::renderer
+} // namespace enishi::platform

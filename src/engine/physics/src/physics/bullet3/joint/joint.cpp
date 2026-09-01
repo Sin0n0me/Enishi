@@ -65,4 +65,8 @@ namespace enishi::physics::bullet3 {
         /*
          */
     }
+
+    const btTypedConstraint* BulletJoint::get_constraint(void) const noexcept {
+        return this->constraint.get();
+    }
 } // namespace enishi::physics::bullet3

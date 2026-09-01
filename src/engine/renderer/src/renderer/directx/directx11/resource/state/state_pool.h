@@ -1,12 +1,12 @@
 #pragma once
 #include "interface_native_state_accessor.h"
 #include <engine_types/renderer/description/state_kind.h>
+#include <platform/renderer/state/interface_state_accessor.h>
 #include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
-#include <renderer/common/state/interface_state_accessor.h>
 
 namespace enishi::renderer::directx {
-    class StatePool : public INativeStateAccessor, public IStateAccessor {
+    class StatePool : public INativeStateAccessor, public platform::IStateAccessor {
       private:
         struct StateHandle {
             types::StateKind state_kind;

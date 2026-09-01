@@ -2,7 +2,7 @@
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
 #include <foundation/option/option.h>
-#include <renderer/common/shader/interface_shader_reflection.h>
+#include <platform/renderer/shader/interface_shader_reflection.h>
 #include <renderer/errors/errors.h>
 #include <wrl/client.h>
 

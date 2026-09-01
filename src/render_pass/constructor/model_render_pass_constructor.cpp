@@ -89,6 +89,8 @@ namespace enishi {
         auto& [name, handle] = mesh_result.unwrap();
         render_pass->add_mesh(name, handle);
 
+        // render_pass->add_updater();
+
         return render_pass;
     }
 

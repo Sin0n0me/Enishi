@@ -431,7 +431,7 @@ namespace enishi::renderer::directx {
 
         const auto& binding = opt_binding.unwrap();
         const auto context = this->d3d11->get_context();
-        if (const auto& argument = std::get_if<DrawParameter>(&binding.parameter)) {
+        if (const auto& argument = std::get_if<types::DrawParameter>(&binding.parameter)) {
             if (argument->instance_count > 1) {
                 context->DrawInstanced(argument->vertex_count,
                     argument->instance_count,
@@ -440,7 +440,8 @@ namespace enishi::renderer::directx {
             } else {
                 context->Draw(argument->vertex_count, argument->first_vertex);
             }
-        } else if (const auto& argument = std::get_if<DrawIndexedParameter>(&binding.parameter)) {
+        } else if (const auto& argument =
+                       std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
             if (argument->instance_count > 1) {
                 context->DrawIndexedInstanced(argument->index_count,
                     argument->instance_count,
@@ -479,10 +480,11 @@ namespace enishi::renderer::directx {
         const auto& buffer = opt_buffer.unwrap();
         const auto& binding = opt_binding.unwrap();
         const auto context = this->d3d11->get_context();
-        if (const auto param = std::get_if<VertexBufferParameter>(&binding.parameter)) {
+        if (const auto param = std::get_if<types::VertexBufferParameter>(&binding.parameter)) {
             context->IASetVertexBuffers(
                 param->target, 1, buffer.GetAddressOf(), &param->stride, &param->offset);
-        } else if (const auto param = std::get_if<IndexBufferParameter>(&binding.parameter)) {
+        } else if (const auto param =
+                       std::get_if<types::IndexBufferParameter>(&binding.parameter)) {
             const auto format = [&param]() {
                 switch (param->stride) {
                     case 1:
@@ -496,7 +498,8 @@ namespace enishi::renderer::directx {
                 }
             }();
             context->IASetIndexBuffer(buffer.Get(), format, param->offset);
-        } else if (const auto param = std::get_if<UniformBufferParameter>(&binding.parameter)) {
+        } else if (const auto param =
+                       std::get_if<types::UniformBufferParameter>(&binding.parameter)) {
             switch (param->target_shader) {
                 case types::ShaderKind::Vertex: {
                     context->VSSetConstantBuffers(param->target, 1, buffer.GetAddressOf());
@@ -773,7 +776,7 @@ namespace enishi::renderer::directx {
         }
         const auto& index = opt_index.unwrap();
         const auto& opt_mesh =
-            this->resource_manager->get_resource_accessor()->get_mesh_accessor()->get_mesh_handles(
+            this->resource_manager->get_resource_accessor()->get_mesh_accessor()->get_mesh_handle(
                 index.resource);
         if (opt_mesh.is_none()) {
             return;

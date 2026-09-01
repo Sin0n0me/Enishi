@@ -1,5 +1,5 @@
 #pragma once
-#include <platform/renderer/interface_image_view.h>
+#include <platform/renderer/view/interface_image_view.h>
 
 namespace enishi::renderer::directx {
     class D3D11RenderTargetView : public platform::IRenderTargetView {
@@ -17,5 +17,4 @@ namespace enishi::renderer::directx {
         glm::vec4 get_clear_color(void) const noexcept override;
         void set_clear_color(glm::vec4 color) noexcept override;
     };
-
 } // namespace enishi::renderer::directx

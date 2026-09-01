@@ -2,12 +2,12 @@
 #include "interface_native_shader_accessor.h"
 #include "shader_refrection.h"
 #include <engine_types/assets/shader/shader_kind.h>
+#include <platform/renderer/shader/interface_shader_accessor.h>
 #include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
-#include <renderer/common/shader/interface_shader_accessor.h>
 
 namespace enishi::renderer::directx {
-    class ShaderPool : public INativeShaderAccessor, public IShaderAccessor {
+    class ShaderPool : public INativeShaderAccessor, public platform::IShaderAccessor {
       private:
         struct ShaderHandle {
             types::ShaderKind kind;

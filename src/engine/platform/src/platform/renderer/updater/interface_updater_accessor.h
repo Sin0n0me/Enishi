@@ -1,5 +1,5 @@
 #pragma once
-#include "updater/interface_resource_updater.h"
+#include "interface_resource_updater.h"
 #include <engine_types/handle/renderer/render_handle.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>

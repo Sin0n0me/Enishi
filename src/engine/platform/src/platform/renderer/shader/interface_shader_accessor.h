@@ -3,9 +3,9 @@
 #include "interface_shader_reflection.h"
 #include <foundation/option/option.h>
 #include <memory>
-#include <platform/renderer/interface_image_view.h>
+#include <platform/renderer/view/interface_image_view.h>
 
-namespace enishi::renderer {
+namespace enishi::platform {
     class IShaderAccessor {
       public:
         using ShaderReflection = std::shared_ptr<IShaderReflection>;
@@ -25,4 +25,4 @@ namespace enishi::renderer {
         [[nodiscard]] virtual void remove_shader_reflection(
             const types::HandleId handle) noexcept = 0;
     };
-} // namespace enishi::renderer
+} // namespace enishi::platform

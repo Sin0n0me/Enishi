@@ -1,5 +1,5 @@
 #pragma once
-#include <platform/renderer/interface_image_view.h>
+#include <platform/renderer/view/interface_image_view.h>
 
 namespace enishi::renderer::directx {
     class D3D11UnorderedAccessView : public platform::IUnorderedAccessView {

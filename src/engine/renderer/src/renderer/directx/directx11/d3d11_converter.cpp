@@ -227,9 +227,9 @@ namespace enishi::renderer::directx {
     }
 
     DXGI_FORMAT D3D11Converter::to_dxgi_format(
-        const ShaderInputValueType& type, const std::uint32_t count) noexcept {
+        const types::ShaderInputValueType& type, const std::uint32_t count) noexcept {
         switch (type) {
-            case ShaderInputValueType::Float:
+            case types::ShaderInputValueType::Float:
                 switch (count) {
                     case 1:
                         return DXGI_FORMAT::DXGI_FORMAT_R32_FLOAT;
@@ -243,7 +243,7 @@ namespace enishi::renderer::directx {
                         break;
                 }
                 break;
-            case ShaderInputValueType::UnsignedInteger:
+            case types::ShaderInputValueType::UnsignedInteger:
                 switch (count) {
                     case 1:
                         return DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
@@ -257,7 +257,7 @@ namespace enishi::renderer::directx {
                         break;
                 }
                 break;
-            case ShaderInputValueType::SignedInteger:
+            case types::ShaderInputValueType::SignedInteger:
                 switch (count) {
                     case 1:
                         return DXGI_FORMAT::DXGI_FORMAT_R32_SINT;
@@ -369,7 +369,7 @@ namespace enishi::renderer::directx {
     }
 
     D3D11_INPUT_ELEMENT_DESC D3D11Converter::to_input_element_description(
-        const ShaderInputLayout& info) noexcept {
+        const types::ShaderInputLayout& info) noexcept {
         return D3D11_INPUT_ELEMENT_DESC{
             .SemanticName = info.name.c_str(),
             .SemanticIndex = info.location,

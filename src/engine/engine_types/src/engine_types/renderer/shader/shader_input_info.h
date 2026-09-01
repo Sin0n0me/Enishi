@@ -3,7 +3,7 @@
 #include <engine_types/renderer/vertex/vertex_layout.h>
 #include <string>
 
-namespace enishi::renderer {
+namespace enishi::types {
     enum class ShaderInputValueType {
         Unknown,
         Float,
@@ -58,4 +58,4 @@ namespace enishi::renderer {
         std::uint32_t binding;
         std::uint32_t array_size;
     };
-} // namespace enishi::renderer
+} // namespace enishi::types

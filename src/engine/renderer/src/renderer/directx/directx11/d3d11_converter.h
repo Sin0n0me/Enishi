@@ -8,7 +8,7 @@
 #include <engine_types/renderer/description/sampler/sampler_description.h>
 #include <engine_types/renderer/description/view/image_description.h>
 #include <engine_types/renderer/description/view/image_view_description.h>
-#include <renderer/common/shader/shader_input_info.h>
+#include <engine_types/renderer/shader/shader_input_info.h>
 
 namespace enishi::renderer::directx {
     class D3D11Converter {
@@ -32,12 +32,12 @@ namespace enishi::renderer::directx {
         static DXGI_FORMAT to_dxgi_format(const types::TextureFormat& format) noexcept;
         static DXGI_FORMAT to_dxgi_format(const types::ImageFormat& format) noexcept;
         static DXGI_FORMAT to_dxgi_format(
-            const ShaderInputValueType& type, const std::uint32_t count) noexcept;
+            const types::ShaderInputValueType& type, const std::uint32_t count) noexcept;
         static D3D11_USAGE to_usage(const types::ImageUsage& usage) noexcept;
         static D3D11_PRIMITIVE_TOPOLOGY to_topology(
             const types::PrimitiveTopology& topology) noexcept;
         static D3D11_INPUT_ELEMENT_DESC to_input_element_description(
-            const ShaderInputLayout& info) noexcept;
+            const types::ShaderInputLayout& info) noexcept;
         static D3D11_TEXTURE_ADDRESS_MODE to_texture_address_mode(
             const types::AddressMode& address_mode) noexcept;
         static D3D11_FILTER to_d3d11_filter(const types::FilterMode& min,

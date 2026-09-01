@@ -6,8 +6,8 @@
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <optional>
-#include <renderer/common/shader/interface_shader_input_reflection.h>
-#include <renderer/common/shader/interface_shader_reflection.h>
+#include <platform/renderer/shader/interface_shader_input_reflection.h>
+#include <platform/renderer/shader/interface_shader_reflection.h>
 #include <renderer/errors/errors.h>
 #include <string>
 #include <unordered_map>
@@ -15,12 +15,13 @@
 #include <wrl/client.h>
 
 namespace enishi::renderer::directx {
-    class D3D11ShaderReflection : public IShaderReflection, public IShaderInputReflection {
+    class D3D11ShaderReflection : public platform::IShaderReflection,
+                                  public platform::IShaderInputReflection {
       private:
         types::ShaderKind shader_kind;
         Microsoft::WRL::ComPtr<ID3D11ShaderReflection> reflector;
-        std::vector<ShaderInputLayout> input_layouts;
-        std::vector<ShaderInputResource> input_resources;
+        std::vector<types::ShaderInputLayout> input_layouts;
+        std::vector<types::ShaderInputResource> input_resources;
         std::unordered_map<foundation::UTF8, std::size_t> name_to_resource_index;
         std::size_t hash;
 
@@ -30,21 +31,21 @@ namespace enishi::renderer::directx {
         D3D11ShaderReflection& operator=(D3D11ShaderReflection&&) noexcept = default;
 
       public:
-        foundation::VoidResult<RendererError> load(
+        foundation::VoidResult<platform::RenderError> load(
             const types::ShaderData& shader_data) noexcept override;
         const IShaderInputReflection* get_shader_input_reflection(void) const override;
         types::ShaderKind get_shader_kind(void) const override;
 
       public:
         std::uint32_t get_input_layout_count(void) const noexcept override;
-        foundation::Option<ShaderInputLayout> get_input_layout(
+        foundation::Option<types::ShaderInputLayout> get_input_layout(
             const std::uint32_t index) const noexcept override;
-        std::vector<ShaderInputLayout> get_input_layouts(void) const noexcept override;
+        std::vector<types::ShaderInputLayout> get_input_layouts(void) const noexcept override;
         std::uint32_t get_input_resource_count(void) const noexcept override;
-        foundation::Option<ShaderInputResource> get_input_resource(
+        foundation::Option<types::ShaderInputResource> get_input_resource(
             const std::uint32_t index) const noexcept override;
-        std::vector<ShaderInputResource> get_input_resources(void) const noexcept override;
-        foundation::Option<ShaderInputResource> resolve_input_resource(
+        std::vector<types::ShaderInputResource> get_input_resources(void) const noexcept override;
+        foundation::Option<types::ShaderInputResource> resolve_input_resource(
             const foundation::UTF8& name) const noexcept override;
 
       private:

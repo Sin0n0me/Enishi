@@ -1,11 +1,11 @@
 #pragma once
 #include "interface_native_view_accessor.h"
+#include <platform/renderer/view/interface_view_accessor.h>
 #include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
-#include <renderer/common/view/interface_view_accessor.h>
 
 namespace enishi::renderer::directx {
-    class ViewPool : public INativeViewAccessor, public IViewAccessor {
+    class ViewPool : public INativeViewAccessor, public platform::IViewAccessor {
       private:
         struct ViewHandle {
             types::ImageViewType type;

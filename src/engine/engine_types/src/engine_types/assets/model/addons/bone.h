@@ -38,8 +38,8 @@ namespace enishi::types {
     };
 
     struct Bone {
-        types::AnimationBone animation_bone;
-        types::BindBone bind_bone;
-        types::BoneNode bone_node;
+        AnimationBone animation_bone;
+        BindBone bind_bone;
+        BoneNode bone_node;
     };
 } // namespace enishi::types

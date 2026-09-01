@@ -5,6 +5,7 @@
 #include <foundation/option/option.h>
 #include <memory>
 #include <platform/errors/renderer_errors.h>
+#include <span>
 
 namespace enishi::platform {
     class IBoneListAccessor {
@@ -16,5 +17,7 @@ namespace enishi::platform {
 
         virtual foundation::Option<std::shared_ptr<const IBoneAccessor>> get_bone_accessor(
             const types::BoneIndex& index) const noexcept = 0;
+
+        virtual std::span<const types::Bone> get_bones(void) const noexcept = 0;
     };
 } // namespace enishi::platform

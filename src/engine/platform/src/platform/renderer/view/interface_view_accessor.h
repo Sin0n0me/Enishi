@@ -2,9 +2,9 @@
 #include <engine_types/renderer/description/view/image_view_description.h>
 #include <foundation/option/option.h>
 #include <memory>
-#include <platform/renderer/interface_image_view.h>
+#include <platform/renderer/view/interface_image_view.h>
 
-namespace enishi::renderer {
+namespace enishi::platform {
     class IViewAccessor {
       public:
         using RenderTargetView = std::shared_ptr<platform::IRenderTargetView>;
@@ -57,4 +57,4 @@ namespace enishi::renderer {
         [[nodiscard]] virtual std::span<const UnorderedAccessView> get_unodered_access_views(
             void) const noexcept = 0;
     };
-} // namespace enishi::renderer
+} // namespace enishi::platform

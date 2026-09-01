@@ -6,14 +6,14 @@
 #include <foundation/result/result.h>
 #include <foundation/str/str.h>
 #include <memory>
-#include <renderer/errors/errors.h>
+#include <platform/errors/renderer_errors.h>
 
-namespace enishi::renderer {
+namespace enishi::platform {
     class IShaderReflection {
       public:
         virtual ~IShaderReflection(void) noexcept = default;
 
-        virtual foundation::VoidResult<RendererError> load(
+        virtual foundation::VoidResult<RenderError> load(
             const types::ShaderData& shader_data) noexcept = 0;
 
         virtual const IShaderInputReflection* get_shader_input_reflection(void) const = 0;
@@ -22,4 +22,4 @@ namespace enishi::renderer {
 
         virtual std::size_t get_shader_hash(void) const = 0;
     };
-} // namespace enishi::renderer
+} // namespace enishi::platform

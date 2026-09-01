@@ -48,6 +48,10 @@ namespace enishi::renderer {
         this->add_command(handle);
     }
 
+    void RenderPass::add_updater(std::shared_ptr<platform::IResourceUpdater> updater) {
+        this->resource_updater.emplace_back(updater);
+    }
+
     void RenderPass::add_command(const types::RenderHandle handle) {
         this->commands.emplace_back(types::DrawCommand{
             .handle = handle,

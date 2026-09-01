@@ -6,14 +6,14 @@
 namespace enishi::renderer::directx {
     class BoneUpdater : public platform::IUnifromUpdater {
       private:
+        types::OwnedRenderData render_data;
         ID3D11Context::Context context;
-        types::OwnedRenderData bones;
         INativeBufferAccessor::NativeBuffer buffer;
 
       public:
-        BoneUpdater(types::OwnedRenderData&& bones,
-            ID3D11Context::Context context,
-            INativeBufferAccessor::NativeBuffer buffer);
+        BoneUpdater(types::OwnedRenderData&& render_data,
+            const ID3D11Context::Context context,
+            const INativeBufferAccessor::NativeBuffer buffer);
 
         void on_update(void) override;
         types::OwnedRenderData& get_resource(void) override;

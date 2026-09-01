@@ -59,17 +59,17 @@ namespace enishi::renderer::directx {
         return this->viewport_pool.get();
     }
 
-    IViewAccessor* NativeGPUResource::get_view_accessor(void) noexcept {
+    platform::IViewAccessor* NativeGPUResource::get_view_accessor(void) noexcept {
         return this->view_pool.get();
     }
-    const IViewAccessor* NativeGPUResource::get_view_accessor(void) const noexcept {
+    const platform::IViewAccessor* NativeGPUResource::get_view_accessor(void) const noexcept {
         return this->view_pool.get();
     }
 
-    IShaderAccessor* NativeGPUResource::get_shader_accessor(void) noexcept {
+    platform::IShaderAccessor* NativeGPUResource::get_shader_accessor(void) noexcept {
         return this->shader_pool.get();
     }
-    const IShaderAccessor* NativeGPUResource::get_shader_accessor(void) const noexcept {
+    const platform::IShaderAccessor* NativeGPUResource::get_shader_accessor(void) const noexcept {
         return this->shader_pool.get();
     }
 
@@ -80,17 +80,17 @@ namespace enishi::renderer::directx {
         return this->state_pool.get();
     }
 
-    IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) noexcept {
+    platform::IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) noexcept {
         return this->mesh_pool.get();
     }
-    const IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) const noexcept {
+    const platform::IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) const noexcept {
         return this->mesh_pool.get();
     }
 
-    IStateAccessor* NativeGPUResource::get_state_accessor(void) noexcept {
+    platform::IStateAccessor* NativeGPUResource::get_state_accessor(void) noexcept {
         return this->state_pool.get();
     }
-    const IStateAccessor* NativeGPUResource::get_state_accessor(void) const noexcept {
+    const platform::IStateAccessor* NativeGPUResource::get_state_accessor(void) const noexcept {
         return this->state_pool.get();
     }
 } // namespace enishi::renderer::directx

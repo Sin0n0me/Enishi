@@ -17,7 +17,7 @@ namespace enishi::renderer {
 
     // 大量のコピーが発生するので頻繁に呼ばないこと
     [[nodiscard]]
-    foundation::Result<MeshData, RendererError> ModelToMesh::to_mesh_data(
+    foundation::Result<types::MeshData, RendererError> ModelToMesh::to_mesh_data(
         const types::ModelData& model_data, MeshConfig&& config) {
         auto&& vertices = ModelToMesh::to_vertices(model_data);
         if (vertices.is_err()) {
@@ -36,7 +36,7 @@ namespace enishi::renderer {
             return std::move(materials).unwrap_err();
         }
 
-        return MeshData{
+        return types::MeshData{
             .vertices = std::move(vertices).unwrap_mut(),
             .indices = std::move(indices).unwrap_mut(),
             .uniforms = std::move(uniforms).unwrap_mut(),
@@ -228,9 +228,9 @@ namespace enishi::renderer {
         return {};
     }
 
-    foundation::Result<std::vector<MeshMaterial>, RendererError> ModelToMesh::to_mesh_material(
-        const types::ModelData& model_data) {
-        std::vector<MeshMaterial> mesh_materials;
+    foundation::Result<std::vector<types::MeshMaterial>, RendererError>
+    ModelToMesh::to_mesh_material(const types::ModelData& model_data) {
+        std::vector<types::MeshMaterial> mesh_materials;
 
         if (model_data.materials.empty()) {
             auto&& result = ModelToMesh::make_mesh_material_from_empty_material(model_data);
@@ -256,7 +256,7 @@ namespace enishi::renderer {
                 return std::move(textures).unwrap_err();
             }
 
-            mesh_materials.emplace_back(MeshMaterial{
+            mesh_materials.emplace_back(types::MeshMaterial{
                 .draw_binding = std::move(draw_binding).unwrap_mut(),
                 .textures = std::move(textures).unwrap_mut(),
             });
@@ -265,12 +265,12 @@ namespace enishi::renderer {
         return mesh_materials;
     }
 
-    foundation::Result<MeshMaterial, RendererError>
+    foundation::Result<types::MeshMaterial, RendererError>
     ModelToMesh::make_mesh_material_from_empty_material(const types::ModelData& model_data) {
         if (std::holds_alternative<std::monostate>(model_data.indices)) {
-            return MeshMaterial{
-                .draw_binding = DrawBinding{
-                    .parameter = DrawParameter{
+            return types::MeshMaterial{
+                .draw_binding = types::DrawBinding{
+                    .parameter = types::DrawParameter{
                         .vertex_count = static_cast<std::uint32_t>(model_data.vertices.size()),
                         .instance_count = 1,
                         .first_vertex = 0,
@@ -290,38 +290,41 @@ namespace enishi::renderer {
                 RendererError::ConvertError, "インデックスの数が多すぎます. 非対応です");
         }
 
-        return MeshMaterial{.draw_binding = DrawBinding{.parameter = DrawIndexedParameter{
-                                                            .index_count = index_count,
-                                                            .instance_count = 0,
-                                                            .first_index = 0,
-                                                            .vertex_offset = 0,
-                                                            .first_instance = 0,
-                                                        }}};
+        return types::MeshMaterial{
+            .draw_binding = types::DrawBinding{.parameter = types::DrawIndexedParameter{
+                                                   .index_count = index_count,
+                                                   .instance_count = 0,
+                                                   .first_index = 0,
+                                                   .vertex_offset = 0,
+                                                   .first_instance = 0,
+                                               }}};
     }
 
-    foundation::Result<DrawBinding, RendererError> ModelToMesh::to_draw_binding(
+    foundation::Result<types::DrawBinding, RendererError> ModelToMesh::to_draw_binding(
         const types::Material& material, const std::uint32_t offset, const bool has_indices) {
         if (!has_indices) {
-            return DrawBinding{.parameter = DrawParameter{
-                                   .vertex_count = material.count,
-                                   .instance_count = material.instance_count,
-                                   .first_vertex = material.first_offset,
-                                   .first_instance = material.first_instance_offset,
-                               }};
+            return types::DrawBinding{.parameter = types::DrawParameter{
+                                          .vertex_count = material.count,
+                                          .instance_count = material.instance_count,
+                                          .first_vertex = material.first_offset,
+                                          .first_instance = material.first_instance_offset,
+                                      }};
         }
 
-        return DrawBinding{.parameter = DrawIndexedParameter{
-                               .index_count = material.count,
-                               .instance_count = material.instance_count,
-                               .first_index = static_cast<std::int32_t>(material.first_offset),
-                               .vertex_offset = offset,
-                               .first_instance = material.first_instance_offset,
-                           }};
+        return types::DrawBinding{
+            .parameter = types::DrawIndexedParameter{
+                .index_count = material.count,
+                .instance_count = material.instance_count,
+                .first_index = static_cast<std::int32_t>(material.first_offset),
+                .vertex_offset = offset,
+                .first_instance = material.first_instance_offset,
+            }};
     }
 
-    foundation::Result<MeshMaterial::BindTextureMap, RendererError> ModelToMesh::to_texture_map(
+    foundation::Result<types::MeshMaterial::BindTextureMap, RendererError>
+    ModelToMesh::to_texture_map(
         const types::Material& material, const decltype(types::ModelData::textures)& texture_map) {
-        MeshMaterial::BindTextureMap bind_texture_map;
+        types::MeshMaterial::BindTextureMap bind_texture_map;
 
         for (const auto& texture : material.textures) {
             const auto iter = texture_map.find(texture.path);

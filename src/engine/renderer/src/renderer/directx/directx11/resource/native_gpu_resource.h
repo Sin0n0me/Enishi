@@ -9,14 +9,15 @@
 #include "viewport/viewport_pool.h"
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
-#include <renderer/common/interface_gpu_resource_accessor.h>
+#include <platform/renderer/interface_gpu_resource_accessor.h>
 #include <renderer/common/mesh/mesh_handles_pool.h>
 #include <unordered_map>
 #include <vector>
 #include <wrl/client.h>
 
 namespace enishi::renderer::directx {
-    class NativeGPUResource : public INativeResourceAccessor, public IGPUResourceAccessor {
+    class NativeGPUResource : public INativeResourceAccessor,
+                              public platform::IGPUResourceAccessor {
       private:
         std::unique_ptr<InputLayoutPool> input_layout_pool;
         std::unique_ptr<StatePool> state_pool;
@@ -49,13 +50,13 @@ namespace enishi::renderer::directx {
         const INativeStateAccessor* get_native_state_accessor(void) const noexcept override;
 
       public:
-        IViewAccessor* get_view_accessor(void) noexcept override;
-        const IViewAccessor* get_view_accessor(void) const noexcept override;
-        IShaderAccessor* get_shader_accessor(void) noexcept override;
-        const IShaderAccessor* get_shader_accessor(void) const noexcept override;
-        const IMeshAccessor* get_mesh_accessor(void) const noexcept override;
-        IMeshAccessor* get_mesh_accessor(void) noexcept override;
-        IStateAccessor* get_state_accessor(void) noexcept override;
-        const IStateAccessor* get_state_accessor(void) const noexcept override;
+        platform::IViewAccessor* get_view_accessor(void) noexcept override;
+        const platform::IViewAccessor* get_view_accessor(void) const noexcept override;
+        platform::IShaderAccessor* get_shader_accessor(void) noexcept override;
+        const platform::IShaderAccessor* get_shader_accessor(void) const noexcept override;
+        const platform::IMeshAccessor* get_mesh_accessor(void) const noexcept override;
+        platform::IMeshAccessor* get_mesh_accessor(void) noexcept override;
+        platform::IStateAccessor* get_state_accessor(void) noexcept override;
+        const platform::IStateAccessor* get_state_accessor(void) const noexcept override;
     };
 } // namespace enishi::renderer::directx
