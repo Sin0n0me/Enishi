@@ -3,42 +3,32 @@
 #include "interface_native_resouce_accessor.h"
 #include "native_gpu_resource.h"
 #include <engine_types/assets/model/model_data.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <memory>
 #include <platform/renderer/interface_gpu_resource_maker.h>
 #include <platform/renderer/interface_pipeline_layout.h>
+#include <platform/renderer/interface_render_resource_accessor.h>
 #include <platform/renderer/view/interface_image_view.h>
+#include <renderer/common/render_handle_mapper.h>
 #include <renderer/common/resource_binder.h>
 #include <renderer/common/updater/updater_pool.h>
 #include <renderer/errors/errors.h>
 #include <unordered_map>
 
 namespace enishi::renderer::directx {
-    class ResourceManager : public platform::GPUResourceMaker {
-      public:
-        struct ResourceHandles {
-            types::HandleId resource;     // リソースそのもの
-            types::HandleId binding;      // リソースをバインドするための
-            types::HandleId configurable; // 外部から変更可能なインターフェイス
-        };
-
-        template <typename T> using Map = std::unordered_map<types::RenderHandle, T>;
-
+    class ResourceManager : public platform::GPUResourceMaker,
+                            public platform::IRenderResourceAccessor {
       private:
-        std::unique_ptr<types::HandleAllocator> handle_allocator;
         std::unique_ptr<NativeGPUResource> native_resource;
         std::unique_ptr<ResourceBinder> resource_binder;
         std::shared_ptr<ID3D11Context> context;
-        Map<ResourceHandles> handle_mapper;
+        std::unique_ptr<RenderHandleMapper> handle_mapper;
 
       public:
         explicit ResourceManager(std::shared_ptr<ID3D11Context> context);
 
       public:
-        [[nodiscard]] foundation::Option<
-            const decltype(ResourceManager::handle_mapper)::value_type::second_type&>
-        get_native_resource_handle(const types::RenderHandle& handle) const noexcept;
-        [[nodiscard]] platform::IGPUResourceAccessor* get_resource_accessor(void);
-        [[nodiscard]] const platform::IGPUResourceAccessor* get_resource_accessor(void) const;
+        [[nodiscard]] const platform::IRenderHandleMapper* get_render_handle_mapper(void) const;
         [[nodiscard]] INativeResourceAccessor* get_native_resource_accessor(void);
         [[nodiscard]] const INativeResourceAccessor* get_native_resource_accessor(void) const;
         [[nodiscard]] platform::IResourceBinder* get_resource_binder(void);
@@ -84,19 +74,23 @@ namespace enishi::renderer::directx {
         foundation::Result<types::RenderHandle, platform::RenderError> make_viewport(
             const types::ViewportRect& config) override;
 
+      public:
+        platform::IGPUResourceAccessor* get_resource_accessor(void) noexcept override;
+        const platform::IGPUResourceAccessor* get_resource_accessor(void) const noexcept override;
+
       private:
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
-        make_render_target_view(
-            const ResourceHandles image_index, const types::ImageViewDescription& description);
+        make_render_target_view(const types::ResourceHandles image_index,
+            const types::ImageViewDescription& description);
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
-        make_depth_stencil_view(
-            const ResourceHandles image_index, const types::ImageViewDescription& description);
+        make_depth_stencil_view(const types::ResourceHandles image_index,
+            const types::ImageViewDescription& description);
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
-        make_shader_resource_view(
-            const ResourceHandles image_index, const types::ImageViewDescription& description);
+        make_shader_resource_view(const types::ResourceHandles image_index,
+            const types::ImageViewDescription& description);
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
-        make_unodered_access_view(
-            const ResourceHandles image_index, const types::ImageViewDescription& description);
+        make_unodered_access_view(const types::ResourceHandles image_index,
+            const types::ImageViewDescription& description);
 
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
         make_shader_from_dxbc(const types::ShaderKind kind, const types::ShaderData& shader_data);

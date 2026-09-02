@@ -2,7 +2,7 @@
 #include "interface_native_texture_accessor.h"
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/handle/handle_type.h>
-#include <renderer/common/handle_mapper.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
@@ -14,7 +14,7 @@ namespace enishi::renderer::directx {
         };
 
       private:
-        HandleMapper<TextureHandle> handle_mapper;
+        types::ResourceMapper<TextureHandle> handle_mapper;
         ResourcePool<NativeTexture1D> textures_1d;
         ResourcePool<NativeTexture2D> textures_2d;
         ResourcePool<NativeTexture3D> textures_3d;

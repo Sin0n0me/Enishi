@@ -49,6 +49,10 @@ namespace enishi::renderer {
     }
 
     void RenderPass::add_updater(std::shared_ptr<platform::IResourceUpdater> updater) {
+        if (!bool(updater)) {
+            return;
+        }
+
         this->resource_updater.emplace_back(updater);
     }
 

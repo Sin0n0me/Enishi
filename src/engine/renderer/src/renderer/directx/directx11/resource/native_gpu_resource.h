@@ -58,5 +58,7 @@ namespace enishi::renderer::directx {
         platform::IMeshAccessor* get_mesh_accessor(void) noexcept override;
         platform::IStateAccessor* get_state_accessor(void) noexcept override;
         const platform::IStateAccessor* get_state_accessor(void) const noexcept override;
+        platform::IBufferAccessor* get_buffer_accessor(void) noexcept override;
+        const platform::IBufferAccessor* get_buffer_accessor(void) const noexcept override;
     };
 } // namespace enishi::renderer::directx

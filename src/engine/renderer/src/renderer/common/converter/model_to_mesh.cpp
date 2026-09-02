@@ -91,7 +91,6 @@ namespace enishi::renderer {
         if (config.use_camera) {
             // 仮
             // TODO:
-
             std::vector<std::byte> uniform;
             uniform.reserve(sizeof(types::UniformCamera));
             constexpr float eye_position = 11.0f;
@@ -116,12 +115,17 @@ namespace enishi::renderer {
             types::UniformCamera camera{
                 .world = glm::mat4(1.0f),
                 .view = glm::lookAtLH(eye, target, up),
-                .projection = glm::perspectiveFovLH(fov, 600.0f / 4, 800.0f / 4, 0.1f, 200.0f),
+                .projection = glm::perspectiveFovLH(fov, 600.0f, 800.0f, 0.1f, 200.0f),
             };
             camera.mvp = camera.projection * camera.view * camera.world;
 
             append_bytes(uniform, camera);
-            uniforms.emplace(types::UniformCamera::UNIFORM_NAME, std::move(uniform));
+
+            uniforms.emplace(types::UniformCamera::UNIFORM_NAME,
+                types::OwnedRenderData{
+                    std::move(uniform),
+                    sizeof(types::UniformCamera),
+                });
         }
 
         auto&& addon_result = ModelToMesh::to_uniforms_from_addon(model_data, uniforms);

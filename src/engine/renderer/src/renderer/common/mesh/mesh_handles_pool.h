@@ -1,7 +1,7 @@
 #pragma once
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <platform/renderer/mesh/interface_mesh_accessor.h>
-#include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer {
@@ -13,7 +13,7 @@ namespace enishi::renderer {
         };
 
       private:
-        HandleMapper<MeshHandle> handle_mapper;
+        types::ResourceMapper<MeshHandle> handle_mapper;
         ResourcePool<types::MeshHandles> meshes;
 
       public:

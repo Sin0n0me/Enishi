@@ -1,10 +1,10 @@
 #pragma once
 #include "../errors/renderer_errors.h"
+#include "interface_gpu_resource_accessor.h"
 #include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/render_graph.h>
 #include <foundation/result/result.h>
-#include <render>
 #include <span>
 
 namespace enishi::platform {

@@ -93,4 +93,15 @@ namespace enishi::renderer::directx {
     const platform::IStateAccessor* NativeGPUResource::get_state_accessor(void) const noexcept {
         return this->state_pool.get();
     }
+
+    platform::IBufferAccessor* NativeGPUResource::get_buffer_accessor(
+        void) noexcept {
+        return this->buffer_pool.get();
+    }
+    const platform::IBufferAccessor*
+    NativeGPUResource::get_buffer_accessor(void) const noexcept {
+        return this->buffer_pool.get();
+    }
 } // namespace enishi::renderer::directx
+
+

@@ -1,6 +1,6 @@
 #pragma once
 #include "interface_native_input_layout_accessor.h"
-#include <renderer/common/handle_mapper.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
@@ -12,7 +12,7 @@ namespace enishi::renderer::directx {
         };
 
       private:
-        HandleMapper<InputLayoutHandle> handle_mapper;
+        types::ResourceMapper<InputLayoutHandle> handle_mapper;
         ResourcePool<NativeInputLayout> native_input_layouts;
 
       public:

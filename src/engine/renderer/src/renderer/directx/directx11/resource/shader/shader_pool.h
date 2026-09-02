@@ -2,8 +2,8 @@
 #include "interface_native_shader_accessor.h"
 #include "shader_refrection.h"
 #include <engine_types/assets/shader/shader_kind.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <platform/renderer/shader/interface_shader_accessor.h>
-#include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
@@ -16,7 +16,7 @@ namespace enishi::renderer::directx {
         };
 
       private:
-        HandleMapper<ShaderHandle> handle_mapper;
+        types::ResourceMapper<ShaderHandle> handle_mapper;
         ResourcePool<NativeVertexShader> native_vertex_shaders;
         ResourcePool<NativePixelShader> native_pixel_shaders;
         ResourcePool<NativeComputeShader> native_compute_shaders;

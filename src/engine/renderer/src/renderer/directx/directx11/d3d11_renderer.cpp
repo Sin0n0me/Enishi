@@ -1,5 +1,6 @@
 #include "d3d11_renderer.h"
 #include "d3d11_converter.h"
+#include "d3d11_renderer.h"
 #include "resource/view/render_target_view.h"
 #include <ranges>
 #include <renderer/common/converter/model_to_mesh.h>
@@ -118,7 +119,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
         const auto& handle = result.unwrap();
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }
@@ -143,7 +144,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
         const auto& handle = result.unwrap();
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }
@@ -167,7 +168,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
         const auto& handle = result.unwrap();
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }
@@ -191,7 +192,7 @@ namespace enishi::renderer::directx {
             return result.propagation(platform::RenderError::MakeError);
         }
         const auto& handle = result.unwrap();
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }
@@ -246,6 +247,19 @@ namespace enishi::renderer::directx {
         return result.unwrap();
     }
 
+    platform::IRenderResourceAccessor* D3D11Renderer::get_resource_accessor(void) noexcept {
+        return this->resource_manager.get();
+    }
+
+    platform::IRenderResourceAccessor* const D3D11Renderer::get_resource_accessor(
+        void) const noexcept {
+        return this->resource_manager.get();
+    }
+
+    const platform::IRenderHandleMapper* D3D11Renderer::get_handle_mapper(void) const noexcept {
+        return this->resource_manager->get_render_handle_mapper();
+    }
+
     void D3D11Renderer::setup_viewports(void) const {
         // ビューポートのセット
         const auto& context = this->d3d11->get_context();
@@ -264,7 +278,7 @@ namespace enishi::renderer::directx {
 
         for (const auto& render_target : accessor->get_render_target_views()) {
             const auto handle = render_target->get_handle();
-            const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+            const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
             if (opt_index.is_none()) {
                 continue;
             }
@@ -283,7 +297,7 @@ namespace enishi::renderer::directx {
         // 深度情報のクリア
         for (const auto& depth_stnencil : accessor->get_depth_stencil_views()) {
             const auto handle = depth_stnencil->get_handle();
-            const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+            const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
             if (opt_index.is_none()) {
                 continue;
             }
@@ -412,7 +426,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::draw(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -460,7 +474,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_buffer(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -517,7 +531,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_shader(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -570,7 +584,7 @@ namespace enishi::renderer::directx {
 
     void D3D11Renderer::bind_view(const types::RenderHandle& bind_handle,
         const types::RenderHandle& render_target_handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(bind_handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(bind_handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -592,7 +606,7 @@ namespace enishi::renderer::directx {
         switch (view_type) {
             case types::ImageViewType::DepthStencil: {
                 const auto opt_rtv_index =
-                    this->resource_manager->get_native_resource_handle(render_target_handle);
+                    this->resource_manager->get_render_handle_mapper()->get(render_target_handle);
                 if (opt_rtv_index.is_none()) {
                     return;
                 }
@@ -600,8 +614,8 @@ namespace enishi::renderer::directx {
                 if (opt_dsv.is_none()) {
                     return;
                 }
-                const auto opt_bind_param = binding.get_depth_stencil_param();
-                if (opt_bind_param.is_none()) {
+                auto param = std::get_if<types::DepthStencilParameter>(&binding.parameter);
+                if (!bool(param)) {
                     return;
                 }
                 const auto& dsv = opt_dsv.unwrap();
@@ -621,8 +635,8 @@ namespace enishi::renderer::directx {
                 if (opt_view.is_none()) {
                     return;
                 }
-                const auto opt_bind_param = binding.get_render_target_param();
-                if (opt_bind_param.is_none()) {
+                auto param = std::get_if<types::RenderTargetParameter>(&binding.parameter);
+                if (!bool(param)) {
                     return;
                 }
                 const auto& view = opt_view.unwrap();
@@ -635,25 +649,24 @@ namespace enishi::renderer::directx {
                 if (opt_view.is_none()) {
                     return;
                 }
-                const auto opt_bind_param = binding.get_shader_resource_param();
-                if (opt_bind_param.is_none()) {
+                auto param = std::get_if<types::ShaderResourceParameter>(&binding.parameter);
+                if (!bool(param)) {
                     return;
                 }
-                const auto bind_param = opt_bind_param.unwrap();
 
                 const auto& view = opt_view.unwrap();
-                switch (bind_param.target_shader) {
+                switch (param->target_shader) {
                     case types::ShaderKind::Vertex: {
-                        context->VSSetShaderResources(bind_param.target, 1, view.GetAddressOf());
+                        context->VSSetShaderResources(param->target, 1, view.GetAddressOf());
                     } break;
                     case types::ShaderKind::Pixel: {
-                        context->PSSetShaderResources(bind_param.target, 1, view.GetAddressOf());
+                        context->PSSetShaderResources(param->target, 1, view.GetAddressOf());
                     } break;
                     case types::ShaderKind::Compute: {
-                        context->CSSetShaderResources(bind_param.target, 1, view.GetAddressOf());
+                        context->CSSetShaderResources(param->target, 1, view.GetAddressOf());
                     } break;
                     case types::ShaderKind::Hull: {
-                        context->HSSetShaderResources(bind_param.target, 1, view.GetAddressOf());
+                        context->HSSetShaderResources(param->target, 1, view.GetAddressOf());
                     } break;
                     default:
                         break;
@@ -665,8 +678,8 @@ namespace enishi::renderer::directx {
                 if (opt_view.is_none()) {
                     return;
                 }
-                const auto opt_bind_param = binding.get_unodered_access_param();
-                if (opt_bind_param.is_none()) {
+                auto param = std::get_if<types::UnorderedAccessParameter>(&binding.parameter);
+                if (!bool(param)) {
                     return;
                 }
                 const auto& view = opt_view.unwrap();
@@ -677,7 +690,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_state(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -730,25 +743,24 @@ namespace enishi::renderer::directx {
                 if (opt_state.is_none()) {
                     return;
                 }
-                const auto opt_binding = state_binding.get_sampler_state_param();
-                if (opt_binding.is_none()) {
+                auto param = std::get_if<types::SamplerStateParameter>(&state_binding.parameter);
+                if (!bool(param)) {
                     return;
                 }
-                const auto& binding = opt_binding.unwrap();
 
                 const auto& state = opt_state.unwrap();
-                switch (binding.target_shader) {
+                switch (param->target_shader) {
                     case types::ShaderKind::Vertex: {
-                        context->VSSetSamplers(binding.target, 1, state.GetAddressOf());
+                        context->VSSetSamplers(param->target, 1, state.GetAddressOf());
                     } break;
                     case types::ShaderKind::Pixel: {
-                        context->PSSetSamplers(binding.target, 1, state.GetAddressOf());
+                        context->PSSetSamplers(param->target, 1, state.GetAddressOf());
                     } break;
                     case types::ShaderKind::Compute: {
-                        context->CSSetSamplers(binding.target, 1, state.GetAddressOf());
+                        context->CSSetSamplers(param->target, 1, state.GetAddressOf());
                     } break;
                     case types::ShaderKind::Hull: {
-                        context->HSSetSamplers(binding.target, 1, state.GetAddressOf());
+                        context->HSSetSamplers(param->target, 1, state.GetAddressOf());
                     } break;
                     default:
                         break;
@@ -761,7 +773,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_image(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -770,7 +782,7 @@ namespace enishi::renderer::directx {
 
     void D3D11Renderer::bind_mesh(
         const types::RenderHandle& handle, const types::RenderHandle& render_target_handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }
@@ -818,7 +830,7 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::bind_input_layout(const types::RenderHandle& handle) const {
-        const auto opt_index = this->resource_manager->get_native_resource_handle(handle);
+        const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
             return;
         }

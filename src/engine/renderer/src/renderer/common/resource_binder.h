@@ -1,6 +1,6 @@
 #pragma once
-#include "handle_mapper.h"
 #include "resource_pool.h"
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <platform/renderer/interface_resource_binder.h>
 
 namespace enishi::renderer {
@@ -12,7 +12,7 @@ namespace enishi::renderer {
         };
 
       private:
-        HandleMapper<BindHandle> handle_mapper;
+        types::ResourceMapper<BindHandle> handle_mapper;
         ResourcePool<types::BufferBinding> buffer_bindings;
         ResourcePool<types::DrawBinding> draw_bindings;
         ResourcePool<types::TextureBinding> texture_bindings;

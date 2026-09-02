@@ -2,6 +2,7 @@
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <memory>
+#include <platform/renderer/buffer/interface_buffer_accessor.h>
 #include <platform/renderer/mesh/interface_mesh_accessor.h>
 #include <platform/renderer/shader/interface_shader_accessor.h>
 #include <platform/renderer/state/interface_state_accessor.h>
@@ -22,5 +23,7 @@ namespace enishi::platform {
         [[nodiscard]] virtual const IMeshAccessor* get_mesh_accessor(void) const noexcept = 0;
         [[nodiscard]] virtual IStateAccessor* get_state_accessor(void) noexcept = 0;
         [[nodiscard]] virtual const IStateAccessor* get_state_accessor(void) const noexcept = 0;
+        [[nodiscard]] virtual IBufferAccessor* get_buffer_accessor(void) noexcept = 0;
+        [[nodiscard]] virtual const IBufferAccessor* get_buffer_accessor(void) const noexcept = 0;
     };
 } // namespace enishi::platform

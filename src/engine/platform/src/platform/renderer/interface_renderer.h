@@ -1,11 +1,14 @@
 #pragma once
 #include "interface_pipeline_layout.h"
+#include "interface_render_handle_mapper.h"
+#include "interface_render_resource_accessor.h"
 #include "updater/interface_resource_updater.h"
 #include "view/interface_image_view.h"
 #include <engine_types/assets/model/model_data.h>
 #include <engine_types/assets/shader/shader_data.h>
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer/rasterizer_description.h>
@@ -95,5 +98,14 @@ namespace enishi::platform {
         [[nodiscard]]
         virtual RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) = 0;
+
+        [[nodiscard]]
+        virtual IRenderResourceAccessor* get_resource_accessor(void) noexcept = 0;
+
+        [[nodiscard]]
+        virtual IRenderResourceAccessor* const get_resource_accessor(void) const noexcept = 0;
+
+        [[nodiscard]]
+        virtual const IRenderHandleMapper* get_handle_mapper(void) const noexcept = 0;
     };
 } // namespace enishi::platform

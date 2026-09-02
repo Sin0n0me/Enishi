@@ -86,10 +86,40 @@ namespace enishi {
         if (mesh_result.is_err()) {
             return mesh_result.propagation(core::SystemError::ConstructRenderPassError);
         }
-        auto& [name, handle] = mesh_result.unwrap();
-        render_pass->add_mesh(name, handle);
+        const auto& [name, mesh_handle] = mesh_result.unwrap();
+        render_pass->add_mesh(name, mesh_handle);
 
-        // render_pass->add_updater();
+        const auto& mapper = renderer->get_handle_mapper();
+        auto accessor = renderer->get_resource_accessor()->get_resource_accessor();
+
+        const auto opt_mapped_mesh_handle = mapper->get(mesh_handle);
+        if (opt_mapped_mesh_handle.is_none()) {
+            return foundation::Error(core::SystemError::ConstructRenderPassError);
+        }
+        const auto& mapped_mesh_handle = opt_mapped_mesh_handle.unwrap();
+        const auto opt_mesh_handles =
+            accessor->get_mesh_accessor()->get_mesh_handle(mapped_mesh_handle.resource);
+        if (opt_mesh_handles.is_none()) {
+            return foundation::Error(core::SystemError::ConstructRenderPassError);
+        }
+
+        // メッシュのバッファを外部から更新できるようにインターフェイスの取得
+        const auto& mesh = opt_mesh_handles.unwrap();
+        for (const auto& handle : mesh.mesh_handles) {
+            const auto opt_buffer_handle = mapper->get(handle);
+            if (opt_buffer_handle.is_none()) {
+                return foundation::Error(core::SystemError::ConstructRenderPassError);
+            }
+            const auto& buffer_handle = opt_buffer_handle.unwrap();
+
+            const auto& opt_buffer_interface =
+                accessor->get_buffer_accessor()->get_bufer(buffer_handle.configurable);
+            if (opt_buffer_interface.is_none()) {
+                continue;
+            }
+
+            render_pass->add_updater(opt_buffer_interface.unwrap());
+        }
 
         return render_pass;
     }

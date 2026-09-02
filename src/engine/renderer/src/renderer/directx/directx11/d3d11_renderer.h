@@ -60,6 +60,10 @@ namespace enishi::renderer::directx {
             const types::TextureData& texture) override;
         platform::RenderResult<types::RenderHandle> create_shader(
             const types::ShaderKind kind, const types::ShaderData& shader_data) override;
+        platform::IRenderResourceAccessor* get_resource_accessor(void) noexcept override;
+        platform::IRenderResourceAccessor* const get_resource_accessor(
+            void) const noexcept override;
+        const platform::IRenderHandleMapper* get_handle_mapper(void) const noexcept override;
 
       public:
         void setup_viewports(void) const override;

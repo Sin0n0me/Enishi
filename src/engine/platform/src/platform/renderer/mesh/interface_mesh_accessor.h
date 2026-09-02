@@ -1,11 +1,9 @@
 #pragma once
-#include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
 #include <foundation/option/option.h>
 #include <span>
 #include <tuple>
-#include <wrl/client.h>
 
 namespace enishi::platform {
     class IMeshAccessor {

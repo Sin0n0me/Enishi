@@ -10,7 +10,6 @@
 namespace enishi::renderer::directx {
     class INativeBufferAccessor {
       public:
-        using BufferInterface = std::shared_ptr<platform::IResourceUpdater>;
         using NativeBuffer = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 
       public:
@@ -22,13 +21,6 @@ namespace enishi::renderer::directx {
         [[nodiscard]] virtual foundation::Option<NativeBuffer&> get_native_buffer(
             const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const NativeBuffer&> get_native_buffer(
-            const types::HandleId handle) const noexcept = 0;
-
-        virtual void add_interface(
-            const types::HandleId handle, const BufferInterface buffer_interface) noexcept = 0;
-        [[nodiscard]] virtual foundation::Option<BufferInterface&> get_buffer_interface(
-            const types::HandleId handle) noexcept = 0;
-        [[nodiscard]] virtual foundation::Option<const BufferInterface&> get_buffer_interface(
             const types::HandleId handle) const noexcept = 0;
     };
 } // namespace enishi::renderer::directx

@@ -1,7 +1,7 @@
 #pragma once
 #include "interface_native_view_accessor.h"
+#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <platform/renderer/view/interface_view_accessor.h>
-#include <renderer/common/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
@@ -14,7 +14,7 @@ namespace enishi::renderer::directx {
         };
 
       private:
-        HandleMapper<ViewHandle> handle_mapper;
+        types::ResourceMapper<ViewHandle> handle_mapper;
         ResourcePool<NativeDepthStencilView> native_depth_stencils;
         ResourcePool<NativeRenderTargetView> native_render_targets;
         ResourcePool<NativeShaderResourceView> native_shader_resources;

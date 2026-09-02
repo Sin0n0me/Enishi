@@ -65,11 +65,11 @@ namespace enishi::types {
     struct RasterizerStateParameter {};
 
     struct StateBinding {
-        using ViewParameter = std::variant<BlendStateParameter,
+        using StateParameter = std::variant<BlendStateParameter,
             DepthStencilStateParameter,
             SamplerStateParameter,
             RasterizerStateParameter>;
-        ViewParameter parameter;
+        StateParameter parameter;
     };
 
     struct ShaderBinding {};
