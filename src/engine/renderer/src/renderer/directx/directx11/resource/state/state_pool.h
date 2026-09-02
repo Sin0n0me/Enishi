@@ -1,6 +1,6 @@
 #pragma once
 #include "interface_native_state_accessor.h"
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <engine_types/renderer/description/state_kind.h>
 #include <platform/renderer/state/interface_state_accessor.h>
 #include <renderer/common/resource_pool.h>

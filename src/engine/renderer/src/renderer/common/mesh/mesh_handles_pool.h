@@ -1,6 +1,6 @@
 #pragma once
+#include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <platform/renderer/mesh/interface_mesh_accessor.h>
 #include <renderer/common/resource_pool.h>
 

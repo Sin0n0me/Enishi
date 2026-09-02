@@ -1,7 +1,7 @@
 #pragma once
 #include "interface_native_viewport_accessor.h"
+#include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/handle_type.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <renderer/common/resource_pool.h>
 #include <renderer/errors/errors.h>
 #include <vector>

@@ -7,9 +7,7 @@
 namespace enishi::types {
     struct ResourceHandles {
         types::HandleId resource;     // リソースそのもの
-        types::HandleId binding;      // リソースをバインドするための
+        types::HandleId binding;      // リソースを使用するために必要なパラメータ
         types::HandleId configurable; // 外部から変更可能なインターフェイス
     };
-
-    template <typename T> using ResourceMapper = types::HandleMapper<types::HandleId, T>;
 } // namespace enishi::types

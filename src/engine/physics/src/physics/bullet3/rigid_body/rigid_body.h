@@ -26,7 +26,6 @@ namespace enishi::physics::bullet3 {
 
       public:
         explicit BulletRigidBody(void);
-
         [[nodiscard]] static foundation::Result<std::unique_ptr<BulletRigidBody>, PhysicsError>
         make(types::PhysicsRigidBody&& rb,
             const std::shared_ptr<platform::IBoneAccessor> bone_node,
@@ -40,6 +39,8 @@ namespace enishi::physics::bullet3 {
         void reset_transform(void);
         void apply_local_transform(void);
         void apply_global_transform(void);
+
+        const types::PhysicsRigidBody& get_rigid_body(void) const noexcept;
 
       public:
         const btRigidBody* get_native_rigid_body(void) const noexcept override;

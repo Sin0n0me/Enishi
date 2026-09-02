@@ -139,6 +139,10 @@ namespace enishi::physics::bullet3 {
         }
     }
 
+    const types::PhysicsRigidBody& BulletRigidBody::get_rigid_body(void) const noexcept {
+        return this->rigid_body_description;
+    }
+
     // PMDはボーンとの相対座標なので剛体中心とのオフセットは以下で求める(列優先の場合)
     // Offset = T * R
     // PMXの場合はモデル座標での数値なので以下で求める(列優先の場合)

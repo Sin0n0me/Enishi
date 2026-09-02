@@ -1,7 +1,7 @@
 #pragma once
 #include "resource_pool.h"
 #include <engine_types/handle/handle_allocator.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <memory>
 #include <platform/renderer/interface_render_handle_mapper.h>
 

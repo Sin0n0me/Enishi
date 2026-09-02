@@ -1,4 +1,5 @@
 #pragma once
+#include "physics_object_manager.h"
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
 #include <engine_types/system/delta_time.h>
@@ -15,10 +16,17 @@ namespace enishi::physics::bullet3 {
         std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
         std::unique_ptr<btDefaultCollisionConfiguration> collision_config;
         std::unique_ptr<btDiscreteDynamicsWorld> world;
+        std::unique_ptr<PhysicsObjectManager> object_maanger;
 
       public:
-        void simulation(const types::DeltaTime& dt) override;
+        explicit PhysicsWorld(void);
 
-      private:
+        static foundation::Result<std::unique_ptr<PhysicsWorld>, PhysicsError> make(void);
+
+        void simulation(const types::DeltaTime& dt) override;
+        void set_gravity(const glm::vec3& vec) override;
+
+        types::PhysicsHandle add_rigid_body(types::PhysicsRigidBody&& rigid_body) override;
+        types::PhysicsHandle add_joint(types::PhysicsJoint&& joint) override;
     };
 } // namespace enishi::physics::bullet3

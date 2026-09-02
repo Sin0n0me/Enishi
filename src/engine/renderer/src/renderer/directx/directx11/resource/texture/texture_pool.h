@@ -1,8 +1,8 @@
 #pragma once
 #include "interface_native_texture_accessor.h"
 #include <engine_types/assets/shader/shader_kind.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/handle_type.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {

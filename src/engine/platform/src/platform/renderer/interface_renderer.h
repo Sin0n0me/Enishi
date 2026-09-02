@@ -8,7 +8,7 @@
 #include <engine_types/assets/shader/shader_data.h>
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/assets/texture/texture_data.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/renderer/description/pipeline_description.h>
 #include <engine_types/renderer/description/rasterizer/rasterizer_description.h>

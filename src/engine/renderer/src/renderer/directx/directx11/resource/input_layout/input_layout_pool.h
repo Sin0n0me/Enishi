@@ -1,6 +1,6 @@
 #pragma once
 #include "interface_native_input_layout_accessor.h"
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {

@@ -1,6 +1,6 @@
 #pragma once
 #include "resource_pool.h"
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <platform/renderer/interface_resource_binder.h>
 
 namespace enishi::renderer {

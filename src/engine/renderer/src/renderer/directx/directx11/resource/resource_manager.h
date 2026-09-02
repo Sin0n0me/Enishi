@@ -3,7 +3,7 @@
 #include "interface_native_resouce_accessor.h"
 #include "native_gpu_resource.h"
 #include <engine_types/assets/model/model_data.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/resource_handles.h>
 #include <memory>
 #include <platform/renderer/interface_gpu_resource_maker.h>
 #include <platform/renderer/interface_pipeline_layout.h>

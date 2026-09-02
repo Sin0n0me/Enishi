@@ -2,7 +2,7 @@
 #include "interface_native_shader_accessor.h"
 #include "shader_refrection.h"
 #include <engine_types/assets/shader/shader_kind.h>
-#include <engine_types/handle/renderer/handles/resource_handles.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <platform/renderer/shader/interface_shader_accessor.h>
 #include <renderer/common/resource_pool.h>
 
