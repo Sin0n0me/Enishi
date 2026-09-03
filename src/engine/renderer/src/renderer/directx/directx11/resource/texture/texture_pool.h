@@ -3,7 +3,7 @@
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/handle_type.h>
-#include <renderer/common/resource_pool.h>
+#include <foundation/pool/resource_pool.h>
 
 namespace enishi::renderer::directx {
     class TexturePool : public INativeTextureAccessor {
@@ -15,9 +15,9 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<TextureHandle> handle_mapper;
-        ResourcePool<NativeTexture1D> textures_1d;
-        ResourcePool<NativeTexture2D> textures_2d;
-        ResourcePool<NativeTexture3D> textures_3d;
+        foundation::ResourcePool<NativeTexture1D> textures_1d;
+        foundation::ResourcePool<NativeTexture2D> textures_2d;
+        foundation::ResourcePool<NativeTexture3D> textures_3d;
 
       public:
         std::tuple<types::HandleId, NativeTexture1D&> make_native_texture_1d(

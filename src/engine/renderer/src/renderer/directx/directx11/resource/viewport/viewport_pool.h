@@ -2,7 +2,7 @@
 #include "interface_native_viewport_accessor.h"
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/handle_type.h>
-#include <renderer/common/resource_pool.h>
+#include <foundation/pool/resource_pool.h>
 #include <renderer/errors/errors.h>
 #include <vector>
 
@@ -15,7 +15,7 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<ViewportHandle> handle_mapper;
-        ResourcePool<NativeViewport> native_viewports;
+        foundation::ResourcePool<NativeViewport> native_viewports;
 
       public:
         std::tuple<types::HandleId, NativeViewport&> make_native_viewport(void) noexcept override;

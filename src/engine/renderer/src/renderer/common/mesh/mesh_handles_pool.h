@@ -1,8 +1,8 @@
 #pragma once
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/mesh/interface_mesh_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer {
     class MeshPool : public platform::IMeshAccessor {
@@ -14,7 +14,7 @@ namespace enishi::renderer {
 
       private:
         types::ResourceMapper<MeshHandle> handle_mapper;
-        ResourcePool<types::MeshHandles> meshes;
+        foundation::ResourcePool<types::MeshHandles> meshes;
 
       public:
         std::tuple<types::HandleId, MeshPool::MeshHandles&> make_mesh_handles(

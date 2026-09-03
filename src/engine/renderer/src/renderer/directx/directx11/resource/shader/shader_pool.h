@@ -3,8 +3,8 @@
 #include "shader_refrection.h"
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/handle/handle_mapper.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/shader/interface_shader_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
     class ShaderPool : public INativeShaderAccessor, public platform::IShaderAccessor {
@@ -17,11 +17,11 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<ShaderHandle> handle_mapper;
-        ResourcePool<NativeVertexShader> native_vertex_shaders;
-        ResourcePool<NativePixelShader> native_pixel_shaders;
-        ResourcePool<NativeComputeShader> native_compute_shaders;
-        ResourcePool<NativeHullShader> native_hull_shaders;
-        ResourcePool<ShaderReflection> shader_reflections;
+        foundation::ResourcePool<NativeVertexShader> native_vertex_shaders;
+        foundation::ResourcePool<NativePixelShader> native_pixel_shaders;
+        foundation::ResourcePool<NativeComputeShader> native_compute_shaders;
+        foundation::ResourcePool<NativeHullShader> native_hull_shaders;
+        foundation::ResourcePool<ShaderReflection> shader_reflections;
 
       public:
         std::tuple<types::HandleId, NativeVertexShader&> make_native_vertex_shader(

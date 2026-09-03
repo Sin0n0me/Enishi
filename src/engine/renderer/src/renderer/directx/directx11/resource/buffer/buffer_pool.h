@@ -1,9 +1,9 @@
 #pragma once
 #include "interface_native_buffer_accessor.h"
 #include <engine_types/handle/handle_mapper.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/buffer/interface_buffer_accessor.h>
 #include <platform/renderer/view/interface_view_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
     class BufferPool : public INativeBufferAccessor, public platform::IBufferAccessor {
@@ -15,8 +15,8 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<BufferHandle> handle_mapper;
-        ResourcePool<NativeBuffer> native_buffers;
-        ResourcePool<Buffer> buffers;
+        foundation::ResourcePool<NativeBuffer> native_buffers;
+        foundation::ResourcePool<Buffer> buffers;
 
       public:
         std::tuple<types::HandleId, NativeBuffer&> make_native_buffer(void) noexcept override;

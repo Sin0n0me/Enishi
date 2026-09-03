@@ -1,8 +1,8 @@
 #pragma once
 #include <engine_types/handle/handle_mapper.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/updater/interface_resource_updater.h>
 #include <platform/renderer/updater/interface_updater_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer {
     class UpdaterPool : public platform::IUpdaterAccessor {
@@ -13,7 +13,7 @@ namespace enishi::renderer {
 
       private:
         types::ResourceMapper<UpdaterHandle> handle_mapper;
-        ResourcePool<std::shared_ptr<platform::IResourceUpdater>> updater;
+        foundation::ResourcePool<std::shared_ptr<platform::IResourceUpdater>> updater;
 
       public:
         foundation::Option<ResourceUpdater&> get_updater(const types::HandleId handle) override;

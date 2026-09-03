@@ -1,8 +1,8 @@
 #pragma once
 #include "interface_native_view_accessor.h"
 #include <engine_types/handle/handle_mapper.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/view/interface_view_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
     class ViewPool : public INativeViewAccessor, public platform::IViewAccessor {
@@ -15,14 +15,14 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<ViewHandle> handle_mapper;
-        ResourcePool<NativeDepthStencilView> native_depth_stencils;
-        ResourcePool<NativeRenderTargetView> native_render_targets;
-        ResourcePool<NativeShaderResourceView> native_shader_resources;
-        ResourcePool<NativeUnorderedAccessView> native_unordered_accesses;
-        ResourcePool<RenderTargetView> render_targets;
-        ResourcePool<ShaderResourceView> shader_resources;
-        ResourcePool<DepthStencilView> depth_stencil;
-        ResourcePool<UnorderedAccessView> unodered_access;
+        foundation::ResourcePool<NativeDepthStencilView> native_depth_stencils;
+        foundation::ResourcePool<NativeRenderTargetView> native_render_targets;
+        foundation::ResourcePool<NativeShaderResourceView> native_shader_resources;
+        foundation::ResourcePool<NativeUnorderedAccessView> native_unordered_accesses;
+        foundation::ResourcePool<RenderTargetView> render_targets;
+        foundation::ResourcePool<ShaderResourceView> shader_resources;
+        foundation::ResourcePool<DepthStencilView> depth_stencil;
+        foundation::ResourcePool<UnorderedAccessView> unodered_access;
 
       public:
         std::tuple<types::HandleId, NativeDepthStencilView&> make_native_depth_stencil_view(

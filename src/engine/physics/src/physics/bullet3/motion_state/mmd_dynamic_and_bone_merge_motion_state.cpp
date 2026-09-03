@@ -4,12 +4,12 @@
 
 namespace enishi::physics::bullet3 {
     MMDDynamicAndBoneMergeMotionState::MMDDynamicAndBoneMergeMotionState(
-        std::shared_ptr<platform::IBoneUpdater> bone_node,
-        const glm::mat4& offset,
-        const bool override_with_physics)
-        : bone_node(bone_node)
+        const glm::mat4& offset, const bool override_with_physics)
+        : global(glm::mat4{1.0f})
         , offset(offset)
-        , override_with_physics(override_with_physics) {
+        , inverse_offset(glm::inverse(offset))
+        , override_with_physics(override_with_physics)
+        , transform(btTransform::getIdentity()) {
     }
 
     void MMDDynamicAndBoneMergeMotionState::getWorldTransform(btTransform& worldTrans) const {
@@ -20,14 +20,24 @@ namespace enishi::physics::bullet3 {
         this->transform = worldTrans;
     }
 
-    void enishi::physics::bullet3::MMDDynamicAndBoneMergeMotionState::reset(void) {
-        // mmdの世界からbulletの世界に変換しオフセット適用
-        const auto global = this->bone_node->get_bind_bone().global;
-        const auto offset_matrix = global * this->offset;
+    void MMDDynamicAndBoneMergeMotionState::set_offset(const glm::mat4& offset) {
+        this->offset = offset;
+        this->inverse_offset = glm::inverse(offset);
+    }
+
+    void MMDDynamicAndBoneMergeMotionState::reset(platform::IBoneUpdater* const
+            bone_updater) { // mmdの世界からbulletの世界に変換しオフセット適用
+        const auto offset_matrix = this->global * this->offset;
         this->transform = BulletConverter::matrix_to_transform(inverse_z(offset_matrix));
     }
 
-    void MMDDynamicAndBoneMergeMotionState::reflect_global_transform(void) {
+    void MMDDynamicAndBoneMergeMotionState::update_global_transform(
+        platform::IBoneUpdater* const bone_updater) {
+        this->global = bone_updater->get_bone_global();
+    }
+
+    void MMDDynamicAndBoneMergeMotionState::reflect_global_transform(
+        platform::IBoneUpdater* const bone_updater) {
         if (!this->override_with_physics) {
             return;
         }
@@ -40,9 +50,9 @@ namespace enishi::physics::bullet3 {
 
         // Position
         const auto position_index = 0;
-        global[position_index] = this->bone_node->get_bone_global()[position_index];
+        global[position_index] = bone_updater->get_bone_global()[position_index];
 
-        this->bone_node->set_bone_global(std::move(global));
-        this->bone_node->update_children_global();
+        bone_updater->set_bone_global(std::move(global));
+        bone_updater->update_children_global();
     }
 } // namespace enishi::physics::bullet3

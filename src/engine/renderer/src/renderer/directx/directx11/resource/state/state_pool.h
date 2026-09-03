@@ -2,8 +2,8 @@
 #include "interface_native_state_accessor.h"
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/renderer/description/state_kind.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/state/interface_state_accessor.h>
-#include <renderer/common/resource_pool.h>
 
 namespace enishi::renderer::directx {
     class StatePool : public INativeStateAccessor, public platform::IStateAccessor {
@@ -16,10 +16,10 @@ namespace enishi::renderer::directx {
 
       private:
         types::ResourceMapper<StateHandle> handle_mapper;
-        ResourcePool<NativeRasterizerState> native_rasterizer_states;
-        ResourcePool<NativeBlendState> native_blend_states;
-        ResourcePool<NativeDepthStencilState> native_depth_stencil_states;
-        ResourcePool<NativeSamplerState> native_sampler_states;
+        foundation::ResourcePool<NativeRasterizerState> native_rasterizer_states;
+        foundation::ResourcePool<NativeBlendState> native_blend_states;
+        foundation::ResourcePool<NativeDepthStencilState> native_depth_stencil_states;
+        foundation::ResourcePool<NativeSamplerState> native_sampler_states;
 
       public:
         void remove_native_state(const types::HandleId handle) noexcept override;

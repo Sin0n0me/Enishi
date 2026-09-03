@@ -8,18 +8,19 @@
 namespace enishi::physics::bullet3 {
     class MMDKinematicMotionState : public IMMDMotionState {
       private:
-        std::shared_ptr<platform::IBoneUpdater> bone_node;
+        glm::mat4 global;
         glm::mat4 offset;
         btTransform transform;
 
       public:
-        explicit MMDKinematicMotionState(
-            std::shared_ptr<platform::IBoneUpdater> bone_node, const glm::mat4& offset);
+        explicit MMDKinematicMotionState(const glm::mat4& offset) noexcept;
         virtual ~MMDKinematicMotionState(void) noexcept = default;
 
         void getWorldTransform(btTransform& worldTrans) const override;
         void setWorldTransform(const btTransform& worldTrans) override;
-        void reset(void) override;
-        void reflect_global_transform(void) override;
+        void reset(platform::IBoneUpdater* const bone_updater) override;
+        void set_offset(const glm::mat4& offset) override;
+        void update_global_transform(platform::IBoneUpdater* const bone_updater) override;
+        void reflect_global_transform(platform::IBoneUpdater* const bone_updater) override;
     };
 } // namespace enishi::physics::bullet3

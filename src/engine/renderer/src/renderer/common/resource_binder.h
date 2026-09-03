@@ -1,6 +1,6 @@
 #pragma once
-#include "resource_pool.h"
 #include <engine_types/handle/handle_mapper.h>
+#include <foundation/pool/resource_pool.h>
 #include <platform/renderer/interface_resource_binder.h>
 
 namespace enishi::renderer {
@@ -13,12 +13,12 @@ namespace enishi::renderer {
 
       private:
         types::ResourceMapper<BindHandle> handle_mapper;
-        ResourcePool<types::BufferBinding> buffer_bindings;
-        ResourcePool<types::DrawBinding> draw_bindings;
-        ResourcePool<types::TextureBinding> texture_bindings;
-        ResourcePool<types::ShaderBinding> shader_bindings;
-        ResourcePool<types::ViewBinding> view_bindings;
-        ResourcePool<types::StateBinding> state_bindings;
+        foundation::ResourcePool<types::BufferBinding> buffer_bindings;
+        foundation::ResourcePool<types::DrawBinding> draw_bindings;
+        foundation::ResourcePool<types::TextureBinding> texture_bindings;
+        foundation::ResourcePool<types::ShaderBinding> shader_bindings;
+        foundation::ResourcePool<types::ViewBinding> view_bindings;
+        foundation::ResourcePool<types::StateBinding> state_bindings;
 
       public:
         std::tuple<types::HandleId, types::DrawBinding&> make_draw_binding(void) noexcept override;

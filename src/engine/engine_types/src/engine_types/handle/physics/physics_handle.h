@@ -8,6 +8,8 @@ namespace enishi::types {
         Unknown = 0,
         RigidBody,
         Joint,
+        Shape,
+        MotionState,
     };
 
     struct PhysicsHandle {

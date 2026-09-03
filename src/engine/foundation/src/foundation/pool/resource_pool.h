@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-namespace enishi::renderer {
+namespace enishi::foundation {
     template <typename T> class ResourcePool {
       private:
         std::vector<T> resources;
@@ -24,7 +24,7 @@ namespace enishi::renderer {
             return {index, binding};
         }
 
-        [[nodiscard]] foundation::Option<T&> get(const std::size_t index) noexcept {
+        [[nodiscard]] Option<T&> get(const std::size_t index) noexcept {
             auto& vec = this->resources;
             if (vec.size() < index + 1) {
                 return {};
@@ -32,7 +32,7 @@ namespace enishi::renderer {
             return vec.at(index);
         }
 
-        [[nodiscard]] foundation::Option<const T&> get(const std::size_t index) const noexcept {
+        [[nodiscard]] Option<const T&> get(const std::size_t index) const noexcept {
             auto& vec = this->resources;
             if (vec.size() < index + 1) {
                 return {};
@@ -40,8 +40,8 @@ namespace enishi::renderer {
             return vec.at(index);
         }
 
-        [[nodiscard]] std::span<const T> get_all(void) const noexcept {
+        [[nodiscard]] std::span<const T&> get_all(void) const noexcept {
             return this->resources;
         }
     };
-} // namespace enishi::renderer
+} // namespace enishi::foundation

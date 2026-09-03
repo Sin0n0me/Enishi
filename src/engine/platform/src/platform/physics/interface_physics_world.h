@@ -15,6 +15,10 @@ namespace enishi::platform {
 
         virtual void set_gravity(const glm::vec3& vec) = 0;
 
+        virtual void reset_physics(void) = 0;
+
+        virtual void apply_physics(void) = 0;
+
         [[nodiscard]] virtual types::PhysicsHandle add_rigid_body(
             types::PhysicsRigidBody&& rigid_body) = 0;
 
