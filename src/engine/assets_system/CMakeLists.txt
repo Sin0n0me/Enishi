@@ -3,6 +3,7 @@ project(assets_system)
 
 # 依存設定
 set(DEPENDENCIES)
+set(ASSET_DEPENDENT_LIBS "${CMAKE_BINARY_DIR}/libs")
 include(FetchContent)
 
 FetchContent_Declare(
@@ -17,10 +18,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(FOUNDATION)
 
+
+set(NOTHINGS_STD_SOURCE_DIR "${ASSET_DEPENDENT_LIBS}/nothings_std")
+FetchContent_Declare(
+    NOTHINGS_STD
+    GIT_REPOSITORY git@github.com:nothings/stb.git
+    GIT_TAG "master"
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS ON
+    SOURCE_DIR ${NOTHINGS_STD_SOURCE_DIR}
+)
+FetchContent_MakeAvailable(NOTHINGS_STD)
+
 set(DEPENDENCIES
     foundation
     engine_types
-    glm
+    PUBLIC ${ASSET_DEPENDENT_LIBS}
 )
 
 #
@@ -43,6 +56,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 add_library(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
+target_include_directories(${PROJECT_NAME} PUBLIC ${ASSET_DEPENDENT_LIBS})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDENCIES})
 

@@ -11,8 +11,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(FOUNDATION)
 
+FetchContent_Declare(
+    ENGINE_TYPES
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engine_types
+)
+FetchContent_MakeAvailable(ENGINE_TYPES)
+
 set(DEPENDENCIES
     foundation
+    engine_types
 )
 
 #

@@ -1,34 +1,51 @@
-cmake_minimum_required (VERSION 3.14)
+cmake_minimum_required (VERSION 3.12)
 project(physics)
 
 # 以下依存設定
 set(DEPENDENCIES)
-set(DEPENDENT_LOACAL_DIRS)
-
-# 外部
 include(FetchContent)
 
 FetchContent_Declare(
-    Bullet3
-    GIT_REPOSITORY git@github.com:bulletphysics/bullet3.git
-    GIT_TAG "3.25"
+    ENGINE_TYPES
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engine_types
+)
+FetchContent_MakeAvailable(ENGINE_TYPES)
+
+FetchContent_Declare(
+    FOUNDATION
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../foundation
+)
+FetchContent_MakeAvailable(FOUNDATION)
+
+FetchContent_Declare(
+    PLATFORM
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../platform
+)
+FetchContent_MakeAvailable(PLATFORM)
+
+
+# forked
+set(BULLET_DIR "${CMAKE_BINARY_DIR}/libs/bullet3")
+set(BULLET_SOURCE_DIR "${BULLET_DIR}/src")
+set(BUILD_BULLET_TESTS OFF CACHE BOOL "Build Bullet tests" FORCE)
+set(BUILD_UNIT_TESTS OFF CACHE BOOL "Build Bullet unit tests" FORCE)
+FetchContent_Declare(
+    BULLET3
+    GIT_REPOSITORY git@github.com:sin0n0me/bullet3.git
+    #GIT_TAG 3.25
     GIT_SHALLOW TRUE
     GIT_PROGRESS ON
+    SOURCE_DIR ${BULLET_DIR}
 )
-FetchContent_MakeAvailable(Bullet3)
-
-# ローカル
-set(DEPENDENT_LOACAL_DIRS
-    "../platform"
-)
+FetchContent_MakeAvailable(BULLET3)
 
 set(DEPENDENCIES
-    bullet3
+    ${BULLET_DIR}
     platform
     engine_types
     foundation
+    glm
 )
-
 
 #
 # 以降は触らなくて良い
@@ -38,13 +55,8 @@ set(DEPENDENCIES
 if(MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
-
-# 依存しているローカルディレクトリの追加
-foreach(dir_path IN LISTS DEPENDENT_LOACAL_DIRS)
-    get_filename_component(dir_name "${dir_path}" NAME)
-    add_subdirectory("${dir_path}" "${CMAKE_CURRENT_BINARY_DIR}/build_${dir_name}")
-endforeach()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
     "src/*.h"
@@ -56,6 +68,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 add_library(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
+target_include_directories(${PROJECT_NAME} PRIVATE ${BULLET_SOURCE_DIR})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDENCIES})
 
@@ -85,9 +98,6 @@ if(BUILD_TESTING)
         "tests/*.cpp"
     )
     add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    #target_link_libraries(tests PRIVATE my_lib)
 
     # CTestにテストケースを登録
     add_test(NAME RunAllTests COMMAND tests)

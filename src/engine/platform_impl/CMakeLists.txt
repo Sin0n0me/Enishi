@@ -36,7 +36,7 @@ set(DEPENDENCIES
 
 # 各プラットフォームに応じた使用ライブラリの変更
 if(USE_SDL3)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_SDL3")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC "USE_SDL3")
 
     FetchContent_Declare(
         SDL3

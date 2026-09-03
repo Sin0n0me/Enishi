@@ -29,12 +29,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ANIMATION)
 
+FetchContent_Declare(
+    ASSETS_SYSTEM
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../assets_system
+)
+FetchContent_MakeAvailable(ASSETS_SYSTEM)
+
+FetchContent_Declare(
+    PHYSICS
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../physics
+)
+FetchContent_MakeAvailable(PHYSICS)
 
 set(DEPENDENCIES
     PUBLIC platform
     PUBLIC ecs
     PUBLIC component
     animation
+    assets_system
+    physics
     glm
     engine_types
     foundation
