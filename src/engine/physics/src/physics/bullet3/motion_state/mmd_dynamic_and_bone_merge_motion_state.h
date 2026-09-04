@@ -3,7 +3,6 @@
 #include <LinearMath/btMotionState.h>
 #include <glm/glm.hpp>
 #include <memory>
-#include <platform/animation/updater/interface_bone_updater.h>
 
 namespace enishi::physics::bullet3 {
     class MMDDynamicAndBoneMergeMotionState : public IMMDMotionState {
@@ -22,8 +21,9 @@ namespace enishi::physics::bullet3 {
         void getWorldTransform(btTransform& worldTrans) const override;
         void setWorldTransform(const btTransform& worldTrans) override;
         void set_offset(const glm::mat4& offset) override;
-        void reset(platform::IBoneUpdater* const bone_updater) override;
-        void update_global_transform(platform::IBoneUpdater* const bone_updater) override;
-        void reflect_global_transform(platform::IBoneUpdater* const bone_updater) override;
+        void reset(platform::IPhysicsBoneView* const physics_bone) override;
+        void update_global_transform(platform::IPhysicsBoneView* const physics_bone) override;
+        void reflect_global_transform(platform::IPhysicsBoneView* const physics_bone,
+            platform::IBoneUpdater* const bone_updater) override;
     };
 } // namespace enishi::physics::bullet3

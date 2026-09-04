@@ -20,8 +20,6 @@ namespace enishi {
         make_mesh(platform::IRenderer* const renderer,
             assets_system::IAssetSystem* const asset_system,
             const std::vector<types::RenderHandle>& shader_reflections);
-
-        // IRenderPassConstructor を介して継承されました
         types::DependencyNode get_node(void) const noexcept override;
         foundation::Option<types::DependencyBounds> get_dependencies(void) const noexcept override;
     };

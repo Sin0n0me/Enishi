@@ -19,7 +19,7 @@ namespace enishi::assets_system {
       public:
         explicit MorphResolver(MorphNameMapConstructor& morph_data);
 
-        foundation::Option<types::BoneIndex> resolve_index(
+        foundation::Option<types::MorphIndex> resolve_index(
             const foundation::UTF8& morph_name) const noexcept override;
         foundation::Option<foundation::UTF8> resolve_name(
             const types::BoneIndex morph_index) const noexcept override;

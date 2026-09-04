@@ -25,5 +25,6 @@ namespace enishi {
         std::shared_ptr<platform::IRenderer> init_renderer(
             std::shared_ptr<platform::IWindow> root_window,
             std::shared_ptr<assets_system::IAssetSystem> asset_system);
+        void init_physics(std::shared_ptr<assets_system::IAssetSystem> asset_system);
     };
 } // namespace enishi

@@ -1,10 +1,19 @@
 #pragma once
 #include <cstdint>
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <vector>
 
 namespace enishi::types {
-    using BoneIndex = std::uint16_t;
+    enum class BoneKind : std::uint8_t {
+        Bind,
+        Animation,
+        Physics,
+        Skinning,
+        Cache,
+    };
+
+    using BoneIndex = std::size_t;
 
     constexpr BoneIndex INVALID_BONE_INDEX = UINT16_MAX;
 
@@ -31,15 +40,37 @@ namespace enishi::types {
         [[nodiscard]] bool has_parent(void) const;
     };
 
-    // 更新用
-    struct AnimationBone {
-        glm::mat4 local;  // ローカル
-        glm::mat4 global; // グローバル(GPUに渡す値)
-    };
-
-    struct Bone {
-        AnimationBone animation_bone;
+    struct ModelBone {
         BindBone bind_bone;
         BoneNode bone_node;
+    };
+
+    struct BoneTransform {
+        glm::vec3 translation;
+        glm::quat rotation;
+        glm::vec3 scale;
+    };
+
+    // アニメーション書き込み用
+    struct AnimationBone {
+        BoneTransform transform; // 基本こちらを使用
+        glm::mat4 global;
+    };
+
+    // 物理演算書き込み用
+    struct PhysicsBone {
+        glm::mat4 local;
+        glm::mat4 global;
+    };
+
+    // 中間結果書き込み用
+    struct CacheBone {
+        glm::mat4 local;
+        glm::mat4 global;
+    };
+
+    // 描画の書き込み用(最終結果なのでローカルはない)
+    struct SkinningBone {
+        glm::mat4 global;
     };
 } // namespace enishi::types

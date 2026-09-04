@@ -1,5 +1,6 @@
 #pragma once
 #include "interface_native_physics_accessor.h"
+#include "joint/joint_pool.h"
 #include "motion_state/motion_state_pool.h"
 #include "rigid_body/rigid_body_pool.h"
 #include "shape/shape_pool.h"
@@ -18,6 +19,7 @@ namespace enishi::physics::bullet3 {
         std::unique_ptr<RigidBodyPool> rigid_bodies;
         std::unique_ptr<MotionStatePool> motion_states;
         std::unique_ptr<ShapePool> shapes;
+        std::unique_ptr<JointPool> joints;
 
       public:
         INativeRigidBodyAccessor* get_native_rigid_body_accessor(void) noexcept override;
@@ -28,5 +30,7 @@ namespace enishi::physics::bullet3 {
             void) const noexcept override;
         INativeShapeAccessor* get_native_shape_accessor(void) noexcept override;
         const INativeShapeAccessor* get_native_shape_accessor(void) const noexcept override;
+        INativeJointAccessor* get_native_joint_accessor(void) noexcept override;
+        const INativeJointAccessor* get_native_joint_accessor(void) const noexcept override;
     };
 } // namespace enishi::physics::bullet3

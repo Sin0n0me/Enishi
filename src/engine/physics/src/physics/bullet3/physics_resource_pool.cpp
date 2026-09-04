@@ -23,4 +23,11 @@ namespace enishi::physics::bullet3 {
         void) const noexcept {
         return this->shapes.get();
     }
+    INativeJointAccessor* PhysicsResourcePool::get_native_joint_accessor(void) noexcept {
+        return this->joints.get();
+    }
+    const INativeJointAccessor* PhysicsResourcePool::get_native_joint_accessor(
+        void) const noexcept {
+        return this->joints.get();
+    }
 } // namespace enishi::physics::bullet3

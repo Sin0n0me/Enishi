@@ -1,5 +1,4 @@
 #pragma once
-
 #include <engine_types/system/delta_time.h>
 
 namespace enishi::core {

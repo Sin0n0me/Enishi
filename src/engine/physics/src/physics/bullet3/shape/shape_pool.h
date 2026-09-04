@@ -1,6 +1,5 @@
 #pragma once
 #include "interface_native_shape_accessor.h"
-#include "shape.h"
 #include <engine_types/handle/handle_mapper.h>
 #include <foundation/pool/resource_pool.h>
 #include <memory>

@@ -25,18 +25,19 @@ namespace enishi::physics::bullet3 {
         this->inverse_offset = glm::inverse(offset);
     }
 
-    void MMDDynamicAndBoneMergeMotionState::reset(platform::IBoneUpdater* const
-            bone_updater) { // mmdの世界からbulletの世界に変換しオフセット適用
+    void MMDDynamicAndBoneMergeMotionState::reset(platform::IPhysicsBoneView* const
+            physics_bone) { // mmdの世界からbulletの世界に変換しオフセット適用
         const auto offset_matrix = this->global * this->offset;
         this->transform = BulletConverter::matrix_to_transform(inverse_z(offset_matrix));
     }
 
     void MMDDynamicAndBoneMergeMotionState::update_global_transform(
-        platform::IBoneUpdater* const bone_updater) {
-        this->global = bone_updater->get_bone_global();
+        platform::IPhysicsBoneView* const physics_bone) {
+        this->global = physics_bone->get_physics_global();
     }
 
     void MMDDynamicAndBoneMergeMotionState::reflect_global_transform(
+        platform::IPhysicsBoneView* const physics_bone,
         platform::IBoneUpdater* const bone_updater) {
         if (!this->override_with_physics) {
             return;
@@ -50,9 +51,9 @@ namespace enishi::physics::bullet3 {
 
         // Position
         const auto position_index = 0;
-        global[position_index] = bone_updater->get_bone_global()[position_index];
+        global[position_index] = physics_bone->get_physics_global()[position_index];
 
-        bone_updater->set_bone_global(std::move(global));
-        bone_updater->update_children_global();
+        physics_bone->set_physics_global(std::move(global));
+        bone_updater->update_animation_children_global();
     }
 } // namespace enishi::physics::bullet3

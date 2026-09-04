@@ -65,59 +65,128 @@ namespace enishi::physics::bullet3 {
         this->world->setGravity(btVector3(vec.x, vec.y, vec.z));
     }
 
-    types::PhysicsHandle PhysicsWorld::add_rigid_body(types::PhysicsRigidBody&& rigid_body) {
-        const auto [resource_handle, native_rigid_body] =
-            this->resource_pool->get_native_rigid_body_accessor()->make_native_rigid_body();
+    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_object(
+        void) noexcept {
+        return this->handle_mapper->make(types::PhysicsHandleType::PhysicsObject,
+            types::ResourceHandles{
+                .resource = this->object_maanger->add_object(),
+            });
+    }
 
+    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_rigid_body(
+        const types::PhysicsHandle& object_handle, types::PhysicsRigidBody&& rigid_body) {
         const auto mask = rigid_body.group_target;
         const auto group = 1 << rigid_body.group_index;
 
-        auto&& result = PhysicsNativeResourceMaker::set_rigid_body(
-            native_rigid_body.get(), std::move(rigid_body));
-        if (result.is_err()) {
-            return result;
+        auto&& [kinematic_motion_state, active_motion_state] =
+            PhysicsNativeResourceMaker::make_motion_state(rigid_body, false);
+        auto&& result_shape = PhysicsNativeResourceMaker::make_shape(rigid_body);
+        if (result_shape.is_err()) {
+            return result_shape.propagation(platform::PhysicsError::MakeError);
         }
+        auto&& shape = result_shape.unwrap_mut();
+
+        auto&& rigid_body_result =
+            PhysicsNativeResourceMaker::make_rigid_body(std::move(rigid_body),
+                shape.get(),
+                active_motion_state.get(),
+                kinematic_motion_state.get());
+        if (rigid_body_result.is_err()) {
+            return rigid_body_result.propagation(platform::PhysicsError::MakeError);
+        }
+        const auto [resource_handle, native_rigid_body] =
+            this->resource_pool->get_native_rigid_body_accessor()->emplace_native_rigid_body(
+                std::move(rigid_body_result).unwrap_mut());
+
+        const auto motion_accessor = this->resource_pool->get_native_motion_state_accessor();
+        motion_accessor->emplace_native_motion_state(std::move(kinematic_motion_state));
+        motion_accessor->emplace_native_motion_state(std::move(active_motion_state));
+
+        this->resource_pool->get_native_shape_accessor()->emplace_native_shape(std::move(shape));
+
+        const auto handle = this->handle_mapper->make(types::PhysicsHandleType::RigidBody,
+            types::ResourceHandles{
+                .resource = resource_handle,
+            });
+
+        std::make_unique<BulletRigidBody>(, );
 
         // Bulletの世界に追加
         this->world->addRigidBody(native_rigid_body.get(), group, mask);
 
-        return this->handle_mapper->make(types::PhysicsHandleType::RigidBody,
+        // オブジェクトとリンク
+        this->object_maanger->link_handle(object_handle, handle);
+
+        return handle;
+    }
+
+    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_joint(
+        const types::PhysicsHandle& object_handle, types::PhysicsJoint&& joint) {
+        const auto opt_rigid_body_handles =
+            this->object_maanger->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
+        if (opt_rigid_body_handles.is_none()) {
+            return foundation::Error(platform::PhysicsError::MakeError);
+        }
+        const auto rigid_body_handles = opt_rigid_body_handles.unwrap();
+        const size_t size = rigid_body_handles.size();
+        const size_t index_rigid_body_a = joint.rigid_body_a;
+        const size_t index_rigid_body_b = joint.rigid_body_b;
+        // 0 index
+        if (index_rigid_body_a == index_rigid_body_b) {
+            return foundation::Error(platform::PhysicsError::MakeError);
+        }
+        if (size < (index_rigid_body_a + 1) || size < (index_rigid_body_b + 1)) {
+            return foundation::Error(platform::PhysicsError::MakeError);
+        }
+
+        // Jointのインデックスに対応した剛体の取得
+        const auto opt_mapped_rigid_body_a =
+            this->handle_mapper->get(rigid_body_handles[index_rigid_body_a]);
+        const auto opt_mapped_rigid_body_b =
+            this->handle_mapper->get(rigid_body_handles[index_rigid_body_b]);
+        if (opt_mapped_rigid_body_a.is_none() || opt_mapped_rigid_body_b.is_none()) {
+            return foundation::Error(platform::PhysicsError::MakeError);
+        }
+        const auto& mapped_rigid_body_a = opt_mapped_rigid_body_a.unwrap();
+        const auto& mapped_rigid_body_b = opt_mapped_rigid_body_b.unwrap();
+
+        const auto accessor = this->resource_pool->get_native_rigid_body_accessor();
+        const auto opt_rigid_body_a = accessor->get_native_rigid_body(mapped_rigid_body_a.resource);
+        const auto opt_rigid_body_b = accessor->get_native_rigid_body(mapped_rigid_body_b.resource);
+        const auto& rigid_body_a = opt_rigid_body_a.unwrap();
+        const auto& rigid_body_b = opt_rigid_body_b.unwrap();
+
+        auto result_joint =
+            PhysicsNativeResourceMaker::make_joint(joint, rigid_body_a.get(), rigid_body_b.get());
+        if (result_joint.is_err()) {
+            return foundation::Error(platform::PhysicsError::MakeError);
+        }
+        auto& native_joint = result_joint.unwrap_mut();
+
+        // Bulletの世界に追加
+        this->world->addConstraint(native_joint.get());
+
+        const auto [resource_handle, native_joint] =
+            this->resource_pool->get_native_joint_accessor()->emplace_native_joint(
+                std::move(native_joint));
+
+        const auto handle = this->handle_mapper->make(types::PhysicsHandleType::Joint,
             types::ResourceHandles{
                 .resource = resource_handle,
             });
+
+        // オブジェクトとリンク
+        this->object_maanger->link_handle(object_handle, handle);
+
+        return handle;
     }
 
-    types::PhysicsHandle PhysicsWorld::add_joint(types::PhysicsJoint&& joint) {
-        const size_t size = this->rigid_bodies.size();
-        const size_t rigid_body_a = joint.rigid_body_a;
-        const size_t rigid_body_b = joint.rigid_body_b;
-        // 0 index
-        if (size < (rigid_body_a + 1) || size < (rigid_body_b + 1)) {
-            return false;
-        }
-        if (rigid_body_a == rigid_body_b) {
-            return false;
-        }
-
-        std::unique_ptr<BulletJoint> mmd_joint = std::make_unique<BulletJoint>(joint,
-            this->rigid_bodies.at(rigid_body_a).get(),
-            this->rigid_bodies.at(rigid_body_b).get());
-
-        const auto bt_joint = mmd_joint.get();
-        this->world->addConstraint(bt_joint->get_constraint());
-
-        this->joints.emplace_back(std::move(mmd_joint));
-
-        return types::PhysicsHandle();
-    }
-
-    void PhysicsWorld::reset_physics(void) {
+    void PhysicsWorld::reset_physics(platform::IBoneUpdater* const updater) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_native_rigid_bodies();
 
-        this->object_maanger->make_object();
-
         for (const auto& rigid_body : rigid_bodies) {
+            rigid_body;
         }
 
         for (auto& rb : this->rigid_bodies) {
@@ -139,6 +208,15 @@ namespace enishi::physics::bullet3 {
         }
     }
 
-    void PhysicsWorld::apply_physics(void) {
+    void PhysicsWorld::apply_physics(platform::IBoneUpdater* const updater) {
+        for (auto& rb : this->rigid_bodies) {
+            rb->apply_global_transform();
+        }
+        for (auto& rb : this->rigid_bodies) {
+            rb->apply_local_transform();
+        }
+        for (auto& node : this->root_nodes) {
+            node->update_global();
+        }
     }
 } // namespace enishi::physics::bullet3

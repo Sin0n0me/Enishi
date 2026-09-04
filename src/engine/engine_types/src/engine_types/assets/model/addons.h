@@ -9,7 +9,7 @@
 
 // モデルに対して変化を加える場合はこの型を使用
 namespace enishi::types {
-    using AddonBones = std::vector<Bone>;
+    using AddonBones = std::vector<ModelBone>;
     using AddonIKs = std::vector<IK>;
     using AddonRigidBodies = std::vector<RigidBody>;
     using AddonPhysicsJoints = std::vector<PhysicsJoint>;

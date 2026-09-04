@@ -22,6 +22,8 @@ namespace enishi::core {
         using LoaderMap = std::unordered_map<foundation::UTF8, std::vector<AssetLoader>>;
 
       private:
+        std::thread load_thread;
+
         ecs::Registory asset_registory;
         std::unordered_map<std::filesystem::path, assets_system::AssetHandle> path_to_handle;
         LoaderMap extension_to_loader;

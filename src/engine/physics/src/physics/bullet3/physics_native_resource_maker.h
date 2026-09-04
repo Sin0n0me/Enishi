@@ -13,20 +13,34 @@
 
 namespace enishi::physics::bullet3 {
     class PhysicsNativeResourceMaker {
-      private:
+      public:
+        using Shape = std::unique_ptr<btCollisionShape>;
+        using RigidBody = std::unique_ptr<btRigidBody>;
+        using Joint = std::unique_ptr<btGeneric6DofSpringConstraint>;
         using MotionState = std::unique_ptr<IMMDMotionState>;
 
       public:
-        [[nodiscard]] static foundation::Result<std::unique_ptr<btRigidBody>, PhysicsError>
-        set_rigid_body(btRigidBody* const native_rigid_body, types::PhysicsRigidBody&& rigid_body);
+        [[nodiscard]] static foundation::Result<Shape, PhysicsError> make_shape(
+            const types::PhysicsRigidBody& rb);
+
+        [[nodiscard]] static std::tuple<MotionState, MotionState> make_motion_state(
+            const types::PhysicsRigidBody& rigid_body, const bool has_bone);
+
+        [[nodiscard]] static foundation::Result<RigidBody, PhysicsError> make_rigid_body(
+            types::PhysicsRigidBody&& rigid_body,
+            btCollisionShape* const shape,
+            IMMDMotionState* const active_motion_state,
+            IMMDMotionState* const kinematic_motion_state);
+
+        [[nodiscard]] static foundation::Result<Joint, PhysicsError> make_joint(
+            const types::PhysicsJoint& joint,
+            btRigidBody* const rigid_body_a,
+            btRigidBody* const rigid_body_b);
 
         [[nodiscard]] static glm::mat4 make_offset(const types::PhysicsRigidBody& rigid_body);
 
       private:
-        [[nodiscard]] static std::unique_ptr<btCollisionShape> make_shape(
-            const types::PhysicsRigidBody& rb);
-
-        [[nodiscard]] static std::tuple<MotionState, MotionState> make_motion_state(
-            const types::PhysicsRigidBody& rigid_body);
+        [[nodiscard]] static foundation::VoidResult<PhysicsError> set_joint(
+            btGeneric6DofSpringConstraint* const native_joint, const types::PhysicsJoint& joint);
     };
 } // namespace enishi::physics::bullet3

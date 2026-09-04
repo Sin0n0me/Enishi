@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <physics/bullet3/rigid_body/rigid_body.h>
-#include <platform/animation/updater/interface_bone_updater.h>
+#include <platform/animation/interface_bone_updater.h>
 
 namespace enishi::physics::bullet3 {
     class BulletJoint {
@@ -17,6 +17,7 @@ namespace enishi::physics::bullet3 {
             BulletRigidBody& rigid_body_a,
             BulletRigidBody& rigid_body_b);
 
+        btTypedConstraint* get_constraint(void) noexcept;
         const btTypedConstraint* get_constraint(void) const noexcept;
     };
 } // namespace enishi::physics::bullet3

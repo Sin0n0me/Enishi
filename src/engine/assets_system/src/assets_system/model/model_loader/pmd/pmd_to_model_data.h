@@ -23,7 +23,7 @@ namespace enishi::assets_system {
             TextureLoader* const texture_loader);
 
       private:
-        [[nodiscard]] static std::tuple<std::vector<types::Bone>, BoneResolver> make_bone(
+        [[nodiscard]] static std::tuple<std::vector<types::ModelBone>, BoneResolver> make_bone(
             const std::vector<PMDBone>& bones);
 
         [[nodiscard]] static std::vector<types::VertexVariants> make_vertices(

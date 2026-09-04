@@ -3,6 +3,7 @@
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/physics/physics_handle.h>
 #include <engine_types/physics/object/physics_object.h>
+#include <foundation/pool/resource_pool.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <physics/errors/errors.h>
@@ -18,16 +19,22 @@ namespace enishi::physics::bullet3 {
         };
 
       private:
+        using HandlePool = std::vector<types::PhysicsHandle>;
+        using HandlePoolMap = std::unordered_map<types::PhysicsHandleType, HandlePool>;
+
         types::ResourceMapper<PhysicsObjectHandle> handle_mapper;
-        foundation::ResourcePool<types::PhysicsObject> objects;
+        foundation::ResourcePool<HandlePoolMap> objects;
 
       public:
-        types::PhysicsHandle make_object(void);
+        [[nodiscard]] types::HandleId add_object(void);
 
-        foundation::Result<types::PhysicsHandle, PhysicsError> add_rigid_body(
-            const types::HandleId& object_handle, types::PhysicsRigidBody&& rigid_body);
+        void remove_object(const types::HandleId& handle);
 
-        foundation::Result<types::PhysicsHandle, PhysicsError> add_joint(
-            const types::HandleId& object_handle, types::PhysicsJoint&& joint);
+        [[nodiscard]] foundation::Option<std::span<const types::PhysicsHandle>> get_handles(
+            const types::PhysicsHandle& object_handle,
+            const types::PhysicsHandleType& handle_type) const;
+
+        [[nodiscard]] foundation::VoidResult<PhysicsError> link_handle(
+            const types::PhysicsHandle& object_handle, const types::PhysicsHandle& link_handle);
     };
 } // namespace enishi::physics::bullet3

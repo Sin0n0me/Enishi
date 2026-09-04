@@ -6,6 +6,7 @@
 namespace enishi::types {
     enum class PhysicsHandleType : std::uint32_t {
         Unknown = 0,
+        PhysicsObject,
         RigidBody,
         Joint,
         Shape,

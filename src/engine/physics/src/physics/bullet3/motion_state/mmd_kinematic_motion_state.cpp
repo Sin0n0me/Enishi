@@ -18,8 +18,8 @@ namespace enishi::physics::bullet3 {
     void MMDKinematicMotionState::setWorldTransform(const btTransform& worldTrans) {
     }
 
-    void MMDKinematicMotionState::reset(platform::IBoneUpdater* const bone_updater) {
-        this->update_global_transform(bone_updater);
+    void MMDKinematicMotionState::reset(platform::IPhysicsBoneView* const physics_bone) {
+        this->update_global_transform(physics_bone);
     }
 
     void MMDKinematicMotionState::set_offset(const glm::mat4& offset) {
@@ -27,11 +27,12 @@ namespace enishi::physics::bullet3 {
     }
 
     void MMDKinematicMotionState::update_global_transform(
-        platform::IBoneUpdater* const bone_updater) {
-        this->global = bone_updater->get_bone_global();
+        platform::IPhysicsBoneView* const physics_bone) {
+        this->global = physics_bone->get_physics_global();
     }
 
     void MMDKinematicMotionState::reflect_global_transform(
+        platform::IPhysicsBoneView* const physics_bone,
         platform::IBoneUpdater* const bone_updater) {
         // 物理エンジンからの影響を受けない
     }

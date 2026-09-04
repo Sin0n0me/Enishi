@@ -3,7 +3,10 @@
 #include "render_pass/constructor/model_render_pass_constructor.h"
 #include "render_pass/constructor/shadow_map_render_pass_constructor.h"
 #include <core/system/animation/animation_system.h>
+#include <core/system/physics/physics_system.h>
 #include <foundation/log/logger.h>
+
+#include <physics/bullet3/physics_engine.h>
 
 #include <platform_impl/window/sdl/sdl3_window.h>
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
@@ -34,6 +37,8 @@ namespace enishi {
         auto asset_manager = this->system_scheduler.register_system<core::AssetManager>(50);
         auto animation_system =
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
+        auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
+            90, this->rsegistory, std::make_unique<physics::bullet3::PhysicsEngine>());
 
         // ウィンドウの初期化
         const auto root_window = this->init_window();
@@ -48,6 +53,8 @@ namespace enishi {
             return false;
         }
         foundation::Logger::info("レンダラーの初期化に成功しました");
+
+        this->init_physics(asset_manager);
 
         return true;
     }
@@ -144,5 +151,8 @@ namespace enishi {
         }
 
         return renderer;
+    }
+
+    void Application::init_physics(std::shared_ptr<assets_system::IAssetSystem> asset_system) {
     }
 } // namespace enishi

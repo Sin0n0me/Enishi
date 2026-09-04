@@ -1,4 +1,5 @@
 #pragma once
+#include "joint/interface_native_joint_accessor.h"
 #include "motion_state/interface_native_motion_satate_accessor.h"
 #include "rigid_body/interface_native_rigid_body_accessor.h"
 #include "shape/interface_native_shape_accessor.h"
@@ -21,6 +22,9 @@ namespace enishi::physics::bullet3 {
             void) const noexcept = 0;
         [[nodiscard]] virtual INativeShapeAccessor* get_native_shape_accessor(void) noexcept = 0;
         [[nodiscard]] virtual const INativeShapeAccessor* get_native_shape_accessor(
+            void) const noexcept = 0;
+        [[nodiscard]] virtual INativeJointAccessor* get_native_joint_accessor(void) noexcept = 0;
+        [[nodiscard]] virtual const INativeJointAccessor* get_native_joint_accessor(
             void) const noexcept = 0;
     };
 } // namespace enishi::physics::bullet3

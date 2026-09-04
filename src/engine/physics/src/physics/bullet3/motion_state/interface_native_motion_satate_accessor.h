@@ -1,4 +1,5 @@
 #pragma once
+#include "interface_mmd_motion_state.h"
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
 #include <engine_types/handle/handle_type.h>
@@ -9,7 +10,7 @@
 namespace enishi::physics::bullet3 {
     class INativeMotionStateAccessor {
       public:
-        using NativeMotionState = std::unique_ptr<btMotionState>;
+        using NativeMotionState = std::unique_ptr<IMMDMotionState>;
 
       public:
         virtual ~INativeMotionStateAccessor(void) noexcept = default;

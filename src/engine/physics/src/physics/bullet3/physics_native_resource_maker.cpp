@@ -5,28 +5,72 @@
 #include <physics/bullet3/motion_state/mmd_kinematic_motion_state.h>
 
 namespace enishi::physics::bullet3 {
-    foundation::Result<std::unique_ptr<btRigidBody>, PhysicsError>
-    PhysicsNativeResourceMaker::set_rigid_body(
-        btRigidBody* const native_rigid_body, types::PhysicsRigidBody&& rigid_body) {
+    foundation::Result<PhysicsNativeResourceMaker::Shape, PhysicsError>
+    PhysicsNativeResourceMaker::make_shape(const types::PhysicsRigidBody& rb) {
+        if (auto shape = std::get_if<types::RBShapeBox>(&rb.shape)) {
+            return std::make_unique<btBoxShape>(btVector3{
+                shape->width,
+                shape->height,
+                shape->depth,
+            });
+        }
+        if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
+            return std::make_unique<btCapsuleShape>(shape->height, shape->raius);
+        }
+        if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
+            return std::make_unique<btSphereShape>(shape->radius);
+        }
+
+        return std::unique_ptr<btCollisionShape>();
+    }
+
+    std::tuple<PhysicsNativeResourceMaker::MotionState, PhysicsNativeResourceMaker::MotionState>
+    PhysicsNativeResourceMaker::make_motion_state(
+        const types::PhysicsRigidBody& rigid_body, const bool has_bone) {
+        const auto offset = PhysicsNativeResourceMaker::make_offset(rigid_body);
+        MotionState active_motion_state;
+        MotionState kinematic_motion_state;
+        switch (rigid_body.kind) {
+            case types::RigidBodyKind::Kinematic: {
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
+            } break;
+            case types::RigidBodyKind::Dynamic: {
+                active_motion_state = std::make_unique<MMDDynamicMotionState>(offset, has_bone);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
+            } break;
+            case types::RigidBodyKind::DynamicAdjustBone: {
+                active_motion_state =
+                    std::make_unique<MMDDynamicAndBoneMergeMotionState>(offset, has_bone);
+                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
+            } break;
+            default:
+                return {};
+        }
+
+        return {
+            std::move(active_motion_state),
+            std::move(kinematic_motion_state),
+        };
+    }
+
+    foundation::Result<PhysicsNativeResourceMaker::RigidBody, PhysicsError>
+    PhysicsNativeResourceMaker::make_rigid_body(types::PhysicsRigidBody&& rigid_body,
+        btCollisionShape* const shape,
+        IMMDMotionState* const active_motion_state,
+        IMMDMotionState* const kinematic_motion_state) {
+        auto&& native_rigid_body = std::make_unique<btRigidBody>();
+
         const bool is_kinematic = rigid_body.kind == types::RigidBodyKind::Kinematic;
         const btScalar mass = is_kinematic ? 0.0f : rigid_body.mass;
         btVector3 local_inertia(0, 0, 0);
-
-        auto&& shape = PhysicsNativeResourceMaker::make_shape(rigid_body);
         if (mass != 0.0f) {
             shape->calculateLocalInertia(mass, local_inertia);
         }
 
-        auto [active_motion_state, kinematic_motion_state] =
-            PhysicsNativeResourceMaker::make_motion_state(rigid_body);
-        if (!bool(active_motion_state) && !bool(kinematic_motion_state)) {
-            return foundation::Error(PhysicsError::MotionStateError);
-        }
-
         btMotionState* const motion_state =
-            is_kinematic ? kinematic_motion_state.get() : active_motion_state.get();
+            is_kinematic ? kinematic_motion_state : active_motion_state;
         btRigidBody::btRigidBodyConstructionInfo construct_info(
-            mass, motion_state, shape.get(), local_inertia);
+            mass, motion_state, shape, local_inertia);
         construct_info.m_linearDamping = rigid_body.linear_damping;
         construct_info.m_angularDamping = rigid_body.angular_damping;
         construct_info.m_restitution = rigid_body.restitution;
@@ -43,30 +87,80 @@ namespace enishi::physics::bullet3 {
                 bullet_rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
         }
 
-        rigid_body->shape = std::move(shape);
-        rigid_body->active_motion_state = std::move(active_motion_state);
-        rigid_body->kinematic_motion_state = std::move(kinematic_motion_state);
-
-        return std::move(rigid_body);
+        return native_rigid_body;
     }
 
-    std::unique_ptr<btCollisionShape> PhysicsNativeResourceMaker::make_shape(
-        const types::PhysicsRigidBody& rb) {
-        if (auto shape = std::get_if<types::RBShapeBox>(&rb.shape)) {
-            return std::make_unique<btBoxShape>(btVector3{
-                shape->width,
-                shape->height,
-                shape->depth,
-            });
-        }
-        if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            return std::make_unique<btCapsuleShape>(shape->height, shape->raius);
-        }
-        if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
-            return std::make_unique<btSphereShape>(shape->radius);
+    foundation::Result<std::unique_ptr<btGeneric6DofSpringConstraint>, PhysicsError>
+    PhysicsNativeResourceMaker::make_joint(const types::PhysicsJoint& joint,
+        btRigidBody* const rigid_body_a,
+        btRigidBody* const rigid_body_b) {
+        btMatrix3x3 rotate_matrix;
+        rotate_matrix.setEulerZYX(joint.rotation.x, joint.rotation.y, joint.rotation.z);
+
+        btTransform transform;
+        transform.setIdentity();
+        transform.setOrigin(btVector3(joint.position.x,
+            joint.position.y,
+            -joint.position.z // Bulletに合わせる
+            ));
+        transform.setBasis(rotate_matrix);
+
+        const btTransform inverse_a = rigid_body_a->getWorldTransform().inverse() * transform;
+        const btTransform inverse_b = rigid_body_b->getWorldTransform().inverse() * transform;
+
+        auto&& native = std::make_unique<btGeneric6DofSpringConstraint>(
+            *rigid_body_a, *rigid_body_b, inverse_a, inverse_b, true);
+
+        auto&& result = PhysicsNativeResourceMaker::set_joint(native.get(), joint);
+        if (result.is_err()) {
+            return std::move(result).unwrap_err();
         }
 
-        return std::unique_ptr<btCollisionShape>();
+        return native;
+    }
+
+    foundation::VoidResult<PhysicsError> PhysicsNativeResourceMaker::set_joint(
+        btGeneric6DofSpringConstraint* const constraint, const types::PhysicsJoint& joint) {
+        constraint->setLinearLowerLimit(btVector3(joint.constrain_position_min[0],
+            joint.constrain_position_min[1],
+            joint.constrain_position_min[2]));
+        constraint->setLinearUpperLimit(btVector3(joint.constrain_position_max[0],
+            joint.constrain_position_max[1],
+            joint.constrain_position_max[2]));
+
+        constraint->setAngularLowerLimit(btVector3(joint.constrain_rotation_min[0],
+            joint.constrain_rotation_min[1],
+            joint.constrain_rotation_min[2]));
+        constraint->setAngularUpperLimit(btVector3(joint.constrain_rotation_max[0],
+            joint.constrain_rotation_max[1],
+            joint.constrain_rotation_max[2]));
+
+        if (joint.spring_position[0] != 0) {
+            constraint->enableSpring(0, true);
+            constraint->setStiffness(0, joint.spring_position[0]);
+        }
+        if (joint.spring_position[1] != 0) {
+            constraint->enableSpring(1, true);
+            constraint->setStiffness(1, joint.spring_position[1]);
+        }
+        if (joint.spring_position[2] != 0) {
+            constraint->enableSpring(2, true);
+            constraint->setStiffness(2, -joint.spring_position[2]); // Bulletに合わせる
+        }
+        if (joint.spring_rotation[0] != 0) {
+            constraint->enableSpring(3, true);
+            constraint->setStiffness(3, joint.spring_rotation[0]);
+        }
+        if (joint.spring_rotation[1] != 0) {
+            constraint->enableSpring(4, true);
+            constraint->setStiffness(4, joint.spring_rotation[1]);
+        }
+        if (joint.spring_rotation[2] != 0) {
+            constraint->enableSpring(5, true);
+            constraint->setStiffness(5, joint.spring_rotation[2]);
+        }
+
+        return {};
     }
 
     // PMDはボーンとの相対座標なので剛体中心とのオフセットは以下で求める(列優先の場合)
@@ -85,44 +179,5 @@ namespace enishi::physics::bullet3 {
         glm::mat4&& offset = translate_matrix * rotate_matrix;
 
         return offset;
-    }
-
-    std::tuple<PhysicsNativeResourceMaker::MotionState, PhysicsNativeResourceMaker::MotionState>
-    PhysicsNativeResourceMaker::make_motion_state(const types::PhysicsRigidBody& rigid_body) {
-        const bool has_node = bool(node);
-        const auto opt_root_node = bone_list->get_bone_accessor(0);
-        if (opt_root_node.is_none()) {
-            return {};
-        }
-        const auto& kinematic_node = has_node ? node : opt_root_node.unwrap();
-        const auto updater = kinematic_node->get_updater();
-
-        const auto offset = PhysicsNativeResourceMaker::make_offset(rigid_body);
-        const bool override_with_physics = has_node;
-
-        MotionState active_motion_state;
-        MotionState kinematic_motion_state;
-        switch (rigid_body.kind) {
-            case types::RigidBodyKind::Kinematic: {
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
-            } break;
-            case types::RigidBodyKind::Dynamic: {
-                active_motion_state =
-                    std::make_unique<MMDDynamicMotionState>(offset, override_with_physics);
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
-            } break;
-            case types::RigidBodyKind::DynamicAdjustBone: {
-                active_motion_state = std::make_unique<MMDDynamicAndBoneMergeMotionState>(
-                    offset, override_with_physics);
-                kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
-            } break;
-            default:
-                return {};
-        }
-
-        return {
-            std::move(active_motion_state),
-            std::move(kinematic_motion_state),
-        };
     }
 } // namespace enishi::physics::bullet3

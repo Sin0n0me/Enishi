@@ -7,35 +7,35 @@
 #include <foundation/result/result.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include <physics/bullet3/interface_native_physics_accessor.h>
 #include <physics/bullet3/motion_state/interface_mmd_motion_state.h>
 #include <physics/errors/errors.h>
-#include <platform/asset/bone/interface_bone_accessor.h>
-#include <platform/asset/bone/interface_bone_list_accessor.h>
+#include <platform/bone_ststem/interface_bone_view.h>
+#include <platform/physics/bone/interface_physics_bone_view.h>
 #include <platform/physics/rigid_body/interface_rigid_body.h>
 
 namespace enishi::physics::bullet3 {
-    class BulletRigidBody : public INativeRigidBody, public platform::IRigidBody {
+    class BulletRigidBody : public platform::IRigidBody {
       private:
-        using MotionState = std::unique_ptr<IMMDMotionState>;
-
-        types::PhysicsRigidBody rigid_body_description;
-        std::shared_ptr<platform::IBoneAccessor> bone_node;
-        MotionState active_motion_state;
-        MotionState kinematic_motion_state;
+        std::shared_ptr<INativePhysicsAccessor> view;
+        std::shared_ptr<platform::IBoneView> bone_view;
+        std::shared_ptr<platform::IBoneUpdater> updater;
+        std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view;
+        types::HandleId rigid_body;
+        types::HandleId active_motion_state;
+        types::HandleId kinematic_motion_state;
+        types::RigidBodyKind kind;
 
       public:
-        explicit BulletRigidBody(void);
+        explicit BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> view,
+            std::shared_ptr<platform::IBoneView> bone_view,
+            std::shared_ptr<platform::IBoneUpdater> updater,
+            std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view);
 
         void set_active(const bool active_flag) override;
         void reset(void) override;
         void reset_transform(void) override;
         void apply_local_transform(void) override;
         void apply_global_transform(void) override;
-
-        const types::PhysicsRigidBody& get_rigid_body(void) const noexcept;
-
-      public:
-        const btRigidBody* get_native_rigid_body(void) const noexcept override;
-        btRigidBody* get_native_rigid_body(void) noexcept override;
     };
 } // namespace enishi::physics::bullet3

@@ -31,10 +31,16 @@ namespace enishi::physics::bullet3 {
         void simulation(const types::DeltaTime& dt) override;
         void set_gravity(const glm::vec3& vec) override;
 
-        types::PhysicsHandle add_rigid_body(types::PhysicsRigidBody&& rigid_body) override;
-        types::PhysicsHandle add_joint(types::PhysicsJoint&& joint) override;
+        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_object(
+            void) noexcept override;
+        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_rigid_body(
+            const types::PhysicsHandle& object_handle,
+            types::PhysicsRigidBody&& rigid_body) noexcept override;
+        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_joint(
+            const types::PhysicsHandle& object_handle,
+            types::PhysicsJoint&& joint) noexcept override;
 
-        void reset_physics(void) override;
-        void apply_physics(void) override;
+        void reset_physics(platform::IBoneUpdater* const updater) override;
+        void apply_physics(platform::IBoneUpdater* const updater) override;
     };
 } // namespace enishi::physics::bullet3

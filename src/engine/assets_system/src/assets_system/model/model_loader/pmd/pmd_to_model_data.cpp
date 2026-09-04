@@ -54,16 +54,16 @@ namespace enishi::assets_system {
         });
     }
 
-    std::tuple<std::vector<types::Bone>, BoneResolver> PMDToModelData::make_bone(
+    std::tuple<std::vector<types::ModelBone>, BoneResolver> PMDToModelData::make_bone(
         const std::vector<PMDBone>& bones) {
         constexpr std::uint32_t MMD_NONE_PARENT = 0xFFFF;
         const auto bone_size = bones.size();
-        auto bone_data = std::vector<types::Bone>(bone_size);
+        auto model_bones = std::vector<types::ModelBone>(bone_size);
         BoneNameMapConstructor constructor;
 
         for (size_t i = 0; i < bone_size; ++i) {
             const auto& src_bone = bones[i];
-            auto& dst_bone = bone_data[i];
+            auto& dst_bone = model_bones[i].bind_bone;
 
             // 名前の変換
             // 変換できない場合は仕方ないのでそのまま保持
@@ -83,35 +83,36 @@ namespace enishi::assets_system {
             const glm::mat4 translate = glm::translate(glm::mat4(1.0f), position);
             const auto parent_index = src_bone.parent_index;
             if (parent_index == MMD_NONE_PARENT) {
-                dst_bone.bind_bone.local = translate;
+                dst_bone.local = translate;
             } else {
-                const auto& parent = bone_data[parent_index];
-                dst_bone.bind_bone.local = translate - parent.bind_bone.local;
+                const auto& parent = model_bones[parent_index].bind_bone;
+                dst_bone.local = translate - parent.local;
             }
         }
 
         // 親を参照するので一度ローカル行列を全て作成してからグローバル作成
         for (size_t bone_index = 0; bone_index < bone_size; ++bone_index) {
             const auto& src_bone = bones[bone_index];
-            auto& dst_bone = bone_data[bone_index];
+            auto& dst_bone = model_bones[bone_index].bind_bone;
+            auto& bone_node = model_bones[bone_index].bone_node;
 
             // ボーンノードとグローバル行列の作成
             const auto parent_index = src_bone.parent_index;
             if (parent_index == MMD_NONE_PARENT) {
-                dst_bone.bind_bone.global = dst_bone.bind_bone.local;
-                dst_bone.bone_node.parent = types::INVALID_BONE_INDEX;
+                dst_bone.global = dst_bone.local;
+                bone_node.parent = types::INVALID_BONE_INDEX;
             } else {
-                auto& parent = bone_data[parent_index];
-                dst_bone.bind_bone.global = parent.bind_bone.global * dst_bone.bind_bone.local;
-                dst_bone.bone_node.parent = parent_index;
-                parent.bone_node.children.emplace_back(bone_index);
+                auto& parent = model_bones[parent_index].bind_bone;
+                dst_bone.global = parent.global * dst_bone.local;
+                bone_node.parent = parent_index;
+                bone_node.children.emplace_back(bone_index);
             }
 
             // 逆変換
-            dst_bone.bind_bone.global_inverse = glm::inverse(dst_bone.bind_bone.global);
+            dst_bone.global_inverse = glm::inverse(dst_bone.global);
         }
 
-        return {bone_data, BoneResolver(constructor)};
+        return {model_bones, BoneResolver(constructor)};
     }
 
     std::vector<types::VertexVariants> PMDToModelData::make_vertices(
@@ -185,7 +186,9 @@ namespace enishi::assets_system {
                 .iterations = ik.iterations,
                 .target = ik.target_bone,
                 .ik_bone = ik.ik_bone,
-                .chain = ik.chain,
+                .chain = ik.chain | std::views::transform([](const std::uint16_t x) {
+                    return static_cast<decltype(types::CCDIK::chain)::value_type>(x);
+                }) | std::ranges::to<std::vector<std::size_t>>(),
                 .limit = ik.limit,
             };
             types::IK convert_ik{};
