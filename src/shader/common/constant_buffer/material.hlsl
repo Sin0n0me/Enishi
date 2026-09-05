@@ -6,6 +6,7 @@ cbuffer Material {
     float sphere_mul; // ifによる分岐を減らすため ０-1 で計算
     float sphere_add;
     float edge_flag; // 0-1
+    float2 _pad;
 };
 
 float4 apply_lighting(
@@ -25,6 +26,7 @@ float4 apply_lighting(
     return float4(color.rgb * saturate(lighting_color), color.a);
 }
 
+// Specular(Blinn-Phong)
 float4 apply_specular(
     const float4 color,
     const float3 position,
@@ -32,20 +34,27 @@ float4 apply_specular(
     const float3 normal
 ) {
     const float3 normalized_normal = normalize(normal);
-    const float3 normalized_light = normalize(light_direction);
+    const float3 normalized_light = normalize(-light_direction);
     const float3 view_direction = normalize(-position);
     
-    // Specular(Phong)
-    /*
-    const float3 ref = reflect(-normalized_light, normalized_normal);
-    const float spec_factor = pow(saturate(dot(ref, view_direction)), shininess);
-    const float3 fixed_specular = specular * spec_factor;
-    */
+    // マイナスの場合は裏側をハイライトしてしまう
+    // 極僅かなスペキュラも除外する
+    const float normal_dot_light = dot(normalized_normal, normalized_light);
+    if (normal_dot_light < 1e-6) {
+        return color;
+    }
+
+    // 長さが限りなく0に近いと後続で計算結果がInfになる可能性があり, チラつきの原因になる
+    const float3 half_vec_raw = normalized_light + view_direction;
+    const float half_len_sq = dot(half_vec_raw, half_vec_raw);
+    if (half_len_sq < 1e-6) {
+        return color;
+    }
     
-    // Specular(Blinn-Phong)
-    const float3 half_vec = normalize(normalized_light + view_direction);
-    const float spec_factor = pow(saturate(dot(normalized_normal, half_vec)), shininess);
-    const float3 fixed_specular = specular * spec_factor;    
+    const float3 half_vec = half_vec_raw * rsqrt(half_len_sq);
+    const float normal_dot_half = saturate(dot(normalized_normal, half_vec));
+    const float spec_factor = normal_dot_half > 0.0 ? pow(normal_dot_half, shininess) : 0.0;
+    const float3 fixed_specular = specular * spec_factor;
     
     return float4(color.rgb + fixed_specular, color.a);
 }

@@ -1,10 +1,16 @@
 .vs/
 x64/
+out/
+build/
 build_cmake/
 assets/**/
+CMakeFiles/
 ./Debug/
 DesktopCharacter/
+lib/
 
+*.ini
+*.ttf
 *.user
 *.obj
 *.pdb

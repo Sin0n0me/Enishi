@@ -1,0 +1,67 @@
+#include "model_loader.h"
+#include "../bone/bone_name_map.h"
+#include "../bone/bone_resolver.h"
+#include "pmd/pmd_model_loader.h"
+#include "pmd/pmd_to_model_data.h"
+
+namespace enishi::assets_system {
+    ModelLoader::ModelLoader(std::shared_ptr<TextureLoader> texture_loader)
+        : texture_loader(texture_loader) {
+        std::vector<std::unique_ptr<IModelLoader>> loaders;
+        loaders.push_back(std::make_unique<PMDModelLoader>());
+
+        for (auto& element : loaders) {
+            if (bool(element)) {
+                auto extension = element->get_supported_extension();
+                this->loaders.emplace(std::move(extension), std::move(element));
+            }
+        }
+    }
+
+    foundation::Result<AssetData, AssetError> ModelLoader::load(
+        const std::filesystem::path& path) noexcept {
+        if (!path.has_extension()) {
+            return foundation::Error(AssetError::NotFound, "不明なファイルです");
+        }
+
+        const auto extension = path.extension().string<char>();
+        auto iter = this->loaders.find(extension);
+        if (iter == this->loaders.end()) {
+            return foundation::Error(AssetError::NotFound, "対応していないファイル形式です");
+        }
+
+        auto&& load_data = iter->second->load(path);
+        if (load_data.is_err()) {
+            return std::move(load_data).take_err();
+        }
+        auto&& model_data = load_data.unwrap_mut();
+
+        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
+            auto&& convert_data =
+                PMDToModelData::to_model_data(path, *pmd_data->get(), this->texture_loader.get())
+                    .add_message("データの変換に失敗しました");
+            if (convert_data.is_err()) {
+                return convert_data;
+            }
+
+            return AssetData{convert_data.unwrap()};
+        }
+
+        // 仮
+        return foundation::Error(AssetError::NotFound);
+    }
+
+    std::vector<foundation::UTF8> ModelLoader::get_supported_extension(void) const noexcept {
+        std::vector<foundation::UTF8> extensions;
+
+        for (const auto& [extension, _] : this->loaders) {
+            extensions.push_back(extension);
+        }
+
+        return extensions;
+    }
+
+    types::AssetKind ModelLoader::get_target_asset_type(void) const noexcept {
+        return types::AssetKind::Model;
+    }
+} // namespace enishi::assets_system

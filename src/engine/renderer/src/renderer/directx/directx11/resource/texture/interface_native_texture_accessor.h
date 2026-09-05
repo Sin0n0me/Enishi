@@ -1,0 +1,45 @@
+#pragma once
+#include <d3d11.h>
+#include <engine_types/handle/handle_type.h>
+#include <foundation/option/option.h>
+#include <tuple>
+#include <wrl/client.h>
+
+namespace enishi::renderer::directx {
+    enum class TextureType {
+        Texture1D,
+        Texture2D,
+        Texture3D,
+    };
+
+    class INativeTextureAccessor {
+      public:
+        using NativeTexture1D = Microsoft::WRL::ComPtr<ID3D11Texture1D>;
+        using NativeTexture2D = Microsoft::WRL::ComPtr<ID3D11Texture2D>;
+        using NativeTexture3D = Microsoft::WRL::ComPtr<ID3D11Texture3D>;
+
+      public:
+        virtual ~INativeTextureAccessor(void) noexcept = default;
+
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture1D&> make_native_texture_1d(
+            void) noexcept = 0;
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture2D&> make_native_texture_2d(
+            void) noexcept = 0;
+        [[nodiscard]] virtual std::tuple<types::HandleId, NativeTexture3D&> make_native_texture_3d(
+            void) noexcept = 0;
+        [[nodiscard]] virtual void remove_native_texture(const types::HandleId handle) noexcept = 0;
+
+        [[nodiscard]] virtual foundation::Option<NativeTexture1D&> get_native_texture_1d(
+            const types::HandleId handle) noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<const NativeTexture1D&> get_native_texture_1d(
+            const types::HandleId handle) const noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<NativeTexture2D&> get_native_texture_2d(
+            const types::HandleId handle) noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<const NativeTexture2D&> get_native_texture_2d(
+            const types::HandleId handle) const noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<NativeTexture3D&> get_native_texture_3d(
+            const types::HandleId handle) noexcept = 0;
+        [[nodiscard]] virtual foundation::Option<const NativeTexture3D&> get_native_texture_3d(
+            const types::HandleId handle) const noexcept = 0;
+    };
+} // namespace enishi::renderer::directx

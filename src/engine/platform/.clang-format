@@ -1,0 +1,39 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+
+# 長い行は適度に折り返す
+ColumnLimit: 100
+
+BreakBeforeBraces: Attach
+
+# 引数を縦に並べる
+BinPackArguments: false
+BinPackParameters: false
+
+# 開き括弧の位置で揃えない
+AlignAfterOpenBracket: DontAlign
+
+# 短いifや関数を1行にしない
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# namespaceもインデント
+NamespaceIndentation: All
+
+# caseもインデント
+IndentCaseLabels: true
+
+
+QualifierAlignment: Left
+EmptyLineBeforeAccessModifier: LogicalBlock
+PackConstructorInitializers: Never
+BreakConstructorInitializers: BeforeComma
+
+
