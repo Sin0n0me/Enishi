@@ -54,7 +54,7 @@ namespace enishi::assets_system {
         [[nodiscard]] static types::RigidBodyShape make_shape_from_pmd(
             const PMDRigidBody& rigid_body);
 
-        [[nodiscard]] static types::RigidBodyType make_rigid_body_type_from_pmd(
+        [[nodiscard]] static types::RigidBodyKind make_rigid_body_type_from_pmd(
             const PMDRigidBody& rigid_body);
 
         [[nodiscard]] static std::unordered_map<std::filesystem::path, AssetTextureData>

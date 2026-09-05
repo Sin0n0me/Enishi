@@ -61,7 +61,6 @@ namespace enishi::platform_impl {
         const glm::mat4& get_bind_global_inverse(void) const noexcept override;
 
       public:
-        void update_local(void) noexcept override;
         void update_animation_global(void) noexcept override;
         void update_animation_children_global(void) noexcept override;
 

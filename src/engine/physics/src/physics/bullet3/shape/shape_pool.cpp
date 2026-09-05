@@ -11,17 +11,6 @@ namespace enishi::physics::bullet3 {
             });
     }
 
-    std::tuple<types::HandleId, ShapePool::NativeShape&> ShapePool::make_native_shape(
-        void) noexcept {
-        return this->handle_mapper.make_from(
-            this->native_shapes.emplace(std::make_unique<ShapePool::NativeShape::element_type>()),
-            [](const std::size_t index) {
-                return decltype(handle_mapper)::ValueType{
-                    .index = index,
-                };
-            });
-    }
-
     void ShapePool::remove_native_shape(const types::HandleId handle) noexcept {
     }
 

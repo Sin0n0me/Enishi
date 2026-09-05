@@ -61,7 +61,7 @@ namespace enishi::foundation {
                 if constexpr (std::is_reference_v<T>) {
                     return this->option.value().get();
                 } else {
-                    return this->option.value();
+                    return std::move(this->option).value();
                 }
             }
 

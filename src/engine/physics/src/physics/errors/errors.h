@@ -6,5 +6,6 @@ namespace enishi::physics::bullet3 {
         ObjectError,
         RigidBodyError,
         MotionStateError,
+        WorldError,
     };
 } // namespace enishi::physics::bullet3

@@ -1,6 +1,13 @@
 #include "physics_resource_pool.h"
 
 namespace enishi::physics::bullet3 {
+    PhysicsResourcePool::PhysicsResourcePool(void)
+        : rigid_bodies(std::make_unique<RigidBodyPool>())
+        , motion_states(std::make_unique<MotionStatePool>())
+        , shapes(std::make_unique<ShapePool>())
+        , joints(std::make_unique<JointPool>()) {
+    }
+
     INativeRigidBodyAccessor* PhysicsResourcePool::get_native_rigid_body_accessor(void) noexcept {
         return this->rigid_bodies.get();
     }

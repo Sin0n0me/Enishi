@@ -287,16 +287,15 @@ namespace enishi::assets_system {
             const auto offset = PMDToModelData::make_offset_from_pmd(rigid_body);
             const auto shape = PMDToModelData::make_shape_from_pmd(rigid_body);
             const auto rigid_body_type = PMDToModelData::make_rigid_body_type_from_pmd(rigid_body);
-            const bool is_kinematic = rigid_body_type == types::RigidBodyType::Kinematic;
+            const bool is_kinematic = rigid_body_type == types::RigidBodyKind::Kinematic;
             const float mass = is_kinematic ? 0.0f : rigid_body.mass;
 
-            const auto rb = types::RigidBody{
-                .group = rigid_body.group_index,
+            const auto rb = types::PhysicsRigidBody{
                 .group_mask = rigid_body.group_target,
-                .rigid_body_type = rigid_body_type,
+                .group_index = rigid_body.group_index,
+                .kind = rigid_body_type,
                 .shape = shape,
-                .offset = offset,
-                .mass = mass,
+                //.offset = offset,
                 .position =
                     glm::vec3{
                         rigid_body.position[0],
@@ -309,6 +308,7 @@ namespace enishi::assets_system {
                         rigid_body.rotation[1],
                         rigid_body.rotation[2],
                     },
+                .mass = mass,
                 .linear_damping = rigid_body.linear_damping,
                 .angular_damping = rigid_body.angular_damping,
                 .restitution = rigid_body.restitution,
@@ -461,19 +461,19 @@ namespace enishi::assets_system {
     types::RigidBodyShape PMDToModelData::make_shape_from_pmd(const PMDRigidBody& rigid_body) {
         switch (rigid_body.shape_type) {
             case PMDShapeType::Sphere: {
-                return types::ShapeSphere{
+                return types::RBShapeSphere{
                     .radius = rigid_body.shape_size[0],
                 };
             }
             case PMDShapeType::Box: {
-                return types::ShapeBox{
+                return types::RBShapeBox{
                     .width = rigid_body.shape_size[0],
                     .height = rigid_body.shape_size[1],
                     .depth = rigid_body.shape_size[2],
                 };
             }
             case PMDShapeType::Capsule: {
-                return types::ShapeCapsule{
+                return types::RBShapeCapsule{
                     .radius = rigid_body.shape_size[0],
                     .height = rigid_body.shape_size[1],
                 };
@@ -485,20 +485,20 @@ namespace enishi::assets_system {
         return types::RigidBodyShape();
     }
 
-    types::RigidBodyType PMDToModelData::make_rigid_body_type_from_pmd(
+    types::RigidBodyKind PMDToModelData::make_rigid_body_type_from_pmd(
         const PMDRigidBody& rigid_body) {
         switch (rigid_body.rigid_body_type) {
             case PMDRigidBodyType::FollowBone:
-                return types::RigidBodyType::Kinematic;
+                return types::RigidBodyKind::Kinematic;
             case PMDRigidBodyType::PhysicsSimulation:
-                return types::RigidBodyType::Dynamic;
+                return types::RigidBodyKind::Dynamic;
             case PMDRigidBodyType::PhysicsSimulationAndBoneAlignment:
-                return types::RigidBodyType::DynamicAdjustBone;
+                return types::RigidBodyKind::DynamicAdjustBone;
             default:
                 break;
         }
 
-        return types::RigidBodyType::Dynamic;
+        return types::RigidBodyKind::Dynamic;
     }
 
     std::unordered_map<std::filesystem::path, AssetTextureData> PMDToModelData::make_textures(

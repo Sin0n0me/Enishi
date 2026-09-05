@@ -5,7 +5,7 @@ namespace enishi::assets_system {
         : name_map(morph_data.build_name_index()) {
     }
 
-    foundation::Option<types::BoneIndex> MorphResolver::resolve_index(
+    foundation::Option<types::MorphIndex> MorphResolver::resolve_index(
         const foundation::UTF8& morph_name) const noexcept {
         const auto it = this->name_map.find_bone_index(morph_name);
         if (it.is_none()) {

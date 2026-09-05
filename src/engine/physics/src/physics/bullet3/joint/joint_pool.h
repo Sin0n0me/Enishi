@@ -20,7 +20,6 @@ namespace enishi::physics::bullet3 {
       public:
         std::tuple<types::HandleId, NativeJoint&> emplace_native_joint(
             NativeJoint&& joint) noexcept override;
-        std::tuple<types::HandleId, NativeJoint&> make_native_joint(void) noexcept override;
         void remove_native_joint(const types::HandleId handle) noexcept override;
 
         foundation::Option<NativeJoint&> get_native_joint(
@@ -28,6 +27,6 @@ namespace enishi::physics::bullet3 {
         foundation::Option<const NativeJoint&> get_native_joint(
             const types::HandleId handle) const noexcept override;
 
-        std::span<const NativeJoint&> get_native_joints(void) const noexcept override;
+        std::span<const NativeJoint> get_native_joints(void) const noexcept override;
     };
 } // namespace enishi::physics::bullet3

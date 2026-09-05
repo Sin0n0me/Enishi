@@ -21,8 +21,8 @@ namespace enishi::core {
 
       public:
         template <typename T, typename... Args>
-        std::shared_ptr<T> register_system(const Priority priority, const Args&... args) {
-            auto system = std::make_shared<T>(args...);
+        std::shared_ptr<T> register_system(const Priority priority, Args&&... args) {
+            auto system = std::make_shared<T>(std::forward<Args>(args)...);
             this->managed_systems.emplace_back(Entry{
                 .priority = priority,
                 .system = system,

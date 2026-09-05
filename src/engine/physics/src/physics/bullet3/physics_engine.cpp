@@ -1,8 +1,17 @@
 #include "physics_engine.h"
 
 namespace enishi::physics::bullet3 {
-    PhysicsEngine::PhysicsEngine(void)
-        : world(std::make_shared<PhysicsWorld>()) {
+    PhysicsEngine::PhysicsEngine(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config)
+        : world(std::make_shared<PhysicsWorld>(config)) {
+    }
+
+    foundation::VoidResult<platform::PhysicsError> PhysicsEngine::init_world(void) noexcept {
+        auto&& result = this->world->init().add_message("物理世界の初期化に失敗しました");
+        if (result.is_err()) {
+            return result.propagation(platform::PhysicsError::InitError);
+        }
+
+        return {};
     }
 
     std::shared_ptr<platform::IPhysicsWorld> PhysicsEngine::get_shared_world(void) noexcept {

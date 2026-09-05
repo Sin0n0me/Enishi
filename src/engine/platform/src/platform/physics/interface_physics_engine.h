@@ -2,11 +2,14 @@
 #include "interface_physics_world.h"
 #include <engine_types/system/delta_time.h>
 #include <memory>
+#include <platform/errors/physics_errors.h>
 
 namespace enishi::platform {
     class IPhysicsEngine {
       public:
         virtual ~IPhysicsEngine(void) noexcept = default;
+
+        [[nodiscard]] virtual foundation::VoidResult<PhysicsError> init_world(void) noexcept = 0;
 
         [[nodiscard]] virtual std::shared_ptr<IPhysicsWorld> get_shared_world(void) noexcept = 0;
 

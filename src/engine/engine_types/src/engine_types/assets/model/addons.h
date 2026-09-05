@@ -11,7 +11,7 @@
 namespace enishi::types {
     using AddonBones = std::vector<ModelBone>;
     using AddonIKs = std::vector<IK>;
-    using AddonRigidBodies = std::vector<RigidBody>;
+    using AddonRigidBodies = std::vector<PhysicsRigidBody>;
     using AddonPhysicsJoints = std::vector<PhysicsJoint>;
 
     using ModelAddon = std::variant<std::monostate,

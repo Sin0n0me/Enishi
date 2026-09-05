@@ -1,9 +1,4 @@
 #pragma once
-#include <cstdint>
-#include <glm/glm.hpp>
-#include <variant>
-#include <vector>
+#include <engine_types/physics/joint/physics_joint.h>
 
-namespace enishi::types {
-    struct PhysicsJoint {};
-} // namespace enishi::types
+namespace enishi::types {} // namespace enishi::types

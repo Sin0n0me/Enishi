@@ -3,11 +3,11 @@
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/handle/physics/physics_handle.h>
 #include <engine_types/physics/object/physics_object.h>
+#include <foundation/option/option.h>
 #include <foundation/pool/resource_pool.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <physics/errors/errors.h>
-#include <platform/physics/interface_physics_paramter_readable.h>
 #include <platform/physics/interface_physics_world.h>
 #include <unordered_map>
 
@@ -36,5 +36,11 @@ namespace enishi::physics::bullet3 {
 
         [[nodiscard]] foundation::VoidResult<PhysicsError> link_handle(
             const types::PhysicsHandle& object_handle, const types::PhysicsHandle& link_handle);
+
+      private:
+        [[nodiscard]] foundation::Option<const HandlePoolMap&> get_map(
+            const types::PhysicsHandle& object_handle) const;
+        [[nodiscard]] foundation::Option<HandlePoolMap&> get_map(
+            const types::PhysicsHandle& object_handle);
     };
 } // namespace enishi::physics::bullet3

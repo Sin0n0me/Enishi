@@ -1,8 +1,8 @@
 #include "physics_native_resource_maker.h"
 #include <glm/gtc/matrix_transform.hpp>
-#include <physics/bullet3/motion_state/mmd_dynamic_and_bone_merge_motion_state.h>
-#include <physics/bullet3/motion_state/mmd_dynamic_motion_state.h>
-#include <physics/bullet3/motion_state/mmd_kinematic_motion_state.h>
+#include <physics/bullet3/motion_state/dynamic/mmd_dynamic_and_bone_merge_motion_state.h>
+#include <physics/bullet3/motion_state/dynamic/mmd_dynamic_motion_state.h>
+#include <physics/bullet3/motion_state/kinematic/mmd_kinematic_motion_state.h>
 
 namespace enishi::physics::bullet3 {
     foundation::Result<PhysicsNativeResourceMaker::Shape, PhysicsError>
@@ -15,7 +15,7 @@ namespace enishi::physics::bullet3 {
             });
         }
         if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            return std::make_unique<btCapsuleShape>(shape->height, shape->raius);
+            return std::make_unique<btCapsuleShape>(shape->height, shape->radius);
         }
         if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
             return std::make_unique<btSphereShape>(shape->radius);
@@ -58,8 +58,6 @@ namespace enishi::physics::bullet3 {
         btCollisionShape* const shape,
         IMMDMotionState* const active_motion_state,
         IMMDMotionState* const kinematic_motion_state) {
-        auto&& native_rigid_body = std::make_unique<btRigidBody>();
-
         const bool is_kinematic = rigid_body.kind == types::RigidBodyKind::Kinematic;
         const btScalar mass = is_kinematic ? 0.0f : rigid_body.mass;
         btVector3 local_inertia(0, 0, 0);
@@ -87,7 +85,7 @@ namespace enishi::physics::bullet3 {
                 bullet_rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
         }
 
-        return native_rigid_body;
+        return bullet_rigid_body;
     }
 
     foundation::Result<std::unique_ptr<btGeneric6DofSpringConstraint>, PhysicsError>

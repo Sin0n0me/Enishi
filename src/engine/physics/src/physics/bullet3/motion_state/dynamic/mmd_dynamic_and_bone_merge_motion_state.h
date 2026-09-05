@@ -1,12 +1,11 @@
 #pragma once
-#include "interface_mmd_motion_state.h"
 #include <LinearMath/btMotionState.h>
 #include <glm/glm.hpp>
 #include <memory>
-#include <platform/animation/interface_bone_updater.h>
+#include <physics/bullet3/motion_state/interface_mmd_motion_state.h>
 
 namespace enishi::physics::bullet3 {
-    class MMDDynamicMotionState : public IMMDMotionState {
+    class MMDDynamicAndBoneMergeMotionState : public IMMDMotionState {
       private:
         glm::mat4 global;
         glm::mat4 offset;
@@ -15,8 +14,9 @@ namespace enishi::physics::bullet3 {
         bool override_with_physics;
 
       public:
-        explicit MMDDynamicMotionState(const glm::mat4& offset, const bool override_with_physics);
-        virtual ~MMDDynamicMotionState(void) noexcept = default;
+        explicit MMDDynamicAndBoneMergeMotionState(
+            const glm::mat4& offset, const bool override_with_physics);
+        virtual ~MMDDynamicAndBoneMergeMotionState(void) noexcept = default;
 
         void getWorldTransform(btTransform& worldTrans) const override;
         void setWorldTransform(const btTransform& worldTrans) override;

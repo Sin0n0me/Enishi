@@ -9,28 +9,25 @@
 #include <memory>
 #include <physics/bullet3/interface_native_physics_accessor.h>
 #include <physics/bullet3/motion_state/interface_mmd_motion_state.h>
+#include <physics/common/physics_bone_views.h>
 #include <physics/errors/errors.h>
-#include <platform/bone_ststem/interface_bone_view.h>
-#include <platform/physics/bone/interface_physics_bone_view.h>
-#include <platform/physics/rigid_body/interface_rigid_body.h>
 
 namespace enishi::physics::bullet3 {
     class BulletRigidBody : public platform::IRigidBody {
       private:
-        std::shared_ptr<INativePhysicsAccessor> view;
-        std::shared_ptr<platform::IBoneView> bone_view;
-        std::shared_ptr<platform::IBoneUpdater> updater;
-        std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view;
+        std::shared_ptr<INativePhysicsAccessor> native_view;
+        PhysicsBoneViews views;
         types::HandleId rigid_body;
         types::HandleId active_motion_state;
         types::HandleId kinematic_motion_state;
         types::RigidBodyKind kind;
 
       public:
-        explicit BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> view,
-            std::shared_ptr<platform::IBoneView> bone_view,
-            std::shared_ptr<platform::IBoneUpdater> updater,
-            std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view);
+        explicit BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> native_view,
+            PhysicsBoneViews&& views,
+            types::HandleId rigid_body,
+            types::HandleId active_motion_state,
+            types::HandleId kinematic_motion_state);
 
         void set_active(const bool active_flag) override;
         void reset(void) override;

@@ -22,6 +22,9 @@ namespace enishi::physics::bullet3 {
         std::unique_ptr<JointPool> joints;
 
       public:
+        explicit PhysicsResourcePool(void);
+
+      public:
         INativeRigidBodyAccessor* get_native_rigid_body_accessor(void) noexcept override;
         const INativeRigidBodyAccessor* get_native_rigid_body_accessor(
             void) const noexcept override;

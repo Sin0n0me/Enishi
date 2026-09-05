@@ -40,7 +40,7 @@ namespace enishi::foundation {
             return vec.at(index);
         }
 
-        [[nodiscard]] std::span<const T&> get_all(void) const noexcept {
+        [[nodiscard]] std::span<const T> get_all(void) const noexcept {
             return this->resources;
         }
     };

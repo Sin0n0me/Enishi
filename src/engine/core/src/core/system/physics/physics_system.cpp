@@ -5,7 +5,7 @@
 
 namespace enishi::core {
     PhysicsSystem::PhysicsSystem(std::shared_ptr<ecs::Registory> registory,
-        std::unique_ptr<platform::IPhysicsEngine> physics_engine)
+        std::shared_ptr<platform::IPhysicsEngine> physics_engine)
         : registory(registory)
         , physics_engine(std::move(physics_engine)) {
     }

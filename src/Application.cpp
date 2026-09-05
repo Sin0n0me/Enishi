@@ -5,6 +5,7 @@
 #include <core/system/animation/animation_system.h>
 #include <core/system/physics/physics_system.h>
 #include <foundation/log/logger.h>
+#include <platform_impl/physics/physics_config.h>
 
 #include <physics/bullet3/physics_engine.h>
 
@@ -37,8 +38,12 @@ namespace enishi {
         auto asset_manager = this->system_scheduler.register_system<core::AssetManager>(50);
         auto animation_system =
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
+
+        auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
+            std::make_shared<platform_impl::PhysicsWorldConfig>());
+
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
-            90, this->rsegistory, std::make_unique<physics::bullet3::PhysicsEngine>());
+            90, this->rsegistory, physics_engine);
 
         // ウィンドウの初期化
         const auto root_window = this->init_window();
@@ -54,7 +59,7 @@ namespace enishi {
         }
         foundation::Logger::info("レンダラーの初期化に成功しました");
 
-        this->init_physics(asset_manager);
+        this->init_physics(asset_manager, physics_engine);
 
         return true;
     }
@@ -153,6 +158,8 @@ namespace enishi {
         return renderer;
     }
 
-    void Application::init_physics(std::shared_ptr<assets_system::IAssetSystem> asset_system) {
+    void Application::init_physics(std::shared_ptr<assets_system::IAssetSystem> asset_system,
+        std::shared_ptr<platform::IPhysicsEngine> physics_engine) {
+        physics_engine->init_world();
     }
 } // namespace enishi

@@ -8,8 +8,9 @@ namespace enishi::physics::bullet3 {
         std::shared_ptr<PhysicsWorld> world;
 
       public:
-        explicit PhysicsEngine(void);
+        explicit PhysicsEngine(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config);
 
+        foundation::VoidResult<platform::PhysicsError> init_world(void) noexcept override;
         std::shared_ptr<platform::IPhysicsWorld> get_shared_world(void) noexcept override;
         platform::IPhysicsWorld* get_world(void) noexcept override;
         const platform::IPhysicsWorld* get_world(void) const noexcept override;

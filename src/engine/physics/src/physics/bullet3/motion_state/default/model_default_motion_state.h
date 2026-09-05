@@ -1,22 +1,14 @@
 #pragma once
-#include "interface_mmd_motion_state.h"
 #include <LinearMath/btMotionState.h>
-#include <glm/glm.hpp>
-#include <memory>
+#include <btBulletCollisionCommon.h>
+#include <btBulletDynamicsCommon.h>
+#include <platform/physics/motion_state/interface_motion_state.h>
 
 namespace enishi::physics::bullet3 {
-    class MMDKinematicMotionState : public IMMDMotionState {
-      private:
-        glm::mat4 global;
-        glm::mat4 offset;
-        btTransform transform;
-
+    class ModelDefaultMotionState : public btDefaultMotionState, public platform::IMotionState {
       public:
-        explicit MMDKinematicMotionState(const glm::mat4& offset) noexcept;
-        virtual ~MMDKinematicMotionState(void) noexcept = default;
+        using btDefaultMotionState::btDefaultMotionState;
 
-        void getWorldTransform(btTransform& worldTrans) const override;
-        void setWorldTransform(const btTransform& worldTrans) override;
         void reset(platform::IPhysicsBoneView* const physics_bone) override;
         void set_offset(const glm::mat4& offset) override;
         void update_global_transform(platform::IPhysicsBoneView* const physics_bone) override;

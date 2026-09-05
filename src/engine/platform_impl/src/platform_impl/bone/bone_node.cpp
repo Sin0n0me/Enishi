@@ -107,9 +107,6 @@ namespace enishi::platform_impl {
         return this->bind.global_inverse;
     }
 
-    void BoneNode::update_local(void) noexcept {
-    }
-
     void BoneNode::update_animation_global(void) noexcept {
         auto tree = this->node_tree.lock();
         if (!bool(tree)) {
@@ -148,7 +145,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->set_local(op, to, std::move(opt_mat).unwrap_mut());
+        this->set_local(op, to, std::move(opt_mat.unwrap_mut()));
     }
     void BoneNode::write_global(
         const types::BoneKind from, const types::BoneKind to, const MatrixOperator op) noexcept {
@@ -157,7 +154,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->set_global(op, to, std::move(opt_mat).unwrap_mut());
+        this->set_global(op, to, std::move(opt_mat.unwrap_mut()));
     }
     void BoneNode::write_local_to_global(
         const types::BoneKind from, const types::BoneKind to, const MatrixOperator op) noexcept {
@@ -188,7 +185,7 @@ namespace enishi::platform_impl {
         return this->physics;
     }
     const types::SkinningBone& BoneNode::get_skinning_bone(void) const noexcept {
-        this->skinning;
+        return this->skinning;
     }
 
     foundation::Option<glm::mat4> BoneNode::get_local(const types::BoneKind kind) const {

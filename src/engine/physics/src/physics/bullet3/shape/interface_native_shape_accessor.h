@@ -16,8 +16,6 @@ namespace enishi::physics::bullet3 {
 
         [[nodiscard]] virtual std::tuple<types::HandleId, NativeShape&> emplace_native_shape(
             NativeShape&& shape) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<types::HandleId, NativeShape&> make_native_shape(
-            void) noexcept = 0;
         [[nodiscard]] virtual void remove_native_shape(const types::HandleId handle) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<NativeShape&> get_native_shape(

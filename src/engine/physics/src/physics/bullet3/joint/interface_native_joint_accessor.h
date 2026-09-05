@@ -17,8 +17,6 @@ namespace enishi::physics::bullet3 {
 
         [[nodiscard]] virtual std::tuple<types::HandleId, NativeJoint&> emplace_native_joint(
             NativeJoint&& joint) noexcept = 0;
-        [[nodiscard]] virtual std::tuple<types::HandleId, NativeJoint&> make_native_joint(
-            void) noexcept = 0;
         [[nodiscard]] virtual void remove_native_joint(const types::HandleId handle) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<NativeJoint&> get_native_joint(
@@ -26,7 +24,7 @@ namespace enishi::physics::bullet3 {
         [[nodiscard]] virtual foundation::Option<const NativeJoint&> get_native_joint(
             const types::HandleId handle) const noexcept = 0;
 
-        [[nodiscard]] virtual std::span<const NativeJoint&> get_native_joints(
+        [[nodiscard]] virtual std::span<const NativeJoint> get_native_joints(
             void) const noexcept = 0;
     };
 } // namespace enishi::physics::bullet3

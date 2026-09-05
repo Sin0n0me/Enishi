@@ -9,13 +9,13 @@
 
 namespace enishi::types {
     template <typename V> class HandleMapper {
-      private:
-        HandleAllocator handle_allocator;
-        std::unordered_map<types::HandleId, V> handle_mapper;
-
       public:
         using KeyType = types::HandleId;
         using ValueType = V;
+
+      private:
+        HandleAllocator handle_allocator;
+        std::unordered_map<KeyType, V> handle_mapper;
 
       public:
         [[nodiscard]] types::HandleId emplace(V&& resource) {
@@ -41,7 +41,7 @@ namespace enishi::types {
             };
         }
 
-        [[nodiscard]] foundation::Option<V&> get(const types::HandleId& handle) noexcept {
+        [[nodiscard]] foundation::Option<V&> get(const KeyType& handle) noexcept {
             if (!this->handle_allocator.is_alive(handle)) {
                 return {};
             }
@@ -52,8 +52,7 @@ namespace enishi::types {
             return iter->second;
         }
 
-        [[nodiscard]] foundation::Option<const V&> get(
-            const types::HandleId& handle) const noexcept {
+        [[nodiscard]] foundation::Option<const V&> get(const KeyType& handle) const noexcept {
             if (!this->handle_allocator.is_alive(handle)) {
                 return {};
             }
@@ -64,16 +63,20 @@ namespace enishi::types {
             return iter->second;
         }
 
-        void remove(const types::HandleId& handle) {
+        void remove(const KeyType& handle) {
             this->handle_mapper.erase(handle);
             this->handle_allocator.destroy(handle);
         }
 
-        V& operator[](const types::HandleId& key) {
+        V& operator[](const KeyType& key) {
             return this->handle_mapper[key];
         }
-        const V& operator[](const types::HandleId& key) const {
+        const V& operator[](const KeyType& key) const {
             return this->handle_mapper[key];
+        }
+
+        bool contains(const KeyType& key) const {
+            return this->handle_mapper.contains(key);
         }
     };
 

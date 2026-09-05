@@ -19,7 +19,6 @@ namespace enishi::physics::bullet3 {
       public:
         std::tuple<types::HandleId, NativeShape&> emplace_native_shape(
             NativeShape&& shape) noexcept override;
-        std::tuple<types::HandleId, NativeShape&> make_native_shape(void) noexcept override;
         void remove_native_shape(const types::HandleId handle) noexcept override;
 
         foundation::Option<NativeShape&> get_native_shape(

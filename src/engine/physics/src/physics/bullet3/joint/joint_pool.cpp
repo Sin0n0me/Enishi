@@ -11,17 +11,6 @@ namespace enishi::physics::bullet3 {
             });
     }
 
-    std::tuple<types::HandleId, JointPool::NativeJoint&> JointPool::make_native_joint(
-        void) noexcept {
-        return this->handle_mapper.make_from(
-            this->native_joints.emplace(std::make_unique<JointPool::NativeJoint::element_type>()),
-            [](const std::size_t index) {
-                return decltype(handle_mapper)::ValueType{
-                    .index = index,
-                };
-            });
-    }
-
     void JointPool::remove_native_joint(const types::HandleId handle) noexcept {
     }
 
@@ -41,7 +30,7 @@ namespace enishi::physics::bullet3 {
             });
     }
 
-    std::span<const JointPool::NativeJoint&> JointPool::get_native_joints(void) const noexcept {
+    std::span<const JointPool::NativeJoint> JointPool::get_native_joints(void) const noexcept {
         return this->native_joints.get_all();
     }
 } // namespace enishi::physics::bullet3

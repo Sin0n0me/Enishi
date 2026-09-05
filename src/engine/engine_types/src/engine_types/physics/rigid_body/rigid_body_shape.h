@@ -15,7 +15,7 @@ namespace enishi::types {
     };
 
     struct RBShapeCapsule {
-        float raius;
+        float radius;
         float height;
     };
 

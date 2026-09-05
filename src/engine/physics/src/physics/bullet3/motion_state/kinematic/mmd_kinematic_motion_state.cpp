@@ -3,7 +3,7 @@
 #include <physics/helper/helper.h>
 
 namespace enishi::physics::bullet3 {
-    MMDKinematicMotionState::MMDKinematicMotionState(const glm::mat4& offset)
+    MMDKinematicMotionState::MMDKinematicMotionState(const glm::mat4& offset) noexcept
         : global(glm::mat4{1.0f})
         , offset(offset)
         , transform(btTransform::getIdentity()) {
