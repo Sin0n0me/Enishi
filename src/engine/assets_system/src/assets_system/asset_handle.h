@@ -19,7 +19,7 @@ namespace std {
         std::size_t operator()(const enishi::assets_system::AssetHandle& h) const noexcept {
             const auto h1 = std::hash<decltype(h.id)>{}(h.id);
             const auto h2 = std::hash<decltype(h.type)>{}(h.type);
-            return h1 ^ (h2 < 1);
+            return h1 ^ (h2 << 1);
         }
     };
 } // namespace std
