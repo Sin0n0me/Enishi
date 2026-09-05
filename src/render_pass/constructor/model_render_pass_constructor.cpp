@@ -128,11 +128,12 @@ namespace enishi {
     ModelRenderPassConstructor::make_mesh(platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system,
         const std::vector<types::RenderHandle>& shader_reflections) {
-        const auto pattern_model_extensions = asset_system->model_extensions_pattern();
+        const auto pattern_model_extensions =
+            asset_system->get_extensions_pattern(types::AssetKind::Model);
         const auto path = MODEL_PATH / "";
         const std::regex pattern(
             std::format("{}.*{}", foundation::path_to_regex_str(path), pattern_model_extensions));
-        const auto model_paths = asset_system->find_models(MODEL_PATH);
+        const auto model_paths = asset_system->find_assets(MODEL_PATH, types::AssetKind::Model);
         const auto asset_paths = model_paths.find(pattern);
 
         if (asset_paths.empty()) {

@@ -19,7 +19,7 @@ namespace enishi::assets_system {
         foundation::Result<AssetData, AssetError> load(
             const std::filesystem::path& path) noexcept override;
         std::vector<foundation::UTF8> get_supported_extension(void) const noexcept override;
-        AssetType get_target_asset_type(void) const noexcept override;
+        types::AssetKind get_target_asset_type(void) const noexcept override;
 
       private:
     };

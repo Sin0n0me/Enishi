@@ -121,7 +121,7 @@ namespace enishi::assets_system {
         }
     }
 
-    AssetType TextureLoader::get_target_asset_type(void) const noexcept {
-        return AssetType::Texture;
+    types::AssetKind TextureLoader::get_target_asset_type(void) const noexcept {
+        return types::AssetKind::Texture;
     }
 } // namespace enishi::assets_system

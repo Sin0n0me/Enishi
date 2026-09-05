@@ -138,8 +138,9 @@ namespace enishi {
         platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system,
         std::unordered_map<types::ShaderKind, std::vector<std::filesystem::path>>&& paths) {
-        const auto shader_paths = asset_system->find_shaders(SHADER_PATH);
-        const auto pattern_shader_extensions = asset_system->shader_extensions_pattern();
+        const auto shader_paths = asset_system->find_assets(SHADER_PATH, types::AssetKind::Shader);
+        const auto pattern_shader_extensions =
+            asset_system->get_extensions_pattern(types::AssetKind::Shader);
         const auto make_paths = [&](const std::filesystem::path& file_path) {
             const auto str_pattern = std::format(
                 "{}{}", foundation::path_to_regex_str(file_path), pattern_shader_extensions);
@@ -184,20 +185,22 @@ namespace enishi {
         platform::IRenderer* const renderer,
         assets_system::IAssetSystem* const asset_system) {
         // ファイル読み込み
-        const auto asset_handle = asset_system->load_asset(path);
+        const auto asset_handle =
+            asset_system->load_asset(path).add_message("シェーダーの読み込みに失敗しました");
         if (asset_handle.is_err()) {
             return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
         }
         const auto shader_data = asset_system->get_shader_data(asset_handle.unwrap());
         if (shader_data.is_none()) {
-            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
+            return foundation::Error(
+                core::SystemError::ConstructRenderPassError, "シェーダーデータが存在しません");
         }
 
         // シェーダーの作成
         const auto& raw_shader_data = *shader_data.unwrap();
         const auto shader = renderer->create_shader(kind, raw_shader_data);
         if (shader.is_err()) {
-            return asset_handle.propagation(core::SystemError::ConstructRenderPassError);
+            return foundation::Error(core::SystemError::ConstructRenderPassError);
         }
 
         // シェーダーリフレクションの作成(こちらは最悪失敗してもよい)

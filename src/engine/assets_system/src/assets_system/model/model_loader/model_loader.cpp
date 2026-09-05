@@ -61,7 +61,7 @@ namespace enishi::assets_system {
         return extensions;
     }
 
-    AssetType ModelLoader::get_target_asset_type(void) const noexcept {
-        return AssetType::Model;
+    types::AssetKind ModelLoader::get_target_asset_type(void) const noexcept {
+        return types::AssetKind::Model;
     }
 } // namespace enishi::assets_system

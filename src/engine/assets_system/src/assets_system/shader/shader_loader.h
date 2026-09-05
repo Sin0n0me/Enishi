@@ -30,6 +30,6 @@ namespace enishi::assets_system {
         static foundation::Result<AssetShaderData, AssetError> load_dxbc(
             BinaryReader& reader) noexcept;
 
-        AssetType get_target_asset_type(void) const noexcept override;
+        types::AssetKind get_target_asset_type(void) const noexcept override;
     };
 } // namespace enishi::assets_system

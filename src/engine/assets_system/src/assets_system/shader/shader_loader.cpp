@@ -92,7 +92,7 @@ namespace enishi::assets_system {
         });
     }
 
-    AssetType ShaderLoader::get_target_asset_type(void) const noexcept {
-        return AssetType::Shader;
+    types::AssetKind ShaderLoader::get_target_asset_type(void) const noexcept {
+        return types::AssetKind::Shader;
     }
 } // namespace enishi::assets_system

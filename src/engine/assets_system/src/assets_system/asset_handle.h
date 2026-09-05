@@ -1,15 +1,17 @@
 #pragma once
-#include "asset_type.h"
 #include <cstdint>
+#include <engine_types/assets/asset_kind.h>
 #include <engine_types/handle/handle_type.h>
 #include <functional>
 
 namespace enishi::assets_system {
     struct AssetHandle {
         types::HandleId id;
-        AssetType type;
+        types::AssetKind type;
 
         bool is_valid(void) const noexcept;
+
+        bool operator==(const AssetHandle&) const noexcept = default;
     };
 } // namespace enishi::assets_system
 

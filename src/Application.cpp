@@ -3,6 +3,7 @@
 #include "render_pass/constructor/model_render_pass_constructor.h"
 #include "render_pass/constructor/shadow_map_render_pass_constructor.h"
 #include <core/system/animation/animation_system.h>
+#include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
 #include <foundation/log/logger.h>
 #include <platform_impl/physics/physics_config.h>
@@ -35,7 +36,7 @@ namespace enishi {
         this->rsegistory = std::make_shared<ecs::Registory>();
 
         // システムの追加
-        auto asset_manager = this->system_scheduler.register_system<core::AssetManager>(50);
+        auto asset_system = this->system_scheduler.register_system<core::AssetSystem>(50);
         auto animation_system =
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
 
@@ -53,13 +54,13 @@ namespace enishi {
         foundation::Logger::info("ウィンドウの初期化に成功しました");
 
         // レンダラーの初期化
-        const auto renderer = this->init_renderer(root_window, asset_manager);
+        const auto renderer = this->init_renderer(root_window, asset_system->get_asset_system());
         if (!bool(renderer)) {
             return false;
         }
         foundation::Logger::info("レンダラーの初期化に成功しました");
 
-        this->init_physics(asset_manager, physics_engine);
+        this->init_physics(asset_system->get_asset_system(), physics_engine);
 
         return true;
     }

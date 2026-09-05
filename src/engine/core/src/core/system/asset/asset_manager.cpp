@@ -24,11 +24,10 @@ namespace enishi::core {
     }
 
     AssetManager::AssetManager(void) {
-        this->add_loader<assets_system::ShaderLoader>(assets_system::AssetType::Shader);
+        this->add_loader<assets_system::ShaderLoader>(types::AssetKind::Shader);
         auto texture_loader =
-            this->add_loader<assets_system::TextureLoader>(assets_system::AssetType::Texture);
-        this->add_loader<assets_system::ModelLoader>(
-            assets_system::AssetType::Model, texture_loader);
+            this->add_loader<assets_system::TextureLoader>(types::AssetKind::Texture);
+        this->add_loader<assets_system::ModelLoader>(types::AssetKind::Model, texture_loader);
     }
 
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
@@ -52,39 +51,24 @@ namespace enishi::core {
                 std::format("not found loader. target: {}", path.string<char>()));
         }
 
-        // 1つの拡張子が複数対応している場合判断がつかないので
-        // 最初に正常に読み込めた値を返す
-        for (const auto& loader : asset_iter->second) {
-            auto result = loader->load(path);
-            if (result.is_err()) {
-                continue;
-            }
-
-            auto&& asset_data = result.unwrap_mut();
-            if (const auto model_data = std::get_if<assets_system::AssetModelData>(&asset_data)) {
-                auto&& handle = this->register_model(std::move(*model_data));
-                if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.unwrap();
-                    return handle;
-                }
-            }
-            if (auto texture_data = std::get_if<assets_system::AssetTextureData>(&asset_data)) {
-                auto&& handle = this->register_texture(std::move(*texture_data));
-                if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.unwrap();
-                    return handle;
-                }
-            }
-            if (auto shader_data = std::get_if<assets_system::AssetShaderData>(&asset_data)) {
-                auto&& handle = this->register_shader(std::move(*shader_data));
-                if (handle.is_ok()) {
-                    this->path_to_handle[normalized_path] = handle.unwrap();
-                    return handle;
-                }
-            }
+        const auto& candidates = asset_iter->second;
+        if (candidates.empty()) {
+            return foundation::Error(assets_system::AssetError::NotFound);
         }
 
-        return foundation::Error(assets_system::AssetError::NotFound);
+        // ハンドルはIOの完了を待たずにこの場で発行する
+        // (typeは最有力候補である先頭ローダーの対応アセット種別を暫定的に採用する。
+        //  1拡張子に複数ローダーが対応するケースは稀であり、通常はここで確定する)
+        const auto handle = assets_system::AssetHandle{
+            .id = this->asset_registory.create(),
+            .type = candidates.front()->get_target_asset_type(),
+        };
+
+        this->path_to_handle[normalized_path] = handle;
+        this->set_asset_state(handle, types::AssetState::Queued);
+        this->request_load(normalized_path, handle, candidates);
+
+        return handle;
     }
 
     void AssetManager::release_asset(const assets_system::AssetHandle& handle) noexcept {
@@ -142,27 +126,125 @@ namespace enishi::core {
         return matched_files;
     }
 
-    assets_system::PathObjects AssetManager::find_models(
-        const std::filesystem::path& target_path) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Model);
+    void AssetManager::request_load(const std::filesystem::path& path,
+        const assets_system::AssetHandle& handle,
+        const std::vector<AssetLoader>& candidates) {
+        // candidatesはthis->extension_to_loaderが保持するvectorへの参照であり、
+        // ワーカースレッド上で安全に使えるようコピーしてキャプチャする(shared_ptrのコピーなので軽量)
+        this->io_executor.submit([this, path, handle, candidates] {
+            this->set_asset_state(handle, types::AssetState::Loading);
+
+            // 1つの拡張子が複数ローダーに対応している場合、最初に正常に読み込めた結果を採用する
+            for (const auto& loader : candidates) {
+                auto result = loader->load(path);
+                if (result.is_ok()) {
+                    this->enqueue_completed_load(CompletedLoad{
+                        .handle = handle,
+                        .path = path,
+                        .result = std::move(result),
+                    });
+                    return;
+                }
+            }
+
+            this->enqueue_completed_load(CompletedLoad{
+                .handle = handle,
+                .path = path,
+                .result = foundation::Error(assets_system::AssetError::NotFound,
+                    std::format("読み込みに失敗しました. target: {}", path.string<char>())),
+            });
+        });
+    }
+
+    void AssetManager::set_asset_state(
+        const assets_system::AssetHandle& handle, const types::AssetState state) noexcept {
+        const std::lock_guard<std::mutex> lock(this->state_mutex);
+        this->asset_states[handle] = state;
+    }
+
+    void AssetManager::enqueue_completed_load(CompletedLoad&& completed) noexcept {
+        {
+            const std::lock_guard<std::mutex> lock(this->completed_loads_mutex);
+            this->completed_loads.push(std::move(completed));
+        }
+    }
+
+    foundation::Option<AssetManager::CompletedLoad> AssetManager::dequeue_completed_load(
+        void) noexcept {
+        const std::lock_guard<std::mutex> lock(this->completed_loads_mutex);
+        if (this->completed_loads.empty()) {
+            return {};
+        }
+
+        auto&& completed = std::move(this->completed_loads.front());
+        this->completed_loads.pop();
+        return completed;
+    }
+
+    void AssetManager::drain_completed_loads(void) {
+        for (;;) {
+            auto completed = this->dequeue_completed_load();
+            if (completed.is_none()) {
+                break;
+            }
+
+            this->finalize_load(std::move(completed).unwrap_mut());
+        }
+    }
+
+    void AssetManager::finalize_load(CompletedLoad&& completed) noexcept {
+        if (completed.result.is_err()) {
+            foundation::Logger::warning(
+                std::format("アセットの読み込みに失敗しました. path: {}, message: {}",
+                    completed.path.string<char>(),
+                    completed.result.unwrap_err().get_message()));
+
+            this->path_to_handle.erase(completed.path);
+            this->asset_registory.destroy(completed.handle.id);
+            this->set_asset_state(completed.handle, types::AssetState::Failed);
+            return;
+        }
+
+        // Registoryへの実データ挿入はメインスレッドでのみ行う(ComponentPoolはスレッドセーフでないため)
+        auto&& asset_data = std::move(completed.result).unwrap_mut();
+        const auto insert_result = std::visit(
+            [this, &completed](
+                auto&& data) { return this->insert_asset(completed.handle.id, std::move(data)); },
+            std::move(asset_data));
+
+        if (insert_result.is_err()) {
+            foundation::Logger::error(insert_result.unwrap_err().get_message());
+
+            this->path_to_handle.erase(completed.path);
+            this->asset_registory.destroy(completed.handle.id);
+            this->set_asset_state(completed.handle, types::AssetState::Failed);
+            return;
+        }
+
+        this->set_asset_state(completed.handle, types::AssetState::Loaded);
+    }
+
+    assets_system::PathObjects AssetManager::find_assets(const std::filesystem::path& target_path,
+        const types::AssetKind asset_kind) const noexcept {
+        const auto& extensions = this->get_extensions(asset_kind);
         return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
     }
 
-    assets_system::PathObjects AssetManager::find_shaders(
-        const std::filesystem::path& target_path) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Shader);
-        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    types::AssetState enishi::core::AssetManager::get_asset_state(
+        const assets_system::AssetHandle& handle) const noexcept {
+        const std::lock_guard<std::mutex> lock(this->state_mutex);
+
+        const auto iter = this->asset_states.find(handle);
+        if (iter == this->asset_states.end()) {
+            return types::AssetState::NotLoaded;
+        }
+        return iter->second;
     }
 
-    assets_system::PathObjects AssetManager::find_textures(
-        const std::filesystem::path& target_path) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Texture);
-        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
-    }
-    assets_system::PathObjects AssetManager::find_scripts(
-        const std::filesystem::path& target_path) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Script);
-        return this->find_assets(target_path, AssetManager::convert_hash_set(extensions));
+    foundation::UTF8 enishi::core::AssetManager::get_extensions_pattern(
+        const types::AssetKind asset_kind) const noexcept {
+        const auto& extensions = this->get_extensions(asset_kind);
+        return make_extension_regex(extensions);
     }
 
     foundation::Option<const assets_system::AssetModelData&> core::AssetManager::get_model_data(
@@ -180,38 +262,6 @@ namespace enishi::core {
         return this->asset_registory.get<assets_system::AssetTextureData>(handle.id);
     }
 
-    foundation::UTF8 core::AssetManager::model_extensions_pattern(void) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Model);
-        return make_extension_regex(extensions);
-    }
-
-    foundation::UTF8 core::AssetManager::shader_extensions_pattern(void) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Shader);
-        return make_extension_regex(extensions);
-    }
-
-    foundation::UTF8 core::AssetManager::texture_extensions_pattern(void) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Texture);
-        return make_extension_regex(extensions);
-    }
-
-    foundation::UTF8 core::AssetManager::script_extensions_pattern(void) const noexcept {
-        const auto& extensions = this->get_extensions(assets_system::AssetType::Script);
-        return make_extension_regex(extensions);
-    }
-
-    bool enishi::core::AssetManager::should_close(void) {
-        return false;
-    }
-    void enishi::core::AssetManager::pre_update(void) {
-    }
-    void core::AssetManager::update(const types::DeltaTime& delta_time) {
-    }
-    void enishi::core::AssetManager::post_update(void) {
-    }
-    void enishi::core::AssetManager::render(void) const {
-    }
-
     foundation::Result<assets_system::AssetHandle, assets_system::AssetError>
     core::AssetManager::register_model(assets_system::AssetModelData data) noexcept {
         const auto asset_id = this->register_asset(std::move(data));
@@ -221,7 +271,7 @@ namespace enishi::core {
         }
         return assets_system::AssetHandle{
             .id = asset_id.unwrap(),
-            .type = assets_system::AssetType::Model,
+            .type = types::AssetKind::Model,
         };
     }
 
@@ -235,7 +285,7 @@ namespace enishi::core {
         }
         return assets_system::AssetHandle{
             .id = asset_id.unwrap(),
-            .type = assets_system::AssetType::Shader,
+            .type = types::AssetKind::Shader,
         };
     }
 
@@ -248,13 +298,13 @@ namespace enishi::core {
         }
         return assets_system::AssetHandle{
             .id = asset_id.unwrap(),
-            .type = assets_system::AssetType::Texture,
+            .type = types::AssetKind::Texture,
         };
     }
 
     std::vector<foundation::UTF8> core::AssetManager::get_extensions(
-        const assets_system::AssetType asset_type) const {
-        const auto iter = this->asset_type_to_loader.find(asset_type);
+        const types::AssetKind asset_kind) const {
+        const auto iter = this->asset_type_to_loader.find(asset_kind);
         if (iter == this->asset_type_to_loader.end()) {
             return {};
         }
