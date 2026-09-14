@@ -19,20 +19,26 @@ namespace enishi::core {
     }
 
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
-        for (auto [entity, animation, model, ik, physics, skinning] :
+        for (auto [entity, animation, model, skinning] :
             this->registory->view<component::AnimationComponent,
                 component::ModelComponent,
-                component::IKComponent,
-                component::PhysicsComponent,
                 component::SkinningComponent>()) {
-            auto& bones = this->get_or_build(entity, animation, model, ik, physics);
+            auto opt_ik = this->registory->get<component::IKComponent>(entity);
+            auto opt_physics = this->registory->get<component::PhysicsComponent>(entity);
 
-            bones.animation_updater->update_global_form_roots();
+            auto& bones = this->get_or_build(entity, animation, model, opt_ik, opt_physics);
 
-            this->solve_ik(bones, ik);
+            // モデルごとに順序を変えられるようにする。指定が無ければ既定順序を使う
+            const std::span<const types::SkinningCommand> order =
+                skinning.order.empty()
+                    ? std::span<const types::SkinningCommand>(SkinningSystem::DEFAULT_ORDER)
+                    : std::span<const types::SkinningCommand>(skinning.order);
 
-            (void)bones.physics_updater;
+            for (const auto command : order) {
+                this->execute_command(command, bones, opt_ik);
+            }
 
+            // Skinning行列の確定は順序に関わらず、全ステップの後に必ず行う
             this->write_skinning_matrices(animation, model, skinning);
         }
     }
@@ -46,24 +52,39 @@ namespace enishi::core {
     ModelBones& SkinningSystem::get_or_build(const types::HandleId entity,
         component::AnimationComponent& animation,
         const component::ModelComponent& model,
-        component::IKComponent& ik,
-        component::PhysicsComponent& physics) noexcept {
+        foundation::Option<component::IKComponent&> ik,
+        foundation::Option<component::PhysicsComponent&> physics) noexcept {
         const auto iter = this->model_bones.find(entity);
         if (iter != this->model_bones.end()) {
             return *iter->second;
         }
 
         auto bones = std::make_unique<ModelBones>();
-        const auto bone_count = model.bone_node.size();
 
+        // Animation/Bindは全モデル共通で必須
         bones->animation_cache = std::make_unique<skinning_system::AnimationBonesCache>(
             model.bone_node, BoneViewFactory::make_animation_view(animation));
-        bones->physics_cache = std::make_unique<skinning_system::PhysicsBonesCache>(
-            model.bone_node, BoneViewFactory::make_physics_view(physics));
-        bones->ik_cache = std::make_unique<skinning_system::IKBoneCache>(
-            model.bone_node, BoneViewFactory::make_ik_view(ik));
+        bones->animation_updater =
+            std::make_unique<skinning_system::AnimationBonesUpdater>(*bones->animation_cache);
+
         bones->bind_cache = std::make_unique<skinning_system::BindBonesCache>(
             BoneViewFactory::make_bind_view(model));
+
+        // IKComponentを持たないモデルもある
+        if (ik.is_some()) {
+            bones->ik_cache = std::make_unique<skinning_system::IKBoneCache>(
+                model.bone_node, BoneViewFactory::make_ik_view(ik.unwrap_mut()));
+            bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(
+                *bones->ik_cache, *bones->bind_cache);
+        }
+
+        // PhysicsComponentを持たないモデルもある
+        if (physics.is_some()) {
+            bones->physics_cache = std::make_unique<skinning_system::PhysicsBonesCache>(
+                model.bone_node, BoneViewFactory::make_physics_view(physics.unwrap_mut()));
+            bones->physics_updater =
+                std::make_unique<skinning_system::PhysicsBonesUpdater>(*bones->physics_cache);
+        }
 
         auto& ref = *bones;
         this->model_bones.emplace(entity, std::move(bones));
@@ -71,10 +92,65 @@ namespace enishi::core {
     }
 
     void SkinningSystem::solve_ik(
-        ModelBones& bones, const component::IKComponent& ik) const noexcept {
+        ModelBones& bones, foundation::Option<component::IKComponent&> opt_ik) const noexcept {
+        if (bones.ik_cache || bones.ik_updater || opt_ik.is_none()) {
+            return;
+        }
+        const auto& ik = opt_ik.unwrap();
+
         for (const auto& [bone_index, ik_index] : ik.ik_map) {
             ik::IKSolver::apply_ik(
                 ik.iks[ik_index], bones.ik_cache.get(), bones.ik_updater.get(), bone_index);
+        }
+    }
+
+    void SkinningSystem::execute_command(const types::SkinningCommand command,
+        ModelBones& bones,
+        foundation::Option<component::IKComponent&> ik) const noexcept {
+        switch (command) {
+            case types::SkinningCommand::Animation:
+                // Animationは全モデル共通で必須のため、cache/updaterは常に存在する
+                bones.animation_updater->update_global_form_roots();
+                break;
+
+            case types::SkinningCommand::IK:
+                this->solve_ik(bones, ik);
+                break;
+
+            case types::SkinningCommand::PhysicsSimulate:
+                if (bones.physics_cache && bones.animation_cache) {
+                    const auto bone_count = bones.physics_cache->size();
+                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                        auto* const physics_view = bones.physics_cache->at(i);
+                        auto* const animation_view = bones.animation_cache->at(i);
+                        animation_view->set_animation_global_transform(
+                            physics_view->get_physics_global());
+                    }
+                }
+                break;
+
+            case types::SkinningCommand::WriteBackPhysicsSimulate:
+                if (bones.physics_cache && bones.animation_cache) {
+                    const auto bone_count = bones.physics_cache->size();
+                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                        auto* const animation_view = bones.animation_cache->at(i);
+                        auto* const physics_view = bones.physics_cache->at(i);
+                        physics_view->set_physics_global(
+                            animation_view->get_animation_global_transform());
+                    }
+                    bones.physics_updater->update_global_form_roots();
+                }
+                break;
+
+            case types::SkinningCommand::ReadBoneMatrices:
+            case types::SkinningCommand::WriteBoneMatrices:
+            case types::SkinningCommand::UpdateLocal:
+            case types::SkinningCommand::UpdateGlobal:
+            case types::SkinningCommand::ResetLocalTransform:
+            case types::SkinningCommand::ResetPosition:
+            case types::SkinningCommand::ResetRotate:
+            case types::SkinningCommand::ResetScale:
+                break;
         }
     }
 

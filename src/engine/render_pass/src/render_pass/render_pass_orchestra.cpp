@@ -21,6 +21,11 @@ namespace enishi::render_pass {
         this->constructors.emplace_back(render_pass_constructor);
     }
 
+    std::span<const std::shared_ptr<IRenderPassConstructor>> RenderPassOrchestra::get_constructors(
+        void) const {
+        return this->constructors;
+    }
+
     foundation::Option<std::shared_ptr<platform::IRenderPass>> RenderPassOrchestra::get_render_pass(
         const foundation::UTF8& pass_name) {
         auto iter = this->name_to_pass.find(pass_name);
@@ -66,7 +71,7 @@ namespace enishi::render_pass {
     void RenderPassOrchestra::remove_render_pass(const foundation::UTF8& pass_name) {
     }
 
-    std::span<const std::shared_ptr<platform::IRenderPass>> RenderPassOrchestra::get_passes(
+    std::vector<std::shared_ptr<platform::IRenderPass>> RenderPassOrchestra::get_passes(
         void) const {
         return this->render_passes;
     }

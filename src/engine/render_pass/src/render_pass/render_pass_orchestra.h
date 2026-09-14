@@ -10,7 +10,6 @@
 #include <unordered_set>
 #include <vector>
 
-
 namespace enishi::render_pass {
     class RenderPassOrchestra {
       private:
@@ -33,6 +32,8 @@ namespace enishi::render_pass {
 
         void add_constructor(std::shared_ptr<IRenderPassConstructor> render_pass_constructor);
 
+        std::span<const std::shared_ptr<IRenderPassConstructor>> get_constructors(void) const;
+
         void make_render_passes(const platform::IWindow* window);
 
         foundation::Option<std::shared_ptr<platform::IRenderPass>> get_render_pass(
@@ -44,7 +45,7 @@ namespace enishi::render_pass {
 
         void remove_render_pass(const foundation::UTF8& pass_name);
 
-        std::span<const std::shared_ptr<platform::IRenderPass>> get_passes(void) const;
+        std::vector<std::shared_ptr<platform::IRenderPass>> get_passes(void) const;
 
       private:
         void silent_add_render_pass(const foundation::UTF8& pass_name);

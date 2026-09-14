@@ -77,11 +77,11 @@ namespace enishi::ecs {
         }
 
         template <typename T> foundation::Option<T&> get(const EntityID id) {
-            const auto opt_pool = this->get_mut_pool<T>();
+            auto opt_pool = this->get_mut_pool<T>();
             if (opt_pool.is_none()) {
                 return {};
             }
-            return opt_pool.unwrap().get(id);
+            return opt_pool.unwrap_mut().get(id);
         }
 
         template <typename T> foundation::Option<const T&> get(const EntityID id) const {

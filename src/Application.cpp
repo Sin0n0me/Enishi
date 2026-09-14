@@ -9,7 +9,6 @@
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
-#include <render_pass/render_pass_orchestra.h>
 
 #include <model_controller/model_controller.h>
 
@@ -144,33 +143,21 @@ namespace enishi {
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->rsegistory, renderer, renderer);
 
-        render_pass::RenderPassOrchestra orchestra(
+        this->orchestra = std::make_unique<render_pass::RenderPassOrchestra>(
             render_system->get_renderer(), shader_data_provider);
 
         // レンダーパスの作成
-        orchestra.add_constructor(std::make_shared<render_pass::ModelRenderPassConstructor>());
-        orchestra.add_constructor(std::make_shared<render_pass::BackGroundRenderPassConstructor>());
-        orchestra.add_constructor(std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
+        this->orchestra->add_constructor(
+            std::make_shared<render_pass::ModelRenderPassConstructor>());
+        this->orchestra->add_constructor(
+            std::make_shared<render_pass::BackGroundRenderPassConstructor>());
+        this->orchestra->add_constructor(
+            std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
 
-        orchestra.make_render_passes(root_window.get());
-
-        /*
-        constructor.use_asset_paths();
-
-        // 一括構築
-        auto&& result_passes = constructor.create_render_passes(
-            {
-                render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
-            },
-            render_system->get_renderer().get());
-        if (result_passes.is_err()) {
-            foundation::Logger::error(result_passes.unwrap_err().get_message());
-            return {};
-        }
+        this->orchestra->make_render_passes(root_window.get());
 
         // レンダーパスのセット
-        render_system->set_render_passes(std::move(result_passes).unwrap_mut());
-        */
+        render_system->set_render_passes(this->orchestra->get_passes());
 
         return renderer;
     }

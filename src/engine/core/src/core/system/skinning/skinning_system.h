@@ -1,5 +1,6 @@
 #pragma once
 #include "model_bones.h"
+#include <array>
 #include <component/animation_component.h>
 #include <component/ik_component.h>
 #include <component/model_component.h>
@@ -7,7 +8,9 @@
 #include <component/skinning_component.h>
 #include <core/system/interface_system.h>
 #include <ecs/registory.h>
+#include <engine_types/skinning/skinning_command.h>
 #include <memory>
+#include <span>
 #include <unordered_map>
 
 namespace enishi::core {
@@ -16,6 +19,13 @@ namespace enishi::core {
      * 最終的にスキニング用の行列を作成する
      */
     class SkinningSystem final : public ISystem {
+      private:
+        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
+            types::SkinningCommand::Animation,
+            types::SkinningCommand::IK,
+            types::SkinningCommand::PhysicsSimulate,
+        };
+
       private:
         ecs::Registory* const registory;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
@@ -30,14 +40,18 @@ namespace enishi::core {
         void render(void) const override;
 
       private:
-        // 初めて見るエンティティであればModelBonesを構築する
         [[nodiscard]] ModelBones& get_or_build(const types::HandleId entity,
             component::AnimationComponent& animation,
             const component::ModelComponent& model,
-            component::IKComponent& ik,
-            component::PhysicsComponent& physics) noexcept;
+            foundation::Option<component::IKComponent&> ik,
+            foundation::Option<component::PhysicsComponent&> physics) noexcept;
 
-        void solve_ik(ModelBones& bones, const component::IKComponent& ik) const noexcept;
+        void solve_ik(
+            ModelBones& bones, foundation::Option<component::IKComponent&> opt_ik) const noexcept;
+
+        void execute_command(const types::SkinningCommand command,
+            ModelBones& bones,
+            foundation::Option<component::IKComponent&> ik) const noexcept;
 
         void write_skinning_matrices(const component::AnimationComponent& animation,
             const component::ModelComponent& model,

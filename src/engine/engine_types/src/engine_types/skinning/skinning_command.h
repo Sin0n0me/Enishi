@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <engine_types/skinning/skinning_command.h>
+#include <vector>
 
 namespace enishi::types {
     enum class SkinningCommand : std::uint8_t {

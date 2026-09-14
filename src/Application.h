@@ -8,6 +8,7 @@
 #include <platform/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
+#include <render_pass/render_pass_orchestra.h>
 #include <ui/ui.h>
 
 namespace enishi {
@@ -16,6 +17,7 @@ namespace enishi {
         std::shared_ptr<ecs::Registory> rsegistory;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
+        std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
 
       public:
         bool init(void);
