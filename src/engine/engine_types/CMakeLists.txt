@@ -7,7 +7,7 @@ include(FetchContent)
 
 FetchContent_Declare(
     GLM
-    GIT_REPOSITORY git@github.com:g-truc/glm.git
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
     GIT_TAG "1.0.3"
     GIT_SHALLOW TRUE
     GIT_PROGRESS ON
