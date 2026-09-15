@@ -28,7 +28,7 @@ namespace enishi::platform {
             const types::HandleId& handle, ShaderResourceView&& srv) noexcept = 0;
         [[nodiscard]] virtual types::HandleId make_depth_stencil_view(
             const types::HandleId& handle, DepthStencilView&& dsv) noexcept = 0;
-        [[nodiscard]] virtual types::HandleId make_unodered_access_view(
+        [[nodiscard]] virtual types::HandleId make_unordered_access_view(
             const types::HandleId& handle, UnorderedAccessView&& uav) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<RenderTargetView&> get_render_target_view(
@@ -43,10 +43,10 @@ namespace enishi::platform {
             const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const DepthStencilView&> get_depth_stencil_view(
             const types::HandleId handle) const noexcept = 0;
-        [[nodiscard]] virtual foundation::Option<UnorderedAccessView&> get_unodered_access_view(
+        [[nodiscard]] virtual foundation::Option<UnorderedAccessView&> get_unordered_access_view(
             const types::HandleId handle) noexcept = 0;
         [[nodiscard]] virtual foundation::Option<const UnorderedAccessView&>
-        get_unodered_access_view(const types::HandleId handle) const noexcept = 0;
+        get_unordered_access_view(const types::HandleId handle) const noexcept = 0;
 
         [[nodiscard]] virtual std::span<const RenderTargetView> get_render_target_views(
             void) const noexcept = 0;
@@ -54,7 +54,7 @@ namespace enishi::platform {
             void) const noexcept = 0;
         [[nodiscard]] virtual std::span<const DepthStencilView> get_depth_stencil_views(
             void) const noexcept = 0;
-        [[nodiscard]] virtual std::span<const UnorderedAccessView> get_unodered_access_views(
+        [[nodiscard]] virtual std::span<const UnorderedAccessView> get_unordered_access_views(
             void) const noexcept = 0;
     };
 } // namespace enishi::platform

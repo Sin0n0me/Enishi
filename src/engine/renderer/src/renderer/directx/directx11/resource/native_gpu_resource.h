@@ -1,7 +1,7 @@
 #pragma once
 #include "buffer/buffer_pool.h"
 #include "input_layout/input_layout_pool.h"
-#include "interface_native_resouce_accessor.h"
+#include "interface_native_resource_accessor.h"
 #include "shader/shader_pool.h"
 #include "state/state_pool.h"
 #include "texture/texture_pool.h"

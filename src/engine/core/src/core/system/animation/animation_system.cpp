@@ -3,8 +3,8 @@
 #include <engine_types/skinning/skinning_command.h>
 
 namespace enishi::core {
-    AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registory> registory)
-        : registory(registory) {
+    AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registry> registry)
+        : registry(registry) {
     }
 
     bool enishi::core::AnimationSystem::should_close(void) {
@@ -18,7 +18,7 @@ namespace enishi::core {
     }
 
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
-        auto view = this->registory->view<int>();
+        auto view = this->registry->view<int>();
 
         /*
         for (auto [entity, animation, model, ik] : view) {

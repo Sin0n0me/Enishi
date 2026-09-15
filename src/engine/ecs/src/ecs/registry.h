@@ -25,7 +25,7 @@ namespace enishi::ecs {
         }
     } // namespace
 
-    class Registory {
+    class Registry {
       private:
         types::HandleAllocator handle_allocator;
         std::unordered_map<ComponentId, std::unique_ptr<IComponentPool>> pools;

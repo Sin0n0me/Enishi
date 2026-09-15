@@ -1,6 +1,6 @@
 #pragma once
 #include "../interface_d3d11_context.h"
-#include "interface_native_resouce_accessor.h"
+#include "interface_native_resource_accessor.h"
 #include "native_gpu_resource.h"
 #include <engine_types/assets/model/model_data.h>
 #include <engine_types/handle/resource_handles.h>
@@ -89,7 +89,7 @@ namespace enishi::renderer::directx {
         make_shader_resource_view(const types::ResourceHandles image_index,
             const types::ImageViewDescription& description);
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
-        make_unodered_access_view(const types::ResourceHandles image_index,
+        make_unordered_access_view(const types::ResourceHandles image_index,
             const types::ImageViewDescription& description);
 
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>

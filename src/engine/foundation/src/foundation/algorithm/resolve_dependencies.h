@@ -5,7 +5,7 @@
 
 namespace enishi::foundation {
     enum class ResolveDependenciesError {
-        DupulicateNode,
+        DuplicateNode,
         InvalidGraph,
         CircularDependency,
     };

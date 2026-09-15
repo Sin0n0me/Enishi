@@ -1,7 +1,7 @@
 #pragma once
 #include "../interface_system.h"
 #include <core/errors/errors.h>
-#include <ecs/registory.h>
+#include <ecs/registry.h>
 #include <engine_types/renderer/render_graph.h>
 #include <foundation/str/str.h>
 #include <platform/renderer/interface_render_command_encoder.h>
@@ -12,7 +12,7 @@
 namespace enishi::core {
     class RenderSystem : public ISystem {
       private:
-        std::shared_ptr<ecs::Registory> registory;
+        std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<platform::IRenderer> renderer;
         std::shared_ptr<platform::IRenderCommandEncoder> encoder;
         std::vector<std::shared_ptr<platform::IRenderPass>> render_passes;
@@ -20,7 +20,7 @@ namespace enishi::core {
         explicit RenderSystem(void) = delete;
 
       public:
-        explicit RenderSystem(std::shared_ptr<ecs::Registory> registory,
+        explicit RenderSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<platform::IRenderer> renderer,
             std::shared_ptr<platform::IRenderCommandEncoder> encoder);
 

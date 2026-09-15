@@ -19,7 +19,7 @@ namespace enishi::physics::bullet3 {
         std::unique_ptr<btDefaultCollisionConfiguration> collision_config;
         std::unique_ptr<btOverlapFilterCallback> filter_callback;
         std::unique_ptr<btDiscreteDynamicsWorld> world;
-        std::unique_ptr<PhysicsObjectManager> object_maanger;
+        std::unique_ptr<PhysicsObjectManager> object_manager;
         std::shared_ptr<PhysicsResourcePool> resource_pool;
         std::unique_ptr<PhysicsHandleMapper> handle_mapper;
 

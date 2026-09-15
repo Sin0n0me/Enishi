@@ -1,7 +1,7 @@
 #pragma once
 #include "../helper.h"
 #include <foundation/constexpr/hash/char_array_to_hash.h>
-#include <render_pass/constructor/interface_render_pass_construstor.h>
+#include <render_pass/constructor/interface_render_pass_constructor.h>
 #include <vector>
 
 namespace enishi::render_pass {

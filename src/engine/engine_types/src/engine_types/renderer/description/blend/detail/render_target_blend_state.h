@@ -1,7 +1,7 @@
 #pragma once
 #include "blend_factor.h"
 #include "blend_operator.h"
-#include "color_white_mask.h"
+#include "color_write_mask.h"
 #include <cstdint>
 
 namespace enishi::types {

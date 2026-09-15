@@ -4,10 +4,10 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    RenderSystem::RenderSystem(std::shared_ptr<ecs::Registory> registory,
+    RenderSystem::RenderSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<platform::IRenderer> renderer,
         std::shared_ptr<platform::IRenderCommandEncoder> encoder)
-        : registory(registory)
+        : registry(registry)
         , renderer(renderer)
         , encoder(encoder) {
     }

@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <foundation/algorithm/resolve_dependencies.h>
 #include <foundation/result/result.h>
-#include <render_pass/constructor/interface_render_pass_construstor.h>
+#include <render_pass/constructor/interface_render_pass_constructor.h>
 #include <render_pass/errors/errors.h>
 #include <span>
 #include <unordered_map>
@@ -129,7 +129,7 @@ namespace enishi::render_pass {
         this->render_passes.emplace_back(pass_info.render_pass);
     }
 
-    foundation::VoidResult<ConstructError> RenderPassOrchestra::resoulve_mesh(
+    foundation::VoidResult<ConstructError> RenderPassOrchestra::resolve_mesh(
         platform::IRenderPass* const render_pass) {
         auto mesh_handle = types::RenderHandle{};
 

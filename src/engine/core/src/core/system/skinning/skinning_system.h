@@ -8,7 +8,7 @@
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/interface_system.h>
-#include <ecs/registory.h>
+#include <ecs/registry.h>
 #include <engine_types/skinning/skinning_command.h>
 #include <memory>
 #include <platform/physics/interface_physics_engine.h>
@@ -35,12 +35,12 @@ namespace enishi::core {
             component::PhysicsBodiesComponent*>;
 
       private:
-        ecs::Registory* const registory;
+        ecs::Registry* const registry;
         std::shared_ptr<platform::IPhysicsEngine> physics_engine;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
-        explicit SkinningSystem(ecs::Registory& registory) noexcept;
+        explicit SkinningSystem(ecs::Registry& registry) noexcept;
 
         bool should_close(void) override;
         void pre_update(void) override;
