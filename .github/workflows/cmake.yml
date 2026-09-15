@@ -1,10 +1,9 @@
-name: Windows MSBuild
+name: Windows CMake
 
 on:
   push:
   pull_request:
 
-# cmakeビルド環境が整うまでMSBuildを使用
 jobs:
   build:
     runs-on: windows-latest
@@ -20,31 +19,17 @@ jobs:
         with:
           submodules: recursive
           
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Setup Developer Command
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.platform }}
 
-      - name: Cache CMake build
-        id: cache-build
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: cmake-build-${{ matrix.platform }}-${{ hashFiles('build.cmd', '**/CMakeLists.txt') }}
-
-      - name: Run build.cmd (generate lib with CMake)
-        if: steps.cache-build.outputs.cache-hit != 'true'
+      - name: Configure
         run: |
-          build.cmd
+          cmake -S src -B build -G "Visual Studio 17 2022" -A ${{ matrix.platform }}
         shell: cmd
 
-      - name: MSBuild
+      - name: Build
         run: |
-          msbuild DesktopCharacter.sln ^
-            /p:Configuration=${{ matrix.config }} ^
-            /p:Platform=${{ matrix.platform }} ^
-            /m
+          cmake --build build --config ${{ matrix.config }} --parallel
         shell: cmd
