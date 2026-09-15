@@ -2,7 +2,7 @@
 #include "depth_stencil_view.h"
 #include "render_target_view.h"
 #include "shader_resource_view.h"
-#include "unodered_access_view.h"
+#include "unordered_access_view.h"
 
 namespace enishi::renderer::directx {
     std::tuple<types::HandleId, ViewPool::NativeDepthStencilView&>
@@ -190,14 +190,14 @@ namespace enishi::renderer::directx {
 
         return handle;
     }
-    types::HandleId ViewPool::make_unodered_access_view(
+    types::HandleId ViewPool::make_unordered_access_view(
         const types::HandleId& handle, UnorderedAccessView&& uav) noexcept {
         auto opt_view_handle = this->handle_mapper.get(handle);
         if (opt_view_handle.is_none()) {
             return {};
         }
         auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] = this->unodered_access.emplace(std::move(uav));
+        const auto [interface_index, _] = this->unordered_access.emplace(std::move(uav));
         view_handle.interface_index = interface_index;
 
         return handle;
@@ -244,18 +244,18 @@ namespace enishi::renderer::directx {
                 return this->depth_stencil.get(mapped_handle.interface_index);
             });
     }
-    foundation::Option<ViewPool::UnorderedAccessView&> ViewPool::get_unodered_access_view(
+    foundation::Option<ViewPool::UnorderedAccessView&> ViewPool::get_unordered_access_view(
         const types::HandleId handle) noexcept {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->unodered_access.get(mapped_handle.interface_index);
+                return this->unordered_access.get(mapped_handle.interface_index);
             });
     }
-    foundation::Option<const ViewPool::UnorderedAccessView&> ViewPool::get_unodered_access_view(
+    foundation::Option<const ViewPool::UnorderedAccessView&> ViewPool::get_unordered_access_view(
         const types::HandleId handle) const noexcept {
         return this->handle_mapper.get(handle).and_then(
             [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->unodered_access.get(mapped_handle.interface_index);
+                return this->unordered_access.get(mapped_handle.interface_index);
             });
     }
     std::span<const ViewPool::RenderTargetView> ViewPool::get_render_target_views(
@@ -270,8 +270,8 @@ namespace enishi::renderer::directx {
         void) const noexcept {
         return this->depth_stencil.get_all();
     }
-    std::span<const ViewPool::UnorderedAccessView> ViewPool::get_unodered_access_views(
+    std::span<const ViewPool::UnorderedAccessView> ViewPool::get_unordered_access_views(
         void) const noexcept {
-        return this->unodered_access.get_all();
+        return this->unordered_access.get_all();
     }
 } // namespace enishi::renderer::directx

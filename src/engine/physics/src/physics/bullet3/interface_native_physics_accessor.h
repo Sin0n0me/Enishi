@@ -1,6 +1,6 @@
 #pragma once
 #include "joint/interface_native_joint_accessor.h"
-#include "motion_state/interface_native_motion_satate_accessor.h"
+#include "motion_state/interface_native_motion_state_accessor.h"
 #include "rigid_body/interface_native_rigid_body_accessor.h"
 #include "shape/interface_native_shape_accessor.h"
 #include <engine_types/handle/handle_type.h>

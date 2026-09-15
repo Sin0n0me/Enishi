@@ -12,7 +12,7 @@ namespace enishi::physics::bullet3 {
 
     PhysicsWorld::PhysicsWorld(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config)
         : resource_pool(std::make_shared<PhysicsResourcePool>())
-        , object_maanger(std::make_unique<PhysicsObjectManager>())
+        , object_manager(std::make_unique<PhysicsObjectManager>())
         , broadphase(std::make_unique<btDbvtBroadphase>())
         , collision_config(std::make_unique<btDefaultCollisionConfiguration>())
         , solver(std::make_unique<btSequentialImpulseConstraintSolver>())
@@ -89,7 +89,7 @@ namespace enishi::physics::bullet3 {
         void) noexcept {
         return this->handle_mapper->make(types::PhysicsHandleType::PhysicsObject,
             types::ResourceHandles{
-                .resource = this->object_maanger->add_object(),
+                .resource = this->object_manager->add_object(),
             });
     }
 
@@ -158,7 +158,7 @@ namespace enishi::physics::bullet3 {
         this->world->addRigidBody(native_rigid_body.get(), group, mask);
 
         // オブジェクトとリンク
-        this->object_maanger->link_handle(object_handle, handle);
+        this->object_manager->link_handle(object_handle, handle);
 
         return handle;
     }
@@ -166,7 +166,7 @@ namespace enishi::physics::bullet3 {
     foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_joint(
         const types::PhysicsHandle& object_handle, const types::PhysicsJoint& joint) noexcept {
         const auto opt_rigid_body_handles =
-            this->object_maanger->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
+            this->object_manager->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
         if (opt_rigid_body_handles.is_none()) {
             return foundation::Error(platform::PhysicsError::MakeError);
         }
@@ -219,7 +219,7 @@ namespace enishi::physics::bullet3 {
             });
 
         // オブジェクトとリンク
-        this->object_maanger->link_handle(object_handle, handle);
+        this->object_manager->link_handle(object_handle, handle);
 
         return handle;
     }

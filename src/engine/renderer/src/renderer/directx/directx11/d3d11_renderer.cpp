@@ -199,7 +199,7 @@ namespace enishi::renderer::directx {
         const auto& index = opt_index.unwrap();
         auto opt_rtv = this->resource_manager->get_resource_accessor()
                            ->get_view_accessor()
-                           ->get_unodered_access_view(index.configurable);
+                           ->get_unordered_access_view(index.configurable);
         if (opt_rtv.is_none()) {
             return foundation::Error(platform::RenderError::MakeError);
         }

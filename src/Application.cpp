@@ -5,7 +5,7 @@
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
-#include <render_pass/constructor/back_ground/back_ground_render_pass_constructor.h>
+#include <render_pass/constructor/background/background_render_pass_constructor.h>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -38,18 +38,18 @@ namespace enishi {
     };
 
     bool Application::init(void) {
-        this->rsegistory = std::make_shared<ecs::Registory>();
+        this->registry = std::make_shared<ecs::Registry>();
 
         // システムの追加
         auto asset_system = this->system_scheduler.register_system<core::AssetSystem>(50);
         auto animation_system =
-            this->system_scheduler.register_system<core::AnimationSystem>(80, this->rsegistory);
+            this->system_scheduler.register_system<core::AnimationSystem>(80, this->registry);
 
         auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
             std::make_shared<platform_impl::PhysicsWorldConfig>());
 
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
-            90, this->rsegistory, physics_engine);
+            90, this->registry, physics_engine);
 
         // ウィンドウの初期化
         const auto root_window = this->init_window();
@@ -141,7 +141,7 @@ namespace enishi {
 
         auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(asset_system);
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
-            100, this->rsegistory, renderer, renderer);
+            100, this->registry, renderer, renderer);
 
         this->orchestra = std::make_unique<render_pass::RenderPassOrchestra>(
             render_system->get_renderer(), shader_data_provider);
@@ -150,7 +150,7 @@ namespace enishi {
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ModelRenderPassConstructor>());
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::BackGroundRenderPassConstructor>());
+            std::make_shared<render_pass::BackgroundRenderPassConstructor>());
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
 

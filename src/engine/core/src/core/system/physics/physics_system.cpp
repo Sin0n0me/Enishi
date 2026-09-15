@@ -4,9 +4,9 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    PhysicsSystem::PhysicsSystem(std::shared_ptr<ecs::Registory> registory,
+    PhysicsSystem::PhysicsSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<platform::IPhysicsEngine> physics_engine)
-        : registory(registory)
+        : registry(registry)
         , physics_engine(std::move(physics_engine)) {
     }
 

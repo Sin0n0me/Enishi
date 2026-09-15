@@ -1,6 +1,6 @@
 #pragma once
 #include "interface_native_shader_accessor.h"
-#include "shader_refrection.h"
+#include "shader_reflection.h"
 #include <engine_types/assets/shader/shader_kind.h>
 #include <engine_types/handle/handle_mapper.h>
 #include <foundation/pool/resource_pool.h>
