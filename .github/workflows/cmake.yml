@@ -34,9 +34,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-
 
+      - name: Cache vcpkg dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ runner.os }}-vcpkg-${{ matrix.platform }}-${{ hashFiles('**/CMakeLists.txt', '.github/workflows/cmake.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-${{ matrix.platform }}-
+
+      - name: Install ICU
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
+        run: |
+          vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
+        shell: cmd
+
       - name: Configure
         run: |
-          cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_INSTALLED_DIR="%GITHUB_WORKSPACE%\vcpkg_installed"
         shell: cmd
 
       - name: Build
