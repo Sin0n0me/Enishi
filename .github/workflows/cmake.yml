@@ -48,6 +48,7 @@ jobs:
         env:
           VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
         run: |
+          mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
           vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
         shell: cmd
 
