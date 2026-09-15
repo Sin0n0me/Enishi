@@ -3,7 +3,7 @@
 #include <foundation/result/result.h>
 #include <platform/asset/interface_asset_system.h>
 #include <platform/asset/interface_shader_data_provider.h>
-#include <render_pass/constructor/interface_render_pass_construstor.h>
+#include <render_pass/constructor/interface_render_pass_constructor.h>
 #include <render_pass/errors/errors.h>
 #include <span>
 #include <unordered_map>
@@ -52,7 +52,7 @@ namespace enishi::render_pass {
 
         foundation::VoidResult<ConstructError> update_dependency(void);
 
-        foundation::VoidResult<ConstructError> resoulve_mesh(
+        foundation::VoidResult<ConstructError> resolve_mesh(
             platform::IRenderPass* const render_pass);
     };
 } // namespace enishi::render_pass

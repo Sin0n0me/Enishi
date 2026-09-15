@@ -22,7 +22,7 @@ namespace enishi::renderer::directx {
         foundation::ResourcePool<RenderTargetView> render_targets;
         foundation::ResourcePool<ShaderResourceView> shader_resources;
         foundation::ResourcePool<DepthStencilView> depth_stencil;
-        foundation::ResourcePool<UnorderedAccessView> unodered_access;
+        foundation::ResourcePool<UnorderedAccessView> unordered_access;
 
       public:
         std::tuple<types::HandleId, NativeDepthStencilView&> make_native_depth_stencil_view(
@@ -60,7 +60,7 @@ namespace enishi::renderer::directx {
             const types::HandleId& handle, ShaderResourceView&& srv) noexcept override;
         types::HandleId make_depth_stencil_view(
             const types::HandleId& handle, DepthStencilView&& dsv) noexcept override;
-        types::HandleId make_unodered_access_view(
+        types::HandleId make_unordered_access_view(
             const types::HandleId& handle, UnorderedAccessView&& uav) noexcept override;
         foundation::Option<RenderTargetView&> get_render_target_view(
             const types::HandleId handle) noexcept override;
@@ -74,14 +74,14 @@ namespace enishi::renderer::directx {
             const types::HandleId handle) noexcept override;
         foundation::Option<const DepthStencilView&> get_depth_stencil_view(
             const types::HandleId handle) const noexcept override;
-        foundation::Option<UnorderedAccessView&> get_unodered_access_view(
+        foundation::Option<UnorderedAccessView&> get_unordered_access_view(
             const types::HandleId handle) noexcept override;
-        foundation::Option<const UnorderedAccessView&> get_unodered_access_view(
+        foundation::Option<const UnorderedAccessView&> get_unordered_access_view(
             const types::HandleId handle) const noexcept override;
         std::span<const RenderTargetView> get_render_target_views(void) const noexcept override;
         std::span<const ShaderResourceView> get_shader_resource_views(void) const noexcept override;
         std::span<const DepthStencilView> get_depth_stencil_views(void) const noexcept override;
-        std::span<const UnorderedAccessView> get_unodered_access_views(
+        std::span<const UnorderedAccessView> get_unordered_access_views(
             void) const noexcept override;
     };
 } // namespace enishi::renderer::directx

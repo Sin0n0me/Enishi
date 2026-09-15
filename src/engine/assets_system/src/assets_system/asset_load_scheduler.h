@@ -19,7 +19,7 @@ namespace enishi::assets_system {
      * 使用可能なIO専用スレッドは1本のみという制約のもと、foundation::SingleThreadExecutorを介して
      * ジョブを直列実行し、完了結果をAssetHandle単位で保持する
      *
-     * ECS(Registory)への登録や、AssetState(Queued/Loading/Loaded/Failed)の最終確定はこのクラスの
+     * ECS(Registry)への登録や、AssetState(Queued/Loading/Loaded/Failed)の最終確定はこのクラスの
      * 責務ではない。呼び出し元(AssetManager)が完了結果を取り出したうえで行う
      *
      * このクラス自体は「読み込み中データの一時置き場」以上の意味を持たないため、

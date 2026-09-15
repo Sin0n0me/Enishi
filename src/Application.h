@@ -14,7 +14,7 @@
 namespace enishi {
     class Application {
       private:
-        std::shared_ptr<ecs::Registory> rsegistory;
+        std::shared_ptr<ecs::Registry> registry;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;

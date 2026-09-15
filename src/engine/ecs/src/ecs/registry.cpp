@@ -1,10 +1,10 @@
-#include "registory.h"
+#include "registry.h"
 namespace enishi::ecs {
-    EntityID Registory::create(void) {
+    EntityID Registry::create(void) {
         return this->handle_allocator.create();
     }
 
-    void Registory::destroy(const EntityID id) {
+    void Registry::destroy(const EntityID id) {
         // 全Poolから該当エンティティのコンポーネントを削除
         for (auto& [type, pool] : this->pools) {
             if (pool->has(id)) {
@@ -14,7 +14,7 @@ namespace enishi::ecs {
         this->handle_allocator.destroy(id);
     }
 
-    bool Registory::is_alive(const EntityID id) const noexcept {
+    bool Registry::is_alive(const EntityID id) const noexcept {
         return this->handle_allocator.is_alive(id);
     }
 } // namespace enishi::ecs

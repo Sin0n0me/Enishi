@@ -1,5 +1,5 @@
 #pragma once
-#include "interface_native_motion_satate_accessor.h"
+#include "interface_native_motion_state_accessor.h"
 #include <engine_types/handle/handle_mapper.h>
 #include <foundation/pool/resource_pool.h>
 #include <memory>

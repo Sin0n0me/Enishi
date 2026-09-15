@@ -1,4 +1,4 @@
-#include "back_ground_render_pass_constructor.h"
+#include "background_render_pass_constructor.h"
 #include "../helper.h"
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
@@ -11,7 +11,7 @@ namespace enishi::render_pass {
     constexpr char PS_FILE_NAME[] = "ps_clear_wall";
 
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
-    enishi::render_pass::BackGroundRenderPassConstructor::make(platform::IRenderer* const renderer,
+    enishi::render_pass::BackgroundRenderPassConstructor::make(platform::IRenderer* const renderer,
         const platform::IWindow* window,
         const platform::IShaderDataProvider* shader_data_provider) {
         types::PipelineDescription description{
@@ -100,11 +100,11 @@ namespace enishi::render_pass {
         return render_pass;
     }
 
-    foundation::DependencyNode BackGroundRenderPassConstructor::get_node(void) const noexcept {
+    foundation::DependencyNode BackgroundRenderPassConstructor::get_node(void) const noexcept {
         return NODE;
     }
 
-    foundation::DependencyBounds BackGroundRenderPassConstructor::get_dependencies(
+    foundation::DependencyBounds BackgroundRenderPassConstructor::get_dependencies(
         void) const noexcept {
         return foundation::DependencyBounds{.precedents = {
                                                 ShadowMapRenderPassConstructor::NODE,
@@ -112,14 +112,14 @@ namespace enishi::render_pass {
     }
 
     std::vector<std::tuple<types::ShaderKind, std::filesystem::path>>
-    enishi::render_pass::BackGroundRenderPassConstructor::get_paths(void) const noexcept {
+    enishi::render_pass::BackgroundRenderPassConstructor::get_paths(void) const noexcept {
         return {
             {types::ShaderKind::Vertex, VS_FILE_NAME},
             {types::ShaderKind::Pixel, PS_FILE_NAME},
         };
     }
 
-    foundation::UTF8 enishi::render_pass::BackGroundRenderPassConstructor::get_render_pass_name(
+    foundation::UTF8 enishi::render_pass::BackgroundRenderPassConstructor::get_render_pass_name(
         void) const noexcept {
         return foundation::UTF8();
     }

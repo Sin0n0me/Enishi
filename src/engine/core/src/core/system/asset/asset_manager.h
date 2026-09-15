@@ -2,7 +2,7 @@
 #include "../../errors/errors.h"
 #include <assets_system/asset_load_scheduler.h>
 #include <assets_system/interface_asset_loader.h>
-#include <ecs/registory.h>
+#include <ecs/registry.h>
 #include <engine_types/assets/asset_state.h>
 #include <engine_types/assets/model/model_data.h>
 #include <engine_types/assets/shader/shader_data.h>
@@ -30,7 +30,7 @@ namespace enishi::core {
         // 外部から見た本クラスの振る舞い(同じハンドルには同じデータを返す)は変化しない
         // そのため、データ取得系のAPI(get_model_data等)をconstに保ったまま
         // 遅延読み込み(ensure_asset_loaded)からも書き込めるようにmutableにしている
-        mutable ecs::Registory asset_registory;
+        mutable ecs::Registry asset_registry;
         mutable std::unordered_map<std::filesystem::path, types::AssetHandle> path_to_handle;
         mutable std::mutex state_mutex;
         mutable std::unordered_map<types::AssetHandle, types::AssetState> asset_states;
@@ -69,7 +69,7 @@ namespace enishi::core {
             const types::AssetKind asset_kind) const noexcept override;
 
       public:
-        // 完了済みの結果を取れるだけ取り出してRegistoryへ反映する(非ブロッキング)
+        // 完了済みの結果を取れるだけ取り出してRegistryへ反映する(非ブロッキング)
         // 定期的に呼ばなくても正しく動く
         void drain_completed_loads(void) const;
 
@@ -87,11 +87,11 @@ namespace enishi::core {
         // 既に確保済みのEntityIDへアセットデータを挿入する(非同期読み込み完了後の登録用)
         // load_asset内でIOを待たずに発行したハンドルのidをそのまま使うため、
         // 新規にEntityを作るのではなくここではinsertのみ行う
-        // asset_registoryがmutableのため、constメソッドの中からも呼び出せる
+        // asset_registryがmutableのため、constメソッドの中からも呼び出せる
         template <typename T>
         foundation::Result<void, SystemError> insert_asset(
             const types::HandleId id, T&& data) const noexcept {
-            const auto result = this->asset_registory.insert(id, std::forward<T>(data));
+            const auto result = this->asset_registry.insert(id, std::forward<T>(data));
             if (result.is_err()) {
                 return result.propagation(SystemError::AssetSystemError)
                     .add_message("アセットデータの登録に失敗しました");
@@ -116,11 +116,11 @@ namespace enishi::core {
         void set_asset_state(
             const types::AssetHandle& handle, const types::AssetState state) const noexcept;
 
-        // スケジューラの完了結果をRegistoryへ反映
+        // スケジューラの完了結果をRegistryへ反映
         void commit_completed_load(CompletedLoad&& completed) const noexcept;
 
         // データ取得要求が来た時点で該当ハンドルが読み込み中(Queued/Loading)なら
-        // IO完了とRegistoryへの反映が終わるまで呼び出し元をブロックする
+        // IO完了とRegistryへの反映が終わるまで呼び出し元をブロックする
         void ensure_asset_loaded(const types::AssetHandle& handle) const noexcept;
     };
 } // namespace enishi::core

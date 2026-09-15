@@ -65,7 +65,7 @@ namespace enishi::core {
         // (typeは最有力候補である先頭ローダーの対応アセット種別を暫定的に採用する。
         //  1拡張子に複数ローダーが対応するケースは稀であり、通常はここで確定する)
         const auto handle = types::AssetHandle{
-            .id = this->asset_registory.create(),
+            .id = this->asset_registry.create(),
             .type = candidates.front()->get_target_asset_type(),
         };
 
@@ -177,12 +177,12 @@ namespace enishi::core {
                     completed.result.unwrap_err().get_message()));
 
             this->path_to_handle.erase(completed.path);
-            this->asset_registory.destroy(completed.handle.id);
+            this->asset_registry.destroy(completed.handle.id);
             this->set_asset_state(completed.handle, types::AssetState::Failed);
             return;
         }
 
-        // Registoryへの実データ挿入は必ずメインスレッドから行う(ComponentPoolはスレッドセーフでないため)
+        // Registryへの実データ挿入は必ずメインスレッドから行う(ComponentPoolはスレッドセーフでないため)
         auto&& asset_data = std::move(completed.result).unwrap_mut();
         const auto insert_result = std::visit(
             [this, &completed](
@@ -193,7 +193,7 @@ namespace enishi::core {
             foundation::Logger::error(insert_result.unwrap_err().get_message());
 
             this->path_to_handle.erase(completed.path);
-            this->asset_registory.destroy(completed.handle.id);
+            this->asset_registry.destroy(completed.handle.id);
             this->set_asset_state(completed.handle, types::AssetState::Failed);
             return;
         }
@@ -220,7 +220,7 @@ namespace enishi::core {
         }
 
         // スケジューラ側にこのハンドルの完了が来るまでブロック
-        // 届いたら即座にRegistoryへ反映する
+        // 届いたら即座にRegistryへ反映する
         auto completed = this->load_scheduler.wait_and_take_completed(handle);
         if (completed.is_none()) {
             // 通常は起こらないが、万一スケジューラ側に見当たらなければ状態をFailedにして諦める
@@ -251,36 +251,36 @@ namespace enishi::core {
 
     foundation::Option<const types::AssetModelData&> AssetManager::get_model_data(
         const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registory.get_const<types::AssetModelData>(handle.id);
+        auto&& cached = this->asset_registry.get_const<types::AssetModelData>(handle.id);
         if (cached.is_some()) {
             return cached;
         }
 
         // 読み込み中であれば、ここで完了を待ってからもう一度取得する
         this->ensure_asset_loaded(handle);
-        return this->asset_registory.get_const<types::AssetModelData>(handle.id);
+        return this->asset_registry.get_const<types::AssetModelData>(handle.id);
     }
 
     foundation::Option<const types::AssetShaderData&> AssetManager::get_shader_data(
         const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registory.get_const<types::AssetShaderData>(handle.id);
+        auto&& cached = this->asset_registry.get_const<types::AssetShaderData>(handle.id);
         if (cached.is_some()) {
             return cached;
         }
 
         this->ensure_asset_loaded(handle);
-        return this->asset_registory.get_const<types::AssetShaderData>(handle.id);
+        return this->asset_registry.get_const<types::AssetShaderData>(handle.id);
     }
 
     foundation::Option<const types::AssetTextureData&> AssetManager::get_texture_data(
         const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registory.get_const<types::AssetTextureData>(handle.id);
+        auto&& cached = this->asset_registry.get_const<types::AssetTextureData>(handle.id);
         if (cached.is_some()) {
             return cached;
         }
 
         this->ensure_asset_loaded(handle);
-        return this->asset_registory.get_const<types::AssetTextureData>(handle.id);
+        return this->asset_registry.get_const<types::AssetTextureData>(handle.id);
     }
 
     std::vector<foundation::UTF8> AssetManager::get_extensions(

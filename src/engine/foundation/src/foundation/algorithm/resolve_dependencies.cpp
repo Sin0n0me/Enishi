@@ -20,7 +20,7 @@ namespace enishi::foundation {
             const auto [iterator, inserted] = graph.node_to_index.emplace(description.node, index);
             if (!inserted) {
                 return foundation::Error(
-                    ResolveDependenciesError::DupulicateNode, "重複したノードが見つかりました");
+                    ResolveDependenciesError::DuplicateNode, "重複したノードが見つかりました");
             }
         }
 

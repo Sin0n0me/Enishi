@@ -2,7 +2,7 @@
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <foundation/str/string_builder.h>
-#include <render_pass/constructor/back_ground/back_ground_render_pass_constructor.h>
+#include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 #include <render_pass/render_pass.h>
 
@@ -98,7 +98,7 @@ namespace enishi::render_pass {
     foundation::DependencyBounds ModelRenderPassConstructor::get_dependencies(void) const noexcept {
         return foundation::DependencyBounds{.precedents = {
                                                 ShadowMapRenderPassConstructor::NODE,
-                                                BackGroundRenderPassConstructor::NODE,
+                                                BackgroundRenderPassConstructor::NODE,
                                             }};
     }
 

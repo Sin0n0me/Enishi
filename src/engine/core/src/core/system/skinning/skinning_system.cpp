@@ -8,8 +8,8 @@
 #include <ik_system/ik_solver.h>
 
 namespace enishi::core {
-    SkinningSystem::SkinningSystem(ecs::Registory& registory) noexcept
-        : registory(&registory) {
+    SkinningSystem::SkinningSystem(ecs::Registry& registry) noexcept
+        : registry(&registry) {
     }
 
     bool SkinningSystem::should_close(void) {
@@ -21,13 +21,13 @@ namespace enishi::core {
 
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
         for (auto [entity, animation, model, skinning] :
-            this->registory->view<component::AnimationComponent,
+            this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
                 component::SkinningComponent>()) {
-            auto opt_ik = this->registory->get<component::IKComponent>(entity);
-            auto opt_physics = this->registory->get<component::PhysicsComponent>(entity);
+            auto opt_ik = this->registry->get<component::IKComponent>(entity);
+            auto opt_physics = this->registry->get<component::PhysicsComponent>(entity);
             auto opt_physics_bodies =
-                this->registory->get<component::PhysicsBodiesComponent>(entity);
+                this->registry->get<component::PhysicsBodiesComponent>(entity);
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);

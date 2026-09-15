@@ -5,7 +5,7 @@
 #include "view/depth_stencil_view.h"
 #include "view/render_target_view.h"
 #include "view/shader_resource_view.h"
-#include "view/unodered_access_view.h"
+#include "view/unordered_access_view.h"
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <ranges>
@@ -406,11 +406,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_blend_state(const types::BlendStateDescription& description) {
-        const auto [resource_handle, satate] =
+        const auto [resource_handle, state] =
             this->native_resource->get_native_state_accessor()->make_native_blend_state();
         const auto desc = D3D11Converter::to_blend_desc(description);
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateBlendState(&desc, satate.GetAddressOf());
+        const HRESULT hr = device->CreateBlendState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "ブレンドステートの作成に失敗しました");
@@ -428,11 +428,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_sampler_state(const types::SamplerStateDescription& description) {
-        const auto [resource_handle, satate] =
+        const auto [resource_handle, state] =
             this->native_resource->get_native_state_accessor()->make_native_sampler_state();
         const auto desc = D3D11Converter::to_sampler_desc(description);
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateSamplerState(&desc, satate.GetAddressOf());
+        const HRESULT hr = device->CreateSamplerState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "サンプラーステートの作成に失敗しました");
@@ -474,11 +474,11 @@ namespace enishi::renderer::directx {
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_depth_stencil_state(
         const types::DepthStencilStateDescription& description) {
-        const auto [resource_handle, satate] =
+        const auto [resource_handle, state] =
             this->native_resource->get_native_state_accessor()->make_native_depth_stencil_state();
         const auto desc = D3D11Converter::to_depth_stencil_desc(description);
         const auto device = this->context->get_device();
-        const HRESULT hr = device->CreateDepthStencilState(&desc, satate.GetAddressOf());
+        const HRESULT hr = device->CreateDepthStencilState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "深度ステンシルステートの作成に失敗しました");
@@ -512,7 +512,7 @@ namespace enishi::renderer::directx {
             case types::ImageViewType::ShaderResource:
                 return this->make_shader_resource_view(index, description);
             case types::ImageViewType::UnorderedAccess:
-                return this->make_unodered_access_view(index, description);
+                return this->make_unordered_access_view(index, description);
             default:
                 break;
         }
@@ -690,7 +690,7 @@ namespace enishi::renderer::directx {
     }
 
     foundation::Result<types::RenderHandle, platform::RenderError>
-    ResourceManager::make_unodered_access_view(
+    ResourceManager::make_unordered_access_view(
         const types::ResourceHandles image_index, const types::ImageViewDescription& description) {
         const auto texture_accessor = this->native_resource->get_native_texture_accessor();
         const auto opt_texture = texture_accessor->get_native_texture_2d(image_index.resource);
@@ -723,7 +723,7 @@ namespace enishi::renderer::directx {
 
         // 外部変更用のビューの作成
         const auto configurable_index =
-            this->native_resource->get_view_accessor()->make_unodered_access_view(resource_handle,
+            this->native_resource->get_view_accessor()->make_unordered_access_view(resource_handle,
                 std::make_shared<D3D11UnorderedAccessView>(render_handle, description));
         auto opt_mapped = this->handle_mapper->get(render_handle);
         if (opt_mapped.is_none()) {
