@@ -89,7 +89,7 @@ namespace enishi::types {
             std::memcpy(target_span.data(), std::addressof(new_value), INPUT_STRIDE);
         }
 
-        [[nodiscard]] constexpr RenderData get_render_data(void) const {
+        [[nodiscard]] RenderData get_render_data(void) const {
             return RenderData{
                 .bytes = std::as_bytes(std::span{this->buffer}),
                 .stride = static_cast<decltype(RenderData::stride)>(this->stride),
