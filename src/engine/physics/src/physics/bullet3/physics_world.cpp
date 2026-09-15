@@ -95,13 +95,10 @@ namespace enishi::physics::bullet3 {
 
     foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_rigid_body(
         const types::PhysicsHandle& object_handle,
-        types::PhysicsRigidBody&& rigid_body_description,
+        const types::PhysicsRigidBody& rigid_body_description,
         std::shared_ptr<platform::IPhysicsBoneViewList> view_list,
         std::shared_ptr<platform::IBoneUpdater> updater,
         std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view) noexcept {
-        const auto mask = rigid_body_description.group_mask;
-        const auto group = 1 << rigid_body_description.group_index;
-
         auto&& [kinematic_motion_state, active_motion_state] =
             PhysicsNativeResourceMaker::make_motion_state(rigid_body_description, false);
         auto&& result_shape = PhysicsNativeResourceMaker::make_shape(rigid_body_description);
@@ -111,7 +108,7 @@ namespace enishi::physics::bullet3 {
         auto&& shape = result_shape.unwrap_mut();
 
         auto&& rigid_body_result =
-            PhysicsNativeResourceMaker::make_rigid_body(std::move(rigid_body_description),
+            PhysicsNativeResourceMaker::make_rigid_body(rigid_body_description,
                 shape.get(),
                 active_motion_state.get(),
                 kinematic_motion_state.get());
@@ -156,6 +153,8 @@ namespace enishi::physics::bullet3 {
             });
 
         // Bulletの世界に追加
+        const auto mask = rigid_body_description.group_mask;
+        const auto group = 1 << rigid_body_description.group_index;
         this->world->addRigidBody(native_rigid_body.get(), group, mask);
 
         // オブジェクトとリンク
@@ -165,7 +164,7 @@ namespace enishi::physics::bullet3 {
     }
 
     foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_joint(
-        const types::PhysicsHandle& object_handle, types::PhysicsJoint&& joint) noexcept {
+        const types::PhysicsHandle& object_handle, const types::PhysicsJoint& joint) noexcept {
         const auto opt_rigid_body_handles =
             this->object_maanger->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
         if (opt_rigid_body_handles.is_none()) {

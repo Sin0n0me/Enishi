@@ -1,12 +1,12 @@
 #pragma once
 #include <engine_types/physics/joint/physics_joint.h>
 #include <engine_types/physics/rigid_body/physics_rigid_body.h>
-#include <glm/glm.hpp>
 #include <vector>
 
 namespace enishi::component {
-    struct PhysicsComponent {
-        std::vector<glm::mat4> local;
-        std::vector<glm::mat4> global;
+    // モデルが持つ剛体・ジョイントの定義
+    struct PhysicsBodiesComponent {
+        std::vector<types::PhysicsRigidBody> rigid_bodies;
+        std::vector<types::PhysicsJoint> joints;
     };
 } // namespace enishi::component

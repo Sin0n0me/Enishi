@@ -16,12 +16,12 @@ namespace enishi::core {
     //  アドレスが変わらない形で保持すること)
     struct ModelBones {
         std::unique_ptr<skinning_system::AnimationBonesCache> animation_cache;
-        std::unique_ptr<skinning_system::PhysicsBonesCache> physics_cache;
+        std::shared_ptr<skinning_system::PhysicsBonesCache> physics_cache;
         std::unique_ptr<skinning_system::IKBoneCache> ik_cache;
         std::unique_ptr<skinning_system::BindBonesCache> bind_cache;
 
         std::unique_ptr<skinning_system::AnimationBonesUpdater> animation_updater;
-        std::unique_ptr<skinning_system::PhysicsBonesUpdater> physics_updater;
+        std::shared_ptr<skinning_system::PhysicsBonesUpdater> physics_updater;
         std::unique_ptr<skinning_system::IKBonesUpdater> ik_updater;
 
         ModelBones(void) = default;

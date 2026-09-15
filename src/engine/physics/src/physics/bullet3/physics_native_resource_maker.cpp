@@ -54,7 +54,7 @@ namespace enishi::physics::bullet3 {
     }
 
     foundation::Result<PhysicsNativeResourceMaker::RigidBody, PhysicsError>
-    PhysicsNativeResourceMaker::make_rigid_body(types::PhysicsRigidBody&& rigid_body,
+    PhysicsNativeResourceMaker::make_rigid_body(const types::PhysicsRigidBody& rigid_body,
         btCollisionShape* const shape,
         IMMDMotionState* const active_motion_state,
         IMMDMotionState* const kinematic_motion_state) {

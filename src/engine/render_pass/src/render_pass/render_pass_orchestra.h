@@ -34,7 +34,7 @@ namespace enishi::render_pass {
 
         std::span<const std::shared_ptr<IRenderPassConstructor>> get_constructors(void) const;
 
-        void make_render_passes(const platform::IWindow* window);
+        foundation::VoidResult<ConstructError> make_render_passes(const platform::IWindow* window);
 
         foundation::Option<std::shared_ptr<platform::IRenderPass>> get_render_pass(
             const foundation::UTF8& pass_name);

@@ -27,7 +27,7 @@ namespace enishi::physics::bullet3 {
             const types::PhysicsRigidBody& rigid_body, const bool has_bone);
 
         [[nodiscard]] static foundation::Result<RigidBody, PhysicsError> make_rigid_body(
-            types::PhysicsRigidBody&& rigid_body,
+            const types::PhysicsRigidBody& rigid_body,
             btCollisionShape* const shape,
             IMMDMotionState* const active_motion_state,
             IMMDMotionState* const kinematic_motion_state);

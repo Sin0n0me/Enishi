@@ -39,12 +39,13 @@ namespace enishi::platform {
 
         [[nodiscard]] virtual foundation::Result<types::PhysicsHandle, PhysicsError> add_rigid_body(
             const types::PhysicsHandle& object_handle,
-            types::PhysicsRigidBody&& rigid_body,
+            const types::PhysicsRigidBody& rigid_body,
             std::shared_ptr<platform::IPhysicsBoneViewList> view_list,
             std::shared_ptr<platform::IBoneUpdater> updater,
             std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Result<types::PhysicsHandle, PhysicsError> add_joint(
-            const types::PhysicsHandle& object_handle, types::PhysicsJoint&& joint) noexcept = 0;
+            const types::PhysicsHandle& object_handle,
+            const types::PhysicsJoint& joint) noexcept = 0;
     };
 } // namespace enishi::platform

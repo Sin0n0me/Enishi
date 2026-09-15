@@ -4,6 +4,7 @@
 #include <component/ik_component.h>
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
+#include <core/system/physics/physics_body_factory.h>
 #include <ik_system/ik_solver.h>
 
 namespace enishi::core {
@@ -25,8 +26,11 @@ namespace enishi::core {
                 component::SkinningComponent>()) {
             auto opt_ik = this->registory->get<component::IKComponent>(entity);
             auto opt_physics = this->registory->get<component::PhysicsComponent>(entity);
+            auto opt_physics_bodies =
+                this->registory->get<component::PhysicsBodiesComponent>(entity);
 
-            auto& bones = this->get_or_build(entity, animation, model, opt_ik, opt_physics);
+            auto& bones = this->get_or_build(
+                entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
 
             // モデルごとに順序を変えられるようにする。指定が無ければ既定順序を使う
             const std::span<const types::SkinningCommand> order =
@@ -50,10 +54,11 @@ namespace enishi::core {
     }
 
     ModelBones& SkinningSystem::get_or_build(const types::HandleId entity,
-        component::AnimationComponent& animation,
         const component::ModelComponent& model,
+        component::AnimationComponent& animation,
         foundation::Option<component::IKComponent&> ik,
-        foundation::Option<component::PhysicsComponent&> physics) noexcept {
+        foundation::Option<component::PhysicsComponent&> physics,
+        foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) noexcept {
         const auto iter = this->model_bones.find(entity);
         if (iter != this->model_bones.end()) {
             return *iter->second;
@@ -80,10 +85,20 @@ namespace enishi::core {
 
         // PhysicsComponentを持たないモデルもある
         if (physics.is_some()) {
-            bones->physics_cache = std::make_unique<skinning_system::PhysicsBonesCache>(
-                model.bone_node, BoneViewFactory::make_physics_view(physics.unwrap_mut()));
+            auto views = BoneViewFactory::to_shared_views(
+                BoneViewFactory::make_physics_view(physics.unwrap_mut()));
+
+            bones->physics_cache = std::make_shared<skinning_system::PhysicsBonesCache>(
+                model.bone_node, std::move(views));
             bones->physics_updater =
-                std::make_unique<skinning_system::PhysicsBonesUpdater>(*bones->physics_cache);
+                std::make_shared<skinning_system::PhysicsBonesUpdater>(*bones->physics_cache);
+
+            if (physics_bodies.is_some()) {
+                PhysicsBodyFactory::build(*this->physics_engine->get_world(),
+                    physics_bodies.unwrap_mut(),
+                    bones->physics_cache,
+                    bones->physics_updater);
+            }
         }
 
         auto& ref = *bones;
@@ -109,7 +124,6 @@ namespace enishi::core {
         foundation::Option<component::IKComponent&> ik) const noexcept {
         switch (command) {
             case types::SkinningCommand::Animation:
-                // Animationは全モデル共通で必須のため、cache/updaterは常に存在する
                 bones.animation_updater->update_global_form_roots();
                 break;
 

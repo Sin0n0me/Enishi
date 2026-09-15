@@ -15,14 +15,16 @@ namespace enishi::skinning_system {
     class PhysicsBonesCache final : public platform::IPhysicsBoneViewList {
       private:
         std::span<const types::BoneNode> bone_nodes;
-        std::vector<std::unique_ptr<PhysicsBoneView>> physics_views;
+        std::vector<std::shared_ptr<PhysicsBoneView>> physics_views;
 
       public:
         explicit PhysicsBonesCache(std::span<const types::BoneNode> bone_nodes,
-            std::vector<std::unique_ptr<PhysicsBoneView>>&& physics_views);
+            std::vector<std::shared_ptr<PhysicsBoneView>>&& physics_views);
 
         [[nodiscard]] std::span<const types::BoneNode> get_bone_nodes(void) const noexcept;
 
+        [[nodiscard]] foundation::Option<std::shared_ptr<platform::IPhysicsBoneView>> get_shared(
+            const types::BoneIndex index) const noexcept;
         std::size_t size(void) const noexcept override;
         foundation::Option<platform::IPhysicsBoneView*> get(
             const types::BoneIndex index) noexcept override;

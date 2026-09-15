@@ -154,7 +154,11 @@ namespace enishi {
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
 
-        this->orchestra->make_render_passes(root_window.get());
+        auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
+        if (pass_result.is_err()) {
+            foundation::Logger::error(pass_result.unwrap_err().get_message());
+            return {};
+        }
 
         // レンダーパスのセット
         render_system->set_render_passes(this->orchestra->get_passes());

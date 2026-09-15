@@ -35,7 +35,8 @@ namespace enishi::render_pass {
         return iter->second.render_pass;
     }
 
-    void RenderPassOrchestra::make_render_passes(const platform::IWindow* window) {
+    foundation::VoidResult<ConstructError> RenderPassOrchestra::make_render_passes(
+        const platform::IWindow* window) {
         for (auto& constructor : this->constructors) {
             const auto pass_name = constructor->get_render_pass_name();
             if (this->name_to_pass.contains(pass_name)) {
@@ -44,9 +45,9 @@ namespace enishi::render_pass {
 
             auto&& result =
                 constructor->make(this->renderer.get(), window, this->shader_data_provider.get())
-                    .add_message("");
+                    .add_message("レンダーパスの生成に失敗しました");
             if (result.is_err()) {
-                return;
+                return result.propagation(ConstructError::Construct);
             }
 
             this->name_to_pass.emplace(pass_name,
@@ -54,6 +55,8 @@ namespace enishi::render_pass {
                     .render_pass = result.unwrap(),
                 });
         }
+
+        return {};
     }
 
     void RenderPassOrchestra::set_render_passes(std::vector<foundation::UTF8>&& pass_names) {
