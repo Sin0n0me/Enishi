@@ -34,8 +34,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-
 
-      - name: Cache vcpkg dependencies
-        uses: actions/cache@v4
+      - name: Restore vcpkg dependencies
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             vcpkg_installed
@@ -48,9 +49,18 @@ jobs:
         env:
           VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
         run: |
-          mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
+          if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
           vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
         shell: cmd
+
+      - name: Save vcpkg dependencies
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
       - name: Configure
         run: |
