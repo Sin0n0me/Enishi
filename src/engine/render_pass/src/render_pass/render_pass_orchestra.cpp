@@ -37,28 +37,52 @@ namespace enishi::render_pass {
 
     foundation::VoidResult<ConstructError> RenderPassOrchestra::make_render_passes(
         const platform::IWindow* window) {
-        for (auto& constructor : this->constructors) {
+        std::vector<foundation::DependencyDescription> dependencies;
+        dependencies.reserve(this->constructors.size());
+        for (const auto& constructor : this->constructors) {
+            dependencies.emplace_back(foundation::DependencyDescription{
+                .node = constructor->get_node(),
+                .bounds = constructor->get_dependencies(),
+            });
+        }
+
+        auto&& dependency_result = foundation::resolve_dependencies(dependencies);
+        if (dependency_result.is_err()) {
+            return dependency_result.propagation(ConstructError::Construct);
+        }
+
+        std::unordered_map<foundation::DependencyNode, std::shared_ptr<platform::IRenderPass>>
+            node_to_render_pass;
+        for (const auto& index : dependency_result.unwrap()) {
+            const auto& constructor = this->constructors[index];
             const auto pass_name = constructor->get_render_pass_name();
             if (this->name_to_pass.contains(pass_name)) {
                 continue;
             }
 
-            auto&& result =
-                constructor->make(this->renderer.get(), window, this->shader_data_provider.get())
-                    .add_message("レンダーパスの生成に失敗しました");
+            std::vector<platform::IRenderPass*> dependency_render_passes;
+            for (const auto& precedent : constructor->get_dependencies().precedents) {
+                const auto iterator = node_to_render_pass.find(precedent);
+                if (iterator != node_to_render_pass.end()) {
+                    dependency_render_passes.emplace_back(iterator->second.get());
+                }
+            }
+
+            auto&& result = constructor->make(this->renderer.get(),
+                window,
+                this->shader_data_provider.get(),
+                dependency_render_passes);
             if (result.is_err()) {
                 return result.propagation(ConstructError::Construct);
             }
 
-            this->name_to_pass.emplace(pass_name,
-                RenderPassInfo{
-                    .render_pass = result.unwrap(),
-                });
+            auto render_pass = result.unwrap();
+            node_to_render_pass.emplace(constructor->get_node(), render_pass);
+            this->name_to_pass.emplace(pass_name, RenderPassInfo{.render_pass = std::move(render_pass)});
         }
 
         return {};
     }
-
     void RenderPassOrchestra::set_render_passes(std::vector<foundation::UTF8>&& pass_names) {
         for (const auto& name : pass_names) {
             this->silent_add_render_pass(name);
