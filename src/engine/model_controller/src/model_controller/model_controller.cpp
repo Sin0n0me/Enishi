@@ -14,9 +14,8 @@ namespace enishi::model_controller {
     void ModelController::find_model(const std::filesystem::path& search_path) noexcept {
         const auto model_paths =
             this->asset_system->find_assets(search_path, types::AssetKind::Model);
-        const auto pattern_str = std::format("{}{}",
-            foundation::path_to_regex_str(search_path),
-            this->asset_system->get_extensions_pattern(types::AssetKind::Model));
+        const auto pattern_str = std::format(
+            ".*{}", this->asset_system->get_extensions_pattern(types::AssetKind::Model));
         const std::regex pattern(pattern_str);
 
         const auto asset_paths = model_paths.find(pattern);

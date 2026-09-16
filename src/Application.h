@@ -5,6 +5,7 @@
 #include <core/system/system_scheduler.h>
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
+#include <model_controller/model_controller.h>
 #include <platform/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
@@ -18,6 +19,7 @@ namespace enishi {
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
+        std::unique_ptr<model_controller::ModelController> model_controller;
 
       public:
         bool init(void);

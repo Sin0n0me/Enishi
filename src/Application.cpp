@@ -59,13 +59,28 @@ namespace enishi {
         foundation::Logger::info("ウィンドウの初期化に成功しました");
 
         // レンダラーの初期化
-        const auto renderer = this->init_renderer(root_window, asset_system->get_asset_system());
+        const auto shared_asset_system = asset_system->get_asset_system();
+        const auto renderer = this->init_renderer(root_window, shared_asset_system);
         if (!bool(renderer)) {
             return false;
         }
         foundation::Logger::info("レンダラーの初期化に成功しました");
 
-        this->init_physics(asset_system->get_asset_system(), physics_engine);
+        this->init_physics(shared_asset_system, physics_engine);
+
+        // モデルコントローラーの初期化
+        this->model_controller =
+            std::make_unique<model_controller::ModelController>(shared_asset_system,
+                std::make_shared<model_controller::ModelRenderDataBuilder>(
+                    renderer, shared_asset_system));
+        this->model_controller->find_model("assets/models");
+
+        // 仮
+        const auto model_names = this->model_controller->get_model_list();
+        for (const auto& name : model_names) {
+            foundation::Logger::info(std::format("モデル名: {}", name));
+        }
+        this->model_controller->change_model(model_names[0], {});
 
         return true;
     }
