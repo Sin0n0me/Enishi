@@ -21,7 +21,8 @@ namespace enishi::render_pass {
             ConstructError>
         make(platform::IRenderer* const renderer,
             const platform::IWindow* window,
-            const platform::IShaderDataProvider* shader_data_provider) = 0;
+            const platform::IShaderDataProvider* shader_data_provider,
+            std::span<platform::IRenderPass* const> dependency_render_passes) = 0;
 
         // 拡張子は含めないこと
         [[nodiscard]] virtual std::vector<std::tuple<types::ShaderKind, std::filesystem::path>>

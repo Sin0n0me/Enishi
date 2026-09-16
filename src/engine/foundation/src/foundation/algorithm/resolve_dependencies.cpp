@@ -29,7 +29,7 @@ namespace enishi::foundation {
             const auto& description = dependency_nodes[current_index];
 
             const auto& dependencies = description.bounds.precedents;
-            if (!dependencies.empty()) {
+            if (dependencies.empty()) {
                 continue;
             }
 

@@ -13,7 +13,8 @@ namespace enishi::render_pass {
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     enishi::render_pass::BackgroundRenderPassConstructor::make(platform::IRenderer* const renderer,
         const platform::IWindow* window,
-        const platform::IShaderDataProvider* shader_data_provider) {
+        const platform::IShaderDataProvider* shader_data_provider,
+        std::span<platform::IRenderPass* const> dependency_render_passes) {
         types::PipelineDescription description{
             .topology = types::PrimitiveTopology::TriangleList,
         };
@@ -92,7 +93,11 @@ namespace enishi::render_pass {
         // レンダーパスの生成
         auto render_pass = std::make_shared<RenderPass>();
         const auto render_pass_result = render_pass->make_from_description(
-            description, this->get_render_pass_name(), this->get_node(), this->get_dependencies());
+            description,
+            dependency_render_passes,
+            this->get_render_pass_name(),
+            this->get_node(),
+            this->get_dependencies());
         if (render_pass_result.is_err()) {
             return render_pass_result.propagation(ConstructError::Construct);
         }

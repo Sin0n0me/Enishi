@@ -25,6 +25,7 @@ namespace enishi::platform {
 
         [[nodiscard]] virtual foundation::VoidResult<RenderError> make_from_description(
             const types::PipelineDescription& description,
+            std::span<IRenderPass* const> dependency_render_passes,
             foundation::UTF8&& pass_name,
             foundation::DependencyNode&& node,
             foundation::DependencyBounds&& dependencies) noexcept = 0;
