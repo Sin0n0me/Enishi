@@ -54,6 +54,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(RENDER_PASS)
 
+FetchContent_MakeAvailable(RENDERER)
+
+FetchContent_Declare(
+    MODEL_CONTROLLER
+    SOURCE_DIR ${DEPEND_DIR}/model_controller
+)
+FetchContent_MakeAvailable(MODEL_CONTROLLER)
+
+FetchContent_Declare(
+    PHYSICS
+    SOURCE_DIR ${DEPEND_DIR}/physics
+)
+FetchContent_MakeAvailable(PHYSICS)
+
 FetchContent_Declare(
     UI
     SOURCE_DIR ${DEPEND_DIR}/ui
@@ -67,16 +81,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(SCRIPT)
 
 set(DEPENDENCIES
-    core
-    platform
-    platform_impl
-    physics
-    renderer
-    render_pass
-    script
-    ui
-    engine_types
-    foundation
+    PRIVATE core
+    PRIVATE platform
+    PRIVATE platform_impl
+    PRIVATE physics
+    PRIVATE skinning_system
+    PRIVATE model_controller
+    PRIVATE renderer
+    PRIVATE render_pass
+    PRIVATE script
+    PRIVATE ui
+    PRIVATE engine_types
+    PRIVATE foundation
 )
 
 #
@@ -85,7 +101,7 @@ set(DEPENDENCIES
 
 target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDENCIES})
+target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23
