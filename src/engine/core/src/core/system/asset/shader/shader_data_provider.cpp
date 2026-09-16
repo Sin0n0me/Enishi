@@ -26,8 +26,8 @@ namespace enishi::core {
         for (const auto& [kind, path] : paths) {
             const auto shader_paths = make_paths(path);
             for (const auto& shader_path : shader_paths) {
-                const auto asset_handle = this->asset_system->load_asset(path).add_message(
-                    "シェーダーの読み込みに失敗しました");
+                const auto asset_handle = this->asset_system->load_asset(shader_path)
+                                              .add_message("シェーダーの読み込みに失敗しました");
                 if (asset_handle.is_err()) {
                     return asset_handle.propagation(platform::RenderError::MakeError);
                 }
