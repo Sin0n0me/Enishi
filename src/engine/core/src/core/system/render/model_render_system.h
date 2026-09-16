@@ -1,17 +1,17 @@
 #pragma once
 #include "../interface_system.h"
+#include <memory>
 #include <model_controller/model_controller.h>
 #include <platform/asset/interface_asset_system.h>
 #include <platform/renderer/interface_render_pass.h>
 #include <platform/renderer/interface_renderer.h>
-#include <memory>
 
 namespace enishi::core {
     class ModelRenderSystem : public ISystem {
       private:
         std::shared_ptr<platform::IRenderPass> model_render_pass;
         std::shared_ptr<model_controller::ModelController> model_controller;
-        bool is_initial_model_selected = false;
+        bool is_initial_model_selected;
 
       public:
         ModelRenderSystem(std::shared_ptr<platform::IAssetSystem> asset_system,

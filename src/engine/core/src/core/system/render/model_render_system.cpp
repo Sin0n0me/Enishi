@@ -1,6 +1,6 @@
 #include "model_render_system.h"
-#include <foundation/log/logger.h>
 #include <filesystem>
+#include <foundation/log/logger.h>
 
 namespace enishi::core {
     namespace {
@@ -12,7 +12,8 @@ namespace enishi::core {
         std::shared_ptr<platform::IRenderPass> model_render_pass)
         : model_render_pass(model_render_pass)
         , model_controller(std::make_shared<model_controller::ModelController>(asset_system,
-              std::make_shared<model_controller::ModelRenderDataBuilder>(renderer, asset_system))) {
+              std::make_shared<model_controller::ModelRenderDataBuilder>(renderer, asset_system)))
+        , is_initial_model_selected(false) {
     }
 
     bool ModelRenderSystem::should_close(void) {
