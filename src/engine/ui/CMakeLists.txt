@@ -10,7 +10,7 @@ include(FetchContent)
 
 FetchContent_Declare(
     ImGui
-    GIT_REPOSITORY git@github.com:ocornut/imgui.git
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG "v1.92.8"
     GIT_SHALLOW TRUE
     GIT_PROGRESS ON

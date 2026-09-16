@@ -1,0 +1,73 @@
+name: Windows CMake
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    strategy:
+      matrix:
+        config: [Release, Debug]
+        #platform: [x86, x64]
+        platform: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Setup Developer Command
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.platform }}
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            build/libs
+          key: ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-
+
+      - name: Restore vcpkg dependencies
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ runner.os }}-vcpkg-${{ matrix.platform }}-${{ hashFiles('**/CMakeLists.txt', '.github/workflows/cmake.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-${{ matrix.platform }}-
+
+      - name: Install ICU
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
+        run: |
+          if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
+          vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
+        shell: cmd
+
+      - name: Save vcpkg dependencies
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+
+      - name: Configure
+        run: |
+          cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_INSTALLED_DIR="%GITHUB_WORKSPACE%\vcpkg_installed"
+        shell: cmd
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+        shell: cmd

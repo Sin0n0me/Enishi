@@ -42,7 +42,7 @@ if(USE_SDL3)
     set(SDL_TESTS_BUILD OFF CACHE BOOL "Disable SDL3 test builds" FORCE)
     FetchContent_Declare(
         SDL3
-        GIT_REPOSITORY git@github.com:libsdl-org/SDL.git
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
         GIT_TAG "release-3.4.10"
         GIT_SHALLOW TRUE
         GIT_PROGRESS ON

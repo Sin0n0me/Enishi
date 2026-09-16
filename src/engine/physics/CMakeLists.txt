@@ -37,7 +37,7 @@ set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "Use MSVC Runtime Library DLL" FO
 
 FetchContent_Declare(
     BULLET3
-    GIT_REPOSITORY git@github.com:sin0n0me/bullet3.git
+    GIT_REPOSITORY https://github.com/sin0n0me/bullet3.git
     #GIT_TAG 3.25
     GIT_SHALLOW TRUE
     GIT_PROGRESS ON
