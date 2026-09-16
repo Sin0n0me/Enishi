@@ -2,6 +2,7 @@
 #include <core/system/animation/animation_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
+#include <core/system/render/model_render_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
@@ -10,7 +11,6 @@
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 
-#include <model_controller/model_controller.h>
 
 #include <physics/bullet3/physics_engine.h>
 
@@ -67,20 +67,6 @@ namespace enishi {
         foundation::Logger::info("レンダラーの初期化に成功しました");
 
         this->init_physics(shared_asset_system, physics_engine);
-
-        // モデルコントローラーの初期化
-        this->model_controller =
-            std::make_unique<model_controller::ModelController>(shared_asset_system,
-                std::make_shared<model_controller::ModelRenderDataBuilder>(
-                    renderer, shared_asset_system));
-        this->model_controller->find_model("assets/models");
-
-        // 仮
-        const auto model_names = this->model_controller->get_model_list();
-        for (const auto& name : model_names) {
-            foundation::Logger::info(std::format("モデル名: {}", name));
-        }
-        this->model_controller->change_model(model_names[0], {});
 
         return true;
     }
@@ -177,6 +163,15 @@ namespace enishi {
 
         // レンダーパスのセット
         render_system->set_render_passes(this->orchestra->get_passes());
+
+        const auto model_render_pass = this->orchestra->get_render_pass(
+            render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);
+        if (model_render_pass.is_none()) {
+            foundation::Logger::error("モデル用レンダーパスが見つかりません");
+            return {};
+        }
+        this->system_scheduler.register_system<core::ModelRenderSystem>(
+            95, asset_system, renderer, model_render_pass.unwrap());
 
         return renderer;
     }
