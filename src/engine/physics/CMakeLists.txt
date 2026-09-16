@@ -33,6 +33,7 @@ set(BUILD_DEMOS OFF CACHE BOOL "Build Bullet demos" FORCE)
 set(BUILD_CPU_DEMOS OFF CACHE BOOL "Disable Bullet3 CPU demos/examples" FORCE)
 set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "Disable Bullet3 OpenGL3 demos/examples" FORCE)
 set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "Disable Bullet2 demos" FORCE)
+set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "Use MSVC Runtime Library DLL" FORCE)
 
 FetchContent_Declare(
     BULLET3
@@ -44,8 +45,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(BULLET3)
 
+
 set(DEPENDENCIES
-    PUBLIC ${BULLET_DIR}
+    PUBLIC BulletDynamics
+    PUBLIC BulletCollision
+    PUBLIC LinearMath
     PRIVATE platform
     PRIVATE engine_types
     PRIVATE foundation
@@ -74,6 +78,7 @@ add_library(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
 target_include_directories(${PROJECT_NAME} PUBLIC ${BULLET_SOURCE_DIR})
+
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
 
