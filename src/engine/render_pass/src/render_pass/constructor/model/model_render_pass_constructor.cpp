@@ -112,6 +112,6 @@ namespace enishi::render_pass {
 
     foundation::UTF8 enishi::render_pass::ModelRenderPassConstructor::get_render_pass_name(
         void) const noexcept {
-        return foundation::UTF8();
+        return RENDER_PASS_NAME;
     }
 } // namespace enishi::render_pass

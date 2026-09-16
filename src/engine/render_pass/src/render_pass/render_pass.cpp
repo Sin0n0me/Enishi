@@ -9,6 +9,10 @@ namespace enishi::render_pass {
         return this->render_target;
     }
 
+    std::span<const types::RenderHandle> RenderPass::get_shader_reflections(void) const noexcept {
+        return this->shader_reflections;
+    }
+
     void RenderPass::update(void) {
         for (auto& updater : this->resource_updater) {
             updater->on_update();
@@ -20,6 +24,9 @@ namespace enishi::render_pass {
         foundation::UTF8&& pass_name,
         foundation::DependencyNode&& node,
         foundation::DependencyBounds&& dependencies) noexcept {
+        this->name = std::move(pass_name);
+        this->shader_reflections = description.shader_reflections;
+
         // RTVの追加
         this->render_target = description.render_target_view;
 
@@ -74,7 +81,7 @@ namespace enishi::render_pass {
     }
 
     foundation::UTF8 RenderPass::get_name(void) const noexcept {
-        return foundation::UTF8();
+        return this->name;
     }
     void RenderPass::add_mesh(const types::RenderHandle& mesh) noexcept {
         this->add_command(mesh);

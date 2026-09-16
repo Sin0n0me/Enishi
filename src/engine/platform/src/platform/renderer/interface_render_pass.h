@@ -20,6 +20,9 @@ namespace enishi::platform {
 
         [[nodiscard]] virtual types::RenderHandle get_render_target(void) const noexcept = 0;
 
+        [[nodiscard]] virtual std::span<const types::RenderHandle> get_shader_reflections(
+            void) const noexcept = 0;
+
         [[nodiscard]] virtual foundation::VoidResult<RenderError> make_from_description(
             const types::PipelineDescription& description,
             foundation::UTF8&& pass_name,

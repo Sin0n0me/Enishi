@@ -2,6 +2,7 @@
 #include "model_controller.h"
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
+#include <algorithm>
 #include <regex>
 
 namespace enishi::model_controller {
@@ -37,6 +38,7 @@ namespace enishi::model_controller {
         for (const auto& [name, path] : this->model_list) {
             names.emplace_back(name);
         }
+        std::ranges::sort(names);
         return names;
     }
 

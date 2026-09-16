@@ -2,6 +2,7 @@
 #include <core/system/animation/animation_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
+#include <core/system/render/model_render_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
@@ -162,6 +163,15 @@ namespace enishi {
 
         // レンダーパスのセット
         render_system->set_render_passes(this->orchestra->get_passes());
+
+        const auto model_render_pass = this->orchestra->get_render_pass(
+            render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);
+        if (model_render_pass.is_none()) {
+            foundation::Logger::error("モデル用レンダーパスが見つかりません");
+            return {};
+        }
+        this->system_scheduler.register_system<core::ModelRenderSystem>(
+            95, asset_system, renderer, model_render_pass.unwrap());
 
         return renderer;
     }
