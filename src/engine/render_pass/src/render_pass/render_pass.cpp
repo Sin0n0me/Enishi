@@ -40,8 +40,11 @@ namespace enishi::render_pass {
             types::RenderHandleType::Topology,
         });
 
-        // ラスタライザの追加
+        // ラスタライザなどのステートの追加
         this->add_command(description.rasterizer_state);
+        this->add_command(description.blend_state);
+        this->add_command(description.depth_stencil_state);
+        this->add_command(description.sampler_state);
 
         // 頂点レイアウトの追加
         this->add_command(description.vertex_layout);
@@ -73,6 +76,10 @@ namespace enishi::render_pass {
     }
 
     void RenderPass::add_command(const types::RenderHandle handle) {
+        if (!handle.is_valid()) {
+            return;
+        }
+
         this->commands.emplace_back(types::DrawCommand{
             .handle = handle,
             .sub_command = types::SubCommand::Bind,

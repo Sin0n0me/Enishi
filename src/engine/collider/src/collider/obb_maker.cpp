@@ -1,7 +1,7 @@
-#include "OBB.h"
+#include "obb_maker.h"
 
-namespace enishi::types {
-    std::tuple<float, std::uint32_t, std::uint32_t> OBB::find_jacobi_pivot(
+namespace enishi::collider {
+    std::tuple<float, std::uint32_t, std::uint32_t> OBBMaker::find_jacobi_pivot(
         const glm::mat4& matrix) noexcept {
         std::uint32_t p = 0;
         std::uint32_t q = 1;
@@ -20,11 +20,11 @@ namespace enishi::types {
         return {max_value, p, q};
     }
 
-    glm::mat4 OBB::jacobi_eigen_decomposition(const glm::mat4& in_matrix) noexcept {
+    glm::mat4 OBBMaker::jacobi_eigen_decomposition(const glm::mat4& in_matrix) noexcept {
         glm::mat4 eigen_vectors = glm::mat4(1.0f);
         glm::mat4 matrix = in_matrix;
         for (int i = 0; i < 32; ++i) {
-            const auto [max_value, p, q] = find_jacobi_pivot(matrix);
+            const auto [max_value, p, q] = OBBMaker::find_jacobi_pivot(matrix);
             if (max_value < 1e-6f) {
                 break;
             }
@@ -49,7 +49,7 @@ namespace enishi::types {
         return eigen_vectors;
     }
 
-    OBB OBB::make_by_covariance_matrix(const std::vector<glm::vec3>& positions) {
+    types::OBB OBBMaker::make_by_covariance_matrix(const std::vector<glm::vec3>& positions) {
         const float positions_size = static_cast<float>(positions.size());
 
         // 重心を求める
@@ -75,16 +75,16 @@ namespace enishi::types {
         matrix[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // 元の行列は単位行列ではないので
 
         // ヤコビ法による固有ベクトル取得
-        const glm::mat4 eigen_vectors = jacobi_eigen_decomposition(matrix);
+        const glm::mat4 eigen_vectors = OBBMaker::jacobi_eigen_decomposition(matrix);
 
         return OBB::make(positions, mean, eigen_vectors);
     }
 
-    OBB OBB::make(const std::vector<glm::vec3>& positions,
+    types::OBB OBBMaker::make(const std::vector<glm::vec3>& positions,
         const glm::vec3& mean,
         const glm::mat4& eigen_vectors) {
         // OBBの作成
-        OBB obb{};
+        types::OBB obb{};
         for (int i = 0; i < 3; ++i) {
             obb.axis[i] = glm::normalize(eigen_vectors[i]);
         }
@@ -122,4 +122,4 @@ namespace enishi::types {
 
         return obb;
     }
-} // namespace enishi::types
+} // namespace enishi::collider

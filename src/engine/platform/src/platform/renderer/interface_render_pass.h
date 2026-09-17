@@ -38,6 +38,8 @@ namespace enishi::platform {
 
         virtual void update(void) = 0;
 
+        //[[nodiscard]] virtual types::PipelineDescription get_description(void) const noexcept = 0;
+
         [[nodiscard]] virtual foundation::UTF8 get_name(void) const noexcept = 0;
 
         [[nodiscard]] virtual foundation::DependencyNode get_node(void) const noexcept = 0;

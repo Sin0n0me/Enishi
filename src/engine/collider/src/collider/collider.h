@@ -19,7 +19,7 @@ namespace enishi::collider {
         void on_collision_check(void);
 
       public:
-        static bool hit_model(const Ray& ray, const OBB& obb);
+        static bool hit_model(const types::Ray& ray, const types::OBB& obb);
 
       public:
         explicit Collider(const std::shared_ptr<types::Camera>& camera,

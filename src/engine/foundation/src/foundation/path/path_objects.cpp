@@ -22,4 +22,16 @@ namespace enishi::foundation {
 
         return result;
     }
+
+    std::vector<std::filesystem::path> PathObjects::matched_file_name(
+        const std::regex& pattern) const {
+        auto filtered = this->path_entries | std::views::filter([&](const PathEntry& entry) {
+            return std::regex_match(entry.path.filename().string<char>(), pattern);
+        }) | std::views::transform([](const PathEntry& entry) { return entry.path; });
+
+        std::vector<std::filesystem::path> result;
+        std::ranges::copy(filtered, std::back_inserter(result));
+
+        return result;
+    }
 } // namespace enishi::foundation

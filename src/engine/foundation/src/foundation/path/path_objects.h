@@ -22,5 +22,7 @@ namespace enishi::foundation {
         void add(const std::filesystem::path& path);
 
         std::vector<std::filesystem::path> find(const std::regex& pattern) const;
+
+        std::vector<std::filesystem::path> matched_file_name(const std::regex& pattern) const;
     };
 } // namespace enishi::foundation

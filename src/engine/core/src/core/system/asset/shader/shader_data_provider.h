@@ -11,6 +11,7 @@ namespace enishi::core {
     class ShaderDataProvider final : public platform::IShaderDataProvider {
       private:
         std::shared_ptr<platform::IAssetSystem> asset_system;
+        std::vector<int> cache;
 
       public:
         explicit ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system);

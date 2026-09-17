@@ -37,6 +37,9 @@ namespace enishi::render_pass {
             if (shader.shader_reflection.is_valid()) {
                 description.shader_reflections.emplace_back(shader.shader_reflection);
             }
+            if (shader.input_layout.is_valid()) {
+                description.vertex_layout = shader.input_layout;
+            }
         }
 
         const auto opt_window_size = window->get_size();
@@ -92,8 +95,7 @@ namespace enishi::render_pass {
 
         // レンダーパスの生成
         auto render_pass = std::make_shared<RenderPass>();
-        const auto render_pass_result = render_pass->make_from_description(
-            description,
+        const auto render_pass_result = render_pass->make_from_description(description,
             dependency_render_passes,
             this->get_render_pass_name(),
             this->get_node(),

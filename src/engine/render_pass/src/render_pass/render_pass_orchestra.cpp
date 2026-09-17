@@ -76,9 +76,9 @@ namespace enishi::render_pass {
                 return result.propagation(ConstructError::Construct);
             }
 
-            auto render_pass = result.unwrap();
+            auto&& render_pass = result.unwrap_mut();
             node_to_render_pass.emplace(constructor->get_node(), render_pass);
-            this->name_to_pass.emplace(pass_name, RenderPassInfo{.render_pass = std::move(render_pass)});
+            this->name_to_pass.emplace(pass_name, RenderPassInfo{.render_pass = render_pass});
         }
 
         return {};
@@ -96,6 +96,7 @@ namespace enishi::render_pass {
     }
 
     void RenderPassOrchestra::remove_render_pass(const foundation::UTF8& pass_name) {
+        this->update_dependency();
     }
 
     std::vector<std::shared_ptr<platform::IRenderPass>> RenderPassOrchestra::get_passes(

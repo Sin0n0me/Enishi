@@ -161,6 +161,11 @@ namespace enishi {
         }
 
         // レンダーパスのセット
+        this->orchestra->set_render_passes({
+            render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
+            render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
+            render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+        });
         render_system->set_render_passes(this->orchestra->get_passes());
 
         const auto model_render_pass = this->orchestra->get_render_pass(

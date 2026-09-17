@@ -19,7 +19,7 @@ namespace enishi::core {
             const auto str_pattern = std::format(
                 "{}{}", foundation::path_to_regex_str(file_path), pattern_shader_extensions);
             const std::regex pattern(str_pattern);
-            return path_object.find(pattern);
+            return path_object.matched_file_name(pattern);
         };
 
         std::vector<platform::ShaderDataEntry> entries;
