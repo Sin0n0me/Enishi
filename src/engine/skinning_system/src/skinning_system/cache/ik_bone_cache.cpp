@@ -15,24 +15,24 @@ namespace enishi::skinning_system {
         return this->ik_views.size();
     }
 
-    foundation::Option<platform::IIKBoneView*> IKBoneCache::get(
+    foundation::Option<sub_system::IIKBoneView*> IKBoneCache::get(
         const types::BoneIndex index) noexcept {
         if (this->ik_views.size() <= index) {
             return {};
         }
         return this->ik_views[index].get();
     }
-    foundation::Option<const platform::IIKBoneView*> IKBoneCache::get(
+    foundation::Option<const sub_system::IIKBoneView*> IKBoneCache::get(
         const types::BoneIndex index) const noexcept {
         if (this->ik_views.size() <= index) {
             return {};
         }
         return this->ik_views[index].get();
     }
-    platform::IIKBoneView* IKBoneCache::at(const types::BoneIndex index) noexcept {
+    sub_system::IIKBoneView* IKBoneCache::at(const types::BoneIndex index) noexcept {
         return this->ik_views[index].get();
     }
-    const platform::IIKBoneView* IKBoneCache::at(const types::BoneIndex index) const noexcept {
+    const sub_system::IIKBoneView* IKBoneCache::at(const types::BoneIndex index) const noexcept {
         return this->ik_views[index].get();
     }
 } // namespace enishi::skinning_system

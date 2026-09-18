@@ -2,10 +2,10 @@
 #include <engine_types/assets/model/addons/bone.h>
 #include <foundation/option/option.h>
 #include <memory>
-#include <platform/physics/interface_physics_world_config_writer.h>
+#include <sub_system/physics/interface_physics_world_config_writer.h>
 
 namespace enishi::platform_impl {
-    class PhysicsWorldConfig : public platform::IPhysicsWorldConfigWriter {
+    class PhysicsWorldConfig : public sub_system::IPhysicsWorldConfigWriter {
       private:
         bool updatable;
         float fixed_step_time;

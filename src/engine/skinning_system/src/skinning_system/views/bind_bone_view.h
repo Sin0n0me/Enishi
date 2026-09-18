@@ -1,12 +1,12 @@
 #pragma once
-#include <platform/asset/bone/interface_bind_bone_view.h>
+#include <sub_system/model/bone/interface_bind_bone_view.h>
 
 namespace enishi::skinning_system {
     /**
-     * platform::IBindBoneViewの非所有(non-owning)な実装
+     * sub_system::IBindBoneViewの非所有(non-owning)な実装
      * バインドポーズはモデル読み込み後は変化しないためすべて読み取り専用で保持する
      */
-    class BindBoneView final : public platform::IBindBoneView {
+    class BindBoneView final : public sub_system::IBindBoneView {
       private:
         const glm::mat4* const bind_local;
         const glm::mat4* const bind_global;

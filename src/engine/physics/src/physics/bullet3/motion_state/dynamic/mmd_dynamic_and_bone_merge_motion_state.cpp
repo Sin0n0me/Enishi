@@ -25,20 +25,20 @@ namespace enishi::physics::bullet3 {
         this->inverse_offset = glm::inverse(offset);
     }
 
-    void MMDDynamicAndBoneMergeMotionState::reset(platform::IPhysicsBoneView* const
+    void MMDDynamicAndBoneMergeMotionState::reset(sub_system::IPhysicsBoneView* const
             physics_bone) { // mmdの世界からbulletの世界に変換しオフセット適用
         const auto offset_matrix = this->global * this->offset;
         this->transform = BulletConverter::matrix_to_transform(inverse_z(offset_matrix));
     }
 
     void MMDDynamicAndBoneMergeMotionState::update_global_transform(
-        platform::IPhysicsBoneView* const physics_bone) {
+        sub_system::IPhysicsBoneView* const physics_bone) {
         this->global = physics_bone->get_physics_global();
     }
 
     void MMDDynamicAndBoneMergeMotionState::reflect_global_transform(
-        platform::IPhysicsBoneView* const physics_bone,
-        platform::IBoneUpdater* const bone_updater) {
+        sub_system::IPhysicsBoneView* const physics_bone,
+        sub_system::IBoneUpdater* const bone_updater) {
         if (!this->override_with_physics) {
             return;
         }

@@ -21,9 +21,9 @@ namespace enishi::physics::bullet3 {
         void getWorldTransform(btTransform& worldTrans) const override;
         void setWorldTransform(const btTransform& worldTrans) override;
         void set_offset(const glm::mat4& offset) override;
-        void reset(platform::IPhysicsBoneView* const physics_bone) override;
-        void update_global_transform(platform::IPhysicsBoneView* const physics_bone) override;
-        void reflect_global_transform(platform::IPhysicsBoneView* const physics_bone,
-            platform::IBoneUpdater* const bone_updater) override;
+        void reset(sub_system::IPhysicsBoneView* const physics_bone) override;
+        void update_global_transform(sub_system::IPhysicsBoneView* const physics_bone) override;
+        void reflect_global_transform(sub_system::IPhysicsBoneView* const physics_bone,
+            sub_system::IBoneUpdater* const bone_updater) override;
     };
 } // namespace enishi::physics::bullet3

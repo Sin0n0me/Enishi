@@ -1,13 +1,13 @@
 #pragma once
 #include <memory>
-#include <platform/physics/bone/interface_physics_bone_view.h>
-#include <platform/physics/bone/interface_physics_bone_view_list.h>
-#include <platform/physics/rigid_body/interface_rigid_body.h>
+#include <sub_system/physics/bone/interface_physics_bone_view.h>
+#include <sub_system/physics/bone/interface_physics_bone_view_list.h>
+#include <sub_system/physics/rigid_body/interface_rigid_body.h>
 
 namespace enishi::physics {
     struct PhysicsBoneViews {
-        std::shared_ptr<platform::IPhysicsBoneViewList> views;
-        std::shared_ptr<platform::IBoneUpdater> updater;
-        std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view;
+        std::shared_ptr<sub_system::IPhysicsBoneViewList> views;
+        std::shared_ptr<sub_system::IBoneUpdater> updater;
+        std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view;
     };
 } // namespace enishi::physics

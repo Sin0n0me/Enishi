@@ -2,10 +2,10 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    void PhysicsBodyFactory::build(platform::IPhysicsWorld& world,
+    void PhysicsBodyFactory::build(sub_system::IPhysicsWorld& world,
         const component::PhysicsBodiesComponent& bodies,
         const std::shared_ptr<skinning_system::PhysicsBonesCache>& physics_cache,
-        std::shared_ptr<platform::IBoneUpdater> updater) noexcept {
+        std::shared_ptr<sub_system::IBoneUpdater> updater) noexcept {
         if (bodies.rigid_bodies.empty()) {
             return;
         }

@@ -196,7 +196,7 @@ namespace enishi {
     }
 
     void Application::init_physics(std::shared_ptr<platform::IAssetSystem> asset_system,
-        std::shared_ptr<platform::IPhysicsEngine> physics_engine) {
+        std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
         physics_engine->init_world();
     }
 } // namespace enishi

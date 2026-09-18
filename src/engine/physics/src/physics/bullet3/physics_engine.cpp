@@ -1,7 +1,7 @@
 #include "physics_engine.h"
 
 namespace enishi::physics::bullet3 {
-    PhysicsEngine::PhysicsEngine(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config)
+    PhysicsEngine::PhysicsEngine(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config)
         : world(std::make_shared<PhysicsWorld>(config)) {
     }
 
@@ -14,15 +14,15 @@ namespace enishi::physics::bullet3 {
         return {};
     }
 
-    std::shared_ptr<platform::IPhysicsWorld> PhysicsEngine::get_shared_world(void) noexcept {
+    std::shared_ptr<sub_system::IPhysicsWorld> PhysicsEngine::get_shared_world(void) noexcept {
         return this->world;
     }
 
-    platform::IPhysicsWorld* PhysicsEngine::get_world(void) noexcept {
+    sub_system::IPhysicsWorld* PhysicsEngine::get_world(void) noexcept {
         return this->world.get();
     }
 
-    const platform::IPhysicsWorld* PhysicsEngine::get_world(void) const noexcept {
+    const sub_system::IPhysicsWorld* PhysicsEngine::get_world(void) const noexcept {
         return this->world.get();
     }
 

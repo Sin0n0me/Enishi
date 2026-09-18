@@ -11,36 +11,36 @@ namespace enishi::skinning_system {
         return this->bone_nodes;
     }
 
-    foundation::Option<std::shared_ptr<platform::IPhysicsBoneView>> PhysicsBonesCache::get_shared(
+    foundation::Option<std::shared_ptr<sub_system::IPhysicsBoneView>> PhysicsBonesCache::get_shared(
         const types::BoneIndex index) const noexcept {
         if (this->physics_views.size() < index + 1) {
             return {};
         }
-        return std::shared_ptr<platform::IPhysicsBoneView>(this->physics_views[index]);
+        return std::shared_ptr<sub_system::IPhysicsBoneView>(this->physics_views[index]);
     }
 
     std::size_t PhysicsBonesCache::size(void) const noexcept {
         return this->physics_views.size();
     }
 
-    foundation::Option<platform::IPhysicsBoneView*> PhysicsBonesCache::get(
+    foundation::Option<sub_system::IPhysicsBoneView*> PhysicsBonesCache::get(
         const types::BoneIndex index) noexcept {
         if (this->physics_views.size() < index + 1) {
             return {};
         }
         return this->physics_views[index].get();
     }
-    foundation::Option<const platform::IPhysicsBoneView*> PhysicsBonesCache::get(
+    foundation::Option<const sub_system::IPhysicsBoneView*> PhysicsBonesCache::get(
         const types::BoneIndex index) const noexcept {
         if (this->physics_views.size() < index + 1) {
             return {};
         }
         return this->physics_views[index].get();
     }
-    platform::IPhysicsBoneView* PhysicsBonesCache::at(const types::BoneIndex index) noexcept {
+    sub_system::IPhysicsBoneView* PhysicsBonesCache::at(const types::BoneIndex index) noexcept {
         return this->physics_views[index].get();
     }
-    const platform::IPhysicsBoneView* PhysicsBonesCache::at(
+    const sub_system::IPhysicsBoneView* PhysicsBonesCache::at(
         const types::BoneIndex index) const noexcept {
         return this->physics_views[index].get();
     }

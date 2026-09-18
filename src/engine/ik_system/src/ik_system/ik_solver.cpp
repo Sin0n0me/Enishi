@@ -1,23 +1,23 @@
 #include "ik_solver.h"
 #include <algorithm>
 #include <cmath>
-#include <platform/ik/interface_ik_bone_view.h>
-#include <platform/skinning_system/interface_bone_updater.h>
+#include <sub_system/ik/interface_ik_bone_view.h>
+#include <sub_system/skinning_system/interface_bone_updater.h>
 
 namespace enishi::ik {
     constexpr float EPSILON = 1e-5f;
 
     void IKSolver::apply_ik(const types::IK& ik,
-        platform::IIKBoneViewList* const ik_view_list,
-        platform::IBoneUpdater* const updater,
+        sub_system::IIKBoneViewList* const ik_view_list,
+        sub_system::IBoneUpdater* const updater,
         const types::BoneIndex index) {
         if (const auto& ccd_ik = std::get_if<types::CCDIK>(&ik.method)) {
             IKSolver::ccd_ik(ik_view_list, updater, *ccd_ik, index);
         }
     }
 
-    void IKSolver::ccd_ik(platform::IIKBoneViewList* const ik_view_list,
-        platform::IBoneUpdater* const updater,
+    void IKSolver::ccd_ik(sub_system::IIKBoneViewList* const ik_view_list,
+        sub_system::IBoneUpdater* const updater,
         const types::CCDIK& ik,
         const types::BoneIndex index) {
         // chainがない場合後の計算は無駄なので何もしない

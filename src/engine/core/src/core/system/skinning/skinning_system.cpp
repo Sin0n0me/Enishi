@@ -10,7 +10,7 @@
 
 namespace enishi::core {
     SkinningSystem::SkinningSystem(ecs::Registry& registry,
-        std::shared_ptr<platform::IPhysicsEngine> physics_engine) noexcept
+        std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept
         : registry(&registry), physics_engine(std::move(physics_engine)) {
     }
 

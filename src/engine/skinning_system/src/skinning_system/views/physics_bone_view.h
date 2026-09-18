@@ -1,11 +1,11 @@
 #pragma once
-#include <platform/physics/bone/interface_physics_bone_view.h>
+#include <sub_system/physics/bone/interface_physics_bone_view.h>
 
 namespace enishi::skinning_system {
     /**
      * 物理演算専用のView
      */
-    class PhysicsBoneView final : public platform::IPhysicsBoneView {
+    class PhysicsBoneView final : public sub_system::IPhysicsBoneView {
       private:
         glm::mat4* const local;
         glm::mat4* const global;

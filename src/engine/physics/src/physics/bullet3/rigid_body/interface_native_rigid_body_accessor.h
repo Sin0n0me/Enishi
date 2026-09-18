@@ -5,7 +5,7 @@
 #include <foundation/option/option.h>
 #include <foundation/type_traits/add_const.h>
 #include <memory>
-#include <platform/physics/rigid_body/interface_rigid_body.h>
+#include <sub_system/physics/rigid_body/interface_rigid_body.h>
 #include <span>
 #include <tuple>
 

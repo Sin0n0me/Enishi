@@ -1,12 +1,12 @@
 #pragma once
-#include <platform/animation/interface_animation_bone_view.h>
+#include <sub_system/animation/interface_animation_bone_view.h>
 
 namespace enishi::skinning_system {
     /**
      * ビューの生存期間中にアドレスが変わることがない
      * 変わる場合は新しく作り直される
      */
-    class AnimationBoneView final : public platform::IAnimationBoneView {
+    class AnimationBoneView final : public sub_system::IAnimationBoneView {
       private:
         glm::vec3* const translation;
         glm::quat* const rotation;

@@ -10,7 +10,7 @@
 namespace enishi::physics::bullet3 {
     constexpr float GRAVITY = 9.80665f;
 
-    PhysicsWorld::PhysicsWorld(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config)
+    PhysicsWorld::PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config)
         : resource_pool(std::make_shared<PhysicsResourcePool>())
         , object_manager(std::make_unique<PhysicsObjectManager>())
         , broadphase(std::make_unique<btDbvtBroadphase>())
@@ -96,9 +96,9 @@ namespace enishi::physics::bullet3 {
     foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_rigid_body(
         const types::PhysicsHandle& object_handle,
         const types::PhysicsRigidBody& rigid_body_description,
-        std::shared_ptr<platform::IPhysicsBoneViewList> view_list,
-        std::shared_ptr<platform::IBoneUpdater> updater,
-        std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view) noexcept {
+        std::shared_ptr<sub_system::IPhysicsBoneViewList> view_list,
+        std::shared_ptr<sub_system::IBoneUpdater> updater,
+        std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view) noexcept {
         auto&& [kinematic_motion_state, active_motion_state] =
             PhysicsNativeResourceMaker::make_motion_state(rigid_body_description, false);
         auto&& result_shape = PhysicsNativeResourceMaker::make_shape(rigid_body_description);
@@ -224,7 +224,7 @@ namespace enishi::physics::bullet3 {
         return handle;
     }
 
-    void PhysicsWorld::reset_physics(platform::IBoneUpdater* const updater) {
+    void PhysicsWorld::reset_physics(sub_system::IBoneUpdater* const updater) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
 
@@ -253,7 +253,7 @@ namespace enishi::physics::bullet3 {
         }
     }
 
-    void PhysicsWorld::apply_physics(platform::IBoneUpdater* const updater) {
+    void PhysicsWorld::apply_physics(sub_system::IBoneUpdater* const updater) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
         for (auto& rb : rigid_bodies) {
@@ -265,12 +265,12 @@ namespace enishi::physics::bullet3 {
         updater->update_global_form_roots();
     }
 
-    platform::IPhysicsWorldConfigWriter* enishi::physics::bullet3::PhysicsWorld::get_config_writer(
+    sub_system::IPhysicsWorldConfigWriter* enishi::physics::bullet3::PhysicsWorld::get_config_writer(
         void) noexcept {
         return this->config.get();
     }
 
-    const platform::IPhysicsWorldConfigReader*
+    const sub_system::IPhysicsWorldConfigReader*
     enishi::physics::bullet3::PhysicsWorld::get_config_reader(void) const noexcept {
         return this->config.get();
     }

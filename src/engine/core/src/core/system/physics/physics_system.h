@@ -3,21 +3,21 @@
 #include <ecs/registry.h>
 #include <foundation/str/str.h>
 #include <memory>
-#include <platform/physics/interface_physics_engine.h>
-#include <platform/physics/interface_physics_world.h>
+#include <sub_system/physics/interface_physics_engine.h>
+#include <sub_system/physics/interface_physics_world.h>
 #include <unordered_map>
 
 namespace enishi::core {
     class PhysicsSystem : public ISystem {
       private:
         std::shared_ptr<ecs::Registry> registry;
-        std::shared_ptr<platform::IPhysicsEngine> physics_engine;
+        std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
 
         explicit PhysicsSystem(void) = delete;
 
       public:
         explicit PhysicsSystem(std::shared_ptr<ecs::Registry> registry,
-            std::shared_ptr<platform::IPhysicsEngine> physics_engine);
+            std::shared_ptr<sub_system::IPhysicsEngine> physics_engine);
 
       public:
         bool should_close(void) override;
