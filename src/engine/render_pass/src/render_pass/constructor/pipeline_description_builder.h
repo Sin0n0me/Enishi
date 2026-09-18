@@ -21,6 +21,7 @@ namespace enishi::render_pass {
         platform::IRenderer* const renderer;
         const platform::IWindow* const window;
         foundation::StringBuilder errors;
+        bool has_error = false;
 
       public:
         explicit PipelineDescriptionConstructer(
@@ -54,6 +55,24 @@ namespace enishi::render_pass {
 
         [[nodiscard]] PipelineDescriptionConstructer* add_rasterizer_state(
             types::RasterizerStateDescription&& description) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_blend_state(
+            const types::RenderHandle handle) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_blend_state(
+            types::BlendStateDescription&& description) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_depth_stencil_state(
+            const types::RenderHandle handle) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_depth_stencil_state(
+            types::DepthStencilStateDescription&& description) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_sampler_state(
+            const types::RenderHandle handle) noexcept;
+
+        [[nodiscard]] PipelineDescriptionConstructer* add_sampler_state(
+            types::SamplerStateDescription&& description) noexcept;
 
         [[nodiscard]] foundation::Result<types::PipelineDescription, ConstructError> build(
             void) noexcept;
