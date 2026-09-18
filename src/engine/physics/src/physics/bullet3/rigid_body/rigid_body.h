@@ -13,7 +13,7 @@
 #include <physics/errors/errors.h>
 
 namespace enishi::physics::bullet3 {
-    class BulletRigidBody : public platform::IRigidBody {
+    class BulletRigidBody : public sub_system::IRigidBody {
       private:
         std::shared_ptr<INativePhysicsAccessor> native_view;
         PhysicsBoneViews views;

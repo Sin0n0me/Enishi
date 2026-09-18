@@ -5,10 +5,10 @@ namespace enishi::physics::bullet3 {
         : world(std::make_shared<PhysicsWorld>(config)) {
     }
 
-    foundation::VoidResult<platform::PhysicsError> PhysicsEngine::init_world(void) noexcept {
+    foundation::VoidResult<sub_system::PhysicsError> PhysicsEngine::init_world(void) noexcept {
         auto&& result = this->world->init().add_message("物理世界の初期化に失敗しました");
         if (result.is_err()) {
-            return result.propagation(platform::PhysicsError::InitError);
+            return result.propagation(sub_system::PhysicsError::InitError);
         }
 
         return {};

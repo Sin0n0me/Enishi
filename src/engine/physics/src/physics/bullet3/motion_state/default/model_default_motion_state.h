@@ -5,7 +5,7 @@
 #include <sub_system/physics/motion_state/interface_motion_state.h>
 
 namespace enishi::physics::bullet3 {
-    class ModelDefaultMotionState : public btDefaultMotionState, public platform::IMotionState {
+    class ModelDefaultMotionState : public btDefaultMotionState, public sub_system::IMotionState {
       public:
         using btDefaultMotionState::btDefaultMotionState;
 

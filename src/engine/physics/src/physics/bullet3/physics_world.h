@@ -26,20 +26,20 @@ namespace enishi::physics::bullet3 {
       public:
         explicit PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config);
 
-        foundation::VoidResult<platform::PhysicsError> init(void) override;
+        foundation::VoidResult<sub_system::PhysicsError> init(void) override;
 
         void simulation(const types::DeltaTime& dt) override;
         void set_gravity(const glm::vec3& vec) override;
 
-        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_object(
+        foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> add_object(
             void) noexcept override;
-        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_rigid_body(
+        foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> add_rigid_body(
             const types::PhysicsHandle& object_handle,
             const types::PhysicsRigidBody& rigid_body,
             std::shared_ptr<sub_system::IPhysicsBoneViewList> view_list,
             std::shared_ptr<sub_system::IBoneUpdater> updater,
             std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view) noexcept override;
-        foundation::Result<types::PhysicsHandle, platform::PhysicsError> add_joint(
+        foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> add_joint(
             const types::PhysicsHandle& object_handle,
             const types::PhysicsJoint& joint) noexcept override;
 

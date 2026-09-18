@@ -13,7 +13,7 @@ namespace enishi::physics::bullet3 {
     class INativeRigidBodyAccessor {
       public:
         using NativeRigidBody = std::shared_ptr<btRigidBody>;
-        using RigidBody = std::shared_ptr<platform::IRigidBody>;
+        using RigidBody = std::shared_ptr<sub_system::IRigidBody>;
 
       public:
         virtual ~INativeRigidBodyAccessor(void) noexcept = default;

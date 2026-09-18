@@ -3,7 +3,7 @@
 #include <sub_system/physics/motion_state/interface_motion_state.h>
 
 namespace enishi::physics::bullet3 {
-    class IMMDMotionState : public btMotionState, public platform::IMotionState {
+    class IMMDMotionState : public btMotionState, public sub_system::IMotionState {
       public:
         virtual ~IMMDMotionState(void) noexcept = default;
     };
