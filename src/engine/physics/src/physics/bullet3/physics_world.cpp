@@ -162,8 +162,8 @@ namespace enishi::physics::bullet3 {
             return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         auto& rigid_body = opt_rigid_body.unwrap_mut();
-        rigid_body.set_active(true);
-        rigid_body.reset_transform();
+        rigid_body->set_active(true);
+        rigid_body->reset_transform();
 
         const auto handle = this->handle_mapper->make(types::PhysicsHandleType::RigidBody,
             types::ResourceHandles{
