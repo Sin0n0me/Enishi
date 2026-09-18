@@ -58,7 +58,7 @@ namespace enishi {
         auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
             std::make_shared<platform_impl::PhysicsWorldConfig>());
         auto skinning_system = this->system_scheduler.register_system<core::SkinningSystem>(
-            85, *this->registry, physics_engine);
+            85, this->registry, physics_engine);
 
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
             90, this->registry, physics_engine);
@@ -78,7 +78,9 @@ namespace enishi {
         }
         foundation::Logger::info("レンダラーの初期化に成功しました");
 
-        this->init_physics(shared_asset_system, physics_engine);
+        if (!this->init_physics(physics_engine)) {
+            return false;
+        }
 
         return true;
     }
@@ -109,10 +111,13 @@ namespace enishi {
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
+            foundation::Logger::error("ルートウィンドウを取得できませんでした");
             return {};
         }
 
-        if (root_window->init().is_err()) {
+        auto init_result = root_window->init();
+        if (init_result.is_err()) {
+            foundation::Logger::error(init_result.unwrap_err().get_message());
             return {};
         }
 
@@ -123,17 +128,20 @@ namespace enishi {
         std::shared_ptr<platform::IWindow> root_window,
         std::shared_ptr<platform::IAssetSystem> asset_system) {
         if (!bool(root_window)) {
+            foundation::Logger::error("レンダラー初期化に必要なウィンドウがありません");
             return {};
         }
 
         const auto opt_window_handle = root_window->get_handle();
         if (opt_window_handle.is_none()) {
+            foundation::Logger::error("ウィンドウハンドルを取得できませんでした");
             return {};
         }
 
         auto initializer = renderer::directx::D3D11RenderInitializer{};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
         if (result_renderer.is_err()) {
+            foundation::Logger::error(result_renderer.unwrap_err().get_message());
             return {};
         }
 
@@ -148,7 +156,9 @@ namespace enishi {
             .max_depth = 1.0,
         };
 
-        if (renderer->create_viewport(rect).is_err()) {
+        auto viewport_result = renderer->create_viewport(rect);
+        if (viewport_result.is_err()) {
+            foundation::Logger::error(viewport_result.unwrap_err().get_message());
             return {};
         }
 
@@ -195,8 +205,13 @@ namespace enishi {
         return renderer;
     }
 
-    void Application::init_physics(std::shared_ptr<platform::IAssetSystem> asset_system,
-        std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
-        physics_engine->init_world();
+    bool Application::init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
+        auto init_result = physics_engine->init_world();
+        if (init_result.is_err()) {
+            foundation::Logger::error(init_result.unwrap_err().get_message());
+            return false;
+        }
+
+        return true;
     }
 } // namespace enishi

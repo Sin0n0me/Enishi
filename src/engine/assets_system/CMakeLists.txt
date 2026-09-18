@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.14)
 project(assets_system)
 
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
+
 # 依存設定
 set(DEPENDENCIES)
 set(ASSET_DEPENDENT_LIBS "${CMAKE_BINARY_DIR}/libs")
@@ -64,16 +66,10 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-add_library(${PROJECT_NAME} ${SOURCES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_include_directories(${PROJECT_NAME} PUBLIC ${ASSET_DEPENDENT_LIBS})
-
-target_link_libraries(${PROJECT_NAME} PUBLIC ${DEPENDENCIES})
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
+enishi_add_library(${PROJECT_NAME} ${SOURCES})
+enishi_configure_library(${PROJECT_NAME}
+    INCLUDE_DIRECTORIES src ${ASSET_DEPENDENT_LIBS}
+    PUBLIC_DEPENDENCIES ${DEPENDENCIES}
 )
 
 # MSVCコンパイラのホットリロードを有効に
