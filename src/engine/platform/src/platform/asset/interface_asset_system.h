@@ -11,6 +11,7 @@
 #include <ranges>
 #include <regex>
 #include <vector>
+#include <variant>
 
 namespace enishi::platform {
     class IAssetSystem {
@@ -41,14 +42,23 @@ namespace enishi::platform {
         [[nodiscard]] virtual foundation::Option<const std::filesystem::path&> get_asset_file_name(
             const types::AssetHandle& handle) const noexcept = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::AssetModelData&> get_model_data(
+        [[nodiscard]] virtual foundation::Option<const types::AssetData&> get_asset_data(
             const types::AssetHandle& handle) const noexcept = 0;
 
-        [[nodiscard]] virtual foundation::Option<const types::AssetShaderData&> get_shader_data(
-            const types::AssetHandle& handle) const noexcept = 0;
+        template <typename T>
+        [[nodiscard]] foundation::Option<const T&> get_asset(
+            const types::AssetHandle& handle) const noexcept {
+            const auto asset_data = this->get_asset_data(handle);
+            if (asset_data.is_none()) {
+                return {};
+            }
 
-        [[nodiscard]] virtual foundation::Option<const types::AssetTextureData&> get_texture_data(
-            const types::AssetHandle& handle) const noexcept = 0;
+            const auto* const data = std::get_if<T>(&asset_data.unwrap());
+            if (!data) {
+                return {};
+            }
+            return *data;
+        }
 
         [[nodiscard]] virtual foundation::UTF8 get_extensions_pattern(
             const types::AssetKind asset_kind) const noexcept = 0;

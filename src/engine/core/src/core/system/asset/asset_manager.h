@@ -28,7 +28,7 @@ namespace enishi::core {
       private:
         // 以下はいずれも「一度読み込んだ結果を保持しておくキャッシュ」に過ぎず
         // 外部から見た本クラスの振る舞い(同じハンドルには同じデータを返す)は変化しない
-        // そのため、データ取得系のAPI(get_model_data等)をconstに保ったまま
+        // そのため、データ取得系のAPI(get_asset_data)をconstに保ったまま
         // 遅延読み込み(ensure_asset_loaded)からも書き込めるようにmutableにしている
         mutable ecs::Registry asset_registry;
         mutable std::unordered_map<std::filesystem::path, types::AssetHandle> path_to_handle;
@@ -56,11 +56,7 @@ namespace enishi::core {
         [[nodiscard]] foundation::PathObjects find_assets(const std::filesystem::path& target_path,
             const types::AssetKind asset_kind) const noexcept override;
 
-        [[nodiscard]] foundation::Option<const types::AssetModelData&> get_model_data(
-            const types::AssetHandle& handle) const noexcept override;
-        [[nodiscard]] foundation::Option<const types::AssetShaderData&> get_shader_data(
-            const types::AssetHandle& handle) const noexcept override;
-        [[nodiscard]] foundation::Option<const types::AssetTextureData&> get_texture_data(
+        [[nodiscard]] foundation::Option<const types::AssetData&> get_asset_data(
             const types::AssetHandle& handle) const noexcept override;
 
         [[nodiscard]] types::AssetState get_asset_state(
