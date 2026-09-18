@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.14)
 project(platform_impl)
 
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
+
 # MSVCコンパイラの場合のみ、ソースコードと実行バイナリの文字セットをUTF-8に設定
 if(MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
@@ -14,7 +16,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-add_library(${PROJECT_NAME} ${SOURCES})
+enishi_add_library(${PROJECT_NAME} ${SOURCES})
 
 
 # 以下依存設定
@@ -47,6 +49,8 @@ if(USE_SDL3)
 
     set(SDL_TESTS OFF CACHE BOOL "Disable SDL3 tests" FORCE)
     set(SDL_TESTS_BUILD OFF CACHE BOOL "Disable SDL3 test builds" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL3 test library" FORCE)
+    set(SDL_INSTALL_TESTS OFF CACHE BOOL "Do not install SDL3 tests" FORCE)
     FetchContent_Declare(
         SDL3
         GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -74,13 +78,9 @@ endif()
 # 以降は触らなくて良い
 #
 
-target_include_directories(${PROJECT_NAME} PUBLIC src)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDENCIES})
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
+enishi_configure_library(${PROJECT_NAME}
+    INCLUDE_DIRECTORIES src
+    LINK_DEPENDENCIES ${DEPENDENCIES}
 )
 
 # MSVCコンパイラのホットリロードを有効に

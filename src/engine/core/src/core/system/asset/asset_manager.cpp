@@ -183,11 +183,8 @@ namespace enishi::core {
         }
 
         // Registryへの実データ挿入は必ずメインスレッドから行う(ComponentPoolはスレッドセーフでないため)
-        auto&& asset_data = std::move(completed.result).unwrap_mut();
-        const auto insert_result = std::visit(
-            [this, &completed](
-                auto&& data) { return this->insert_asset(completed.handle.id, std::move(data)); },
-            std::move(asset_data));
+        auto asset_data = std::move(completed.result).unwrap_mut();
+        const auto insert_result = this->insert_asset(completed.handle.id, std::move(asset_data));
 
         if (insert_result.is_err()) {
             foundation::Logger::error(insert_result.unwrap_err().get_message());
@@ -249,38 +246,16 @@ namespace enishi::core {
         return make_extension_regex(extensions);
     }
 
-    foundation::Option<const types::AssetModelData&> AssetManager::get_model_data(
+    foundation::Option<const types::AssetData&> AssetManager::get_asset_data(
         const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registry.get_const<types::AssetModelData>(handle.id);
+        auto&& cached = this->asset_registry.get_const<types::AssetData>(handle.id);
         if (cached.is_some()) {
             return cached;
         }
 
         // 読み込み中であれば、ここで完了を待ってからもう一度取得する
         this->ensure_asset_loaded(handle);
-        return this->asset_registry.get_const<types::AssetModelData>(handle.id);
-    }
-
-    foundation::Option<const types::AssetShaderData&> AssetManager::get_shader_data(
-        const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registry.get_const<types::AssetShaderData>(handle.id);
-        if (cached.is_some()) {
-            return cached;
-        }
-
-        this->ensure_asset_loaded(handle);
-        return this->asset_registry.get_const<types::AssetShaderData>(handle.id);
-    }
-
-    foundation::Option<const types::AssetTextureData&> AssetManager::get_texture_data(
-        const types::AssetHandle& handle) const noexcept {
-        auto&& cached = this->asset_registry.get_const<types::AssetTextureData>(handle.id);
-        if (cached.is_some()) {
-            return cached;
-        }
-
-        this->ensure_asset_loaded(handle);
-        return this->asset_registry.get_const<types::AssetTextureData>(handle.id);
+        return this->asset_registry.get_const<types::AssetData>(handle.id);
     }
 
     std::vector<foundation::UTF8> AssetManager::get_extensions(

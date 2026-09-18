@@ -4,6 +4,7 @@
 #include <foundation/path/path_utility.h>
 #include <algorithm>
 #include <regex>
+#include <variant>
 
 namespace enishi::model_controller {
     ModelController::ModelController(std::shared_ptr<platform::IAssetSystem> asset_system,
@@ -41,17 +42,7 @@ namespace enishi::model_controller {
         return names;
     }
 
-    foundation::Option<foundation::UTF8> ModelController::get_current_model_name(
-        void) const noexcept {
-        return this->current_model_name;
-    }
-
-    foundation::Option<types::RenderHandle> ModelController::get_current_model_render_handle(
-        void) const noexcept {
-        return this->current_model_render_handle;
-    }
-
-    foundation::Result<types::RenderHandle, ControlError> ModelController::change_model(
+    foundation::Result<component::ModelComponent, ControlError> ModelController::make_model(
         const foundation::UTF8& name,
         const std::vector<types::RenderHandle>& shader_reflections) noexcept {
         const auto iter = this->model_list.find(name);
@@ -73,9 +64,30 @@ namespace enishi::model_controller {
             return foundation::Error(ControlError::BuildFailed, "描画データの作成に失敗しました");
         }
 
-        this->current_model_name = name;
-        this->current_model_render_handle = build_result.unwrap();
-        return this->current_model_render_handle.unwrap();
+        const auto model_data = this->asset_system->get_asset<types::AssetModelData>(model_handle);
+        if (model_data.is_none()) {
+            return foundation::Error(ControlError::LoadFailed);
+        }
+
+        auto model_component = component::ModelComponent{
+            .render_handle = build_result.unwrap(),
+        };
+        for (const auto& addon : model_data.unwrap()->addons) {
+            const auto* const bones = std::get_if<types::AddonBones>(&addon);
+            if (!bones) {
+                continue;
+            }
+
+            model_component.bone_node.reserve(bones->size());
+            model_component.bind_bone.reserve(bones->size());
+            for (const auto& bone : *bones) {
+                model_component.bone_node.emplace_back(bone.bone_node);
+                model_component.bind_bone.emplace_back(bone.bind_bone);
+            }
+            break;
+        }
+
+        return model_component;
     }
 
     void make_wall(void) {

@@ -36,12 +36,12 @@ namespace enishi::core {
             component::PhysicsBodiesComponent*>;
 
       private:
-        ecs::Registry* const registry;
+        std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
-        explicit SkinningSystem(ecs::Registry& registry,
+        explicit SkinningSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept;
 
         bool should_close(void) override;

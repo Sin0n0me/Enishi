@@ -9,9 +9,9 @@
 #include <utility>
 
 namespace enishi::core {
-    SkinningSystem::SkinningSystem(ecs::Registry& registry,
+    SkinningSystem::SkinningSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept
-        : registry(&registry), physics_engine(std::move(physics_engine)) {
+        : registry(std::move(registry)), physics_engine(std::move(physics_engine)) {
     }
 
     bool SkinningSystem::should_close(void) {

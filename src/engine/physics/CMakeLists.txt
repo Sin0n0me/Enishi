@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.12)
 project(physics)
 
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
+
 # 以下依存設定
 set(DEPENDENCIES)
 include(FetchContent)
@@ -33,6 +35,7 @@ set(BUILD_DEMOS OFF CACHE BOOL "Build Bullet demos" FORCE)
 set(BUILD_CPU_DEMOS OFF CACHE BOOL "Disable Bullet3 CPU demos/examples" FORCE)
 set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "Disable Bullet3 OpenGL3 demos/examples" FORCE)
 set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "Disable Bullet2 demos" FORCE)
+set(BUILD_EXTRAS OFF CACHE BOOL "Disable Bullet3 extras including BulletRobotics" FORCE)
 set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "Use MSVC Runtime Library DLL" FORCE)
 
 FetchContent_Declare(
@@ -74,17 +77,10 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-add_library(${PROJECT_NAME} ${SOURCES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_include_directories(${PROJECT_NAME} PUBLIC ${BULLET_SOURCE_DIR})
-
-
-target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
+enishi_add_library(${PROJECT_NAME} ${SOURCES})
+enishi_configure_library(${PROJECT_NAME}
+    INCLUDE_DIRECTORIES src ${BULLET_SOURCE_DIR}
+    LINK_DEPENDENCIES ${DEPENDENCIES}
 )
 
 # MSVCコンパイラのホットリロードを有効に

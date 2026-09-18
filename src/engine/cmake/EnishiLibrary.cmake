@@ -20,16 +20,26 @@ function(enishi_add_library target)
 endfunction()
 
 function(enishi_configure_library target)
-    cmake_parse_arguments(ARG "" "" "INCLUDE_DIRECTORIES;DEPENDENCIES" ${ARGN})
+    cmake_parse_arguments(ARG "" "" "INCLUDE_DIRECTORIES;DEPENDENCIES;PUBLIC_DEPENDENCIES;LINK_DEPENDENCIES" ${ARGN})
     get_target_property(target_type ${target} TYPE)
 
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         target_include_directories(${target} INTERFACE ${ARG_INCLUDE_DIRECTORIES})
-        target_link_libraries(${target} INTERFACE ${ARG_DEPENDENCIES})
+        target_link_libraries(${target} INTERFACE
+            ${ARG_DEPENDENCIES}
+            ${ARG_PUBLIC_DEPENDENCIES}
+            ${ARG_LINK_DEPENDENCIES}
+        )
         target_compile_features(${target} INTERFACE cxx_std_23)
     else()
         target_include_directories(${target} PUBLIC ${ARG_INCLUDE_DIRECTORIES})
-        target_link_libraries(${target} PRIVATE ${ARG_DEPENDENCIES})
+        target_link_libraries(${target}
+            PRIVATE
+            ${ARG_DEPENDENCIES}
+            ${ARG_LINK_DEPENDENCIES}
+            PUBLIC
+            ${ARG_PUBLIC_DEPENDENCIES}
+        )
         set_target_properties(${target} PROPERTIES
             CXX_STANDARD 23
             CXX_STANDARD_REQUIRED ON

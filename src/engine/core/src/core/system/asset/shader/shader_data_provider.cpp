@@ -31,7 +31,8 @@ namespace enishi::core {
                 if (asset_handle.is_err()) {
                     return asset_handle.propagation(platform::RenderError::MakeError);
                 }
-                const auto shader_data = this->asset_system->get_shader_data(asset_handle.unwrap());
+                const auto shader_data =
+                    this->asset_system->get_asset<types::AssetShaderData>(asset_handle.unwrap());
                 if (shader_data.is_none()) {
                     return foundation::Error(
                         platform::RenderError::MakeError, "シェーダーデータが存在しません");
