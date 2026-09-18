@@ -3,8 +3,8 @@
 #include <engine_types/assets/model/addons/ik.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <platform/ik/interface_ik_bone_view_list.h>
-#include <platform/skinning_system/interface_bone_updater.h>
+#include <sub_system/ik/interface_ik_bone_view_list.h>
+#include <sub_system/skinning_system/interface_bone_updater.h>
 
 namespace enishi::ik {
     // 純粋なロジックのみ
@@ -12,13 +12,13 @@ namespace enishi::ik {
     class IKSolver {
       public:
         static void apply_ik(const types::IK& ik,
-            platform::IIKBoneViewList* const ik_view_list,
-            platform::IBoneUpdater* const updater,
+            sub_system::IIKBoneViewList* const ik_view_list,
+            sub_system::IBoneUpdater* const updater,
             const types::BoneIndex index);
 
       private:
-        static void ccd_ik(platform::IIKBoneViewList* const ik_view_list,
-            platform::IBoneUpdater* const updater,
+        static void ccd_ik(sub_system::IIKBoneViewList* const ik_view_list,
+            sub_system::IBoneUpdater* const updater,
             const types::CCDIK& ik,
             const types::BoneIndex index);
 

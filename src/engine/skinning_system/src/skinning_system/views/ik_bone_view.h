@@ -1,9 +1,9 @@
 #pragma once
-#include <platform/ik/interface_ik_bone_view.h>
+#include <sub_system/ik/interface_ik_bone_view.h>
 #include <vector>
 
 namespace enishi::skinning_system {
-    class IKBoneView final : public platform::IIKBoneView {
+    class IKBoneView final : public sub_system::IIKBoneView {
       private:
         glm::quat* const rotation;
         glm::mat4* const global;

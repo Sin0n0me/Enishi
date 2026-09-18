@@ -37,6 +37,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(CORE)
 
 FetchContent_Declare(
+    SUB_SYSTEM
+    SOURCE_DIR ${DEPEND_DIR}/sub_system
+)
+FetchContent_MakeAvailable(SUB_SYSTEM)
+
+FetchContent_Declare(
     PLATFORM_IMPL
     SOURCE_DIR ${DEPEND_DIR}/platform_impl
 )
@@ -83,6 +89,7 @@ FetchContent_MakeAvailable(SCRIPT)
 set(DEPENDENCIES
     PRIVATE core
     PRIVATE platform
+    PRIVATE sub_system
     PRIVATE platform_impl
     PRIVATE physics
     PRIVATE skinning_system

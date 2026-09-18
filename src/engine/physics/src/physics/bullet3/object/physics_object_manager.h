@@ -8,7 +8,7 @@
 #include <foundation/result/result.h>
 #include <memory>
 #include <physics/errors/errors.h>
-#include <platform/physics/interface_physics_world.h>
+#include <sub_system/physics/interface_physics_world.h>
 #include <unordered_map>
 
 namespace enishi::physics::bullet3 {

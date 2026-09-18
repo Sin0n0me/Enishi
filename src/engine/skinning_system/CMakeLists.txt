@@ -22,13 +22,13 @@ set(DEPENDENCIES)
 include(FetchContent)
 
 FetchContent_Declare(
-    PLATFORM
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../platform
+    SUB_SYSTEM
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sub_system
 )
-FetchContent_MakeAvailable(platform)
+FetchContent_MakeAvailable(sub_system)
 
 set(DEPENDENCIES
-    PRIVATE platform
+    PRIVATE sub_system
     PRIVATE engine_types
     PRIVATE foundation
     PRIVATE glm

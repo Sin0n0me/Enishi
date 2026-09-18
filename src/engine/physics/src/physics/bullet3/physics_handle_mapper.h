@@ -4,10 +4,10 @@
 #include <engine_types/handle/physics/physics_handle.h>
 #include <foundation/option/option.h>
 #include <memory>
-#include <platform/physics/interface_physics_handle_mapper.h>
+#include <sub_system/physics/interface_physics_handle_mapper.h>
 
 namespace enishi::physics::bullet3 {
-    class PhysicsHandleMapper : public platform::IPhysicsHandleMapper {
+    class PhysicsHandleMapper : public sub_system::IPhysicsHandleMapper {
       private:
         std::unique_ptr<types::HandleAllocator> handle_allocator;
         std::unordered_map<types::PhysicsHandle, types::ResourceHandles> handle_mapper;

@@ -11,7 +11,7 @@ namespace enishi::physics::bullet3 {
     class INativeMotionStateAccessor {
       public:
         using NativeMotionState = std::shared_ptr<btMotionState>;
-        using MotionState = std::shared_ptr<platform::IMotionState>;
+        using MotionState = std::shared_ptr<sub_system::IMotionState>;
 
       public:
         virtual ~INativeMotionStateAccessor(void) noexcept = default;

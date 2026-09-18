@@ -5,7 +5,7 @@
 #include <foundation/option/option.h>
 #include <foundation/type_traits/add_const.h>
 #include <memory>
-#include <platform/physics/rigid_body/interface_rigid_body.h>
+#include <sub_system/physics/rigid_body/interface_rigid_body.h>
 #include <span>
 #include <tuple>
 
@@ -13,7 +13,7 @@ namespace enishi::physics::bullet3 {
     class INativeRigidBodyAccessor {
       public:
         using NativeRigidBody = std::shared_ptr<btRigidBody>;
-        using RigidBody = std::shared_ptr<platform::IRigidBody>;
+        using RigidBody = std::shared_ptr<sub_system::IRigidBody>;
 
       public:
         virtual ~INativeRigidBodyAccessor(void) noexcept = default;

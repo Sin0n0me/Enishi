@@ -4,7 +4,7 @@
 
 namespace enishi::skinning_system {
     IKBonesUpdater::IKBonesUpdater(
-        IKBoneCache& ik_view, const platform::IBindBoneViewList& bind_view) noexcept
+        IKBoneCache& ik_view, const sub_system::IBindBoneViewList& bind_view) noexcept
         : ik_view(&ik_view)
         , bind_view(&bind_view) {
     }

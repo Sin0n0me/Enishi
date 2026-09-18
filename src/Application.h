@@ -6,7 +6,7 @@
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
 
-#include <platform/physics/interface_physics_engine.h>
+#include <sub_system/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
 #include <render_pass/render_pass_orchestra.h>
@@ -30,6 +30,6 @@ namespace enishi {
             std::shared_ptr<platform::IWindow> root_window,
             std::shared_ptr<platform::IAssetSystem> asset_system);
         void init_physics(std::shared_ptr<platform::IAssetSystem> asset_system,
-            std::shared_ptr<platform::IPhysicsEngine> physics_engine);
+            std::shared_ptr<sub_system::IPhysicsEngine> physics_engine);
     };
 } // namespace enishi

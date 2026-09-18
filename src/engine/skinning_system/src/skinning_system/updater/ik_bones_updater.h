@@ -1,6 +1,6 @@
 #pragma once
-#include <platform/asset/bone/interface_bind_bone_view_list.h>
-#include <platform/skinning_system/interface_bone_updater.h>
+#include <sub_system/model/bone/interface_bind_bone_view_list.h>
+#include <sub_system/skinning_system/interface_bone_updater.h>
 #include <skinning_system/cache/ik_bone_cache.h>
 #include <span>
 
@@ -18,13 +18,13 @@ namespace enishi::skinning_system {
      * また、set_ik_rotationは「差分」ではなく「そのボーンの現在の絶対回転」として扱う
      * (CCDの反復のたびに毎回bind位置から計算し直すため、繰り返し呼んでも回転が積み重ならない)
      */
-    class IKBonesUpdater final : public platform::IBoneUpdater {
+    class IKBonesUpdater final : public sub_system::IBoneUpdater {
       private:
         IKBoneCache* const ik_view;
-        const platform::IBindBoneViewList* const bind_view;
+        const sub_system::IBindBoneViewList* const bind_view;
 
       public:
-        IKBonesUpdater(IKBoneCache& ik_view, const platform::IBindBoneViewList& bind_view) noexcept;
+        IKBonesUpdater(IKBoneCache& ik_view, const sub_system::IBindBoneViewList& bind_view) noexcept;
 
         [[nodiscard]] std::span<const types::BoneNode> bone_nodes(void) const noexcept;
 

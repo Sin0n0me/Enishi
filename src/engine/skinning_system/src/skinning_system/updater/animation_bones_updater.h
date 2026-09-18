@@ -1,12 +1,12 @@
 #pragma once
-#include <platform/skinning_system/interface_bone_updater.h>
+#include <sub_system/skinning_system/interface_bone_updater.h>
 #include <skinning_system/cache/animation_bone_cache.h>
 #include <skinning_system/views/animation_bone_view.h>
 #include <span>
 #include <vector>
 
 namespace enishi::skinning_system {
-    class AnimationBonesUpdater : public platform::IBoneUpdater {
+    class AnimationBonesUpdater : public sub_system::IBoneUpdater {
       private:
         AnimationBonesCache* const animation_view;
 

@@ -10,7 +10,7 @@
 namespace enishi::physics::bullet3 {
     constexpr float GRAVITY = 9.80665f;
 
-    PhysicsWorld::PhysicsWorld(std::shared_ptr<platform::IPhysicsWorldConfigWriter> config)
+    PhysicsWorld::PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config)
         : resource_pool(std::make_shared<PhysicsResourcePool>())
         , object_manager(std::make_unique<PhysicsObjectManager>())
         , broadphase(std::make_unique<btDbvtBroadphase>())
@@ -25,7 +25,7 @@ namespace enishi::physics::bullet3 {
             this->collision_config.get());
     }
 
-    foundation::VoidResult<platform::PhysicsError> enishi::physics::bullet3::PhysicsWorld::init(
+    foundation::VoidResult<sub_system::PhysicsError> enishi::physics::bullet3::PhysicsWorld::init(
         void) {
         auto& info = this->world->getSolverInfo();
         info.m_numIterations = 10;
@@ -85,7 +85,7 @@ namespace enishi::physics::bullet3 {
         this->world->setGravity(btVector3(vec.x, vec.y, vec.z));
     }
 
-    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_object(
+    foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> PhysicsWorld::add_object(
         void) noexcept {
         return this->handle_mapper->make(types::PhysicsHandleType::PhysicsObject,
             types::ResourceHandles{
@@ -93,17 +93,17 @@ namespace enishi::physics::bullet3 {
             });
     }
 
-    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_rigid_body(
+    foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> PhysicsWorld::add_rigid_body(
         const types::PhysicsHandle& object_handle,
         const types::PhysicsRigidBody& rigid_body_description,
-        std::shared_ptr<platform::IPhysicsBoneViewList> view_list,
-        std::shared_ptr<platform::IBoneUpdater> updater,
-        std::shared_ptr<platform::IPhysicsBoneView> physics_bone_view) noexcept {
+        std::shared_ptr<sub_system::IPhysicsBoneViewList> view_list,
+        std::shared_ptr<sub_system::IBoneUpdater> updater,
+        std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view) noexcept {
         auto&& [kinematic_motion_state, active_motion_state] =
             PhysicsNativeResourceMaker::make_motion_state(rigid_body_description, false);
         auto&& result_shape = PhysicsNativeResourceMaker::make_shape(rigid_body_description);
         if (result_shape.is_err()) {
-            return result_shape.propagation(platform::PhysicsError::MakeError);
+            return result_shape.propagation(sub_system::PhysicsError::MakeError);
         }
         auto&& shape = result_shape.unwrap_mut();
 
@@ -113,7 +113,7 @@ namespace enishi::physics::bullet3 {
                 active_motion_state.get(),
                 kinematic_motion_state.get());
         if (rigid_body_result.is_err()) {
-            return rigid_body_result.propagation(platform::PhysicsError::MakeError);
+            return rigid_body_result.propagation(sub_system::PhysicsError::MakeError);
         }
         const auto rigid_body_view = this->resource_pool->get_native_rigid_body_accessor();
 
@@ -143,7 +143,7 @@ namespace enishi::physics::bullet3 {
                 active_motion_state_handle,
                 kinematic_motion_state_handle));
         if (opt_rigid_body.is_none()) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         auto& rigid_body = opt_rigid_body.unwrap_mut();
 
@@ -163,12 +163,12 @@ namespace enishi::physics::bullet3 {
         return handle;
     }
 
-    foundation::Result<types::PhysicsHandle, platform::PhysicsError> PhysicsWorld::add_joint(
+    foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> PhysicsWorld::add_joint(
         const types::PhysicsHandle& object_handle, const types::PhysicsJoint& joint) noexcept {
         const auto opt_rigid_body_handles =
             this->object_manager->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
         if (opt_rigid_body_handles.is_none()) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         const auto rigid_body_handles = opt_rigid_body_handles.unwrap();
         const size_t size = rigid_body_handles.size();
@@ -176,10 +176,10 @@ namespace enishi::physics::bullet3 {
         const size_t index_rigid_body_b = joint.rigid_body_b;
         // 0 index
         if (index_rigid_body_a == index_rigid_body_b) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         if (size < (index_rigid_body_a + 1) || size < (index_rigid_body_b + 1)) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
 
         // Jointのインデックスに対応した剛体の取得
@@ -188,7 +188,7 @@ namespace enishi::physics::bullet3 {
         const auto opt_mapped_rigid_body_b =
             this->handle_mapper->get(rigid_body_handles[index_rigid_body_b]);
         if (opt_mapped_rigid_body_a.is_none() || opt_mapped_rigid_body_b.is_none()) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         const auto& mapped_rigid_body_a = opt_mapped_rigid_body_a.unwrap();
         const auto& mapped_rigid_body_b = opt_mapped_rigid_body_b.unwrap();
@@ -202,7 +202,7 @@ namespace enishi::physics::bullet3 {
         auto result_joint =
             PhysicsNativeResourceMaker::make_joint(joint, rigid_body_a.get(), rigid_body_b.get());
         if (result_joint.is_err()) {
-            return foundation::Error(platform::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError);
         }
         auto& native_joint = result_joint.unwrap_mut();
 
@@ -224,7 +224,7 @@ namespace enishi::physics::bullet3 {
         return handle;
     }
 
-    void PhysicsWorld::reset_physics(platform::IBoneUpdater* const updater) {
+    void PhysicsWorld::reset_physics(sub_system::IBoneUpdater* const updater) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
 
@@ -253,7 +253,7 @@ namespace enishi::physics::bullet3 {
         }
     }
 
-    void PhysicsWorld::apply_physics(platform::IBoneUpdater* const updater) {
+    void PhysicsWorld::apply_physics(sub_system::IBoneUpdater* const updater) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
         for (auto& rb : rigid_bodies) {
@@ -265,12 +265,12 @@ namespace enishi::physics::bullet3 {
         updater->update_global_form_roots();
     }
 
-    platform::IPhysicsWorldConfigWriter* enishi::physics::bullet3::PhysicsWorld::get_config_writer(
+    sub_system::IPhysicsWorldConfigWriter* enishi::physics::bullet3::PhysicsWorld::get_config_writer(
         void) noexcept {
         return this->config.get();
     }
 
-    const platform::IPhysicsWorldConfigReader*
+    const sub_system::IPhysicsWorldConfigReader*
     enishi::physics::bullet3::PhysicsWorld::get_config_reader(void) const noexcept {
         return this->config.get();
     }

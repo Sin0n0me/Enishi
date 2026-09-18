@@ -9,7 +9,7 @@
 #include <memory>
 #include <physics/bullet3/motion_state/interface_mmd_motion_state.h>
 #include <physics/errors/errors.h>
-#include <platform/physics/interface_physics_handle_mapper.h>
+#include <sub_system/physics/interface_physics_handle_mapper.h>
 
 namespace enishi::physics::bullet3 {
     class PhysicsNativeResourceMaker {
