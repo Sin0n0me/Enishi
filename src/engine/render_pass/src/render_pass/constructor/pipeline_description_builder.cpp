@@ -236,7 +236,7 @@ namespace enishi::render_pass {
     PipelineDescriptionConstructer::build(void) noexcept {
         if (this->has_error) {
             return foundation::Error(ConstructError::Construct,
-                this->errors.join(foundation::UTF8(1, static_cast<char>(10))));
+                this->errors.join("\n"));
         }
 
         return std::move(this->description);
