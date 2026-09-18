@@ -35,6 +35,7 @@ set(BUILD_DEMOS OFF CACHE BOOL "Build Bullet demos" FORCE)
 set(BUILD_CPU_DEMOS OFF CACHE BOOL "Disable Bullet3 CPU demos/examples" FORCE)
 set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "Disable Bullet3 OpenGL3 demos/examples" FORCE)
 set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "Disable Bullet2 demos" FORCE)
+set(BUILD_EXTRAS OFF CACHE BOOL "Disable Bullet3 extras including BulletRobotics" FORCE)
 set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "Use MSVC Runtime Library DLL" FORCE)
 
 FetchContent_Declare(
