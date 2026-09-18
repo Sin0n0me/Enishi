@@ -15,29 +15,41 @@ namespace enishi::renderer::directx {
         Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
         Microsoft::WRL::ComPtr<IDXGIFactory2> dxgi_factory;
         Microsoft::WRL::ComPtr<IDXGISwapChain1> dxgi_swap_chain;
+
         Microsoft::WRL::ComPtr<IDCompositionDevice> dcomp_device;
         Microsoft::WRL::ComPtr<IDCompositionTarget> dcomp_target;
         Microsoft::WRL::ComPtr<IDCompositionVisual> dcomp_visual;
         Microsoft::WRL::ComPtr<IDCompositionSurface> dcomp_surface;
+
         Microsoft::WRL::ComPtr<ID3D11Device> device;
         Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+        Microsoft::WRL::ComPtr<ID3D11Query> query;
 
       private:
+        foundation::VoidResult<RendererError> init_no_dcomp(
+            const HWND hwnd, const types::WindowSize& size);
         foundation::VoidResult<RendererError> init(const HWND hwnd, const types::WindowSize& size);
         foundation::VoidResult<RendererError> make_device(void);
+        foundation::VoidResult<RendererError> make_dcomp_device(void);
         foundation::VoidResult<RendererError> make_factory(void);
         foundation::VoidResult<RendererError> make_surface(const types::WindowSize& size);
         foundation::VoidResult<RendererError> make_swap_chain(const types::WindowSize& size);
+        foundation::VoidResult<RendererError> make_swap_chain_no_dcomp(
+            const HWND hwnd, const types::WindowSize& size);
         foundation::VoidResult<RendererError> make_target(const HWND hwnd);
         foundation::VoidResult<RendererError> make_visual(void);
         foundation::VoidResult<RendererError> commit(void);
+        foundation::VoidResult<RendererError> make_query(void);
 
       public:
         static foundation::Result<std::unique_ptr<D3D11>, RendererError> make(
+            const HWND hwnd, const types::WindowSize& size);
+        static foundation::Result<std::unique_ptr<D3D11>, RendererError> make_no_dcomp(
             const HWND hwnd, const types::WindowSize& size);
 
         D3D11::Device get_device(void) const override;
         D3D11::Context get_context(void) const override;
         D3D11::SwapChain get_swap_chain(void) const override;
+        D3D11::Query get_query(void) const override;
     };
 } // namespace enishi::renderer::directx

@@ -81,7 +81,8 @@ namespace enishi::renderer::directx {
             .CullMode = D3D11Converter::to_cull_mode(description.cull_mode),
             .FrontCounterClockwise = is_clockwise ? TRUE : FALSE,
             .DepthBias = static_cast<INT>(description.depth_bias.constant_factor),
-            .SlopeScaledDepthBias = description.depth_bias.clamp,
+            .DepthBiasClamp = description.depth_bias.clamp,
+            .SlopeScaledDepthBias = description.depth_bias.slope_factor,
             .DepthClipEnable = description.depth_bias.enable ? TRUE : FALSE,
         };
     }

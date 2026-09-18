@@ -445,6 +445,10 @@ namespace enishi::renderer::directx {
 
         const auto& binding = opt_binding.unwrap();
         const auto context = this->d3d11->get_context();
+        const auto query = this->d3d11->get_query();
+
+        context->Begin(query.Get());
+
         if (const auto& argument = std::get_if<types::DrawParameter>(&binding.parameter)) {
             if (argument->instance_count > 1) {
                 context->DrawInstanced(argument->vertex_count,
@@ -467,6 +471,32 @@ namespace enishi::renderer::directx {
                     argument->index_count, argument->vertex_offset, argument->first_index);
             }
         }
+
+        context->End(query.Get());
+        D3D11_QUERY_DATA_PIPELINE_STATISTICS stats{};
+        UINT64 passedSamples = 0;
+        HRESULT hr = S_FALSE;
+        for (; hr == S_FALSE;) {
+            hr = context->GetData(query.Get(), &stats, sizeof(stats), 0);
+            if (FAILED(hr)) {
+                break;
+            }
+
+            if (hr == S_FALSE) {
+                ::Sleep(0);
+            }
+        }
+
+        if (hr == S_OK) {
+            stats.IAVertices;
+            stats.IAPrimitives;
+            stats.VSInvocations;
+            stats.CInvocations;
+            stats.CPrimitives;
+            stats.PSInvocations;
+        }
+        /*
+         */
     }
 
     void D3D11Renderer::present(void) const {

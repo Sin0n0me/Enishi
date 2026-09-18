@@ -11,7 +11,9 @@ namespace enishi::renderer::directx {
 
         const auto native_handle = window_handle.native_handle.windows;
 
-        auto d3d11 = D3D11::make(native_handle.hwnd, window_size);
+        // auto d3d11 = D3D11::make(native_handle.hwnd, window_size);
+        // RenderDocで確認するとき`make_no_dcomp`で作成しないとクラッシュする
+        auto d3d11 = D3D11::make_no_dcomp(native_handle.hwnd, window_size);
         if (d3d11.is_err()) {
             return d3d11.propagation(platform::RenderError::MakeError)
                 .add_message("Rendererの初期化に失敗しました");
