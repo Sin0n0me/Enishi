@@ -28,7 +28,9 @@ namespace enishi::physics::bullet3 {
             PhysicsBoneViews&& views,
             types::HandleId rigid_body,
             types::HandleId active_motion_state,
-            types::HandleId kinematic_motion_state);
+            types::HandleId kinematic_motion_state,
+            types::RigidBodyKind kind,
+            types::BoneIndex bone_index);
 
         void set_active(const bool active_flag) override;
         void reset(void) override;

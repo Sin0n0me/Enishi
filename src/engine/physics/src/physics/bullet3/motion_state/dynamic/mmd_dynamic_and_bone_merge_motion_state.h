@@ -16,7 +16,7 @@ namespace enishi::physics::bullet3 {
 
       public:
         explicit MMDDynamicAndBoneMergeMotionState(
-            const glm::mat4& offset, const bool override_with_physics);
+            const glm::mat4& offset, bool override_with_physics, types::BoneIndex index);
         virtual ~MMDDynamicAndBoneMergeMotionState(void) noexcept = default;
 
         void getWorldTransform(btTransform& worldTrans) const override;

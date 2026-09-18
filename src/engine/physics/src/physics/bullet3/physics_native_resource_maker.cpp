@@ -35,12 +35,13 @@ namespace enishi::physics::bullet3 {
                 kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
             } break;
             case types::RigidBodyKind::Dynamic: {
-                active_motion_state = std::make_unique<MMDDynamicMotionState>(offset, has_bone);
+                active_motion_state = std::make_unique<MMDDynamicMotionState>(
+                    offset, has_bone, rigid_body.relate_bone_index);
                 kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
             } break;
             case types::RigidBodyKind::DynamicAdjustBone: {
-                active_motion_state =
-                    std::make_unique<MMDDynamicAndBoneMergeMotionState>(offset, has_bone);
+                active_motion_state = std::make_unique<MMDDynamicAndBoneMergeMotionState>(
+                    offset, has_bone, rigid_body.relate_bone_index);
                 kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
             } break;
             default:

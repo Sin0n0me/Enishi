@@ -95,6 +95,15 @@ namespace enishi::core {
             bones->physics_updater =
                 std::make_shared<skinning_system::PhysicsBonesUpdater>(*bones->physics_cache);
 
+            // 剛体を生成する前に、物理用ボーンを現在のアニメーション姿勢で初期化する。
+            // これにより Bullet 側の初期剛体座標がモデルのボーン座標と一致する。
+            const auto bone_count = bones->physics_cache->size();
+            for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                bones->physics_cache->at(i)->set_physics_global(
+                    bones->animation_cache->at(i)->get_animation_global_transform());
+            }
+            bones->physics_updater->update_global_form_roots();
+
             if (physics_bodies.is_some()) {
                 PhysicsBodyFactory::build(*this->physics_engine->get_world(),
                     physics_bodies.unwrap_mut(),
@@ -153,8 +162,8 @@ namespace enishi::core {
                         auto* const physics_view = bones.physics_cache->at(i);
                         physics_view->set_physics_global(
                             animation_view->get_animation_global_transform());
+                        bones.physics_updater->update_local(i);
                     }
-                    bones.physics_updater->update_global_form_roots();
                 }
                 break;
 

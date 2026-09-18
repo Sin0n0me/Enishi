@@ -1,16 +1,22 @@
 #include "rigid_body.h"
 #include <physics/bullet3/physics_native_resource_maker.h>
+#include <utility>
 
 namespace enishi::physics::bullet3 {
     BulletRigidBody::BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> native_view,
         PhysicsBoneViews&& views,
         types::HandleId rigid_body,
         types::HandleId active_motion_state,
-        types::HandleId kinematic_motion_state)
+        types::HandleId kinematic_motion_state,
+        const types::RigidBodyKind kind,
+        const types::BoneIndex bone_index)
         : native_view(native_view)
+        , views(std::move(views))
         , rigid_body(rigid_body)
         , active_motion_state(active_motion_state)
-        , kinematic_motion_state(kinematic_motion_state) {
+        , kinematic_motion_state(kinematic_motion_state)
+        , kind(kind)
+        , bone_index(bone_index) {
     }
 
     void BulletRigidBody::set_active(const bool active_flag) {
@@ -64,12 +70,28 @@ namespace enishi::physics::bullet3 {
     }
 
     void BulletRigidBody::reset_transform(void) {
-        auto&& opt_active_motion_state =
+        const auto motion_state_handle = this->kind == types::RigidBodyKind::Kinematic
+                                             ? this->kinematic_motion_state
+                                             : this->active_motion_state;
+        auto&& opt_motion_state =
             this->native_view->get_native_motion_state_accessor()->get_motion_state(
-                this->active_motion_state);
-        if (opt_active_motion_state.is_some()) {
-            auto&& active_motion_state = opt_active_motion_state.unwrap();
-            active_motion_state->reset(this->views.physics_bone_view.get());
+                motion_state_handle);
+        if (opt_motion_state.is_none()) {
+            return;
+        }
+
+        auto&& motion_state = opt_motion_state.unwrap();
+        motion_state->reset(this->views.physics_bone_view.get());
+
+        auto&& opt_native_rigid_body =
+            this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
+                this->rigid_body);
+        if (opt_native_rigid_body.is_some()) {
+            auto&& native_rigid_body = opt_native_rigid_body.unwrap_mut();
+            btTransform transform;
+            native_rigid_body->getMotionState()->getWorldTransform(transform);
+            native_rigid_body->setWorldTransform(transform);
+            native_rigid_body->setInterpolationWorldTransform(transform);
         }
     }
 

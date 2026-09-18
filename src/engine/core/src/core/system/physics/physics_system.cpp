@@ -19,6 +19,7 @@ namespace enishi::core {
 
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
         this->physics_engine->update(delta_time);
+        this->physics_engine->get_world()->apply_physics(nullptr);
     }
 
     void PhysicsSystem::post_update(void) {

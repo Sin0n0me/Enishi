@@ -23,10 +23,11 @@ namespace enishi::core {
      */
     class SkinningSystem final : public ISystem {
       private:
-        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
+        static constexpr std::array<types::SkinningCommand, 4> DEFAULT_ORDER = {
             types::SkinningCommand::Animation,
             types::SkinningCommand::IK,
             types::SkinningCommand::PhysicsSimulate,
+            types::SkinningCommand::WriteBackPhysicsSimulate,
         };
 
         using AddonComponent = std::variant<std::monostate,
