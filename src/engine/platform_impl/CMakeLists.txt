@@ -28,8 +28,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(PLATFORM)
 
+FetchContent_Declare(
+    SUB_SYSTEM
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sub_system
+)
+FetchContent_MakeAvailable(SUB_SYSTEM)
+
 set(DEPENDENCIES
     platform
+    sub_system
     foundation
     engine_types
 )

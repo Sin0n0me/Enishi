@@ -12,6 +12,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(PLATFORM)
 
 FetchContent_Declare(
+    SUB_SYSTEM
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sub_system
+)
+FetchContent_MakeAvailable(SUB_SYSTEM)
+
+FetchContent_Declare(
     ECS
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ecs
 )
@@ -61,6 +67,7 @@ FetchContent_MakeAvailable(PHYSICS)
 
 set(DEPENDENCIES
     PUBLIC platform
+    PUBLIC sub_system
     PUBLIC ecs
     PUBLIC component
     PUBLIC animation
