@@ -67,7 +67,7 @@ namespace enishi::types {
 
         // スワップチェイン側に書く場合
         [[nodiscard]]
-        static constexpr ImageDescription make_default_render_target(
+        static constexpr ImageDescription make_swap_chain_render_target(
             const glm::ivec2& size, const ImageFormat format = ImageFormat::RGBA8_UNORM) noexcept {
             return ImageDescription::make_default(size,
                 format,

@@ -49,14 +49,12 @@ namespace enishi::render_pass {
         auto window_size = opt_window_size.unwrap().to_glm_ivec2();
 
         // レンダーターゲットの作成
-        auto rtv =
-            make_render_target(types::ImageDescription::make_default_render_target(window_size),
-                types::ImageFormat::BGRA8_UNORM,
-                renderer);
-        if (rtv.is_err()) {
-            return std::move(rtv).unwrap_err();
+        for (const auto pass : dependency_render_passes) {
+            if (pass->get_name() == ShadowMapRenderPassConstructor::RENDER_PASS_NAME) {
+                // description.render_target_view = pass->get_desc().render_target_view;
+                break;
+            }
         }
-        description.render_target_view = rtv.unwrap();
 
         // 深度ステンシルの作成
         auto dsv = make_depth_stencil(types::ImageDescription::make_depth_stencil(
@@ -128,6 +126,6 @@ namespace enishi::render_pass {
 
     foundation::UTF8 enishi::render_pass::BackgroundRenderPassConstructor::get_render_pass_name(
         void) const noexcept {
-        return foundation::UTF8();
+        return RENDER_PASS_NAME;
     }
 } // namespace enishi::render_pass

@@ -21,7 +21,6 @@ namespace enishi::render_pass {
 
     foundation::VoidResult<platform::RenderError> RenderPass::make_from_description(
         const types::PipelineDescription& description,
-        std::span<platform::IRenderPass* const> dependency_render_passes,
         foundation::UTF8&& pass_name,
         foundation::DependencyNode&& node,
         foundation::DependencyBounds&& dependencies) noexcept {
@@ -32,6 +31,7 @@ namespace enishi::render_pass {
         this->render_target = description.render_target_view;
 
         // DSVの追加
+        this->add_command(description.render_target_view);
         this->add_command(description.depth_stencil_view);
 
         // トポロジの追加
@@ -56,8 +56,6 @@ namespace enishi::render_pass {
 
         this->dependencies = std::move(dependencies);
         this->node = std::move(node);
-
-        static_cast<void>(dependency_render_passes);
 
         return {};
     }

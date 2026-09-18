@@ -22,8 +22,8 @@ namespace enishi::platform_impl {
         , window(SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
               size.width,
               size.height,
-              SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_BORDERLESS |
-                  SDL3Window::get_flag_from_graphics_api(graphics_api))))
+              //  SDL_WINDOW_ALWAYS_ON_TOP |
+              SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api))))
         , is_closing(false)
         , size()
         , position() {

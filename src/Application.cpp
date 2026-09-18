@@ -19,6 +19,16 @@
 #include <renderer/directx/directx11/d3d11_renderer.h>
 
 int main(void) {
+    /*
+#if defined(_DEBUG)
+    constexpr DWORD kWaitIntervalMs = 100;
+    while (!IsDebuggerPresent()) {
+        Sleep(kWaitIntervalMs);
+    }
+    __debugbreak();
+#endif
+    */
+
     enishi::Application app;
 
     if (!app.init()) {
@@ -149,10 +159,12 @@ namespace enishi {
         // レンダーパスの作成
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ModelRenderPassConstructor>());
+        /*
         this->orchestra->add_constructor(
             std::make_shared<render_pass::BackgroundRenderPassConstructor>());
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
+        */
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
@@ -163,8 +175,8 @@ namespace enishi {
         // レンダーパスのセット
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
-            render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-            render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+            // render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
+            //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
         });
         render_system->set_render_passes(this->orchestra->get_passes());
 

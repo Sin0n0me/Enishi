@@ -28,22 +28,22 @@ namespace enishi::render_pass {
 
     [[nodiscard]] foundation::Result<types::RenderHandle, ConstructError> make_render_target(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer);
 
     [[nodiscard]] foundation::Result<types::RenderHandle, ConstructError> make_depth_stencil(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer);
 
     [[nodiscard]] foundation::Result<types::RenderHandle, ConstructError> make_shader_resource(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer);
 
     [[nodiscard]] foundation::Result<types::RenderHandle, ConstructError> make_shader_resource(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer);
 
     [[nodiscard]] foundation::Result<types::RenderHandle, ConstructError> make_rasterizer(

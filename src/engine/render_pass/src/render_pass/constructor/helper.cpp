@@ -29,7 +29,7 @@ namespace enishi::render_pass {
 
     foundation::Result<types::RenderHandle, ConstructError> make_render_target(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer) {
         const auto image_handle =
             renderer->create_image(description)
@@ -59,7 +59,7 @@ namespace enishi::render_pass {
 
     foundation::Result<types::RenderHandle, ConstructError> make_depth_stencil(
         types::ImageDescription&& description,
-        types::ImageFormat&& view_format,
+        const types::ImageFormat view_format,
         platform::IRenderer* const renderer) {
         const auto image_handle = renderer->create_image(description)
                                       .add_message("深度ステンシル用イメージの作成に失敗しました");
