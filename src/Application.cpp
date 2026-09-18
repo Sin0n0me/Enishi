@@ -200,7 +200,7 @@ namespace enishi {
             return {};
         }
         this->system_scheduler.register_system<core::ModelRenderSystem>(
-            95, asset_system, renderer, model_render_pass.unwrap());
+            95, this->registry, asset_system, renderer, model_render_pass.unwrap());
 
         return renderer;
     }

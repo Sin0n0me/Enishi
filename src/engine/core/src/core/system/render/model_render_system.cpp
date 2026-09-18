@@ -1,19 +1,23 @@
 #include "model_render_system.h"
 #include <filesystem>
 #include <foundation/log/logger.h>
+#include <utility>
+#include <vector>
 
 namespace enishi::core {
     namespace {
         const std::filesystem::path MODEL_SEARCH_PATH = "./assets/models";
     }
 
-    ModelRenderSystem::ModelRenderSystem(std::shared_ptr<platform::IAssetSystem> asset_system,
+    ModelRenderSystem::ModelRenderSystem(std::shared_ptr<ecs::Registry> registry,
+        std::shared_ptr<platform::IAssetSystem> asset_system,
         std::shared_ptr<platform::IRenderer> renderer,
         std::shared_ptr<platform::IRenderPass> model_render_pass)
         : model_render_pass(model_render_pass)
+        , registry(std::move(registry))
         , model_controller(std::make_shared<model_controller::ModelController>(asset_system,
               std::make_shared<model_controller::ModelRenderDataBuilder>(renderer, asset_system)))
-        , is_initial_model_selected(false) {
+        , is_initial_models_registered(false) {
     }
 
     bool ModelRenderSystem::should_close(void) {
@@ -21,11 +25,11 @@ namespace enishi::core {
     }
 
     void ModelRenderSystem::pre_update(void) {
-        if (this->is_initial_model_selected) {
+        if (this->is_initial_models_registered) {
             return;
         }
 
-        this->is_initial_model_selected = true;
+        this->is_initial_models_registered = true;
         this->model_controller->find_model(MODEL_SEARCH_PATH);
         const auto model_names = this->model_controller->get_model_list();
         if (model_names.empty()) {
@@ -35,14 +39,26 @@ namespace enishi::core {
 
         // TODO: モデル選択UIを実装するまで、名前順の先頭モデルを自動描画する。
         const auto shader_reflections = this->model_render_pass->get_shader_reflections();
-        const auto result = this->model_controller->change_model(
-            model_names.front(), {shader_reflections.begin(), shader_reflections.end()});
-        if (result.is_err()) {
-            foundation::Logger::error(result.unwrap_err().get_message());
-            return;
-        }
+        const auto shader_reflection_list =
+            std::vector<types::RenderHandle>{shader_reflections.begin(), shader_reflections.end()};
+        for (const auto& model_name : model_names) {
+            const auto result = this->model_controller->make_model(model_name, shader_reflection_list);
+            if (result.is_err()) {
+                foundation::Logger::error(result.unwrap_err().get_message());
+                continue;
+            }
 
-        this->model_render_pass->add_mesh(result.unwrap());
+            const auto entity = this->registry->create();
+            auto model_component = result.unwrap();
+            const auto insert_result = this->registry->insert(entity, std::move(model_component));
+            if (insert_result.is_err()) {
+                foundation::Logger::error(insert_result.unwrap_err().get_message());
+                this->registry->destroy(entity);
+                continue;
+            }
+
+            this->model_render_pass->add_mesh(insert_result.unwrap().render_handle);
+        }
     }
 
     void ModelRenderSystem::update(const types::DeltaTime& delta_time) {
