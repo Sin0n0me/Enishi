@@ -1,6 +1,10 @@
 #include "physics_handle_mapper.h"
 
 namespace enishi::physics::bullet3 {
+    PhysicsHandleMapper::PhysicsHandleMapper(void)
+        : handle_allocator(std::make_unique<types::HandleAllocator>()) {
+    }
+
     types::PhysicsHandle PhysicsHandleMapper::make(
         const types::PhysicsHandleType& handle_type, types::ResourceHandles&& mapped) noexcept {
         const auto handle = types::PhysicsHandle{

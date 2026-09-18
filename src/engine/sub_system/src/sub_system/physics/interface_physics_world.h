@@ -27,7 +27,7 @@ namespace enishi::sub_system {
 
         virtual void reset_physics(IBoneUpdater* const updater) = 0;
 
-        virtual void apply_physics(IBoneUpdater* const updater) = 0;
+        virtual void apply_physics(void) = 0;
 
         [[nodiscard]] virtual IPhysicsWorldConfigWriter* get_config_writer(void) noexcept = 0;
 

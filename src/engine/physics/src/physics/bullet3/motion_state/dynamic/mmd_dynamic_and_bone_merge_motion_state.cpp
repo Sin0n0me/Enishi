@@ -4,11 +4,12 @@
 
 namespace enishi::physics::bullet3 {
     MMDDynamicAndBoneMergeMotionState::MMDDynamicAndBoneMergeMotionState(
-        const glm::mat4& offset, const bool override_with_physics)
+        const glm::mat4& offset, const bool override_with_physics, const types::BoneIndex index)
         : global(glm::mat4{1.0f})
         , offset(offset)
         , inverse_offset(glm::inverse(offset))
         , override_with_physics(override_with_physics)
+        , index(index)
         , transform(btTransform::getIdentity()) {
     }
 

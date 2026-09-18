@@ -1,6 +1,7 @@
 #pragma once
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
+#include <engine_types/handle/handle_allocator.h>
 #include <engine_types/handle/physics/physics_handle.h>
 #include <foundation/option/option.h>
 #include <memory>
