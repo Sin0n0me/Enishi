@@ -50,14 +50,14 @@ namespace enishi::core {
 
             const auto entity = this->registry->create();
             auto model_component = result.unwrap();
-            const auto insert_result = this->registry->insert(entity, std::move(model_component));
+            auto insert_result = this->registry->insert(entity, std::move(model_component));
             if (insert_result.is_err()) {
                 foundation::Logger::error(insert_result.unwrap_err().get_message());
                 this->registry->destroy(entity);
                 continue;
             }
 
-            this->model_render_pass->add_mesh(insert_result.unwrap().render_handle);
+            this->model_render_pass->add_mesh(insert_result.unwrap_mut().render_handle);
         }
     }
 
