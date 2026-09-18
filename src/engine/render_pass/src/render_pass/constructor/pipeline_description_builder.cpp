@@ -21,11 +21,13 @@ namespace enishi::render_pass {
             shader_paths) noexcept {
         const auto result_shader_entries = shader_data_provider->get(shader_paths);
         if (result_shader_entries.is_err()) {
+            this->has_error = true;
             return this;
         }
         auto&& shader_entries = make_shader_map_presorted(result_shader_entries.unwrap());
         const auto result_shader = make_shaders(this->renderer, std::move(shader_entries));
         if (result_shader.is_err()) {
+            this->has_error = true;
             return this;
         }
         auto&& shaders = result_shader.unwrap();
@@ -68,6 +70,7 @@ namespace enishi::render_pass {
         auto view = make_render_target(
             types::ImageDescription::make_render_target(window_size), format, this->renderer);
         if (view.is_err()) {
+            this->has_error = true;
             this->errors.push_back(view.unwrap_err().get_message());
             return this;
         }
@@ -123,6 +126,7 @@ namespace enishi::render_pass {
         auto&& view = make_depth_stencil(
             types::ImageDescription::make_depth_stencil(window_size), format, this->renderer);
         if (view.is_err()) {
+            this->has_error = true;
             this->errors.push_back(view.unwrap_err().get_message());
             return this;
         }
@@ -146,6 +150,7 @@ namespace enishi::render_pass {
         types::RasterizerStateDescription&& description) noexcept {
         auto&& rasterizer = make_rasterizer(std::move(description), this->renderer);
         if (rasterizer.is_err()) {
+            this->has_error = true;
             this->errors.push_back(rasterizer.unwrap_err().get_message());
             return this;
         }
@@ -155,12 +160,99 @@ namespace enishi::render_pass {
         return this;
     }
 
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_blend_state(
+        const types::RenderHandle handle) noexcept {
+        if (!handle.is_valid()) {
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.blend_state = handle;
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_blend_state(
+        types::BlendStateDescription&& description) noexcept {
+        auto&& blend_state = make_blend_state(std::move(description), this->renderer);
+        if (blend_state.is_err()) {
+            this->errors.push_back(blend_state.unwrap_err().get_message());
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.blend_state = blend_state.unwrap();
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_depth_stencil_state(
+        const types::RenderHandle handle) noexcept {
+        if (!handle.is_valid()) {
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.depth_stencil_state = handle;
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_depth_stencil_state(
+        types::DepthStencilStateDescription&& description) noexcept {
+        auto&& depth_stencil_state = make_depth_stencil_state(std::move(description), this->renderer);
+        if (depth_stencil_state.is_err()) {
+            this->errors.push_back(depth_stencil_state.unwrap_err().get_message());
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.depth_stencil_state = depth_stencil_state.unwrap();
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_sampler_state(
+        const types::RenderHandle handle) noexcept {
+        if (!handle.is_valid()) {
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.sampler_state = handle;
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_sampler_state(
+        types::SamplerStateDescription&& description) noexcept {
+        auto&& sampler_state = make_sampler_state(std::move(description), this->renderer);
+        if (sampler_state.is_err()) {
+            this->errors.push_back(sampler_state.unwrap_err().get_message());
+            this->has_error = true;
+            return this;
+        }
+
+        this->description.sampler_state = sampler_state.unwrap();
+        return this;
+    }
+
+    foundation::Result<types::PipelineDescription, ConstructError>
+    PipelineDescriptionConstructer::build(void) noexcept {
+        if (this->has_error) {
+            return foundation::Error(ConstructError::Construct,
+                this->errors.join("\n"));
+        }
+
+        return std::move(this->description);
+    }
+
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     PipelineDescriptionConstructer::build_render_pass(
         IRenderPassConstructor* const constructor) noexcept {
+        auto result_description = this->build();
+        if (result_description.is_err()) {
+            return result_description.propagation(ConstructError::Construct);
+        }
+
         auto render_pass = std::make_shared<RenderPass>();
         const auto render_pass_result = render_pass
-                                            ->make_from_description(std::move(this->description),
+                                            ->make_from_description(std::move(result_description).unwrap_mut(),
                                                 constructor->get_render_pass_name(),
                                                 constructor->get_node(),
                                                 constructor->get_dependencies())
