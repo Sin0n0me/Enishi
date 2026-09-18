@@ -37,37 +37,35 @@ float4 main(const PSInput input) : SV_TARGET {
     
     // 光の適用
     // TODO: 光源位置や色を定数バッファで指定できるように
-    const float3 light_direction = normalize(
-        float3(0.0f, 0.0f, -10.0f)
-    ); 
+   
     const float3 light_color = float3(1.0, 1.0, 1.0);
     const float4 lighting_color = apply_lighting(
         base_color,
         light_color,
-        light_direction,
-        input.normal
+        input.view_light,
+        input.view_normal
     );
     
     // スフィアの適用
     const float4 sphere_color = apply_sphere(
         lighting_color,
-        input.position.xyz,
-        input.normal
+        input.view_position,
+        input.view_normal
     );
     
     // トゥーンの適用
     const float4 toon_color = apply_toon(
         sphere_color,
-        input.normal,
-        light_direction
+        input.view_normal,
+        input.view_light
     );
-    
+        
     // スペキュラー反射の適用
     const float4 specular_color = apply_specular(
         toon_color,
-        input.position.xyz,
-        light_direction,
-        input.normal    
+        input.view_position,
+        input.view_light,
+        input.view_normal
     );
     
     const float4 final_color = specular_color;
