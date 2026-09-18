@@ -6,10 +6,12 @@
 #include <component/skinning_component.h>
 #include <core/system/physics/physics_body_factory.h>
 #include <ik_system/ik_solver.h>
+#include <utility>
 
 namespace enishi::core {
-    SkinningSystem::SkinningSystem(ecs::Registry& registry) noexcept
-        : registry(&registry) {
+    SkinningSystem::SkinningSystem(ecs::Registry& registry,
+        std::shared_ptr<platform::IPhysicsEngine> physics_engine) noexcept
+        : registry(&registry), physics_engine(std::move(physics_engine)) {
     }
 
     bool SkinningSystem::should_close(void) {

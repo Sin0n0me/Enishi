@@ -1,5 +1,6 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
+#include <core/system/skinning/skinning_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
@@ -56,6 +57,8 @@ namespace enishi {
 
         auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
             std::make_shared<platform_impl::PhysicsWorldConfig>());
+        auto skinning_system = this->system_scheduler.register_system<core::SkinningSystem>(
+            85, *this->registry, physics_engine);
 
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
             90, this->registry, physics_engine);

@@ -8,12 +8,11 @@
 #include <vector>
 
 namespace enishi::animation {
-    // 1ボーンの1軸分のキーフレーム列
     template <typename T> struct Keyframes {
-        std::vector<float> times;             // 秒単位
-        std::vector<T> values;                // 各フレーム毎の値
-        InterpolationType interpolation_type; // 補間方式
-        InterpolationData<T> interpolation;   // 補間に使用するデータ
+        std::vector<float> times;
+        std::vector<T> values;
+        InterpolationType interpolation_type = InterpolationType::Linear;
+        std::vector<InterpolationData<T>> interpolation;
     };
 
     struct BoneTrack {
@@ -23,15 +22,14 @@ namespace enishi::animation {
         Keyframes<glm::vec3> scales;
     };
 
-    // モーフターゲットのトラック
     struct MorphTrack {
-        std::uint32_t morph_index; // MorphTarget の添字
-        Keyframes<float> weights;  // 0.0 〜 1.0
+        std::uint32_t morph_index;
+        Keyframes<float> weights;
     };
 
     struct IKTrack {
         types::BoneIndex bone_index;
-        std::vector<float> times; // 秒単位
-        std::vector<bool> flags;  // オンオフフラグ
+        std::vector<float> times;
+        std::vector<bool> flags;
     };
 } // namespace enishi::animation

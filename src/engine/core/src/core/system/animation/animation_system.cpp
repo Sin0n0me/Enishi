@@ -1,120 +1,66 @@
 #include "animation_system.h"
-#include "animation/animation_player.h"
-#include <engine_types/skinning/skinning_command.h>
+#include <animation/keyframe_interpolator.h>
 
 namespace enishi::core {
     AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registry> registry)
         : registry(registry) {
     }
 
-    bool enishi::core::AnimationSystem::should_close(void) {
+    bool AnimationSystem::should_close(void) {
         return false;
     }
 
-    void enishi::core::AnimationSystem::pre_update(void) {
+    void AnimationSystem::pre_update(void) {
     }
 
-    void enishi::core::AnimationSystem::post_update(void) {
+    void AnimationSystem::post_update(void) {
     }
 
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
-        auto view = this->registry->view<int>();
+        for (auto [entity, animation, model] :
+            this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
+            if (!animation.controller) {
+                continue;
+            }
 
-        /*
-        for (auto [entity, animation, model, ik] : view) {
-            this->animation(animation, model, ik);
+            animation.controller->update(delta_time.to_float_second());
+            this->apply_clip(animation);
         }
-        */
     }
 
-    void enishi::core::AnimationSystem::render(void) const {
+    void AnimationSystem::render(void) const {
     }
 
-    void AnimationSystem::animation(component::AnimationComponent& animation,
-        const component::ModelComponent& model,
-        const component::IKComponent& ik) {
-        /*
-        const auto size = animation.bone_buffer.size();
-        for (const auto command : animation.commands) {
-            switch (command) {
-                case types::SkinningCommand::Animation: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::apply_animation(animation, model, i);
-                    }
-                } break;
-                case types::SkinningCommand::IK: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::apply_ik(animation, ik, model, i);
-                    }
-                } break;
-                case types::SkinningCommand::PhysicsSimulate: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::apply_physics(animation, model, i);
-                    }
-                } break;
-                case types::SkinningCommand::WriteBackPhysicsSimulate: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        // AnimationPlayer::apply_physics(animation, model, i);
-                    }
-                } break;
+    void AnimationSystem::apply_clip(component::AnimationComponent& animation) const {
+        const auto* const clip = animation.controller->get_active_clip();
+        if (!clip) {
+            return;
+        }
 
-                case types::SkinningCommand::ResetLocalTransform: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        auto& buffer = animation.bone_buffer[i];
-                        buffer.position = glm::vec3(0.0f);
-                        for (auto& rotation : buffer.rotations) {
-                            rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                        }
-                        buffer.scale = glm::vec3(0.0f);
-                    }
-                } break;
-                case types::SkinningCommand::ResetPosition: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        auto& buffer = animation.bone_buffer[i];
-                        buffer.position = glm::vec3(0.0f);
-                    }
-                } break;
-                case types::SkinningCommand::ResetRotate: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        auto& buffer = animation.bone_buffer[i];
-                        for (auto& rotation : buffer.rotations) {
-                            rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                        }
-                    }
-                } break;
-                case types::SkinningCommand::ResetScale: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        auto& buffer = animation.bone_buffer[i];
-                        buffer.scale = glm::vec3(0.0f);
-                    }
-                } break;
+        for (auto& bone : animation.animation) {
+            bone.position = glm::vec3(0.0f);
+            bone.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            bone.scale = glm::vec3(1.0f);
+        }
 
-                case types::SkinningCommand::UpdateGlobal: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::update_global(animation, model, i);
-                    }
-                } break;
-                case types::SkinningCommand::UpdateLocal: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::update_local(animation, i);
-                    }
-                } break;
+        const float time = animation.controller->get_time();
+        for (const auto& track : clip->bone_tracks) {
+            if (track.bone_index >= animation.animation.size()) {
+                continue;
+            }
 
-                case types::SkinningCommand::WriteBoneMatrices: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::global_to_bone_matrices(animation, i);
-                    }
-                } break;
-                case types::SkinningCommand::ReadBoneMatrices: {
-                    for (std::uint32_t i = 0; i < size; ++i) {
-                        AnimationPlayer::bone_matrices_to_global(animation, i);
-                    }
-                } break;
-
-                default:
-                    break;
+            auto& bone = animation.animation[track.bone_index];
+            if (!track.positions.times.empty()
+                && track.positions.times.size() == track.positions.values.size()) {
+                bone.position = animation::KeyframeInterpolator::sample(track.positions, time);
+            }
+            if (!track.rotations.times.empty()
+                && track.rotations.times.size() == track.rotations.values.size()) {
+                bone.rotation = animation::KeyframeInterpolator::sample(track.rotations, time);
+            }
+            if (!track.scales.times.empty() && track.scales.times.size() == track.scales.values.size()) {
+                bone.scale = animation::KeyframeInterpolator::sample(track.scales, time);
             }
         }
-        */
     }
 } // namespace enishi::core

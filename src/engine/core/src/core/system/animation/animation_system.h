@@ -1,8 +1,6 @@
 #pragma once
 #include <component/animation_component.h>
-#include <component/ik_component.h>
 #include <component/model_component.h>
-#include <component/transform_component.h>
 #include <core/system/interface_system.h>
 #include <ecs/registry.h>
 #include <engine_types/assets/model/addons/bone.h>
@@ -23,8 +21,6 @@ namespace enishi::core {
         void render(void) const override;
 
       private:
-        void animation(component::AnimationComponent& animation,
-            const component::ModelComponent& model,
-            const component::IKComponent& ik);
+        void apply_clip(component::AnimationComponent& animation) const;
     };
 } // namespace enishi::core
