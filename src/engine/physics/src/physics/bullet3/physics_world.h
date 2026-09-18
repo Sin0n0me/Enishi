@@ -44,7 +44,7 @@ namespace enishi::physics::bullet3 {
             const types::PhysicsJoint& joint) noexcept override;
 
         void reset_physics(sub_system::IBoneUpdater* const updater) override;
-        void apply_physics(sub_system::IBoneUpdater* const updater) override;
+        void apply_physics(void) override;
 
         sub_system::IPhysicsWorldConfigWriter* get_config_writer(void) noexcept override;
         const sub_system::IPhysicsWorldConfigReader* get_config_reader(void) const noexcept override;

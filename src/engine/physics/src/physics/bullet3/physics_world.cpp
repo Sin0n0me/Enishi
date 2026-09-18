@@ -273,7 +273,7 @@ namespace enishi::physics::bullet3 {
         }
     }
 
-    void PhysicsWorld::apply_physics(sub_system::IBoneUpdater* const updater) {
+    void PhysicsWorld::apply_physics(void) {
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
         for (auto& rb : rigid_bodies) {
@@ -281,9 +281,6 @@ namespace enishi::physics::bullet3 {
         }
         for (auto& rb : rigid_bodies) {
             rb->apply_local_transform();
-        }
-        if (updater != nullptr) {
-            updater->update_global_form_roots();
         }
     }
 
