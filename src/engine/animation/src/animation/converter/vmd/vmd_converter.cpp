@@ -1,5 +1,6 @@
 #include "vmd_converter.h"
 #include "../../clip_data/interpolation/interpolation.h"
+#include <algorithm>
 #include <foundation/log/logger.h>
 #include <foundation/str/to_utf8.h>
 
@@ -11,6 +12,11 @@ namespace enishi::animation {
         if (FrameConverter::write_bone_track(clip_data.bone_tracks, data.bone_key_frames, resolver)
                 .is_err()) {
             // return;
+        }
+
+        for (const auto& bone_key_frame : data.bone_key_frames) {
+            const float time = static_cast<float>(bone_key_frame.frame) / assets_system::VMD_FPS;
+            clip_data.duration = std::max(clip_data.duration, time);
         }
 
         /*
@@ -43,8 +49,14 @@ namespace enishi::animation {
             const auto bone_index = opt_index.unwrap();
 
             if (!tmep.contains(bone_index)) {
-                const auto track_index = bone_tracks.size() - 1;
+                const auto track_index = bone_tracks.size();
                 tmep[bone_index] = track_index;
+
+                bone_tracks.emplace_back();
+                BoneTrack& bone_track = bone_tracks.back();
+                bone_track.bone_index = bone_index;
+                bone_track.positions.interpolation_type = InterpolationType::VmdBezier;
+                bone_track.rotations.interpolation_type = InterpolationType::VmdBezier;
 
                 // 初回追加時のみ
                 if (track_index == 0) {
@@ -79,6 +91,8 @@ namespace enishi::animation {
 
             bone_track.positions.values.emplace_back(translate);
             bone_track.rotations.values.emplace_back(rotate);
+            bone_track.positions.interpolation.emplace_back(bezier);
+            bone_track.rotations.interpolation.emplace_back(bezier);
         }
 
         return {};

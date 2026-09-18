@@ -1,6 +1,10 @@
 #pragma once
 #include "clip_data/animation.h"
 #include "clip_data/interpolation/interpolation.h"
+#include "clip_data/interpolation/hermite/hermite.h"
+#include "clip_data/interpolation/linear_interpolation/linear_interpolation.h"
+#include "clip_data/interpolation/vmd/vmd_interpolation.h"
+#include <algorithm>
 #include <glm/gtc/quaternion.hpp>
 
 namespace enishi::animation {
@@ -42,7 +46,7 @@ namespace enishi::animation {
             // 区間内での正規化された時刻 [0.0, 1.0]
             const float t = (time - prev_time) / time_diff;
 
-            switch (keyframes.interpolation) {
+            switch (keyframes.interpolation_type) {
                 case InterpolationType::Step:
                     return keyframes.values[prev_index];
                 case InterpolationType::Linear:

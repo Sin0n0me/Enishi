@@ -40,7 +40,8 @@ namespace enishi::core {
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
-        explicit SkinningSystem(ecs::Registry& registry) noexcept;
+        explicit SkinningSystem(ecs::Registry& registry,
+            std::shared_ptr<platform::IPhysicsEngine> physics_engine) noexcept;
 
         bool should_close(void) override;
         void pre_update(void) override;
