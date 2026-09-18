@@ -6,6 +6,28 @@ namespace enishi::core {
         : registry(registry) {
     }
 
+    void AnimationSystem::set_controller(
+        const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
+        if (controller) {
+            this->controllers.insert_or_assign(entity, std::move(controller));
+            return;
+        }
+        this->controllers.erase(entity);
+    }
+
+    void AnimationSystem::remove_controller(const types::HandleId& entity) {
+        this->controllers.erase(entity);
+    }
+
+    std::shared_ptr<animation::IAnimationController> AnimationSystem::get_controller(
+        const types::HandleId& entity) const {
+        const auto iter = this->controllers.find(entity);
+        if (iter == this->controllers.end()) {
+            return {};
+        }
+        return iter->second;
+    }
+
     bool AnimationSystem::should_close(void) {
         return false;
     }
@@ -19,20 +41,22 @@ namespace enishi::core {
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
         for (auto [entity, animation, model] :
             this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
-            if (!animation.controller) {
+            const auto controller = this->get_controller(entity);
+            if (!controller) {
                 continue;
             }
 
-            animation.controller->update(delta_time.to_float_second());
-            this->apply_clip(animation);
+            controller->update(delta_time.to_float_second());
+            this->apply_clip(animation, *controller);
         }
     }
 
     void AnimationSystem::render(void) const {
     }
 
-    void AnimationSystem::apply_clip(component::AnimationComponent& animation) const {
-        const auto* const clip = animation.controller->get_active_clip();
+    void AnimationSystem::apply_clip(component::AnimationComponent& animation,
+        const animation::IAnimationController& controller) const {
+        const auto* const clip = controller.get_active_clip();
         if (!clip) {
             return;
         }
@@ -43,7 +67,7 @@ namespace enishi::core {
             bone.scale = glm::vec3(1.0f);
         }
 
-        const float time = animation.controller->get_time();
+        const float time = controller.get_time();
         for (const auto& track : clip->bone_tracks) {
             if (track.bone_index >= animation.animation.size()) {
                 continue;

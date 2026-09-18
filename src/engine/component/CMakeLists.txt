@@ -17,17 +17,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(FOUNDATION)
 
-FetchContent_Declare(
-    ANIMATION
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../animation
-)
-FetchContent_MakeAvailable(ANIMATION)
-
 set(DEPENDENCIES
     glm
     engine_types
     foundation
-    animation
 )
 
 #
