@@ -82,7 +82,18 @@ namespace enishi::renderer::opengl {
         this->index_types.emplace(handle, data.indices.get_render_data().stride == 2 ? GL_UNSIGNED_SHORT : data.indices.get_render_data().stride == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT);
         return handle;
     }
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(const types::TextureData&) { return unsupported<types::RenderHandle>(); }
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(const types::TextureData& texture) {
+        if (texture.is_cubemap || texture.depth > 1 || texture.mips.empty() || types::TextureData::is_compressed(texture.format)) {
+            return foundation::Error(platform::RenderError::MakeError, "Unsupported OpenGL 4.0 texture format");
+        }
+        const auto internal_format = texture.format == types::TextureFormat::R8_UNORM ? GL_R8 : texture.format == types::TextureFormat::RG8_UNORM ? GL_RG8 : texture.format == types::TextureFormat::RGBA16_FLOAT ? GL_RGBA16F : texture.format == types::TextureFormat::RGBA8_SRGB ? GL_SRGB8_ALPHA8 : GL_RGBA8;
+        const auto format = texture.format == types::TextureFormat::R8_UNORM ? GL_RED : texture.format == types::TextureFormat::RG8_UNORM ? GL_RG : GL_RGBA;
+        const auto type = texture.format == types::TextureFormat::RGBA16_FLOAT ? GL_HALF_FLOAT : GL_UNSIGNED_BYTE;
+        GLuint object = 0; glGenTextures(1, &object); glBindTexture(GL_TEXTURE_2D, object); glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        for (std::uint32_t level = 0; level < texture.mips.size(); ++level) { const auto& mip = texture.mips[level]; glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(level), internal_format, mip.width, mip.height, 0, format, type, mip.pixels.data()); }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, texture.mips.size() > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        const auto handle = this->make_handle(types::RenderHandleType::Image); this->objects.emplace(handle, object); return handle;
+    }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader(const types::ShaderKind kind, const types::ShaderData& data) {
         if (data.binary_type != types::ShaderBinaryType::SourceFileGLSL) return foundation::Error(platform::RenderError::MakeError, "OpenGL 4.0 shaders must be GLSL source");
         const GLenum stage = kind == types::ShaderKind::Vertex ? GL_VERTEX_SHADER : kind == types::ShaderKind::Pixel ? GL_FRAGMENT_SHADER : kind == types::ShaderKind::Compute ? GL_COMPUTE_SHADER : 0;
@@ -129,7 +140,7 @@ namespace enishi::renderer::opengl {
     void OpenGL40Renderer::submit_command_topology(const types::DrawCommand&) const {}
     void OpenGL40Renderer::submit_command_vertex_layout(const types::DrawCommand&) const {}
     void OpenGL40Renderer::submit_command_state(const types::DrawCommand&) const {}
-    void OpenGL40Renderer::submit_command_image(const types::DrawCommand&) const {}
+    void OpenGL40Renderer::submit_command_image(const types::DrawCommand& command) const { if (command.sub_command != types::SubCommand::Bind) return; const auto object=this->objects.find(command.handle); if (object == this->objects.end()) return; glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, object->second); }
     void OpenGL40Renderer::draw(const types::RenderHandle& handle) const { const auto binding = this->draw_bindings.find(handle); if (binding == this->draw_bindings.end()) return; this->use_active_program(); if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding->second.parameter)) glDrawElementsInstanced(this->topology, indexed->index_count, GL_UNSIGNED_INT, nullptr, indexed->instance_count); else if (const auto plain = std::get_if<types::DrawParameter>(&binding->second.parameter)) glDrawArraysInstanced(this->topology, plain->first_vertex, plain->vertex_count, plain->instance_count); }
     void OpenGL40Renderer::present(void) const { this->context->present(); }
 } // namespace enishi::renderer::opengl
