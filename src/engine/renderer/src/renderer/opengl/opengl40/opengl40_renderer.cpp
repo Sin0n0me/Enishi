@@ -48,15 +48,15 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>> OpenGL40Renderer::create_depth_stencil_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
-        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IDepthStencilView>(std::make_shared<OpenGLDepthStencilView>(handle, description));
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); auto view=std::make_shared<OpenGLDepthStencilView>(handle, description); this->resource_accessor->make_depth_stencil_view(handle.id, std::move(view)); return this->resource_accessor->get_depth_stencil_view(handle.id).unwrap();
     }
     platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>> OpenGL40Renderer::create_shader_resource_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
-        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IShaderResourceView>(std::make_shared<OpenGLShaderResourceView>(handle, description));
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); auto view=std::make_shared<OpenGLShaderResourceView>(handle, description); this->resource_accessor->make_shader_resource_view(handle.id, std::move(view)); return this->resource_accessor->get_shader_resource_view(handle.id).unwrap();
     }
     platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>> OpenGL40Renderer::create_unordered_access_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
-        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IUnorderedAccessView>(std::make_shared<OpenGLUnorderedAccessView>(handle, description));
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); auto view=std::make_shared<OpenGLUnorderedAccessView>(handle, description); this->resource_accessor->make_unordered_access_view(handle.id, std::move(view)); return this->resource_accessor->get_unordered_access_view(handle.id).unwrap();
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::make_buffer(const types::RenderData& data, const std::uint32_t target) {
         GLuint object = 0; glGenBuffers(1, &object); glBindBuffer(target, object);
@@ -97,7 +97,7 @@ namespace enishi::renderer::opengl {
     platform::IRenderResourceAccessor* const OpenGL40Renderer::get_resource_accessor(void) const noexcept { return this->resource_accessor.get(); }
     const platform::IRenderHandleMapper* OpenGL40Renderer::get_handle_mapper(void) const noexcept { return this->handle_mapper.get(); }
     void OpenGL40Renderer::setup_viewports(void) const {}
-    void OpenGL40Renderer::setup_views(void) const { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); }
+    void OpenGL40Renderer::setup_views(void) const { glBindFramebuffer(GL_FRAMEBUFFER, 0); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); }
     void OpenGL40Renderer::submit_command_buffer(const types::DrawCommand&) const {}
     bool OpenGL40Renderer::use_active_program(void) const {
         if (!this->active_vertex_shader || !this->active_fragment_shader) return false;
@@ -112,7 +112,18 @@ namespace enishi::renderer::opengl {
         if (kind->second == types::ShaderKind::Pixel) this->active_fragment_shader = object->second;
         this->active_program = 0; this->use_active_program();
     }
-    void OpenGL40Renderer::submit_command_view(const types::DrawCommand&, const types::RenderHandle&) const {}
+    void OpenGL40Renderer::submit_command_view(const types::DrawCommand& command, const types::RenderHandle& render_target) const {
+        if (command.sub_command != types::SubCommand::Bind) return;
+        const auto view_type = this->resource_accessor->get_view_type(command.handle.id);
+        if (view_type.is_none()) return;
+        if (!this->active_framebuffer) glGenFramebuffers(1, &this->active_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, this->active_framebuffer);
+        const auto object = this->objects.find(command.handle); if (object == this->objects.end()) return;
+        if (view_type.unwrap() == types::ImageViewType::RenderTarget) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, object->second, 0);
+        if (view_type.unwrap() == types::ImageViewType::DepthStencil) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, object->second, 0);
+        if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) { const auto target=this->objects.find(render_target); if (target != this->objects.end()) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->second, 0); }
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    }
     void OpenGL40Renderer::submit_command_viewport(const types::DrawCommand&) const {}
     void OpenGL40Renderer::submit_command_mesh(const types::DrawCommand& command, const types::RenderHandle&) const { if (command.sub_command == types::SubCommand::Bind) { const auto object = this->objects.find(command.handle); if (object != this->objects.end()) glBindVertexArray(object->second); } }
     void OpenGL40Renderer::submit_command_topology(const types::DrawCommand&) const {}
