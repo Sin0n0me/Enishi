@@ -7,6 +7,7 @@
 #include <platform/renderer/interface_renderer.h>
 #include <unordered_map>
 #include <renderer/opengl/common/glsl_shader_reflection.h>
+#include <renderer/opengl/common/opengl_uniform_updater.h>
 
 namespace enishi::renderer::opengl {
     class OpenGL40Renderer final : public platform::IRenderer, public platform::IRenderCommandEncoder {
@@ -25,6 +26,7 @@ namespace enishi::renderer::opengl {
         mutable std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
         mutable std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
         mutable std::unordered_map<types::RenderHandle, std::uint32_t> uniform_buffers;
+        std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
         mutable std::uint32_t topology = 0;
         mutable std::uint32_t active_vertex_shader = 0;
         mutable std::uint32_t active_fragment_shader = 0;

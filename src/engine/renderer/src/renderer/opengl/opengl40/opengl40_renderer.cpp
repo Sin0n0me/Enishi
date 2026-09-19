@@ -71,7 +71,7 @@ namespace enishi::renderer::opengl {
         return handle;
     }
 
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_mesh(const types::ModelData& model, const std::vector<types::RenderHandle>&) {
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_mesh(const types::ModelData& model, const std::vector<types::RenderHandle>& shader_reflections) {
         auto mesh = ModelToMesh::to_mesh_data(model);
         if (mesh.is_err()) return mesh.propagation(platform::RenderError::MakeError);
         auto data = std::move(mesh.unwrap_mut());
@@ -79,6 +79,21 @@ namespace enishi::renderer::opengl {
         if (vertex.is_err()) return vertex;
         const auto index = this->make_buffer(data.indices.get_render_data(), GL_ELEMENT_ARRAY_BUFFER);
         if (index.is_err()) return index;
+        for (const auto& reflection_handle : shader_reflections) {
+            const auto reflection = this->reflections.find(reflection_handle);
+            if (reflection == this->reflections.end()) continue;
+            const auto* inputs = reflection->second->get_shader_input_reflection();
+            for (const auto& resource : inputs->get_input_resources()) {
+                if (resource.type != types::ShaderInputResourceType::UniformBuffer) continue;
+                const auto uniform = data.uniforms.find(resource.name);
+                if (uniform == data.uniforms.end()) continue;
+                const auto render_data = uniform->second.get_render_data();
+                GLuint buffer = 0; glGenBuffers(1, &buffer); glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+                glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(render_data.byte_width()), render_data.raw_data(), GL_DYNAMIC_DRAW);
+                glBindBufferBase(GL_UNIFORM_BUFFER, resource.binding, buffer);
+                this->uniform_updaters.emplace_back(std::make_shared<OpenGLUniformUpdater>(std::move(uniform->second), buffer, resource.binding));
+            }
+        }
         GLuint vao = 0; glGenVertexArrays(1, &vao); glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, this->objects.at(vertex.unwrap()));
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->objects.at(index.unwrap()));
