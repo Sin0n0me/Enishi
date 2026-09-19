@@ -171,7 +171,19 @@ namespace enishi::renderer::opengl {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
     void OpenGL40Renderer::submit_command_viewport(const types::DrawCommand&) const {}
-    void OpenGL40Renderer::submit_command_mesh(const types::DrawCommand& command, const types::RenderHandle&) const { if (command.sub_command == types::SubCommand::Bind) { const auto object = this->objects.find(command.handle); if (object != this->objects.end()) glBindVertexArray(object->second); } }
+    void OpenGL40Renderer::submit_command_mesh(const types::DrawCommand& command, const types::RenderHandle&) const {
+        if (command.sub_command != types::SubCommand::Bind) return;
+        const auto object = this->objects.find(command.handle);
+        if (object == this->objects.end()) return;
+        glBindVertexArray(object->second);
+        const auto buffers = this->mesh_uniform_buffers.find(command.handle);
+        if (buffers == this->mesh_uniform_buffers.end()) return;
+        const auto accessor = this->resource_accessor->get_buffer_accessor();
+        for (const auto& buffer_handle : buffers->second) {
+            const auto updater = accessor->get_buffer(buffer_handle);
+            if (updater.is_some() && updater.unwrap()) updater.unwrap()->on_update();
+        }
+    }
     void OpenGL40Renderer::submit_command_topology(const types::DrawCommand&) const {}
     void OpenGL40Renderer::submit_command_vertex_layout(const types::DrawCommand&) const {}
     void OpenGL40Renderer::submit_command_state(const types::DrawCommand& command) const {
