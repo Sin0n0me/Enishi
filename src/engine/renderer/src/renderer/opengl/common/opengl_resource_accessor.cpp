@@ -1,6 +1,16 @@
 #include "opengl_resource_accessor.h"
+#include <engine_types/handle/handle_allocator.h>
 
 namespace enishi::renderer::opengl {
+    std::tuple<types::HandleId, platform::IBufferAccessor::Buffer&> OpenGLResourceAccessor::make_buffer(void) noexcept {
+        static types::HandleAllocator allocator;
+        const auto handle = allocator.create();
+        auto [it, _] = this->buffers.emplace(handle, nullptr);
+        return {handle, it->second};
+    }
+    void OpenGLResourceAccessor::add_interface(const types::HandleId handle, const platform::IBufferAccessor::Buffer buffer) noexcept { this->buffers.insert_or_assign(handle, buffer); }
+    foundation::Option<platform::IBufferAccessor::Buffer&> OpenGLResourceAccessor::get_buffer(const types::HandleId handle) noexcept { const auto it=this->buffers.find(handle); return it==this->buffers.end()?foundation::Option<platform::IBufferAccessor::Buffer&>():foundation::Option<platform::IBufferAccessor::Buffer&>(it->second); }
+    foundation::Option<const platform::IBufferAccessor::Buffer&> OpenGLResourceAccessor::get_bufer(const types::HandleId handle) const noexcept { const auto it=this->buffers.find(handle); return it==this->buffers.end()?foundation::Option<const platform::IBufferAccessor::Buffer&>():foundation::Option<const platform::IBufferAccessor::Buffer&>(it->second); }
     foundation::Option<types::ImageViewType> OpenGLResourceAccessor::get_view_type(const types::HandleId& handle) const noexcept {
         if (this->render_targets.contains(handle)) return types::ImageViewType::RenderTarget;
         if (this->depth_stencils.contains(handle)) return types::ImageViewType::DepthStencil;

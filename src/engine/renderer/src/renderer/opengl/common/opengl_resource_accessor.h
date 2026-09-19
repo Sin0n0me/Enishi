@@ -6,7 +6,8 @@
 namespace enishi::renderer::opengl {
     class OpenGLResourceAccessor final : public platform::IRenderResourceAccessor,
                                          public platform::IGPUResourceAccessor,
-                                         public platform::IViewAccessor {
+                                         public platform::IViewAccessor,
+                                         public platform::IBufferAccessor {
       private:
         using RTV = platform::IViewAccessor::RenderTargetView;
         using SRV = platform::IViewAccessor::ShaderResourceView;
@@ -20,6 +21,7 @@ namespace enishi::renderer::opengl {
         std::vector<SRV> shader_resource_list;
         std::vector<DSV> depth_stencil_list;
         std::vector<UAV> unordered_access_list;
+        std::unordered_map<types::HandleId, platform::IBufferAccessor::Buffer> buffers;
       public:
         platform::IGPUResourceAccessor* get_resource_accessor(void) noexcept override { return this; }
         const platform::IGPUResourceAccessor* get_resource_accessor(void) const noexcept override { return this; }
@@ -31,8 +33,8 @@ namespace enishi::renderer::opengl {
         const platform::IMeshAccessor* get_mesh_accessor(void) const noexcept override { return nullptr; }
         platform::IStateAccessor* get_state_accessor(void) noexcept override { return nullptr; }
         const platform::IStateAccessor* get_state_accessor(void) const noexcept override { return nullptr; }
-        platform::IBufferAccessor* get_buffer_accessor(void) noexcept override { return nullptr; }
-        const platform::IBufferAccessor* get_buffer_accessor(void) const noexcept override { return nullptr; }
+        platform::IBufferAccessor* get_buffer_accessor(void) noexcept override { return this; }
+        const platform::IBufferAccessor* get_buffer_accessor(void) const noexcept override { return this; }
         foundation::Option<types::ImageViewType> get_view_type(const types::HandleId& handle) const noexcept override;
         types::HandleId make_render_target_view(const types::HandleId&, RTV&& view) noexcept override;
         types::HandleId make_shader_resource_view(const types::HandleId&, SRV&& view) noexcept override;
@@ -50,5 +52,10 @@ namespace enishi::renderer::opengl {
         std::span<const SRV> get_shader_resource_views(void) const noexcept override { return this->shader_resource_list; }
         std::span<const DSV> get_depth_stencil_views(void) const noexcept override { return this->depth_stencil_list; }
         std::span<const UAV> get_unordered_access_views(void) const noexcept override { return this->unordered_access_list; }
+        std::tuple<types::HandleId, platform::IBufferAccessor::Buffer&> make_buffer(void) noexcept override;
+        void add_interface(types::HandleId handle, const platform::IBufferAccessor::Buffer buffer) noexcept override;
+        void remove_buffer(types::HandleId handle) noexcept override { this->buffers.erase(handle); }
+        foundation::Option<platform::IBufferAccessor::Buffer&> get_buffer(types::HandleId handle) noexcept override;
+        foundation::Option<const platform::IBufferAccessor::Buffer&> get_bufer(types::HandleId handle) const noexcept override;
     };
 } // namespace enishi::renderer::opengl
