@@ -162,6 +162,14 @@ namespace enishi::renderer::opengl {
         if (command.sub_command != types::SubCommand::Bind) return;
         const auto view_type = this->resource_accessor->get_view_type(command.handle.id);
         if (view_type.is_none()) return;
+        if (view_type.unwrap() == types::ImageViewType::ShaderResource) {
+            const auto object = this->objects.find(command.handle);
+            if (object != this->objects.end()) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, object->second);
+            }
+            return;
+        }
         if (!this->active_framebuffer) glGenFramebuffers(1, &this->active_framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, this->active_framebuffer);
         const auto object = this->objects.find(command.handle); if (object == this->objects.end()) return;
