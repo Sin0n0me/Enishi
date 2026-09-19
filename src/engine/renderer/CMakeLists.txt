@@ -82,8 +82,10 @@ elseif(USE_OPENGL40)
     set(DEPENDENCIES
         ${DEPENDENCIES}
         PUBLIC glad_gl_core_40
-        PUBLIC SDL3::SDL3
     )
+    if(WIN32)
+        list(APPEND DEPENDENCIES PUBLIC opengl32)
+    endif()
 
 elseif(USE_VULKAN)
     target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_VULKAN")

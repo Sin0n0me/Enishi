@@ -147,18 +147,8 @@ namespace enishi {
         }
 
 #if defined(USE_OPENGL40)
-        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(root_window);
-        if (!sdl_window) {
-            foundation::Logger::error("OpenGL 4.0 requires an SDL3 window");
-            return {};
-        }
-        const auto native_window = sdl_window->get_window_handle();
-        if (native_window.is_none()) {
-            foundation::Logger::error("SDL window handle could not be obtained");
-            return {};
-        }
         auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
-        auto result_renderer = initializer.init(native_window.unwrap(), INIT_WINDOW_SIZE);
+        auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
 #else
         auto initializer = renderer::directx::D3D11RenderInitializer{};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);

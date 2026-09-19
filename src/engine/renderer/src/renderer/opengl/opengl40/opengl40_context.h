@@ -1,17 +1,20 @@
 #pragma once
 
-#include <SDL3/SDL.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <platform/errors/renderer_errors.h>
+#include <platform/window/window_handle.h>
 
 namespace enishi::renderer::opengl {
     class OpenGL40Context {
       private:
-        SDL_GLContext context = nullptr;
-        SDL_Window* window = nullptr;
+#if defined(_WIN32)
+        HGLRC context = nullptr;
+        HDC device_context = nullptr;
+        HWND window = nullptr;
+#endif
 
-        explicit OpenGL40Context(SDL_Window* window, SDL_GLContext context) noexcept;
+        OpenGL40Context(void) = default;
 
       public:
         ~OpenGL40Context(void) noexcept;
@@ -20,9 +23,8 @@ namespace enishi::renderer::opengl {
         OpenGL40Context& operator=(const OpenGL40Context&) = delete;
 
         [[nodiscard]] static foundation::Result<std::shared_ptr<OpenGL40Context>, platform::RenderError>
-        make(SDL_Window* window);
+        make(const platform::WindowHandle& window);
 
-        [[nodiscard]] SDL_Window* get_window(void) const noexcept;
         [[nodiscard]] bool make_current(void) const noexcept;
         void present(void) const noexcept;
     };

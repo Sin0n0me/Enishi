@@ -3,7 +3,7 @@
 
 namespace enishi::renderer::opengl {
     foundation::Result<std::shared_ptr<OpenGL40Renderer>, platform::RenderError>
-    OpenGL40RenderInitializer::init(SDL_Window* const window, const types::WindowSize&) {
+    OpenGL40RenderInitializer::init(const platform::WindowHandle& window, const types::WindowSize&) {
         auto context = OpenGL40Context::make(window);
         if (context.is_err()) {
             return context.propagation(platform::RenderError::MakeError);
