@@ -1,13 +1,24 @@
 #pragma once
 
 #include "opengl40_context.h"
+#include <renderer/common/render_handle_mapper.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
+#include <unordered_map>
 
 namespace enishi::renderer::opengl {
     class OpenGL40Renderer final : public platform::IRenderer, public platform::IRenderCommandEncoder {
       private:
         std::shared_ptr<OpenGL40Context> context;
+        std::unique_ptr<RenderHandleMapper> handle_mapper;
+        mutable std::unordered_map<types::RenderHandle, std::uint32_t> objects;
+        mutable std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
+        mutable std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
+        mutable std::unordered_map<types::RenderHandle, std::uint32_t> index_types;
+        mutable std::uint32_t topology = 0;
+        mutable std::uint32_t active_vertex_shader = 0;
+        mutable std::uint32_t active_fragment_shader = 0;
+        mutable std::uint32_t active_program = 0;
 
       public:
         explicit OpenGL40Renderer(std::shared_ptr<OpenGL40Context> context);
@@ -46,5 +57,11 @@ namespace enishi::renderer::opengl {
         void submit_command_image(const types::DrawCommand&) const override;
         void draw(const types::RenderHandle&) const override;
         void present(void) const override;
+
+      private:
+        [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
+        [[nodiscard]] platform::RenderResult<types::RenderHandle> make_buffer(
+            const types::RenderData& data, std::uint32_t target);
+        [[nodiscard]] bool use_active_program(void) const;
     };
 } // namespace enishi::renderer::opengl
