@@ -3,4 +3,3 @@ cbuffer ModelEdge {
     float edge_width;
 };
 
-

@@ -19,4 +19,3 @@ float3 skinned_normal(const float3 normal, const uint bones, const float2 weight
     const float3 skinned_nor = nor_x + nor_y;
     return normalize(skinned_nor);
 }
-
