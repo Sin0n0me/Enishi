@@ -3,6 +3,7 @@
 #include <engine_types/assets/model/model_data.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <glad/gl.h>
+#include <algorithm>
 
 namespace enishi::renderer::opengl {
     namespace {
@@ -17,6 +18,11 @@ namespace enishi::renderer::opengl {
         this->context->make_current();
         glEnable(GL_DEPTH_TEST);
     }
+    OpenGL40Renderer::~OpenGL40Renderer(void) noexcept {
+        if (!this->context || !this->context->make_current()) return;
+        if (this->active_program) glDeleteProgram(this->active_program);
+        if (this->active_framebuffer) glDeleteFramebuffers(1, &this->active_framebuffer);
+    }
     types::RenderHandle OpenGL40Renderer::make_handle(const types::RenderHandleType type) noexcept {
         auto handle = this->handle_mapper->make(type, {});
         (*this->handle_mapper)[handle].resource = handle.id;
@@ -30,22 +36,32 @@ namespace enishi::renderer::opengl {
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader_reflection(const types::ShaderData& data) {
         auto reflection=std::make_shared<GLSLShaderReflection>(); auto result=reflection->load(data);
         if (result.is_err()) return result.propagation(platform::RenderError::MakeError);
+        for (const auto& resource : reflection->get_shader_input_reflection()->get_input_resources()) {
+            if (resource.type == types::ShaderInputResourceType::UniformBuffer) this->uniform_block_bindings.emplace(resource.name, resource.binding);
+        }
         const auto handle=this->make_handle(types::RenderHandleType::ShaderReflection); this->reflections.emplace(handle, std::move(reflection)); return handle;
     }
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> OpenGL40Renderer::create_vertex_layout(const types::VertexLayout&, const types::RenderHandle&, const types::RenderHandle&) { return unsupported<std::unique_ptr<platform::IPipelineLayout>>(); }
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData& data) { const auto reflection=this->create_shader_reflection(data); if (reflection.is_err()) return reflection; return this->make_handle(types::RenderHandleType::VertexLayout); }
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData& data) { const auto reflection=this->create_shader_reflection(data); if (reflection.is_err()) return reflection.propagation(platform::RenderError::MakeError); return this->make_handle(types::RenderHandleType::VertexLayout); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_rasterizer(const types::RasterizerStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->rasterizers.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_depth_stencil(const types::DepthStencilStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->depth_stencils.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(const types::SamplerStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->samplers.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_blend(const types::BlendStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->blends.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(const types::ImageDescription& description) {
+        const auto handle = this->make_handle(types::RenderHandleType::Image);
+        this->images.emplace(handle, description);
+        if (description.contains(types::ImageUsage::BackBuffer)) {
+            this->back_buffer_images.emplace(handle);
+            this->objects.emplace(handle, 0);
+            return handle;
+        }
         const auto internal_format = description.format == types::ImageFormat::D32_FLOAT ? GL_DEPTH_COMPONENT32F : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_DEPTH24_STENCIL8 : description.format == types::ImageFormat::RGBA16_FLOAT ? GL_RGBA16F : GL_RGBA8;
         GLuint texture = 0; glGenTextures(1, &texture); glBindTexture(GL_TEXTURE_2D, texture);
         const auto format = description.format == types::ImageFormat::D32_FLOAT ? GL_DEPTH_COMPONENT : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_DEPTH_STENCIL : GL_RGBA;
         const auto type = description.format == types::ImageFormat::D32_FLOAT ? GL_FLOAT : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_UNSIGNED_INT_24_8 : GL_UNSIGNED_BYTE;
         glTexImage2D(GL_TEXTURE_2D, 0, internal_format, description.size.x, description.size.y, 0, format, type, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        const auto handle = this->make_handle(types::RenderHandleType::Image); this->objects.emplace(handle, texture); this->images.emplace(handle, description); return handle;
+        this->objects.emplace(handle, texture); return handle;
     }
     platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>> OpenGL40Renderer::create_render_target_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
@@ -111,10 +127,21 @@ namespace enishi::renderer::opengl {
             glEnableVertexAttribArray(2);
             glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(sizeof(glm::vec3) * 2));
         }
+        if (stride >= static_cast<GLsizei>(sizeof(types::Vertex) + sizeof(types::Skinning))) {
+            glEnableVertexAttribArray(3);
+            glVertexAttribIPointer(3, 2, GL_UNSIGNED_SHORT, stride, reinterpret_cast<const void*>(sizeof(types::Vertex)));
+            glEnableVertexAttribArray(4);
+            glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(sizeof(types::Vertex) + sizeof(glm::u16vec2)));
+        }
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         this->mesh_uniform_buffers.emplace(handle, std::move(mesh_uniform_handles));
         this->objects.emplace(handle, vao);
         this->index_types.emplace(handle, data.indices.get_render_data().stride == 2 ? GL_UNSIGNED_SHORT : data.indices.get_render_data().stride == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT);
+        this->index_strides.emplace(handle, data.indices.get_render_data().stride);
+        std::vector<types::DrawBinding> draw_bindings;
+        draw_bindings.reserve(data.materials.size());
+        for (const auto& material : data.materials) draw_bindings.emplace_back(material.draw_binding);
+        this->mesh_draw_bindings.emplace(handle, std::move(draw_bindings));
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(const types::TextureData& texture) {
@@ -143,13 +170,18 @@ namespace enishi::renderer::opengl {
     platform::IRenderResourceAccessor* const OpenGL40Renderer::get_resource_accessor(void) const noexcept { return this->resource_accessor.get(); }
     const platform::IRenderHandleMapper* OpenGL40Renderer::get_handle_mapper(void) const noexcept { return this->handle_mapper.get(); }
     void OpenGL40Renderer::setup_viewports(void) const {}
-    void OpenGL40Renderer::setup_views(void) const { glBindFramebuffer(GL_FRAMEBUFFER, 0); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); }
+    void OpenGL40Renderer::setup_views(void) const { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
     void OpenGL40Renderer::submit_command_buffer(const types::DrawCommand&) const {}
     bool OpenGL40Renderer::use_active_program(void) const {
         if (!this->active_vertex_shader || !this->active_fragment_shader) return false;
         if (this->active_program) { glUseProgram(this->active_program); return true; }
         this->active_program = glCreateProgram(); glAttachShader(this->active_program, this->active_vertex_shader); glAttachShader(this->active_program, this->active_fragment_shader); glLinkProgram(this->active_program);
-        GLint linked = GL_FALSE; glGetProgramiv(this->active_program, GL_LINK_STATUS, &linked); if (linked != GL_TRUE) { glDeleteProgram(this->active_program); this->active_program = 0; return false; } glUseProgram(this->active_program); return true;
+        GLint linked = GL_FALSE; glGetProgramiv(this->active_program, GL_LINK_STATUS, &linked); if (linked != GL_TRUE) { glDeleteProgram(this->active_program); this->active_program = 0; return false; }
+        for (const auto& [name, binding] : this->uniform_block_bindings) {
+            const auto index = glGetUniformBlockIndex(this->active_program, name.c_str());
+            if (index != GL_INVALID_INDEX) glUniformBlockBinding(this->active_program, index, binding);
+        }
+        glUseProgram(this->active_program); return true;
     }
     void OpenGL40Renderer::submit_command_shader(const types::DrawCommand& command) const {
         if (command.sub_command != types::SubCommand::Bind) return;
@@ -170,9 +202,17 @@ namespace enishi::renderer::opengl {
             }
             return;
         }
+        const auto object = this->objects.find(command.handle); if (object == this->objects.end()) return;
+        const auto is_back_buffer = this->back_buffer_images.contains(command.handle) ||
+            (render_target.is_valid() && this->back_buffer_images.contains(render_target));
+        if (is_back_buffer) {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            return;
+        }
         if (!this->active_framebuffer) glGenFramebuffers(1, &this->active_framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, this->active_framebuffer);
-        const auto object = this->objects.find(command.handle); if (object == this->objects.end()) return;
         if (view_type.unwrap() == types::ImageViewType::RenderTarget) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, object->second, 0);
         if (view_type.unwrap() == types::ImageViewType::DepthStencil) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, object->second, 0);
         if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) { const auto target=this->objects.find(render_target); if (target != this->objects.end()) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->second, 0); }
@@ -193,6 +233,19 @@ namespace enishi::renderer::opengl {
         for (const auto& buffer_handle : buffers->second) {
             const auto updater = accessor->get_buffer(buffer_handle);
             if (updater.is_some() && updater.unwrap()) updater.unwrap()->on_update();
+        }
+        if (!this->use_active_program()) return;
+        const auto bindings = this->mesh_draw_bindings.find(command.handle);
+        if (bindings == this->mesh_draw_bindings.end()) return;
+        const auto index_stride = this->index_strides.find(command.handle);
+        const auto stride = index_stride == this->index_strides.end() ? 0 : index_stride->second;
+        for (const auto& binding : bindings->second) {
+            if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
+                glDrawElementsInstanced(this->topology, indexed->index_count, this->active_index_type,
+                    reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexed->first_index) * stride), std::max(1u, indexed->instance_count));
+            } else if (const auto plain = std::get_if<types::DrawParameter>(&binding.parameter)) {
+                glDrawArraysInstanced(this->topology, plain->first_vertex, plain->vertex_count, std::max(1u, plain->instance_count));
+            }
         }
     }
     void OpenGL40Renderer::submit_command_topology(const types::DrawCommand& command) const { if (command.sub_command != types::SubCommand::Bind) return; const auto value=static_cast<types::PrimitiveTopology>(command.handle.id.handle_id); this->topology=value == types::PrimitiveTopology::LineList ? GL_LINES : value == types::PrimitiveTopology::PointList ? GL_POINTS : GL_TRIANGLES; }

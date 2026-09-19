@@ -6,6 +6,8 @@
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
 #include <unordered_map>
+#include <unordered_set>
+#include <string>
 #include <renderer/opengl/common/glsl_shader_reflection.h>
 #include <renderer/opengl/common/opengl_uniform_updater.h>
 
@@ -19,13 +21,17 @@ namespace enishi::renderer::opengl {
         mutable std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
         mutable std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
         mutable std::unordered_map<types::RenderHandle, std::uint32_t> index_types;
+        mutable std::unordered_map<types::RenderHandle, std::uint32_t> index_strides;
+        mutable std::unordered_map<types::RenderHandle, std::vector<types::DrawBinding>> mesh_draw_bindings;
         mutable std::unordered_map<types::RenderHandle, types::ImageDescription> images;
+        mutable std::unordered_set<types::RenderHandle> back_buffer_images;
         mutable std::unordered_map<types::RenderHandle, types::RasterizerStateDescription> rasterizers;
         mutable std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depth_stencils;
         mutable std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
         mutable std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
         mutable std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
         mutable std::unordered_map<types::RenderHandle, std::uint32_t> uniform_buffers;
+        std::unordered_map<std::string, std::uint32_t> uniform_block_bindings;
         std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
         std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
         mutable std::uint32_t topology = 0;
@@ -37,6 +43,7 @@ namespace enishi::renderer::opengl {
 
       public:
         explicit OpenGL40Renderer(std::shared_ptr<OpenGL40Context> context);
+        ~OpenGL40Renderer(void) noexcept override;
 
         platform::RenderResult<types::RenderHandle> create_viewport(const types::ViewportRect&) override;
         platform::RenderResult<types::RenderHandle> create_shader_reflection(const types::ShaderData&) override;
