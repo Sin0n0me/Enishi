@@ -19,11 +19,21 @@ namespace enishi::platform_impl {
         const platform::WindowSystem window_system,
         const types::GraphicsAPI graphics_api)
         : window_system(window_system)
-        , window(SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
+        , window([&]() {
+              if (graphics_api == types::GraphicsAPI::OpenGL40) {
+                  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+                  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+                  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+                  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+                  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+                  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+              }
+              return SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
               size.width,
               size.height,
               //  SDL_WINDOW_ALWAYS_ON_TOP |
-              SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api))))
+              SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api)));
+          }())
         , is_closing(false)
         , size()
         , position() {

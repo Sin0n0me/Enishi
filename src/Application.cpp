@@ -16,8 +16,12 @@
 
 #include <core/system/asset/shader/shader_data_provider.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
+#if defined(USE_OPENGL40)
+#include <renderer/opengl/opengl40/opengl40_render_initializer.h>
+#else
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
 #include <renderer/directx/directx11/d3d11_renderer.h>
+#endif
 
 int main(void) {
     /*
@@ -107,7 +111,11 @@ namespace enishi {
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
                 platform::WindowSystem::Windows,
+#if defined(USE_OPENGL40)
+                types::GraphicsAPI::OpenGL40));
+#else
                 types::GraphicsAPI::DirectX11));
+#endif
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
@@ -138,8 +146,23 @@ namespace enishi {
             return {};
         }
 
+#if defined(USE_OPENGL40)
+        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(root_window);
+        if (!sdl_window) {
+            foundation::Logger::error("OpenGL 4.0 requires an SDL3 window");
+            return {};
+        }
+        const auto native_window = sdl_window->get_window_handle();
+        if (native_window.is_none()) {
+            foundation::Logger::error("SDL window handle could not be obtained");
+            return {};
+        }
+        auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
+        auto result_renderer = initializer.init(native_window.unwrap(), INIT_WINDOW_SIZE);
+#else
         auto initializer = renderer::directx::D3D11RenderInitializer{};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
+#endif
         if (result_renderer.is_err()) {
             foundation::Logger::error(result_renderer.unwrap_err().get_message());
             return {};
