@@ -1,5 +1,6 @@
 #include "opengl40_renderer.h"
 #include <renderer/opengl/common/opengl_image_view.h>
+#include <engine_types/assets/model/model_data.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <glad/gl.h>
 
@@ -32,7 +33,7 @@ namespace enishi::renderer::opengl {
         const auto handle=this->make_handle(types::RenderHandleType::ShaderReflection); this->reflections.emplace(handle, std::move(reflection)); return handle;
     }
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> OpenGL40Renderer::create_vertex_layout(const types::VertexLayout&, const types::RenderHandle&, const types::RenderHandle&) { return unsupported<std::unique_ptr<platform::IPipelineLayout>>(); }
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData&) { return unsupported<types::RenderHandle>(); }
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData& data) { const auto reflection=this->create_shader_reflection(data); if (reflection.is_err()) return reflection; return this->make_handle(types::RenderHandleType::VertexLayout); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_rasterizer(const types::RasterizerStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->rasterizers.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_depth_stencil(const types::DepthStencilStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->depth_stencils.emplace(handle, state); return handle; }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(const types::SamplerStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->samplers.emplace(handle, state); return handle; }
@@ -81,6 +82,15 @@ namespace enishi::renderer::opengl {
         GLuint vao = 0; glGenVertexArrays(1, &vao); glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, this->objects.at(vertex.unwrap()));
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->objects.at(index.unwrap()));
+        const auto stride = static_cast<GLsizei>(data.vertices.get_render_data().stride);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+        if (stride >= static_cast<GLsizei>(sizeof(types::Vertex))) {
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(sizeof(glm::vec3)));
+            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(sizeof(glm::vec3) * 2));
+        }
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         this->objects.emplace(handle, vao);
         this->index_types.emplace(handle, data.indices.get_render_data().stride == 2 ? GL_UNSIGNED_SHORT : data.indices.get_render_data().stride == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT);
