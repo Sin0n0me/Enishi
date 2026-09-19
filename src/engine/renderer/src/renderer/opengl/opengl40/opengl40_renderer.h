@@ -33,6 +33,7 @@ namespace enishi::renderer::opengl {
         mutable std::uint32_t active_fragment_shader = 0;
         mutable std::uint32_t active_program = 0;
         mutable std::uint32_t active_framebuffer = 0;
+        mutable std::uint32_t active_index_type = 0;
 
       public:
         explicit OpenGL40Renderer(std::shared_ptr<OpenGL40Context> context);

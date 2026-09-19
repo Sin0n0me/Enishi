@@ -176,6 +176,7 @@ namespace enishi::renderer::opengl {
         if (view_type.unwrap() == types::ImageViewType::RenderTarget) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, object->second, 0);
         if (view_type.unwrap() == types::ImageViewType::DepthStencil) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, object->second, 0);
         if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) { const auto target=this->objects.find(render_target); if (target != this->objects.end()) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->second, 0); }
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
     void OpenGL40Renderer::submit_command_viewport(const types::DrawCommand&) const {}
@@ -184,6 +185,8 @@ namespace enishi::renderer::opengl {
         const auto object = this->objects.find(command.handle);
         if (object == this->objects.end()) return;
         glBindVertexArray(object->second);
+        const auto index_type = this->index_types.find(command.handle);
+        this->active_index_type = index_type == this->index_types.end() ? GL_UNSIGNED_INT : index_type->second;
         const auto buffers = this->mesh_uniform_buffers.find(command.handle);
         if (buffers == this->mesh_uniform_buffers.end()) return;
         const auto accessor = this->resource_accessor->get_buffer_accessor();
@@ -192,8 +195,8 @@ namespace enishi::renderer::opengl {
             if (updater.is_some() && updater.unwrap()) updater.unwrap()->on_update();
         }
     }
-    void OpenGL40Renderer::submit_command_topology(const types::DrawCommand&) const {}
-    void OpenGL40Renderer::submit_command_vertex_layout(const types::DrawCommand&) const {}
+    void OpenGL40Renderer::submit_command_topology(const types::DrawCommand& command) const { if (command.sub_command != types::SubCommand::Bind) return; const auto value=static_cast<types::PrimitiveTopology>(command.handle.id.handle_id); this->topology=value == types::PrimitiveTopology::LineList ? GL_LINES : value == types::PrimitiveTopology::PointList ? GL_POINTS : GL_TRIANGLES; }
+    void OpenGL40Renderer::submit_command_vertex_layout(const types::DrawCommand&) const { }
     void OpenGL40Renderer::submit_command_state(const types::DrawCommand& command) const {
         if (command.sub_command != types::SubCommand::Bind) return;
         if (const auto it=this->rasterizers.find(command.handle); it != this->rasterizers.end()) { it->second.cull_mode == types::CullMode::None ? glDisable(GL_CULL_FACE) : glEnable(GL_CULL_FACE); if (it->second.cull_mode == types::CullMode::Front) glCullFace(GL_FRONT); else glCullFace(GL_BACK); glPolygonMode(GL_FRONT_AND_BACK, it->second.fill_mode == types::FillMode::Wireframe ? GL_LINE : GL_FILL); glFrontFace(it->second.front_face == types::FrontFace::Clockwise ? GL_CW : GL_CCW); glLineWidth(it->second.line_width); return; }
@@ -202,6 +205,6 @@ namespace enishi::renderer::opengl {
         if (const auto it=this->samplers.find(command.handle); it != this->samplers.end()) { glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, it->second.min_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, it->second.mag_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR); }
     }
     void OpenGL40Renderer::submit_command_image(const types::DrawCommand& command) const { if (command.sub_command != types::SubCommand::Bind) return; const auto object=this->objects.find(command.handle); if (object == this->objects.end()) return; glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, object->second); }
-    void OpenGL40Renderer::draw(const types::RenderHandle& handle) const { const auto binding = this->draw_bindings.find(handle); if (binding == this->draw_bindings.end()) return; this->use_active_program(); if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding->second.parameter)) glDrawElementsInstanced(this->topology, indexed->index_count, GL_UNSIGNED_INT, nullptr, indexed->instance_count); else if (const auto plain = std::get_if<types::DrawParameter>(&binding->second.parameter)) glDrawArraysInstanced(this->topology, plain->first_vertex, plain->vertex_count, plain->instance_count); }
+    void OpenGL40Renderer::draw(const types::RenderHandle& handle) const { const auto binding = this->draw_bindings.find(handle); if (binding == this->draw_bindings.end() || !this->use_active_program()) return; if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding->second.parameter)) glDrawElementsInstanced(this->topology, indexed->index_count, this->active_index_type, reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexed->first_index)), indexed->instance_count); else if (const auto plain = std::get_if<types::DrawParameter>(&binding->second.parameter)) glDrawArraysInstanced(this->topology, plain->first_vertex, plain->vertex_count, plain->instance_count); }
     void OpenGL40Renderer::present(void) const { this->context->present(); }
 } // namespace enishi::renderer::opengl
