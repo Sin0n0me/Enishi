@@ -1,4 +1,5 @@
 #include "opengl40_renderer.h"
+#include <renderer/opengl/common/opengl_image_view.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <glad/gl.h>
 
@@ -32,11 +33,31 @@ namespace enishi::renderer::opengl {
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_depth_stencil(const types::DepthStencilStateDescription&) { return unsupported<types::RenderHandle>(); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(const types::SamplerStateDescription&) { return unsupported<types::RenderHandle>(); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_blend(const types::BlendStateDescription&) { return unsupported<types::RenderHandle>(); }
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(const types::ImageDescription&) { return unsupported<types::RenderHandle>(); }
-    platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>> OpenGL40Renderer::create_render_target_view(types::RenderHandle, const types::ImageViewDescription&) { return unsupported<std::shared_ptr<platform::IRenderTargetView>>(); }
-    platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>> OpenGL40Renderer::create_depth_stencil_view(types::RenderHandle, const types::ImageViewDescription&) { return unsupported<std::shared_ptr<platform::IDepthStencilView>>(); }
-    platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>> OpenGL40Renderer::create_shader_resource_view(types::RenderHandle, const types::ImageViewDescription&) { return unsupported<std::shared_ptr<platform::IShaderResourceView>>(); }
-    platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>> OpenGL40Renderer::create_unordered_access_view(types::RenderHandle, const types::ImageViewDescription&) { return unsupported<std::shared_ptr<platform::IUnorderedAccessView>>(); }
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(const types::ImageDescription& description) {
+        const auto internal_format = description.format == types::ImageFormat::D32_FLOAT ? GL_DEPTH_COMPONENT32F : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_DEPTH24_STENCIL8 : description.format == types::ImageFormat::RGBA16_FLOAT ? GL_RGBA16F : GL_RGBA8;
+        GLuint texture = 0; glGenTextures(1, &texture); glBindTexture(GL_TEXTURE_2D, texture);
+        const auto format = description.format == types::ImageFormat::D32_FLOAT ? GL_DEPTH_COMPONENT : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_DEPTH_STENCIL : GL_RGBA;
+        const auto type = description.format == types::ImageFormat::D32_FLOAT ? GL_FLOAT : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_UNSIGNED_INT_24_8 : GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format, description.size.x, description.size.y, 0, format, type, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        const auto handle = this->make_handle(types::RenderHandleType::Image); this->objects.emplace(handle, texture); this->images.emplace(handle, description); return handle;
+    }
+    platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>> OpenGL40Renderer::create_render_target_view(types::RenderHandle image, const types::ImageViewDescription& description) {
+        if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IRenderTargetView>(std::make_shared<OpenGLRenderTargetView>(handle, description));
+    }
+    platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>> OpenGL40Renderer::create_depth_stencil_view(types::RenderHandle image, const types::ImageViewDescription& description) {
+        if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IDepthStencilView>(std::make_shared<OpenGLDepthStencilView>(handle, description));
+    }
+    platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>> OpenGL40Renderer::create_shader_resource_view(types::RenderHandle image, const types::ImageViewDescription& description) {
+        if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IShaderResourceView>(std::make_shared<OpenGLShaderResourceView>(handle, description));
+    }
+    platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>> OpenGL40Renderer::create_unordered_access_view(types::RenderHandle image, const types::ImageViewDescription& description) {
+        if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IUnorderedAccessView>(std::make_shared<OpenGLUnorderedAccessView>(handle, description));
+    }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::make_buffer(const types::RenderData& data, const std::uint32_t target) {
         GLuint object = 0; glGenBuffers(1, &object); glBindBuffer(target, object);
         glBufferData(target, static_cast<GLsizeiptr>(data.byte_width()), data.raw_data(), GL_DYNAMIC_DRAW);
