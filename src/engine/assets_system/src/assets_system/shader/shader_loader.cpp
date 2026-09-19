@@ -33,12 +33,21 @@ namespace enishi::assets_system {
         }
 
         switch (iter->second) {
+            case types::ShaderBinaryType::SourceFileGLSL: {
+                auto result = binary_reader.read_all();
+                if (result.is_err()) {
+                    return result.propagation(AssetError::IOError);
+                }
+                return std::make_shared<types::ShaderData>(types::ShaderData{
+                    .binary_type = types::ShaderBinaryType::SourceFileGLSL,
+                    .code = std::move(result.unwrap_mut()),
+                });
+            }
             case types::ShaderBinaryType::SPIR_V:
                 return ShaderLoader::load_spir_v(binary_reader);
             case types::ShaderBinaryType::DXBC:
                 return ShaderLoader::load_dxbc(binary_reader);
             case types::ShaderBinaryType::DXIL:
-            case types::ShaderBinaryType::SourceFileGLSL:
             case types::ShaderBinaryType::SourceFileHLSL:
             case types::ShaderBinaryType::SourceFileMSL:
             default:
