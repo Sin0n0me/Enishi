@@ -79,6 +79,7 @@ namespace enishi::renderer::opengl {
         if (vertex.is_err()) return vertex;
         const auto index = this->make_buffer(data.indices.get_render_data(), GL_ELEMENT_ARRAY_BUFFER);
         if (index.is_err()) return index;
+        std::vector<types::HandleId> mesh_uniform_handles;
         for (const auto& reflection_handle : shader_reflections) {
             const auto reflection = this->reflections.find(reflection_handle);
             if (reflection == this->reflections.end()) continue;
@@ -91,7 +92,11 @@ namespace enishi::renderer::opengl {
                 GLuint buffer = 0; glGenBuffers(1, &buffer); glBindBuffer(GL_UNIFORM_BUFFER, buffer);
                 glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(render_data.byte_width()), render_data.raw_data(), GL_DYNAMIC_DRAW);
                 glBindBufferBase(GL_UNIFORM_BUFFER, resource.binding, buffer);
-                this->uniform_updaters.emplace_back(std::make_shared<OpenGLUniformUpdater>(std::move(uniform->second), buffer, resource.binding));
+                auto updater = std::make_shared<OpenGLUniformUpdater>(std::move(uniform->second), buffer, resource.binding);
+                this->uniform_updaters.emplace_back(updater);
+                const auto [buffer_handle, _] = this->resource_accessor->make_buffer();
+                this->resource_accessor->add_interface(buffer_handle, updater);
+                mesh_uniform_handles.emplace_back(buffer_handle);
             }
         }
         GLuint vao = 0; glGenVertexArrays(1, &vao); glBindVertexArray(vao);
@@ -107,6 +112,7 @@ namespace enishi::renderer::opengl {
             glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(sizeof(glm::vec3) * 2));
         }
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
+        this->mesh_uniform_buffers.emplace(handle, std::move(mesh_uniform_handles));
         this->objects.emplace(handle, vao);
         this->index_types.emplace(handle, data.indices.get_render_data().stride == 2 ? GL_UNSIGNED_SHORT : data.indices.get_render_data().stride == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT);
         return handle;

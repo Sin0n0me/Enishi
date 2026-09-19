@@ -27,6 +27,7 @@ namespace enishi::renderer::opengl {
         mutable std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
         mutable std::unordered_map<types::RenderHandle, std::uint32_t> uniform_buffers;
         std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
+        std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
         mutable std::uint32_t topology = 0;
         mutable std::uint32_t active_vertex_shader = 0;
         mutable std::uint32_t active_fragment_shader = 0;
