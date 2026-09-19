@@ -26,7 +26,11 @@ namespace enishi::renderer::opengl {
         glViewport(static_cast<GLint>(viewport.left_top_x), static_cast<GLint>(viewport.left_top_y), static_cast<GLsizei>(viewport.width), static_cast<GLsizei>(viewport.height));
         return this->make_handle(types::RenderHandleType::ViewPort);
     }
-    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader_reflection(const types::ShaderData&) { return unsupported<types::RenderHandle>(); }
+    platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader_reflection(const types::ShaderData& data) {
+        auto reflection=std::make_shared<GLSLShaderReflection>(); auto result=reflection->load(data);
+        if (result.is_err()) return result.propagation(platform::RenderError::MakeError);
+        const auto handle=this->make_handle(types::RenderHandleType::ShaderReflection); this->reflections.emplace(handle, std::move(reflection)); return handle;
+    }
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>> OpenGL40Renderer::create_vertex_layout(const types::VertexLayout&, const types::RenderHandle&, const types::RenderHandle&) { return unsupported<std::unique_ptr<platform::IPipelineLayout>>(); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData&) { return unsupported<types::RenderHandle>(); }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_rasterizer(const types::RasterizerStateDescription& state) { const auto handle=this->make_handle(types::RenderHandleType::State); this->rasterizers.emplace(handle, state); return handle; }

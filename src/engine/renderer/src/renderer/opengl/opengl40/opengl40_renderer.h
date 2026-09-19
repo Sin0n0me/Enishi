@@ -6,6 +6,7 @@
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
 #include <unordered_map>
+#include <renderer/opengl/common/glsl_shader_reflection.h>
 
 namespace enishi::renderer::opengl {
     class OpenGL40Renderer final : public platform::IRenderer, public platform::IRenderCommandEncoder {
@@ -22,6 +23,8 @@ namespace enishi::renderer::opengl {
         mutable std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depth_stencils;
         mutable std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
         mutable std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
+        mutable std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
+        mutable std::unordered_map<types::RenderHandle, std::uint32_t> uniform_buffers;
         mutable std::uint32_t topology = 0;
         mutable std::uint32_t active_vertex_shader = 0;
         mutable std::uint32_t active_fragment_shader = 0;
