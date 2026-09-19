@@ -12,7 +12,7 @@ namespace enishi::renderer::opengl {
     }
 
     OpenGL40Renderer::OpenGL40Renderer(std::shared_ptr<OpenGL40Context> context)
-        : context(std::move(context)), handle_mapper(std::make_unique<RenderHandleMapper>()), topology(GL_TRIANGLES) {
+        : context(std::move(context)), handle_mapper(std::make_unique<RenderHandleMapper>()), resource_accessor(std::make_unique<OpenGLResourceAccessor>()), topology(GL_TRIANGLES) {
         this->context->make_current();
         glEnable(GL_DEPTH_TEST);
     }
@@ -44,7 +44,7 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>> OpenGL40Renderer::create_render_target_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
-        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); return std::static_pointer_cast<platform::IRenderTargetView>(std::make_shared<OpenGLRenderTargetView>(handle, description));
+        const auto handle = this->make_handle(types::RenderHandleType::View); this->objects.emplace(handle, this->objects.at(image)); auto view=std::make_shared<OpenGLRenderTargetView>(handle, description); this->resource_accessor->make_render_target_view(handle.id, std::move(view)); return this->resource_accessor->get_render_target_view(handle.id).unwrap();
     }
     platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>> OpenGL40Renderer::create_depth_stencil_view(types::RenderHandle image, const types::ImageViewDescription& description) {
         if (!this->objects.contains(image)) return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
@@ -93,8 +93,8 @@ namespace enishi::renderer::opengl {
         if (compiled != GL_TRUE) { glDeleteShader(shader); return foundation::Error(platform::RenderError::MakeError, "GLSL shader compilation failed"); }
         const auto handle = this->make_handle(types::RenderHandleType::Shader); this->objects.emplace(handle, shader); this->shader_kinds.emplace(handle, kind); return handle;
     }
-    platform::IRenderResourceAccessor* OpenGL40Renderer::get_resource_accessor(void) noexcept { return nullptr; }
-    platform::IRenderResourceAccessor* const OpenGL40Renderer::get_resource_accessor(void) const noexcept { return nullptr; }
+    platform::IRenderResourceAccessor* OpenGL40Renderer::get_resource_accessor(void) noexcept { return this->resource_accessor.get(); }
+    platform::IRenderResourceAccessor* const OpenGL40Renderer::get_resource_accessor(void) const noexcept { return this->resource_accessor.get(); }
     const platform::IRenderHandleMapper* OpenGL40Renderer::get_handle_mapper(void) const noexcept { return this->handle_mapper.get(); }
     void OpenGL40Renderer::setup_viewports(void) const {}
     void OpenGL40Renderer::setup_views(void) const { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); }

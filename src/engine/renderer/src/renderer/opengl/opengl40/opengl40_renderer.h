@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opengl40_context.h"
+#include <renderer/opengl/common/opengl_resource_accessor.h>
 #include <renderer/common/render_handle_mapper.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
@@ -11,6 +12,7 @@ namespace enishi::renderer::opengl {
       private:
         std::shared_ptr<OpenGL40Context> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
+        std::unique_ptr<OpenGLResourceAccessor> resource_accessor;
         mutable std::unordered_map<types::RenderHandle, std::uint32_t> objects;
         mutable std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
         mutable std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
