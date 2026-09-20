@@ -2,6 +2,8 @@
 x64/
 out/
 build/
+!/build/
+!/build/build.cmd
 build_cmake/
 assets/**/
 CMakeFiles/
