@@ -22,7 +22,8 @@ namespace enishi::renderer::opengl {
         OpenGL40Context(const OpenGL40Context&) = delete;
         OpenGL40Context& operator=(const OpenGL40Context&) = delete;
 
-        [[nodiscard]] static foundation::Result<std::shared_ptr<OpenGL40Context>, platform::RenderError>
+        [[nodiscard]] static foundation::Result<std::shared_ptr<OpenGL40Context>,
+            platform::RenderError>
         make(const platform::WindowHandle& window);
 
         [[nodiscard]] bool make_current(void) const noexcept;

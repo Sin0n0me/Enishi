@@ -45,7 +45,8 @@ namespace enishi::renderer::opengl {
         result->window = window.native_handle.windows.hwnd;
         result->device_context = GetDC(result->window);
         if (!result->device_context) {
-            return foundation::Error(platform::RenderError::MakeError, "Failed to obtain the window device context");
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to obtain the window device context");
         }
         PIXELFORMATDESCRIPTOR pixel_format{
             .nSize = sizeof(PIXELFORMATDESCRIPTOR),
@@ -60,35 +61,43 @@ namespace enishi::renderer::opengl {
         const auto format = ChoosePixelFormat(result->device_context, &pixel_format);
         if (format == 0 || (GetPixelFormat(result->device_context) == 0 &&
                                !SetPixelFormat(result->device_context, format, &pixel_format))) {
-            return foundation::Error(platform::RenderError::MakeError, "Failed to configure the OpenGL pixel format");
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to configure the OpenGL pixel format");
         }
 
         const auto legacy_context = wglCreateContext(result->device_context);
         if (!legacy_context || !wglMakeCurrent(result->device_context, legacy_context)) {
-            return foundation::Error(platform::RenderError::MakeError, "Failed to create an OpenGL bootstrap context");
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to create an OpenGL bootstrap context");
         }
         using CreateContextAttribs = HGLRC(WINAPI*)(HDC, HGLRC, const int*);
-        const auto create_context_attribs = reinterpret_cast<CreateContextAttribs>(
-            wglGetProcAddress("wglCreateContextAttribsARB"));
+        const auto create_context_attribs =
+            reinterpret_cast<CreateContextAttribs>(wglGetProcAddress("wglCreateContextAttribsARB"));
         if (!create_context_attribs) {
             wglMakeCurrent(nullptr, nullptr);
             wglDeleteContext(legacy_context);
-            return foundation::Error(platform::RenderError::MakeError, "OpenGL 4.0 context creation is not supported");
+            return foundation::Error(
+                platform::RenderError::MakeError, "OpenGL 4.0 context creation is not supported");
         }
         constexpr int attributes[] = {
-            0x2091, 4, // WGL_CONTEXT_MAJOR_VERSION_ARB
-            0x2092, 0, // WGL_CONTEXT_MINOR_VERSION_ARB
-            0x9126, 0x00000001, // WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB
+            0x2091,
+            4, // WGL_CONTEXT_MAJOR_VERSION_ARB
+            0x2092,
+            0, // WGL_CONTEXT_MINOR_VERSION_ARB
+            0x9126,
+            0x00000001, // WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB
             0,
         };
         result->context = create_context_attribs(result->device_context, nullptr, attributes);
         wglMakeCurrent(nullptr, nullptr);
         wglDeleteContext(legacy_context);
         if (!result->context || !result->make_current()) {
-            return foundation::Error(platform::RenderError::MakeError, "Failed to create an OpenGL context");
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to create an OpenGL context");
         }
         if (!gladLoadGL(get_open_gl_proc_address) || !GLAD_GL_VERSION_4_0) {
-            return foundation::Error(platform::RenderError::MakeError, "OpenGL 4.0 is not available");
+            return foundation::Error(
+                platform::RenderError::MakeError, "OpenGL 4.0 is not available");
         }
         return result;
 #else
