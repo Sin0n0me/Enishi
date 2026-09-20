@@ -1,13 +1,17 @@
 #pragma once
 
 #include <platform/renderer/interface_render_resource_accessor.h>
+#include <engine_types/handle/handle_mapper.h>
 #include <unordered_map>
 
 namespace enishi::renderer::opengl {
     class OpenGLResourceAccessor final : public platform::IRenderResourceAccessor,
                                          public platform::IGPUResourceAccessor,
                                          public platform::IViewAccessor,
-                                         public platform::IBufferAccessor {
+                                         public platform::IBufferAccessor,
+                                         public platform::IShaderAccessor,
+                                         public platform::IMeshAccessor,
+                                         public platform::IStateAccessor {
       private:
         using RTV = platform::IViewAccessor::RenderTargetView;
         using SRV = platform::IViewAccessor::ShaderResourceView;
@@ -22,6 +26,9 @@ namespace enishi::renderer::opengl {
         std::vector<DSV> depth_stencil_list;
         std::vector<UAV> unordered_access_list;
         std::unordered_map<types::HandleId, platform::IBufferAccessor::Buffer> buffers;
+        types::ResourceMapper<platform::IShaderAccessor::ShaderReflection> shader_reflections;
+        types::ResourceMapper<platform::IMeshAccessor::MeshHandles> mesh_handles;
+        std::unordered_map<types::HandleId, types::StateKind> state_kinds;
 
       public:
         platform::IGPUResourceAccessor* get_resource_accessor(void) noexcept override {
@@ -37,22 +44,22 @@ namespace enishi::renderer::opengl {
             return this;
         }
         platform::IShaderAccessor* get_shader_accessor(void) noexcept override {
-            return nullptr;
+            return this;
         }
         const platform::IShaderAccessor* get_shader_accessor(void) const noexcept override {
-            return nullptr;
+            return this;
         }
         platform::IMeshAccessor* get_mesh_accessor(void) noexcept override {
-            return nullptr;
+            return this;
         }
         const platform::IMeshAccessor* get_mesh_accessor(void) const noexcept override {
-            return nullptr;
+            return this;
         }
         platform::IStateAccessor* get_state_accessor(void) noexcept override {
-            return nullptr;
+            return this;
         }
         const platform::IStateAccessor* get_state_accessor(void) const noexcept override {
-            return nullptr;
+            return this;
         }
         platform::IBufferAccessor* get_buffer_accessor(void) noexcept override {
             return this;
@@ -105,5 +112,23 @@ namespace enishi::renderer::opengl {
             types::HandleId handle) noexcept override;
         foundation::Option<const platform::IBufferAccessor::Buffer&> get_bufer(
             types::HandleId handle) const noexcept override;
+
+        std::tuple<types::HandleId, ShaderReflection&> make_shader_reflection(
+            ShaderReflection&& shader_reflection) noexcept override;
+        foundation::Option<ShaderReflection&> get_shader_reflection(
+            types::HandleId handle) noexcept override;
+        foundation::Option<const ShaderReflection&> get_shader_reflection(
+            types::HandleId handle) const noexcept override;
+        void remove_shader_reflection(types::HandleId handle) noexcept override;
+
+        std::tuple<types::HandleId, MeshHandles&> make_mesh_handles(void) noexcept override;
+        void remove_mesh_handles(types::HandleId handle) noexcept override;
+        foundation::Option<MeshHandles&> get_mesh_handle(types::HandleId handle) noexcept override;
+        foundation::Option<const MeshHandles&> get_mesh_handle(
+            types::HandleId handle) const noexcept override;
+
+        foundation::Option<types::StateKind> get_state_kind(
+            const types::HandleId& handle) const noexcept override;
+        void add_state(types::HandleId handle, types::StateKind kind) noexcept;
     };
 } // namespace enishi::renderer::opengl

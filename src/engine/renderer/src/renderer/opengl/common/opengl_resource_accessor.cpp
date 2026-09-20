@@ -2,6 +2,51 @@
 #include <engine_types/handle/handle_allocator.h>
 
 namespace enishi::renderer::opengl {
+    std::tuple<types::HandleId, OpenGLResourceAccessor::ShaderReflection&>
+    OpenGLResourceAccessor::make_shader_reflection(ShaderReflection&& shader_reflection) noexcept {
+        const auto handle = this->shader_reflections.emplace(std::move(shader_reflection));
+        return {handle, this->shader_reflections.get(handle).unwrap()};
+    }
+    foundation::Option<OpenGLResourceAccessor::ShaderReflection&>
+    OpenGLResourceAccessor::get_shader_reflection(const types::HandleId handle) noexcept {
+        return this->shader_reflections.get(handle);
+    }
+    foundation::Option<const OpenGLResourceAccessor::ShaderReflection&>
+    OpenGLResourceAccessor::get_shader_reflection(const types::HandleId handle) const noexcept {
+        return this->shader_reflections.get(handle);
+    }
+    void OpenGLResourceAccessor::remove_shader_reflection(const types::HandleId handle) noexcept {
+        this->shader_reflections.remove(handle);
+    }
+
+    std::tuple<types::HandleId, OpenGLResourceAccessor::MeshHandles&>
+    OpenGLResourceAccessor::make_mesh_handles(void) noexcept {
+        const auto handle = this->mesh_handles.make();
+        return {handle, this->mesh_handles.get(handle).unwrap()};
+    }
+    void OpenGLResourceAccessor::remove_mesh_handles(const types::HandleId handle) noexcept {
+        this->mesh_handles.remove(handle);
+    }
+    foundation::Option<OpenGLResourceAccessor::MeshHandles&>
+    OpenGLResourceAccessor::get_mesh_handle(const types::HandleId handle) noexcept {
+        return this->mesh_handles.get(handle);
+    }
+    foundation::Option<const OpenGLResourceAccessor::MeshHandles&>
+    OpenGLResourceAccessor::get_mesh_handle(const types::HandleId handle) const noexcept {
+        return this->mesh_handles.get(handle);
+    }
+
+    foundation::Option<types::StateKind> OpenGLResourceAccessor::get_state_kind(
+        const types::HandleId& handle) const noexcept {
+        const auto it = this->state_kinds.find(handle);
+        return it == this->state_kinds.end() ? foundation::Option<types::StateKind>()
+                                             : foundation::Option<types::StateKind>(it->second);
+    }
+    void OpenGLResourceAccessor::add_state(
+        const types::HandleId handle, const types::StateKind kind) noexcept {
+        this->state_kinds.insert_or_assign(handle, kind);
+    }
+
     std::tuple<types::HandleId, platform::IBufferAccessor::Buffer&>
     OpenGLResourceAccessor::make_buffer(void) noexcept {
         static types::HandleAllocator allocator;

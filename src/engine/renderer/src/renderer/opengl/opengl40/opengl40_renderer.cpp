@@ -54,8 +54,11 @@ namespace enishi::renderer::opengl {
             if (resource.type == types::ShaderInputResourceType::UniformBuffer)
                 this->uniform_block_bindings.emplace(resource.name, resource.binding);
         }
+        auto [resource_handle, stored_reflection] =
+            this->resource_accessor->make_shader_reflection(std::move(reflection));
         const auto handle = this->make_handle(types::RenderHandleType::ShaderReflection);
-        this->reflections.emplace(handle, std::move(reflection));
+        (*this->handle_mapper)[handle].resource = resource_handle;
+        this->reflections.emplace(handle, stored_reflection);
         return handle;
     }
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
@@ -74,24 +77,32 @@ namespace enishi::renderer::opengl {
         const types::RasterizerStateDescription& state) {
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->rasterizers.emplace(handle, state);
+        this->resource_accessor->add_state(
+            (*this->handle_mapper)[handle].resource, types::StateKind::Rasterizer);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_depth_stencil(
         const types::DepthStencilStateDescription& state) {
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->depth_stencils.emplace(handle, state);
+        this->resource_accessor->add_state(
+            (*this->handle_mapper)[handle].resource, types::StateKind::DepthStencil);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(
         const types::SamplerStateDescription& state) {
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->samplers.emplace(handle, state);
+        this->resource_accessor->add_state(
+            (*this->handle_mapper)[handle].resource, types::StateKind::Sampler);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_blend(
         const types::BlendStateDescription& state) {
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->blends.emplace(handle, state);
+        this->resource_accessor->add_state(
+            (*this->handle_mapper)[handle].resource, types::StateKind::Blend);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(
@@ -267,6 +278,10 @@ namespace enishi::renderer::opengl {
                 reinterpret_cast<const void*>(sizeof(types::Vertex) + sizeof(glm::u16vec2)));
         }
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
+        auto [mesh_resource, mesh_handles] = this->resource_accessor->make_mesh_handles();
+        mesh_handles.mesh_handles.emplace_back(vertex.unwrap());
+        mesh_handles.mesh_handles.emplace_back(index.unwrap());
+        (*this->handle_mapper)[handle].resource = mesh_resource;
         this->mesh_uniform_buffers.emplace(handle, std::move(mesh_uniform_handles));
         this->objects.emplace(handle, vao);
         this->index_types.emplace(handle,
