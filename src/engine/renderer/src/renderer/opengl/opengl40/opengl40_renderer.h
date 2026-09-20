@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opengl40_context.h"
+#include <platform/renderer/interface_opengl_context.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
 #include <renderer/common/render_handle_mapper.h>
@@ -8,46 +8,20 @@
 #include <renderer/opengl/common/opengl_resource_accessor.h>
 #include <renderer/opengl/common/opengl_uniform_updater.h>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace enishi::renderer::opengl {
     class OpenGL40Renderer final : public platform::IRenderer,
                                    public platform::IRenderCommandEncoder {
       private:
-        std::shared_ptr<OpenGL40Context> context;
+        class State;
+
+        std::shared_ptr<platform::IOpenGLContext> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
         std::unique_ptr<OpenGLResourceAccessor> resource_accessor;
-        mutable std::unordered_map<types::RenderHandle, std::uint32_t> objects;
-        mutable std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
-        mutable std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
-        mutable std::unordered_map<types::RenderHandle, std::uint32_t> index_types;
-        mutable std::unordered_map<types::RenderHandle, std::uint32_t> index_strides;
-        mutable std::unordered_map<types::RenderHandle, std::vector<types::DrawBinding>>
-            mesh_draw_bindings;
-        mutable std::unordered_map<types::RenderHandle, types::ImageDescription> images;
-        mutable std::unordered_set<types::RenderHandle> back_buffer_images;
-        mutable std::unordered_map<types::RenderHandle, types::RasterizerStateDescription>
-            rasterizers;
-        mutable std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription>
-            depth_stencils;
-        mutable std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
-        mutable std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
-        mutable std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>>
-            reflections;
-        mutable std::unordered_map<types::RenderHandle, std::uint32_t> uniform_buffers;
-        std::unordered_map<std::string, std::uint32_t> uniform_block_bindings;
-        std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
-        std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
-        mutable std::uint32_t topology = 0;
-        mutable std::uint32_t active_vertex_shader = 0;
-        mutable std::uint32_t active_fragment_shader = 0;
-        mutable std::uint32_t active_program = 0;
-        mutable std::uint32_t active_framebuffer = 0;
-        mutable std::uint32_t active_index_type = 0;
+        std::unique_ptr<State> state;
 
       public:
-        explicit OpenGL40Renderer(std::shared_ptr<OpenGL40Context> context);
+        explicit OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context);
         ~OpenGL40Renderer(void) noexcept override;
 
         platform::RenderResult<types::RenderHandle> create_viewport(

@@ -1,10 +1,13 @@
 #pragma once
+#include "../errors/renderer_errors.h"
 #include "../errors/window_errors.h"
 #include "../input/interface_input.h"
+#include "../renderer/interface_opengl_context.h"
 #include "window_handle.h"
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
+#include <memory>
 #include <string>
 
 namespace enishi::platform {
@@ -13,6 +16,9 @@ namespace enishi::platform {
         [[nodiscard]] virtual foundation::VoidResult<WindowError> init(void) noexcept = 0;
 
         [[nodiscard]] virtual foundation::Option<WindowHandle> get_handle(void) const noexcept = 0;
+
+        [[nodiscard]] virtual foundation::Result<std::shared_ptr<IOpenGLContext>, RenderError>
+        create_opengl_context(void) = 0;
 
         [[nodiscard]] virtual foundation::Option<const IInput*> get_input(void) const noexcept = 0;
 

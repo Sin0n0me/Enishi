@@ -1,9 +1,9 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
-#include <core/system/skinning/skinning_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
+#include <core/system/skinning/skinning_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
@@ -147,8 +147,13 @@ namespace enishi {
         }
 
 #if defined(USE_OPENGL40)
+        auto context = root_window->create_opengl_context();
+        if (context.is_err()) {
+            foundation::Logger::error(context.unwrap_err().get_message());
+            return {};
+        }
         auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
-        auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
+        auto result_renderer = initializer.init(std::move(context.unwrap_mut()));
 #else
         auto initializer = renderer::directx::D3D11RenderInitializer{};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);

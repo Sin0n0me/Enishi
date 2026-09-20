@@ -1,14 +1,29 @@
 #include "opengl40_render_initializer.h"
-#include "opengl40_context.h"
+
+#include <glad/gl.h>
 
 namespace enishi::renderer::opengl {
-    foundation::Result<std::shared_ptr<OpenGL40Renderer>, platform::RenderError>
-    OpenGL40RenderInitializer::init(
-        const platform::WindowHandle& window, const types::WindowSize&) {
-        auto context = OpenGL40Context::make(window);
-        if (context.is_err()) {
-            return context.propagation(platform::RenderError::MakeError);
+    namespace {
+        thread_local platform::IOpenGLContext* current_context = nullptr;
+
+        void* get_proc_address(const char* const name) {
+            return current_context ? current_context->get_proc_address(name) : nullptr;
         }
-        return std::make_shared<OpenGL40Renderer>(std::move(context.unwrap_mut()));
+    } // namespace
+
+    foundation::Result<std::shared_ptr<OpenGL40Renderer>, platform::RenderError>
+    OpenGL40RenderInitializer::init(std::shared_ptr<platform::IOpenGLContext> context) {
+        if (!context || !context->make_current()) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to make the OpenGL context current");
+        }
+        current_context = context.get();
+        const auto loaded = gladLoadGL(get_proc_address);
+        current_context = nullptr;
+        if (!loaded || !GLAD_GL_VERSION_4_0) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "OpenGL 4.0 is not available");
+        }
+        return std::make_shared<OpenGL40Renderer>(std::move(context));
     }
 } // namespace enishi::renderer::opengl
