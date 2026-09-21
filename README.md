@@ -4,6 +4,13 @@
 
 プロジェクトルートの `build\build.cmd` で、レンダリングバックエンドとツールチェーンを指定してビルドできます。
 
+`build\build.cmd` は生成ファイルです。変更する場合は
+`build\generate_build.py` を編集してから、次のコマンドで再生成してください。
+
+```bat
+python build\generate_build.py
+```
+
 ```bat
 build\build.cmd <opengl|directx> [Debug|Release|RelWithDebInfo|MinSizeRel] [auto|visualstudio|clang|gcc]
 ```
@@ -36,6 +43,19 @@ build\build.cmd directx Release clang
 
 生成先はそれぞれ `build\opengl\clang` と `build\directx\clang` です。
 
+### find_package のパッケージ探索
+
+ビルド BAT は `find_package` の依存関係を探索するため、vcpkg の
+`scripts\buildsystems\vcpkg.cmake` を CMake ツールチェインとして指定します。
+`VCPKG_ROOT` を設定するか、`vcpkg.exe` を `PATH` に追加してください。
+
+Visual Studio と Clang では `x64-windows`、GCC では `x64-mingw-dynamic` を
+既定の vcpkg triplet として使用します。別の triplet を使う場合は、実行前に
+`VCPKG_TARGET_TRIPLET` を設定してください。
+
+vcpkg 以外のパッケージマネージャーを使用する場合は、
+`CMAKE_TOOLCHAIN_FILE` にそのツールチェインファイルを設定できます。
+
 ### GCC + Ninja
 
 GCC を明示的に使用する場合も、GCC と Ninja を `PATH` から実行可能にしてください。
@@ -46,4 +66,3 @@ build\build.cmd directx Release gcc
 ```
 
 生成先はそれぞれ `build\opengl\gcc` と `build\directx\gcc` です。
-
