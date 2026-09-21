@@ -149,6 +149,81 @@ namespace enishi::renderer::opengl {
             return GL_REPEAT;
         }
 
+        GLenum to_gl_image_internal_format(const types::ImageFormat value) {
+            switch (value) {
+                case types::ImageFormat::D32_FLOAT:
+                    return GL_DEPTH_COMPONENT32F;
+                case types::ImageFormat::D24_UNORM_S8_UINT:
+                    return GL_DEPTH24_STENCIL8;
+                case types::ImageFormat::D16_UNORM:
+                    return GL_DEPTH_COMPONENT16;
+                case types::ImageFormat::RGBA16_FLOAT:
+                    return GL_RGBA16F;
+                default:
+                    return GL_RGBA8;
+            }
+        }
+
+        GLenum to_gl_image_format(const types::ImageFormat value) {
+            switch (value) {
+                case types::ImageFormat::D32_FLOAT:
+                case types::ImageFormat::D16_UNORM:
+                    return GL_DEPTH_COMPONENT;
+                case types::ImageFormat::D24_UNORM_S8_UINT:
+                    return GL_DEPTH_STENCIL;
+                case types::ImageFormat::BGRA8_UNORM:
+                    return GL_BGRA;
+                default:
+                    return GL_RGBA;
+            }
+        }
+
+        GLenum to_gl_image_type(const types::ImageFormat value) {
+            switch (value) {
+                case types::ImageFormat::D32_FLOAT:
+                    return GL_FLOAT;
+                case types::ImageFormat::D16_UNORM:
+                    return GL_UNSIGNED_SHORT;
+                case types::ImageFormat::D24_UNORM_S8_UINT:
+                    return GL_UNSIGNED_INT_24_8;
+                default:
+                    return GL_UNSIGNED_BYTE;
+            }
+        }
+
+        GLenum to_gl_texture_internal_format(const types::TextureFormat value) {
+            switch (value) {
+                case types::TextureFormat::R8_UNORM:
+                    return GL_R8;
+                case types::TextureFormat::RG8_UNORM:
+                    return GL_RG8;
+                case types::TextureFormat::RGBA16_FLOAT:
+                    return GL_RGBA16F;
+                case types::TextureFormat::RGBA8_SRGB:
+                    return GL_SRGB8_ALPHA8;
+                default:
+                    return GL_RGBA8;
+            }
+        }
+
+        GLenum to_gl_texture_format(const types::TextureFormat value) {
+            switch (value) {
+                case types::TextureFormat::R8_UNORM:
+                    return GL_RED;
+                case types::TextureFormat::RG8_UNORM:
+                    return GL_RG;
+                default:
+                    return GL_RGBA;
+            }
+        }
+
+        GLenum to_gl_texture_type(const types::TextureFormat value) {
+            if (value == types::TextureFormat::RGBA16_FLOAT) {
+                return GL_HALF_FLOAT;
+            }
+            return GL_UNSIGNED_BYTE;
+        }
+
     } // namespace
 
     OpenGL40Renderer::OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context)
@@ -276,27 +351,12 @@ namespace enishi::renderer::opengl {
             this->state->objects.emplace(handle, 0);
             return handle;
         }
-        const auto internal_format =
-            description.format == types::ImageFormat::D32_FLOAT           ? GL_DEPTH_COMPONENT32F
-            : description.format == types::ImageFormat::D24_UNORM_S8_UINT ? GL_DEPTH24_STENCIL8
-            : description.format == types::ImageFormat::D16_UNORM         ? GL_DEPTH_COMPONENT16
-            : description.format == types::ImageFormat::RGBA16_FLOAT      ? GL_RGBA16F
-                                                                          : GL_RGBA8;
+        const auto internal_format = to_gl_image_internal_format(description.format);
         GLuint texture = 0;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
-        const auto format = description.format == types::ImageFormat::D32_FLOAT ||
-                                    description.format == types::ImageFormat::D16_UNORM
-                                ? GL_DEPTH_COMPONENT
-                            : description.format == types::ImageFormat::D24_UNORM_S8_UINT
-                                ? GL_DEPTH_STENCIL
-                            : description.format == types::ImageFormat::BGRA8_UNORM ? GL_BGRA
-                                                                                    : GL_RGBA;
-        const auto type = description.format == types::ImageFormat::D32_FLOAT   ? GL_FLOAT
-                          : description.format == types::ImageFormat::D16_UNORM ? GL_UNSIGNED_SHORT
-                          : description.format == types::ImageFormat::D24_UNORM_S8_UINT
-                              ? GL_UNSIGNED_INT_24_8
-                              : GL_UNSIGNED_BYTE;
+        const auto format = to_gl_image_format(description.format);
+        const auto type = to_gl_image_type(description.format);
         auto width = description.size.x;
         auto height = description.size.y;
         for (std::uint32_t level = 0; level < description.mip_levels; ++level) {
@@ -468,10 +528,14 @@ namespace enishi::renderer::opengl {
         (*this->handle_mapper)[handle].resource = mesh_resource;
         this->state->mesh_uniform_buffers.emplace(handle, std::move(mesh_uniform_handles));
         this->state->objects.emplace(handle, vao);
-        this->state->index_types.emplace(handle,
-            data.indices.get_render_data().stride == 2   ? GL_UNSIGNED_SHORT
-            : data.indices.get_render_data().stride == 1 ? GL_UNSIGNED_BYTE
-                                                         : GL_UNSIGNED_INT);
+        const auto index_stride = data.indices.get_render_data().stride;
+        auto index_type = GL_UNSIGNED_INT;
+        if (index_stride == 2) {
+            index_type = GL_UNSIGNED_SHORT;
+        } else if (index_stride == 1) {
+            index_type = GL_UNSIGNED_BYTE;
+        }
+        this->state->index_types.emplace(handle, index_type);
         this->state->index_strides.emplace(handle, data.indices.get_render_data().stride);
         std::vector<types::DrawBinding> draw_bindings;
         draw_bindings.reserve(data.materials.size());
@@ -487,17 +551,9 @@ namespace enishi::renderer::opengl {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported OpenGL 4.0 texture format");
         }
-        const auto internal_format =
-            texture.format == types::TextureFormat::R8_UNORM       ? GL_R8
-            : texture.format == types::TextureFormat::RG8_UNORM    ? GL_RG8
-            : texture.format == types::TextureFormat::RGBA16_FLOAT ? GL_RGBA16F
-            : texture.format == types::TextureFormat::RGBA8_SRGB   ? GL_SRGB8_ALPHA8
-                                                                   : GL_RGBA8;
-        const auto format = texture.format == types::TextureFormat::R8_UNORM    ? GL_RED
-                            : texture.format == types::TextureFormat::RG8_UNORM ? GL_RG
-                                                                                : GL_RGBA;
-        const auto type =
-            texture.format == types::TextureFormat::RGBA16_FLOAT ? GL_HALF_FLOAT : GL_UNSIGNED_BYTE;
+        const auto internal_format = to_gl_texture_internal_format(texture.format);
+        const auto format = to_gl_texture_format(texture.format);
+        const auto type = to_gl_texture_type(texture.format);
         GLuint object = 0;
         glGenTextures(1, &object);
         glBindTexture(GL_TEXTURE_2D, object);
@@ -531,9 +587,12 @@ namespace enishi::renderer::opengl {
             return foundation::Error(
                 platform::RenderError::MakeError, "OpenGL 4.0 shaders must be GLSL source");
         }
-        const GLenum stage = kind == types::ShaderKind::Vertex  ? GL_VERTEX_SHADER
-                             : kind == types::ShaderKind::Pixel ? GL_FRAGMENT_SHADER
-                                                                : 0;
+        GLenum stage = 0;
+        if (kind == types::ShaderKind::Vertex) {
+            stage = GL_VERTEX_SHADER;
+        } else if (kind == types::ShaderKind::Pixel) {
+            stage = GL_FRAGMENT_SHADER;
+        }
         if (!stage) {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported GLSL shader stage");
@@ -751,9 +810,13 @@ namespace enishi::renderer::opengl {
             return;
         }
         const auto value = static_cast<types::PrimitiveTopology>(command.handle.id.handle_id);
-        this->state->topology = value == types::PrimitiveTopology::LineList    ? GL_LINES
-                                : value == types::PrimitiveTopology::PointList ? GL_POINTS
-                                                                               : GL_TRIANGLES;
+        if (value == types::PrimitiveTopology::LineList) {
+            this->state->topology = GL_LINES;
+        } else if (value == types::PrimitiveTopology::PointList) {
+            this->state->topology = GL_POINTS;
+        } else {
+            this->state->topology = GL_TRIANGLES;
+        }
     }
     void OpenGL40Renderer::submit_command_vertex_layout(const types::DrawCommand&) const {
     }
