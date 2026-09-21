@@ -92,11 +92,12 @@ namespace enishi::renderer::opengl {
             if (resource.type == types::ShaderInputResourceType::UniformBuffer)
                 this->state->uniform_block_bindings.emplace(resource.name, resource.binding);
         }
-        auto [resource_handle, stored_reflection] =
+        const auto glsl_reflection = reflection;
+        auto [resource_handle, _] =
             this->resource_accessor->make_shader_reflection(std::move(reflection));
         const auto handle = this->make_handle(types::RenderHandleType::ShaderReflection);
         (*this->handle_mapper)[handle].resource = resource_handle;
-        this->state->reflections.emplace(handle, stored_reflection);
+        this->state->reflections.emplace(handle, glsl_reflection);
         return handle;
     }
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
