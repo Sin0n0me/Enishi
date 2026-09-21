@@ -203,6 +203,14 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_blend(
         const types::BlendStateDescription& state) {
+        if (state.alpha_to_coverage) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL 4.0 alpha-to-coverage requires unsupported multisample images");
+        }
+        if (state.independent_blend) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL 4.0 independent blending is not implemented");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->state->blends.emplace(handle, state);
         this->resource_accessor->add_state(
@@ -255,6 +263,8 @@ namespace enishi::renderer::opengl {
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(
+            GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(description.mip_levels - 1));
         this->state->textures.emplace_back(texture);
         this->state->objects.emplace(handle, texture);
         return handle;
@@ -533,6 +543,9 @@ namespace enishi::renderer::opengl {
             GL_TEXTURE_MIN_FILTER,
             texture.mips.size() > MIPMAP_COUNT_THRESHOLD ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,
+            GL_TEXTURE_MAX_LEVEL,
+            static_cast<GLint>(texture.mips.size() - MIPMAP_COUNT_THRESHOLD));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         this->state->textures.emplace_back(object);
