@@ -93,6 +93,10 @@ namespace enishi::renderer::opengl {
             const auto type = (*it)[SHADER_TYPE_CAPTURE].str();
             const auto declared_name = (*it)[SHADER_NAME_CAPTURE].str();
             const auto name = declared_name.empty() ? type : declared_name;
+            if (!(*it)[UNIFORM_BINDING_CAPTURE].matched) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    "OpenGL GLSL resources require an explicit layout(binding = N)");
+            }
             const auto binding =
                 (*it)[UNIFORM_BINDING_CAPTURE].matched
                     ? static_cast<std::uint32_t>(std::stoul((*it)[UNIFORM_BINDING_CAPTURE].str()))

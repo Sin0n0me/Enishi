@@ -100,6 +100,9 @@ namespace enishi::renderer::opengl {
             if (resource.type == types::ShaderInputResourceType::UniformBuffer) {
                 this->state->uniform_block_bindings.emplace(resource.name, resource.binding);
             }
+            if (resource.type == types::ShaderInputResourceType::Texture) {
+                this->state->sampler_bindings.emplace(resource.name, resource.binding);
+            }
         }
         const auto glsl_reflection = reflection;
         auto [resource_handle, _] =
@@ -532,6 +535,12 @@ namespace enishi::renderer::opengl {
             const auto index = glGetUniformBlockIndex(this->state->active_program, name.c_str());
             if (index != GL_INVALID_INDEX) {
                 glUniformBlockBinding(this->state->active_program, index, binding);
+            }
+        }
+        for (const auto& [name, binding] : this->state->sampler_bindings) {
+            const auto location = glGetUniformLocation(this->state->active_program, name.c_str());
+            if (location != -1) {
+                glUniform1i(location, static_cast<GLint>(binding));
             }
         }
         glUseProgram(this->state->active_program);

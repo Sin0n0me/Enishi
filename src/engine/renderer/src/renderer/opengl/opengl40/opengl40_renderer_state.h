@@ -28,6 +28,7 @@ namespace enishi::renderer::opengl {
         std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
         std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
         std::unordered_map<std::string, std::uint32_t> uniform_block_bindings;
+        std::unordered_map<std::string, std::uint32_t> sampler_bindings;
         std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
         std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
         std::vector<std::uint32_t> buffers;
