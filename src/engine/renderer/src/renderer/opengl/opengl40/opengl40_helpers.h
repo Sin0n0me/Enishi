@@ -5,6 +5,7 @@
 #include <engine_types/renderer/description/blend/detail/blend_factor.h>
 #include <engine_types/renderer/description/blend/detail/blend_operator.h>
 #include <engine_types/renderer/description/depth/detail/compare_operator.h>
+#include <engine_types/renderer/description/depth/detail/stencil_operator.h>
 #include <engine_types/renderer/description/sampler/detail/sampler_mode.h>
 #include <engine_types/renderer/description/view/image_view_description.h>
 #include <platform/renderer/interface_opengl_context.h>
@@ -12,6 +13,11 @@
 namespace enishi::renderer::opengl::helpers {
     [[nodiscard]] bool load_gl40_functions(platform::IOpenGLContext& context);
     [[nodiscard]] std::uint32_t to_gl_compare(types::CompareOperator value);
+    [[nodiscard]] std::uint32_t to_gl_stencil_operator(types::StencilOpeartor value);
+    [[nodiscard]] std::uint32_t to_gl_depth_attachment(types::ImageFormat value);
+    [[nodiscard]] std::uint32_t to_gl_min_filter(
+        types::FilterMode min_filter, types::FilterMode mip_filter);
+    [[nodiscard]] bool supports_anisotropy(void);
     [[nodiscard]] std::uint32_t to_gl_blend_factor(types::BlendFactor value);
     [[nodiscard]] std::uint32_t to_gl_blend_operator(types::BlendOperator value);
     [[nodiscard]] std::uint32_t to_gl_address_mode(types::AddressMode value);

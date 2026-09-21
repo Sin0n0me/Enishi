@@ -29,6 +29,7 @@ namespace enishi::renderer::opengl {
         std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depth_stencils;
         std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
         std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
+        std::unordered_map<types::RenderHandle, std::uint32_t> sampler_objects;
         std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
         std::unordered_map<std::string, std::uint32_t> uniform_block_bindings;
         std::unordered_map<std::string, std::uint32_t> sampler_bindings;
@@ -38,6 +39,7 @@ namespace enishi::renderer::opengl {
         std::vector<std::uint32_t> textures;
         std::vector<std::uint32_t> vertex_arrays;
         std::vector<std::uint32_t> shaders;
+        std::vector<std::uint32_t> gl_samplers;
         std::unordered_map<std::uint64_t, std::uint32_t> programs;
         std::vector<std::uint32_t> framebuffers;
         std::uint32_t topology;
@@ -46,11 +48,13 @@ namespace enishi::renderer::opengl {
         std::uint32_t active_program;
         std::uint32_t active_framebuffer;
         std::uint32_t active_index_type;
+        std::uint32_t active_sampler;
         std::uint32_t back_buffer_framebuffer;
         std::uint32_t back_buffer_color;
         std::int32_t back_buffer_width;
         std::int32_t back_buffer_height;
         bool is_back_buffer_framebuffer_complete;
+        std::vector<types::RenderHandle> viewport_order;
 
         OpenGL40RendererState(void);
     };

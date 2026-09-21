@@ -1,5 +1,6 @@
 #include "opengl40_helpers.h"
 
+#include <cstring>
 #include <glad/gl.h>
 
 namespace enishi::renderer::opengl::helpers {
@@ -41,6 +42,63 @@ namespace enishi::renderer::opengl::helpers {
                 return GL_ALWAYS;
         }
         return GL_ALWAYS;
+    }
+
+    std::uint32_t to_gl_stencil_operator(const types::StencilOpeartor value) {
+        switch (value) {
+            case types::StencilOpeartor::Keep:
+                return GL_KEEP;
+            case types::StencilOpeartor::Zero:
+                return GL_ZERO;
+            case types::StencilOpeartor::Replace:
+                return GL_REPLACE;
+            case types::StencilOpeartor::IncrementClamp:
+                return GL_INCR;
+            case types::StencilOpeartor::DecrementClamp:
+                return GL_DECR;
+            case types::StencilOpeartor::Invert:
+                return GL_INVERT;
+            case types::StencilOpeartor::IncrementWrap:
+                return GL_INCR_WRAP;
+            case types::StencilOpeartor::DecrementWrap:
+                return GL_DECR_WRAP;
+        }
+        return GL_KEEP;
+    }
+
+    std::uint32_t to_gl_depth_attachment(const types::ImageFormat value) {
+        if (value == types::ImageFormat::D24_UNORM_S8_UINT) {
+            return GL_DEPTH_STENCIL_ATTACHMENT;
+        }
+        return GL_DEPTH_ATTACHMENT;
+    }
+
+    std::uint32_t to_gl_min_filter(
+        const types::FilterMode min_filter, const types::FilterMode mip_filter) {
+        if (min_filter == types::FilterMode::Nearest) {
+            if (mip_filter == types::FilterMode::Nearest) {
+                return GL_NEAREST_MIPMAP_NEAREST;
+            }
+            return GL_NEAREST_MIPMAP_LINEAR;
+        }
+        if (mip_filter == types::FilterMode::Nearest) {
+            return GL_LINEAR_MIPMAP_NEAREST;
+        }
+        return GL_LINEAR_MIPMAP_LINEAR;
+    }
+
+    bool supports_anisotropy(void) {
+        constexpr char EXTENSION_NAME[] = "GL_EXT_texture_filter_anisotropic";
+        GLint extension_count = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &extension_count);
+        for (GLint index = 0; index < extension_count; ++index) {
+            const auto* extension =
+                reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, index));
+            if (extension != nullptr && std::strcmp(extension, EXTENSION_NAME) == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     std::uint32_t to_gl_blend_factor(const types::BlendFactor value) {

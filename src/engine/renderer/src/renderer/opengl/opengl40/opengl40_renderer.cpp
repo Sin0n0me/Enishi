@@ -39,6 +39,7 @@ namespace enishi::renderer::opengl {
     constexpr std::uint32_t MINIMUM_INSTANCE_COUNT = 1;
     constexpr std::uint32_t UNSUPPORTED_FIRST_INSTANCE = 0;
     constexpr std::uint8_t EMPTY_COLOR_WRITE_MASK = 0;
+    constexpr std::uint32_t GL_TEXTURE_MAX_ANISOTROPY_EXT_VALUE = 0x84FE;
 
     OpenGL40RendererState::OpenGL40RendererState(void)
         : topology(GL_TRIANGLES)
@@ -47,6 +48,7 @@ namespace enishi::renderer::opengl {
         , active_program(NO_GL_OBJECT)
         , active_framebuffer(NO_GL_OBJECT)
         , active_index_type(GL_UNSIGNED_INT)
+        , active_sampler(NO_GL_OBJECT)
         , back_buffer_framebuffer(NO_GL_OBJECT)
         , back_buffer_color(NO_GL_OBJECT)
         , back_buffer_width(0)
@@ -72,6 +74,8 @@ namespace enishi::renderer::opengl {
             static_cast<GLsizei>(this->state->textures.size()), this->state->textures.data());
         glDeleteVertexArrays(static_cast<GLsizei>(this->state->vertex_arrays.size()),
             this->state->vertex_arrays.data());
+        glDeleteSamplers(
+            static_cast<GLsizei>(this->state->gl_samplers.size()), this->state->gl_samplers.data());
         for (const auto shader : this->state->shaders) {
             glDeleteShader(shader);
         }
@@ -89,8 +93,13 @@ namespace enishi::renderer::opengl {
 
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_viewport(
         const types::ViewportRect& viewport) {
+        if (!this->state->viewport_order.empty()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL 4.0 supports one viewport without viewport-array extensions");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::ViewPort);
         this->state->viewports.emplace(handle, viewport);
+        this->state->viewport_order.emplace_back(handle);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader_reflection(
@@ -139,6 +148,10 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_rasterizer(
         const types::RasterizerStateDescription& state) {
+        if (state.depth_bias.enable && state.depth_bias.clamp != 0.0f) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL 4.0 does not support depth bias clamping");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::State);
         this->state->rasterizers.emplace(handle, state);
         this->resource_accessor->add_state(
@@ -155,8 +168,35 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(
         const types::SamplerStateDescription& state) {
+        if (state.anisotropy != types::AnisotropyLevel::None && !helpers::supports_anisotropy()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL texture anisotropy requires GL_EXT_texture_filter_anisotropic");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::State);
+        GLuint sampler = NO_GL_OBJECT;
+        glGenSamplers(RESOURCE_COUNT, &sampler);
+        glSamplerParameteri(sampler,
+            GL_TEXTURE_MIN_FILTER,
+            helpers::to_gl_min_filter(state.min_filter, state.mip_filter));
+        glSamplerParameteri(sampler,
+            GL_TEXTURE_MAG_FILTER,
+            state.mag_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR);
+        glSamplerParameteri(
+            sampler, GL_TEXTURE_WRAP_S, helpers::to_gl_address_mode(state.address_u));
+        glSamplerParameteri(
+            sampler, GL_TEXTURE_WRAP_T, helpers::to_gl_address_mode(state.address_v));
+        glSamplerParameteri(
+            sampler, GL_TEXTURE_WRAP_R, helpers::to_gl_address_mode(state.address_w));
+        glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, state.min_lod);
+        glSamplerParameterf(sampler, GL_TEXTURE_MAX_LOD, state.max_lod);
+        glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, state.mip_lod_bias);
+        if (state.anisotropy != types::AnisotropyLevel::None) {
+            glSamplerParameterf(
+                sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT_VALUE, static_cast<float>(state.anisotropy));
+        }
         this->state->samplers.emplace(handle, state);
+        this->state->sampler_objects.emplace(handle, sampler);
+        this->state->gl_samplers.emplace_back(sampler);
         this->resource_accessor->add_state(
             (*this->handle_mapper)[handle].resource, types::StateKind::Sampler);
         return handle;
@@ -241,8 +281,15 @@ namespace enishi::renderer::opengl {
         if (!this->state->objects.contains(image)) {
             return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
         }
+        const auto image_description = this->state->images.find(image);
+        if (image_description == this->state->images.end() ||
+            image_description->second.format != description.format) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "Depth stencil view format does not match its image format");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::View);
         this->state->objects.emplace(handle, this->state->objects.at(image));
+        this->state->images.emplace(handle, image_description->second);
         auto view = std::make_shared<OpenGLDepthStencilView>(handle, description);
         this->resource_accessor->make_depth_stencil_view(handle.id, std::move(view));
         return this->resource_accessor->get_depth_stencil_view(handle.id).unwrap();
@@ -539,6 +586,18 @@ namespace enishi::renderer::opengl {
         return this->handle_mapper.get();
     }
     void OpenGL40Renderer::setup_viewports(void) const {
+        if (this->state->viewport_order.empty()) {
+            return;
+        }
+        const auto viewport = this->state->viewports.find(this->state->viewport_order.front());
+        if (viewport == this->state->viewports.end()) {
+            return;
+        }
+        glViewport(static_cast<GLint>(viewport->second.left_top_x),
+            static_cast<GLint>(viewport->second.left_top_y),
+            static_cast<GLsizei>(viewport->second.width),
+            static_cast<GLsizei>(viewport->second.height));
+        glDepthRange(viewport->second.min_depth, viewport->second.max_depth);
     }
     void OpenGL40Renderer::setup_views(void) const {
         glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
@@ -700,8 +759,12 @@ namespace enishi::renderer::opengl {
                 }
                 glClearDepth(depth_stencil_view.unwrap()->clear_depth());
                 glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+                const auto depth_stencil_image = this->state->images.find(command.handle);
+                if (depth_stencil_image == this->state->images.end()) {
+                    return;
+                }
                 glFramebufferTexture2D(GL_FRAMEBUFFER,
-                    GL_DEPTH_STENCIL_ATTACHMENT,
+                    helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
                     GL_TEXTURE_2D,
                     object->second,
                     static_cast<GLint>(
@@ -742,8 +805,12 @@ namespace enishi::renderer::opengl {
             }
             glClearDepth(depth_stencil_view.unwrap()->clear_depth());
             glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+            const auto depth_stencil_image = this->state->images.find(command.handle);
+            if (depth_stencil_image == this->state->images.end()) {
+                return;
+            }
             glFramebufferTexture2D(GL_FRAMEBUFFER,
-                GL_DEPTH_STENCIL_ATTACHMENT,
+                helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
                 GL_TEXTURE_2D,
                 object->second,
                 static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
@@ -781,6 +848,7 @@ namespace enishi::renderer::opengl {
             static_cast<GLint>(viewport->second.left_top_y),
             static_cast<GLsizei>(viewport->second.width),
             static_cast<GLsizei>(viewport->second.height));
+        glDepthRange(viewport->second.min_depth, viewport->second.max_depth);
     }
     void OpenGL40Renderer::submit_command_mesh(
         const types::DrawCommand& command, const types::RenderHandle&) const {
@@ -824,6 +892,7 @@ namespace enishi::renderer::opengl {
                 for (const auto& [unit, texture] : texture_bindings->second[material_index]) {
                     glActiveTexture(GL_TEXTURE0 + unit);
                     glBindTexture(GL_TEXTURE_2D, texture);
+                    glBindSampler(unit, this->state->active_sampler);
                 }
             }
             const auto& binding = bindings->second[material_index];
@@ -866,8 +935,11 @@ namespace enishi::renderer::opengl {
         }
         if (const auto it = this->state->rasterizers.find(command.handle);
             it != this->state->rasterizers.end()) {
-            it->second.cull_mode == types::CullMode::None ? glDisable(GL_CULL_FACE)
-                                                          : glEnable(GL_CULL_FACE);
+            if (it->second.cull_mode == types::CullMode::None) {
+                glDisable(GL_CULL_FACE);
+            } else {
+                glEnable(GL_CULL_FACE);
+            }
 
             if (it->second.cull_mode == types::CullMode::Front) {
                 glCullFace(GL_FRONT);
@@ -878,14 +950,53 @@ namespace enishi::renderer::opengl {
                 it->second.fill_mode == types::FillMode::Wireframe ? GL_LINE : GL_FILL);
             glFrontFace(it->second.front_face == types::FrontFace::Clockwise ? GL_CW : GL_CCW);
             glLineWidth(it->second.line_width);
+            if (it->second.depth_clamp) {
+                glEnable(GL_DEPTH_CLAMP);
+            } else {
+                glDisable(GL_DEPTH_CLAMP);
+            }
+            if (it->second.depth_bias.enable) {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                glPolygonOffset(
+                    it->second.depth_bias.slope_factor, it->second.depth_bias.constant_factor);
+            } else {
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            }
             return;
         }
         if (const auto it = this->state->depth_stencils.find(command.handle);
             it != this->state->depth_stencils.end()) {
-            it->second.depth.enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
+            if (it->second.depth.enabled) {
+                glEnable(GL_DEPTH_TEST);
+            } else {
+                glDisable(GL_DEPTH_TEST);
+            }
 
             glDepthMask(it->second.depth.write_enabled ? GL_TRUE : GL_FALSE);
             glDepthFunc(helpers::to_gl_compare(it->second.depth.compare_operator));
+            if (it->second.stencil.enabled) {
+                glEnable(GL_STENCIL_TEST);
+                glStencilMaskSeparate(GL_FRONT, it->second.stencil.front.write_mask);
+                glStencilFuncSeparate(GL_FRONT,
+                    helpers::to_gl_compare(it->second.stencil.front.compare_operator),
+                    static_cast<GLint>(it->second.stencil.front.reference),
+                    it->second.stencil.front.compare_mask);
+                glStencilOpSeparate(GL_FRONT,
+                    helpers::to_gl_stencil_operator(it->second.stencil.front.stencil_fail_operator),
+                    helpers::to_gl_stencil_operator(it->second.stencil.front.depth_fail_operator),
+                    helpers::to_gl_stencil_operator(it->second.stencil.front.pass_operator));
+                glStencilMaskSeparate(GL_BACK, it->second.stencil.back.write_mask);
+                glStencilFuncSeparate(GL_BACK,
+                    helpers::to_gl_compare(it->second.stencil.back.compare_operator),
+                    static_cast<GLint>(it->second.stencil.back.reference),
+                    it->second.stencil.back.compare_mask);
+                glStencilOpSeparate(GL_BACK,
+                    helpers::to_gl_stencil_operator(it->second.stencil.back.stencil_fail_operator),
+                    helpers::to_gl_stencil_operator(it->second.stencil.back.depth_fail_operator),
+                    helpers::to_gl_stencil_operator(it->second.stencil.back.pass_operator));
+            } else {
+                glDisable(GL_STENCIL_TEST);
+            }
             return;
         }
         if (const auto it = this->state->blends.find(command.handle);
@@ -915,22 +1026,11 @@ namespace enishi::renderer::opengl {
         }
         if (const auto it = this->state->samplers.find(command.handle);
             it != this->state->samplers.end()) {
-            glTexParameteri(GL_TEXTURE_2D,
-                GL_TEXTURE_MIN_FILTER,
-                it->second.min_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR);
-
-            glTexParameteri(GL_TEXTURE_2D,
-                GL_TEXTURE_MAG_FILTER,
-                it->second.mag_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D,
-                GL_TEXTURE_WRAP_S,
-                helpers::to_gl_address_mode(it->second.address_u));
-            glTexParameteri(GL_TEXTURE_2D,
-                GL_TEXTURE_WRAP_T,
-                helpers::to_gl_address_mode(it->second.address_v));
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, it->second.min_lod);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, it->second.max_lod);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, it->second.mip_lod_bias);
+            const auto sampler = this->state->sampler_objects.find(command.handle);
+            if (sampler == this->state->sampler_objects.end()) {
+                return;
+            }
+            this->state->active_sampler = sampler->second;
         }
     }
     void OpenGL40Renderer::submit_command_image(const types::DrawCommand& command) const {
