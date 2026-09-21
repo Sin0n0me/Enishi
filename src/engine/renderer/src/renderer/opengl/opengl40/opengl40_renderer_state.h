@@ -46,6 +46,11 @@ namespace enishi::renderer::opengl {
         std::uint32_t active_program;
         std::uint32_t active_framebuffer;
         std::uint32_t active_index_type;
+        std::uint32_t back_buffer_framebuffer;
+        std::uint32_t back_buffer_color;
+        std::int32_t back_buffer_width;
+        std::int32_t back_buffer_height;
+        bool is_back_buffer_framebuffer_complete;
 
         OpenGL40RendererState(void);
     };

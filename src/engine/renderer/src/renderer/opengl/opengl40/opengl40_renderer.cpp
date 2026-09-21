@@ -46,7 +46,12 @@ namespace enishi::renderer::opengl {
         , active_fragment_shader(NO_GL_OBJECT)
         , active_program(NO_GL_OBJECT)
         , active_framebuffer(NO_GL_OBJECT)
-        , active_index_type(GL_UNSIGNED_INT) {
+        , active_index_type(GL_UNSIGNED_INT)
+        , back_buffer_framebuffer(NO_GL_OBJECT)
+        , back_buffer_color(NO_GL_OBJECT)
+        , back_buffer_width(0)
+        , back_buffer_height(0)
+        , is_back_buffer_framebuffer_complete(false) {
     }
 
     OpenGL40Renderer::OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context)
@@ -222,6 +227,7 @@ namespace enishi::renderer::opengl {
         }
         const auto handle = this->make_handle(types::RenderHandleType::View);
         this->state->objects.emplace(handle, this->state->objects.at(image));
+        this->state->images.emplace(handle, this->state->images.at(image));
         if (this->state->back_buffer_images.contains(image)) {
             this->state->back_buffer_images.emplace(handle);
         }
@@ -537,6 +543,43 @@ namespace enishi::renderer::opengl {
     void OpenGL40Renderer::setup_views(void) const {
         glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
     }
+    bool OpenGL40Renderer::prepare_back_buffer_framebuffer(
+        const types::RenderHandle& render_target) const {
+        const auto image = this->state->images.find(render_target);
+        if (image == this->state->images.end()) {
+            return false;
+        }
+        if (!this->state->back_buffer_framebuffer) {
+            glGenFramebuffers(RESOURCE_COUNT, &this->state->back_buffer_framebuffer);
+            this->state->framebuffers.emplace_back(this->state->back_buffer_framebuffer);
+        }
+        if (!this->state->back_buffer_color) {
+            glGenTextures(RESOURCE_COUNT, &this->state->back_buffer_color);
+            this->state->textures.emplace_back(this->state->back_buffer_color);
+        }
+        glBindTexture(GL_TEXTURE_2D, this->state->back_buffer_color);
+        glTexImage2D(GL_TEXTURE_2D,
+            TEXTURE_IMAGE_BORDER_WIDTH,
+            helpers::to_gl_image_internal_format(image->second.format),
+            image->second.size.x,
+            image->second.size.y,
+            TEXTURE_IMAGE_BORDER_WIDTH,
+            helpers::to_gl_image_format(image->second.format),
+            helpers::to_gl_image_type(image->second.format),
+            nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glBindFramebuffer(GL_FRAMEBUFFER, this->state->back_buffer_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            this->state->back_buffer_color,
+            TEXTURE_IMAGE_BORDER_WIDTH);
+        this->state->back_buffer_width = image->second.size.x;
+        this->state->back_buffer_height = image->second.size.y;
+        this->state->is_back_buffer_framebuffer_complete = false;
+        return true;
+    }
     void OpenGL40Renderer::submit_command_buffer(const types::DrawCommand&) const {
     }
     bool OpenGL40Renderer::use_active_program(void) const {
@@ -632,8 +675,10 @@ namespace enishi::renderer::opengl {
             this->state->back_buffer_images.contains(command.handle) ||
             (render_target.is_valid() && this->state->back_buffer_images.contains(render_target));
         if (is_back_buffer) {
-            glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
             if (type == types::ImageViewType::RenderTarget) {
+                if (!this->prepare_back_buffer_framebuffer(command.handle)) {
+                    return;
+                }
                 const auto render_target_view =
                     this->resource_accessor->get_render_target_view(command.handle.id);
                 if (render_target_view.is_none()) {
@@ -641,8 +686,13 @@ namespace enishi::renderer::opengl {
                 }
                 const auto color = render_target_view.unwrap()->get_clear_color();
                 glClearColor(color.r, color.g, color.b, color.a);
+                return;
             }
             if (type == types::ImageViewType::DepthStencil) {
+                if (!render_target.is_valid() ||
+                    !this->prepare_back_buffer_framebuffer(render_target)) {
+                    return;
+                }
                 const auto depth_stencil_view =
                     this->resource_accessor->get_depth_stencil_view(command.handle.id);
                 if (depth_stencil_view.is_none()) {
@@ -650,8 +700,18 @@ namespace enishi::renderer::opengl {
                 }
                 glClearDepth(depth_stencil_view.unwrap()->clear_depth());
                 glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+                glFramebufferTexture2D(GL_FRAMEBUFFER,
+                    GL_DEPTH_STENCIL_ATTACHMENT,
+                    GL_TEXTURE_2D,
+                    object->second,
+                    static_cast<GLint>(
+                        depth_stencil_view.unwrap()->get_description().base_mip_level));
+                if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                    return;
+                }
+                this->state->is_back_buffer_framebuffer_complete = true;
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             }
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             return;
         }
         if (!this->state->active_framebuffer) {
@@ -906,6 +966,21 @@ namespace enishi::renderer::opengl {
         }
     }
     void OpenGL40Renderer::present(void) const {
+        if (this->state->is_back_buffer_framebuffer_complete) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, this->state->back_buffer_framebuffer);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+            glBlitFramebuffer(0,
+                0,
+                this->state->back_buffer_width,
+                this->state->back_buffer_height,
+                0,
+                0,
+                this->state->back_buffer_width,
+                this->state->back_buffer_height,
+                GL_COLOR_BUFFER_BIT,
+                GL_NEAREST);
+            glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+        }
         this->context->present();
     }
 } // namespace enishi::renderer::opengl

@@ -83,6 +83,7 @@ namespace enishi::renderer::opengl {
         [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
         [[nodiscard]] platform::RenderResult<types::RenderHandle> make_buffer(
             const types::RenderData& data, std::uint32_t target);
+        [[nodiscard]] bool prepare_back_buffer_framebuffer(const types::RenderHandle&) const;
         [[nodiscard]] bool use_active_program(void) const;
     };
 } // namespace enishi::renderer::opengl
