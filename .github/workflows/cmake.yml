@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         config: [Release, Debug]
+        backend: [directx, opengl]
         #platform: [x86, x64]
         platform: [x64]
     steps:
@@ -28,11 +29,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/_deps
-            build/libs
-          key: ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
+            build/${{ matrix.backend }}/visualstudio/_deps
+            build/${{ matrix.backend }}/visualstudio/libs
+          key: ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.config }}-
+            ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
       - name: Restore vcpkg dependencies
         id: vcpkg-cache
@@ -62,12 +63,9 @@ jobs:
             vcpkg_binary_cache
           key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
-      - name: Configure
-        run: |
-          cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_INSTALLED_DIR="%GITHUB_WORKSPACE%\vcpkg_installed"
-        shell: cmd
-
       - name: Build
+        env:
+          VCPKG_INSTALLED_DIR: ${{ github.workspace }}\vcpkg_installed
         run: |
-          cmake --build build --parallel
+          build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} visualstudio
         shell: cmd
