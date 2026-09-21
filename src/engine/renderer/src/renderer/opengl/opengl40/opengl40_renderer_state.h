@@ -14,6 +14,7 @@ namespace enishi::renderer::opengl {
     class OpenGL40RendererState final {
       public:
         std::unordered_map<types::RenderHandle, std::uint32_t> objects;
+        std::unordered_map<types::RenderHandle, types::ViewportRect> viewports;
         std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
         std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
         std::unordered_map<types::RenderHandle, std::uint32_t> index_types;

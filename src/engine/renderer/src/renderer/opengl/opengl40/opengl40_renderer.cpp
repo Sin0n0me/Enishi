@@ -17,7 +17,6 @@ namespace enishi::renderer::opengl {
     constexpr std::uint32_t SINGLE_SAMPLE = 1;
     constexpr std::int32_t MIP_DIMENSION_DIVISOR = 2;
     constexpr std::int32_t TEXTURE_IMAGE_BORDER_WIDTH = 0;
-    constexpr std::int32_t BASE_MIP_LEVEL = 0;
     constexpr std::uint32_t DEFAULT_FRAMEBUFFER = 0;
     constexpr std::uint32_t NO_INDEX_STRIDE = 0;
     constexpr std::uint32_t POSITION_ATTRIBUTE = 0;
@@ -86,11 +85,9 @@ namespace enishi::renderer::opengl {
 
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_viewport(
         const types::ViewportRect& viewport) {
-        glViewport(static_cast<GLint>(viewport.left_top_x),
-            static_cast<GLint>(viewport.left_top_y),
-            static_cast<GLsizei>(viewport.width),
-            static_cast<GLsizei>(viewport.height));
-        return this->make_handle(types::RenderHandleType::ViewPort);
+        const auto handle = this->make_handle(types::RenderHandleType::ViewPort);
+        this->state->viewports.emplace(handle, viewport);
+        return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader_reflection(
         const types::ShaderData& data) {
@@ -217,6 +214,9 @@ namespace enishi::renderer::opengl {
         }
         const auto handle = this->make_handle(types::RenderHandleType::View);
         this->state->objects.emplace(handle, this->state->objects.at(image));
+        if (this->state->back_buffer_images.contains(image)) {
+            this->state->back_buffer_images.emplace(handle);
+        }
         auto view = std::make_shared<OpenGLRenderTargetView>(handle, description);
         this->resource_accessor->make_render_target_view(handle.id, std::move(view));
         return this->resource_accessor->get_render_target_view(handle.id).unwrap();
@@ -571,28 +571,41 @@ namespace enishi::renderer::opengl {
         }
         glBindFramebuffer(GL_FRAMEBUFFER, this->state->active_framebuffer);
         if (view_type.unwrap() == types::ImageViewType::RenderTarget) {
+            const auto render_target_view =
+                this->resource_accessor->get_render_target_view(command.handle.id);
+            if (render_target_view.is_none()) {
+                return;
+            }
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,
                 object->second,
-                BASE_MIP_LEVEL);
+                static_cast<GLint>(render_target_view.unwrap()->get_description().base_mip_level));
         }
         if (view_type.unwrap() == types::ImageViewType::DepthStencil) {
+            const auto depth_stencil_view =
+                this->resource_accessor->get_depth_stencil_view(command.handle.id);
+            if (depth_stencil_view.is_none()) {
+                return;
+            }
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_DEPTH_STENCIL_ATTACHMENT,
                 GL_TEXTURE_2D,
                 object->second,
-                BASE_MIP_LEVEL);
+                static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
         }
         if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) {
             const auto target = this->state->objects.find(render_target);
+            const auto render_target_view =
+                this->resource_accessor->get_render_target_view(render_target.id);
 
-            if (target != this->state->objects.end()) {
+            if (target != this->state->objects.end() && render_target_view.is_some()) {
                 glFramebufferTexture2D(GL_FRAMEBUFFER,
                     GL_COLOR_ATTACHMENT0,
                     GL_TEXTURE_2D,
                     target->second,
-                    BASE_MIP_LEVEL);
+                    static_cast<GLint>(
+                        render_target_view.unwrap()->get_description().base_mip_level));
             }
         }
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -600,7 +613,18 @@ namespace enishi::renderer::opengl {
         }
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
-    void OpenGL40Renderer::submit_command_viewport(const types::DrawCommand&) const {
+    void OpenGL40Renderer::submit_command_viewport(const types::DrawCommand& command) const {
+        if (command.sub_command != types::SubCommand::Bind) {
+            return;
+        }
+        const auto viewport = this->state->viewports.find(command.handle);
+        if (viewport == this->state->viewports.end()) {
+            return;
+        }
+        glViewport(static_cast<GLint>(viewport->second.left_top_x),
+            static_cast<GLint>(viewport->second.left_top_y),
+            static_cast<GLsizei>(viewport->second.width),
+            static_cast<GLsizei>(viewport->second.height));
     }
     void OpenGL40Renderer::submit_command_mesh(
         const types::DrawCommand& command, const types::RenderHandle&) const {
@@ -638,12 +662,13 @@ namespace enishi::renderer::opengl {
                                                                              : index_stride->second;
         for (const auto& binding : bindings->second) {
             if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
-                glDrawElementsInstanced(this->state->topology,
+                glDrawElementsInstancedBaseVertex(this->state->topology,
                     indexed->index_count,
                     this->state->active_index_type,
                     reinterpret_cast<const void*>(
                         static_cast<std::uintptr_t>(indexed->first_index) * stride),
-                    std::max(MINIMUM_INSTANCE_COUNT, indexed->instance_count));
+                    std::max(MINIMUM_INSTANCE_COUNT, indexed->instance_count),
+                    static_cast<GLint>(indexed->vertex_offset));
 
             } else if (const auto plain = std::get_if<types::DrawParameter>(&binding.parameter)) {
                 glDrawArraysInstanced(this->state->topology,
@@ -759,11 +784,12 @@ namespace enishi::renderer::opengl {
         }
         if (const auto indexed =
                 std::get_if<types::DrawIndexedParameter>(&binding->second.parameter)) {
-            glDrawElementsInstanced(this->state->topology,
+            glDrawElementsInstancedBaseVertex(this->state->topology,
                 indexed->index_count,
                 this->state->active_index_type,
                 reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexed->first_index)),
-                indexed->instance_count);
+                indexed->instance_count,
+                static_cast<GLint>(indexed->vertex_offset));
         } else if (const auto plain =
                        std::get_if<types::DrawParameter>(&binding->second.parameter)) {
             glDrawArraysInstanced(this->state->topology,
