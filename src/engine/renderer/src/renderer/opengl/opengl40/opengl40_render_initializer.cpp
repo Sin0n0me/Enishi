@@ -6,8 +6,10 @@ namespace enishi::renderer::opengl {
     namespace {
         thread_local platform::IOpenGLContext* current_context = nullptr;
 
-        void* get_proc_address(const char* const name) {
-            return current_context ? current_context->get_proc_address(name) : nullptr;
+        GLADapiproc get_proc_address(const char* const name) {
+            return current_context
+                       ? reinterpret_cast<GLADapiproc>(current_context->get_proc_address(name))
+                       : nullptr;
         }
     } // namespace
 

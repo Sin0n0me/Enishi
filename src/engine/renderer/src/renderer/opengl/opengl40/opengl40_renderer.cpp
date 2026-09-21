@@ -244,13 +244,12 @@ namespace enishi::renderer::opengl {
         if (mesh.is_err())
             return mesh.propagation(platform::RenderError::MakeError);
         auto data = std::move(mesh.unwrap_mut());
-        const auto vertex = this->make_buffer(data.vertices.get_render_data(), GL_ARRAY_BUFFER);
+        auto vertex = this->make_buffer(data.vertices.get_render_data(), GL_ARRAY_BUFFER);
         if (vertex.is_err())
-            return vertex;
-        const auto index =
-            this->make_buffer(data.indices.get_render_data(), GL_ELEMENT_ARRAY_BUFFER);
+            return std::move(vertex);
+        auto index = this->make_buffer(data.indices.get_render_data(), GL_ELEMENT_ARRAY_BUFFER);
         if (index.is_err())
-            return index;
+            return std::move(index);
         std::vector<types::HandleId> mesh_uniform_handles;
         for (const auto& reflection_handle : shader_reflections) {
             const auto reflection = this->state->reflections.find(reflection_handle);

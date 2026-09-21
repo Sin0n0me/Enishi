@@ -5,7 +5,7 @@ namespace enishi::renderer::opengl {
     std::tuple<types::HandleId, OpenGLResourceAccessor::ShaderReflection&>
     OpenGLResourceAccessor::make_shader_reflection(ShaderReflection&& shader_reflection) noexcept {
         const auto handle = this->shader_reflections.emplace(std::move(shader_reflection));
-        return {handle, this->shader_reflections.get(handle).unwrap()};
+        return {handle, this->shader_reflections.get(handle).unwrap_mut()};
     }
     foundation::Option<OpenGLResourceAccessor::ShaderReflection&>
     OpenGLResourceAccessor::get_shader_reflection(const types::HandleId handle) noexcept {
@@ -22,7 +22,7 @@ namespace enishi::renderer::opengl {
     std::tuple<types::HandleId, OpenGLResourceAccessor::MeshHandles&>
     OpenGLResourceAccessor::make_mesh_handles(void) noexcept {
         const auto handle = this->mesh_handles.make();
-        return {handle, this->mesh_handles.get(handle).unwrap()};
+        return {handle, this->mesh_handles.get(handle).unwrap_mut()};
     }
     void OpenGLResourceAccessor::remove_mesh_handles(const types::HandleId handle) noexcept {
         this->mesh_handles.remove(handle);
