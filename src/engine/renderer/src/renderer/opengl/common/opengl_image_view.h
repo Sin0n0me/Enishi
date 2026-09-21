@@ -7,12 +7,13 @@ namespace enishi::renderer::opengl {
       private:
         types::RenderHandle handle;
         types::ImageViewDescription description;
-        glm::vec4 color{};
+        glm::vec4 color;
 
       public:
         OpenGLRenderTargetView(types::RenderHandle handle, types::ImageViewDescription description)
             : handle(handle)
-            , description(description) {
+            , description(description)
+            , color{} {
         }
         types::ImageViewDescription get_description(void) const noexcept override {
             return this->description;
@@ -31,13 +32,15 @@ namespace enishi::renderer::opengl {
       private:
         types::RenderHandle handle;
         types::ImageViewDescription description;
-        float depth = 1.0f;
-        std::uint8_t stencil = 0;
+        float depth;
+        std::uint8_t stencil;
 
       public:
         OpenGLDepthStencilView(types::RenderHandle handle, types::ImageViewDescription description)
             : handle(handle)
-            , description(description) {
+            , description(description)
+            , depth(1.0f)
+            , stencil(0) {
         }
         types::ImageViewDescription get_description(void) const noexcept override {
             return this->description;

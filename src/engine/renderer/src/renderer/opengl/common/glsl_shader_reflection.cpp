@@ -1,7 +1,13 @@
 #include "glsl_shader_reflection.h"
+#include <algorithm>
 #include <regex>
 
 namespace enishi::renderer::opengl {
+    GLSLShaderReflection::GLSLShaderReflection(void) noexcept
+        : kind(types::ShaderKind::Unknown)
+        , hash(0) {
+    }
+
     void GLSLShaderInputReflection::add_layout(types::ShaderInputLayout layout) {
         this->layouts.emplace_back(std::move(layout));
     }
@@ -54,7 +60,7 @@ namespace enishi::renderer::opengl {
         const std::regex input_pattern(
             R"(layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s+([[:alnum:]_]+)\s+([[:alnum:]_]+))");
         for (std::sregex_iterator it(source.begin(), source.end(), input_pattern), end; it != end;
-            ++it) {
+             ++it) {
             this->input.add_layout({.name = (*it)[3].str(),
                 .value_type = types::ShaderInputValueType::Float,
                 .location = static_cast<std::uint32_t>(std::stoul((*it)[1].str())),
@@ -66,13 +72,14 @@ namespace enishi::renderer::opengl {
             R"((?:layout\s*\(\s*(?:std140\s*,\s*)?(?:binding\s*=\s*(\d+)\s*)?\)\s*)?uniform\s+([[:alnum:]_]+)\s*([[:alnum:]_]*))");
         std::uint32_t next_uniform_binding = 0;
         for (std::sregex_iterator it(source.begin(), source.end(), uniform_pattern), end; it != end;
-            ++it) {
+             ++it) {
             const auto type = (*it)[2].str();
             const auto declared_name = (*it)[3].str();
             const auto name = declared_name.empty() ? type : declared_name;
             const auto binding = (*it)[1].matched
                                      ? static_cast<std::uint32_t>(std::stoul((*it)[1].str()))
                                      : next_uniform_binding++;
+            next_uniform_binding = std::max(next_uniform_binding, binding + 1);
             this->input.add_resource({.name = name,
                 .type = type.find("sampler") == 0 ? types::ShaderInputResourceType::Texture
                                                   : types::ShaderInputResourceType::UniformBuffer,

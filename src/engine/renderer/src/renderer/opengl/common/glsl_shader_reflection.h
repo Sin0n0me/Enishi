@@ -26,10 +26,12 @@ namespace enishi::renderer::opengl {
     class GLSLShaderReflection final : public platform::IShaderReflection {
       private:
         GLSLShaderInputReflection input;
-        types::ShaderKind kind = types::ShaderKind::Unknown;
-        std::size_t hash = 0;
+        types::ShaderKind kind;
+        std::size_t hash;
 
       public:
+        GLSLShaderReflection(void) noexcept;
+
         foundation::VoidResult<platform::RenderError> load(
             const types::ShaderData& shader_data) noexcept override;
         const platform::IShaderInputReflection* get_shader_input_reflection(void) const override;
