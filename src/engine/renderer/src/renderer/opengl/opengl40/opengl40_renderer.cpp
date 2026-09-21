@@ -9,47 +9,45 @@
 #include <renderer/opengl/common/opengl_image_view.h>
 
 namespace enishi::renderer::opengl {
-    namespace {
-        constexpr std::uint32_t no_gl_object = 0;
-        constexpr std::uint32_t resource_count = 1;
-        constexpr std::uint32_t shader_source_count = 1;
-        constexpr std::int32_t minimum_image_dimension = 1;
-        constexpr std::uint32_t single_image_layer = 1;
-        constexpr std::uint32_t single_sample = 1;
-        constexpr std::int32_t mip_dimension_divisor = 2;
-        constexpr std::int32_t texture_image_border_width = 0;
-        constexpr std::int32_t base_mip_level = 0;
-        constexpr std::uint32_t default_framebuffer = 0;
-        constexpr std::uint32_t no_index_stride = 0;
-        constexpr std::uint32_t position_attribute = 0;
-        constexpr std::uint32_t normal_attribute = 1;
-        constexpr std::uint32_t texture_coordinate_attribute = 2;
-        constexpr std::uint32_t blend_index_attribute = 3;
-        constexpr std::uint32_t blend_weight_attribute = 4;
-        constexpr std::int32_t position_component_count = 3;
-        constexpr std::int32_t normal_component_count = 3;
-        constexpr std::int32_t texture_coordinate_component_count = 2;
-        constexpr std::int32_t blend_index_component_count = 2;
-        constexpr std::int32_t blend_weight_component_count = 2;
-        constexpr std::size_t texture_coordinate_offset_multiplier = 2;
-        constexpr std::uint32_t byte_index_stride = 1;
-        constexpr std::uint32_t short_index_stride = 2;
-        constexpr std::int32_t unpack_alignment = 1;
-        constexpr std::size_t mipmap_count_threshold = 1;
-        constexpr std::uint32_t shader_program_key_shift = 32u;
-        constexpr std::uint32_t first_render_target = 0;
-        constexpr std::uint32_t minimum_instance_count = 1;
-        constexpr std::uint8_t empty_color_write_mask = 0;
-        constexpr float default_clear_color = 0.25f;
-        constexpr float opaque_alpha = 1.0f;
-    } // namespace
+    constexpr std::uint32_t NO_GL_OBJECT = 0;
+    constexpr std::uint32_t RESOURCE_COUNT = 1;
+    constexpr std::uint32_t SHADER_SOURCE_COUNT = 1;
+    constexpr std::int32_t MINIMUM_IMAGE_DIMENSION = 1;
+    constexpr std::uint32_t SINGLE_IMAGE_LAYER = 1;
+    constexpr std::uint32_t SINGLE_SAMPLE = 1;
+    constexpr std::int32_t MIP_DIMENSION_DIVISOR = 2;
+    constexpr std::int32_t TEXTURE_IMAGE_BORDER_WIDTH = 0;
+    constexpr std::int32_t BASE_MIP_LEVEL = 0;
+    constexpr std::uint32_t DEFAULT_FRAMEBUFFER = 0;
+    constexpr std::uint32_t NO_INDEX_STRIDE = 0;
+    constexpr std::uint32_t POSITION_ATTRIBUTE = 0;
+    constexpr std::uint32_t NORMAL_ATTRIBUTE = 1;
+    constexpr std::uint32_t TEXTURE_COORDINATE_ATTRIBUTE = 2;
+    constexpr std::uint32_t BLEND_INDEX_ATTRIBUTE = 3;
+    constexpr std::uint32_t BLEND_WEIGHT_ATTRIBUTE = 4;
+    constexpr std::int32_t POSITION_COMPONENT_COUNT = 3;
+    constexpr std::int32_t NORMAL_COMPONENT_COUNT = 3;
+    constexpr std::int32_t TEXTURE_COORDINATE_COMPONENT_COUNT = 2;
+    constexpr std::int32_t BLEND_INDEX_COMPONENT_COUNT = 2;
+    constexpr std::int32_t BLEND_WEIGHT_COMPONENT_COUNT = 2;
+    constexpr std::size_t TEXTURE_COORDINATE_OFFSET_MULTIPLIER = 2;
+    constexpr std::uint32_t BYTE_INDEX_STRIDE = 1;
+    constexpr std::uint32_t SHORT_INDEX_STRIDE = 2;
+    constexpr std::int32_t UNPACK_ALIGNMENT = 1;
+    constexpr std::size_t MIPMAP_COUNT_THRESHOLD = 1;
+    constexpr std::uint32_t SHADER_PROGRAM_KEY_SHIFT = 32u;
+    constexpr std::uint32_t FIRST_RENDER_TARGET = 0;
+    constexpr std::uint32_t MINIMUM_INSTANCE_COUNT = 1;
+    constexpr std::uint8_t EMPTY_COLOR_WRITE_MASK = 0;
+    constexpr float DEFAULT_CLEAR_COLOR = 0.25f;
+    constexpr float OPAQUE_ALPHA = 1.0f;
 
     OpenGL40RendererState::OpenGL40RendererState(void)
         : topology(GL_TRIANGLES)
-        , active_vertex_shader(no_gl_object)
-        , active_fragment_shader(no_gl_object)
-        , active_program(no_gl_object)
-        , active_framebuffer(no_gl_object)
+        , active_vertex_shader(NO_GL_OBJECT)
+        , active_fragment_shader(NO_GL_OBJECT)
+        , active_program(NO_GL_OBJECT)
+        , active_framebuffer(NO_GL_OBJECT)
         , active_index_type(GL_UNSIGNED_INT) {
     }
 
@@ -161,11 +159,11 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(
         const types::ImageDescription& description) {
-        if (description.size.x < minimum_image_dimension ||
-            description.size.y < minimum_image_dimension ||
-            description.mip_levels == no_gl_object ||
-            description.array_layers != single_image_layer ||
-            description.samples != single_sample) {
+        if (description.size.x < MINIMUM_IMAGE_DIMENSION ||
+            description.size.y < MINIMUM_IMAGE_DIMENSION ||
+            description.mip_levels == NO_GL_OBJECT ||
+            description.array_layers != SINGLE_IMAGE_LAYER ||
+            description.samples != SINGLE_SAMPLE) {
             return foundation::Error(platform::RenderError::MakeError,
                 "OpenGL 4.0 supports only single-sample, single-layer 2D images");
         }
@@ -179,12 +177,12 @@ namespace enishi::renderer::opengl {
         if (description.contains(types::ImageUsage::BackBuffer)) {
             this->state->back_buffer_images.emplace(handle);
 
-            this->state->objects.emplace(handle, no_gl_object);
+            this->state->objects.emplace(handle, NO_GL_OBJECT);
             return handle;
         }
         const auto internal_format = helpers::to_gl_image_internal_format(description.format);
-        GLuint texture = no_gl_object;
-        glGenTextures(resource_count, &texture);
+        GLuint texture = NO_GL_OBJECT;
+        glGenTextures(RESOURCE_COUNT, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
         const auto format = helpers::to_gl_image_format(description.format);
         const auto type = helpers::to_gl_image_type(description.format);
@@ -196,12 +194,12 @@ namespace enishi::renderer::opengl {
                 internal_format,
                 width,
                 height,
-                texture_image_border_width,
+                TEXTURE_IMAGE_BORDER_WIDTH,
                 format,
                 type,
                 nullptr);
-            width = std::max(minimum_image_dimension, width / mip_dimension_divisor);
-            height = std::max(minimum_image_dimension, height / mip_dimension_divisor);
+            width = std::max(MINIMUM_IMAGE_DIMENSION, width / MIP_DIMENSION_DIVISOR);
+            height = std::max(MINIMUM_IMAGE_DIMENSION, height / MIP_DIMENSION_DIVISOR);
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -255,8 +253,8 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::make_buffer(
         const types::RenderData& data, const std::uint32_t target) {
-        GLuint object = no_gl_object;
-        glGenBuffers(resource_count, &object);
+        GLuint object = NO_GL_OBJECT;
+        glGenBuffers(RESOURCE_COUNT, &object);
         glBindBuffer(target, object);
         glBufferData(
             target, static_cast<GLsizeiptr>(data.byte_width()), data.raw_data(), GL_DYNAMIC_DRAW);
@@ -297,8 +295,8 @@ namespace enishi::renderer::opengl {
                     continue;
                 }
                 const auto render_data = uniform->second.get_render_data();
-                GLuint buffer = no_gl_object;
-                glGenBuffers(resource_count, &buffer);
+                GLuint buffer = NO_GL_OBJECT;
+                glGenBuffers(RESOURCE_COUNT, &buffer);
                 glBindBuffer(GL_UNIFORM_BUFFER, buffer);
                 glBufferData(GL_UNIFORM_BUFFER,
                     static_cast<GLsizeiptr>(render_data.byte_width()),
@@ -314,45 +312,45 @@ namespace enishi::renderer::opengl {
                 mesh_uniform_handles.emplace_back(buffer_handle);
             }
         }
-        GLuint vao = no_gl_object;
-        glGenVertexArrays(resource_count, &vao);
+        GLuint vao = NO_GL_OBJECT;
+        glGenVertexArrays(RESOURCE_COUNT, &vao);
         this->state->vertex_arrays.emplace_back(vao);
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, this->state->objects.at(vertex.unwrap()));
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->state->objects.at(index.unwrap()));
         const auto stride = static_cast<GLsizei>(data.vertices.get_render_data().stride);
-        glEnableVertexAttribArray(position_attribute);
+        glEnableVertexAttribArray(POSITION_ATTRIBUTE);
         glVertexAttribPointer(
-            position_attribute, position_component_count, GL_FLOAT, GL_FALSE, stride, nullptr);
+            POSITION_ATTRIBUTE, POSITION_COMPONENT_COUNT, GL_FLOAT, GL_FALSE, stride, nullptr);
         if (stride >= static_cast<GLsizei>(sizeof(types::Vertex))) {
-            glEnableVertexAttribArray(normal_attribute);
+            glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
 
-            glVertexAttribPointer(normal_attribute,
-                normal_component_count,
+            glVertexAttribPointer(NORMAL_ATTRIBUTE,
+                NORMAL_COMPONENT_COUNT,
                 GL_FLOAT,
                 GL_FALSE,
                 stride,
                 reinterpret_cast<const void*>(sizeof(glm::vec3)));
-            glEnableVertexAttribArray(texture_coordinate_attribute);
-            glVertexAttribPointer(texture_coordinate_attribute,
-                texture_coordinate_component_count,
+            glEnableVertexAttribArray(TEXTURE_COORDINATE_ATTRIBUTE);
+            glVertexAttribPointer(TEXTURE_COORDINATE_ATTRIBUTE,
+                TEXTURE_COORDINATE_COMPONENT_COUNT,
                 GL_FLOAT,
                 GL_FALSE,
                 stride,
                 reinterpret_cast<const void*>(
-                    sizeof(glm::vec3) * texture_coordinate_offset_multiplier));
+                    sizeof(glm::vec3) * TEXTURE_COORDINATE_OFFSET_MULTIPLIER));
         }
         if (stride >= static_cast<GLsizei>(sizeof(types::Vertex) + sizeof(types::Skinning))) {
-            glEnableVertexAttribArray(blend_index_attribute);
+            glEnableVertexAttribArray(BLEND_INDEX_ATTRIBUTE);
 
-            glVertexAttribIPointer(blend_index_attribute,
-                blend_index_component_count,
+            glVertexAttribIPointer(BLEND_INDEX_ATTRIBUTE,
+                BLEND_INDEX_COMPONENT_COUNT,
                 GL_UNSIGNED_SHORT,
                 stride,
                 reinterpret_cast<const void*>(sizeof(types::Vertex)));
-            glEnableVertexAttribArray(blend_weight_attribute);
-            glVertexAttribPointer(blend_weight_attribute,
-                blend_weight_component_count,
+            glEnableVertexAttribArray(BLEND_WEIGHT_ATTRIBUTE);
+            glVertexAttribPointer(BLEND_WEIGHT_ATTRIBUTE,
+                BLEND_WEIGHT_COMPONENT_COUNT,
                 GL_FLOAT,
                 GL_FALSE,
                 stride,
@@ -367,9 +365,9 @@ namespace enishi::renderer::opengl {
         this->state->objects.emplace(handle, vao);
         const auto index_stride = data.indices.get_render_data().stride;
         auto index_type = GL_UNSIGNED_INT;
-        if (index_stride == short_index_stride) {
+        if (index_stride == SHORT_INDEX_STRIDE) {
             index_type = GL_UNSIGNED_SHORT;
-        } else if (index_stride == byte_index_stride) {
+        } else if (index_stride == BYTE_INDEX_STRIDE) {
             index_type = GL_UNSIGNED_BYTE;
         }
         this->state->index_types.emplace(handle, index_type);
@@ -383,7 +381,7 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(
         const types::TextureData& texture) {
-        if (texture.is_cubemap || texture.depth > single_image_layer || texture.mips.empty() ||
+        if (texture.is_cubemap || texture.depth > SINGLE_IMAGE_LAYER || texture.mips.empty() ||
             types::TextureData::is_compressed(texture.format)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported OpenGL 4.0 texture format");
@@ -391,10 +389,10 @@ namespace enishi::renderer::opengl {
         const auto internal_format = helpers::to_gl_texture_internal_format(texture.format);
         const auto format = helpers::to_gl_texture_format(texture.format);
         const auto type = helpers::to_gl_texture_type(texture.format);
-        GLuint object = no_gl_object;
-        glGenTextures(resource_count, &object);
+        GLuint object = NO_GL_OBJECT;
+        glGenTextures(RESOURCE_COUNT, &object);
         glBindTexture(GL_TEXTURE_2D, object);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, unpack_alignment);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, UNPACK_ALIGNMENT);
         for (std::uint32_t level = 0; level < texture.mips.size(); ++level) {
             const auto& mip = texture.mips[level];
             glTexImage2D(GL_TEXTURE_2D,
@@ -402,14 +400,14 @@ namespace enishi::renderer::opengl {
                 internal_format,
                 mip.width,
                 mip.height,
-                texture_image_border_width,
+                TEXTURE_IMAGE_BORDER_WIDTH,
                 format,
                 type,
                 mip.pixels.data());
         }
         glTexParameteri(GL_TEXTURE_2D,
             GL_TEXTURE_MIN_FILTER,
-            texture.mips.size() > mipmap_count_threshold ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+            texture.mips.size() > MIPMAP_COUNT_THRESHOLD ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -424,7 +422,7 @@ namespace enishi::renderer::opengl {
             return foundation::Error(
                 platform::RenderError::MakeError, "OpenGL 4.0 shaders must be GLSL source");
         }
-        GLenum stage = no_gl_object;
+        GLenum stage = NO_GL_OBJECT;
         if (kind == types::ShaderKind::Vertex) {
             stage = GL_VERTEX_SHADER;
         } else if (kind == types::ShaderKind::Pixel) {
@@ -437,7 +435,7 @@ namespace enishi::renderer::opengl {
         const auto shader = glCreateShader(stage);
         const auto source = reinterpret_cast<const GLchar*>(data.code.data());
         const auto length = static_cast<GLint>(data.code.size());
-        glShaderSource(shader, shader_source_count, &source, &length);
+        glShaderSource(shader, SHADER_SOURCE_COUNT, &source, &length);
         glCompileShader(shader);
         GLint compiled = GL_FALSE;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
@@ -466,7 +464,7 @@ namespace enishi::renderer::opengl {
     void OpenGL40Renderer::setup_viewports(void) const {
     }
     void OpenGL40Renderer::setup_views(void) const {
-        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
     }
     void OpenGL40Renderer::submit_command_buffer(const types::DrawCommand&) const {
     }
@@ -480,7 +478,7 @@ namespace enishi::renderer::opengl {
             return true;
         }
         const auto program_key = (static_cast<std::uint64_t>(this->state->active_vertex_shader)
-                                     << shader_program_key_shift) |
+                                     << SHADER_PROGRAM_KEY_SHIFT) |
                                  this->state->active_fragment_shader;
         if (const auto program = this->state->programs.find(program_key);
             program != this->state->programs.end()) {
@@ -498,7 +496,7 @@ namespace enishi::renderer::opengl {
         if (linked != GL_TRUE) {
             glDeleteProgram(this->state->active_program);
 
-            this->state->active_program = no_gl_object;
+            this->state->active_program = NO_GL_OBJECT;
             return false;
         }
         this->state->programs.emplace(program_key, this->state->active_program);
@@ -526,7 +524,7 @@ namespace enishi::renderer::opengl {
         if (kind->second == types::ShaderKind::Pixel) {
             this->state->active_fragment_shader = object->second;
         }
-        this->state->active_program = no_gl_object;
+        this->state->active_program = NO_GL_OBJECT;
         this->use_active_program();
     }
     void OpenGL40Renderer::submit_command_view(
@@ -556,15 +554,15 @@ namespace enishi::renderer::opengl {
             this->state->back_buffer_images.contains(command.handle) ||
             (render_target.is_valid() && this->state->back_buffer_images.contains(render_target));
         if (is_back_buffer) {
-            glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+            glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
             glClearColor(
-                default_clear_color, default_clear_color, default_clear_color, opaque_alpha);
+                DEFAULT_CLEAR_COLOR, DEFAULT_CLEAR_COLOR, DEFAULT_CLEAR_COLOR, OPAQUE_ALPHA);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             return;
         }
         if (!this->state->active_framebuffer) {
-            glGenFramebuffers(resource_count, &this->state->active_framebuffer);
+            glGenFramebuffers(RESOURCE_COUNT, &this->state->active_framebuffer);
 
             this->state->framebuffers.emplace_back(this->state->active_framebuffer);
         }
@@ -574,14 +572,14 @@ namespace enishi::renderer::opengl {
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,
                 object->second,
-                base_mip_level);
+                BASE_MIP_LEVEL);
         }
         if (view_type.unwrap() == types::ImageViewType::DepthStencil) {
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_DEPTH_STENCIL_ATTACHMENT,
                 GL_TEXTURE_2D,
                 object->second,
-                base_mip_level);
+                BASE_MIP_LEVEL);
         }
         if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) {
             const auto target = this->state->objects.find(render_target);
@@ -591,7 +589,7 @@ namespace enishi::renderer::opengl {
                     GL_COLOR_ATTACHMENT0,
                     GL_TEXTURE_2D,
                     target->second,
-                    base_mip_level);
+                    BASE_MIP_LEVEL);
             }
         }
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -633,7 +631,7 @@ namespace enishi::renderer::opengl {
             return;
         }
         const auto index_stride = this->state->index_strides.find(command.handle);
-        const auto stride = index_stride == this->state->index_strides.end() ? no_index_stride
+        const auto stride = index_stride == this->state->index_strides.end() ? NO_INDEX_STRIDE
                                                                              : index_stride->second;
         for (const auto& binding : bindings->second) {
             if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
@@ -642,13 +640,13 @@ namespace enishi::renderer::opengl {
                     this->state->active_index_type,
                     reinterpret_cast<const void*>(
                         static_cast<std::uintptr_t>(indexed->first_index) * stride),
-                    std::max(minimum_instance_count, indexed->instance_count));
+                    std::max(MINIMUM_INSTANCE_COUNT, indexed->instance_count));
 
             } else if (const auto plain = std::get_if<types::DrawParameter>(&binding.parameter)) {
                 glDrawArraysInstanced(this->state->topology,
                     plain->first_vertex,
                     plain->vertex_count,
-                    std::max(minimum_instance_count, plain->instance_count));
+                    std::max(MINIMUM_INSTANCE_COUNT, plain->instance_count));
             }
         }
     }
@@ -697,7 +695,7 @@ namespace enishi::renderer::opengl {
         }
         if (const auto it = this->state->blends.find(command.handle);
             it != this->state->blends.end()) {
-            const auto& target = it->second.render_targets[first_render_target];
+            const auto& target = it->second.render_targets[FIRST_RENDER_TARGET];
 
             target.enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
             glBlendFuncSeparate(helpers::to_gl_blend_factor(target.src_color),
@@ -708,16 +706,16 @@ namespace enishi::renderer::opengl {
                 helpers::to_gl_blend_operator(target.alpha_operator));
             glColorMask((target.write_mask &
                             static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteR)) !=
-                            empty_color_write_mask,
+                            EMPTY_COLOR_WRITE_MASK,
                 (target.write_mask &
                     static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteG)) !=
-                    empty_color_write_mask,
+                    EMPTY_COLOR_WRITE_MASK,
                 (target.write_mask &
                     static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteB)) !=
-                    empty_color_write_mask,
+                    EMPTY_COLOR_WRITE_MASK,
                 (target.write_mask &
                     static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteA)) !=
-                    empty_color_write_mask);
+                    EMPTY_COLOR_WRITE_MASK);
             return;
         }
         if (const auto it = this->state->samplers.find(command.handle);

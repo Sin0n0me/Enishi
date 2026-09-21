@@ -2,9 +2,7 @@
 #include <glad/gl.h>
 
 namespace enishi::renderer::opengl {
-    namespace {
-        constexpr GLintptr uniform_buffer_data_offset = 0;
-    } // namespace
+    constexpr GLintptr UNIFORM_BUFFER_DATA_OFFSET = 0;
 
     OpenGLUniformUpdater::OpenGLUniformUpdater(types::OwnedRenderData&& resource,
         const std::uint32_t buffer,
@@ -17,7 +15,7 @@ namespace enishi::renderer::opengl {
         const auto data = this->resource.get_render_data();
         glBindBuffer(GL_UNIFORM_BUFFER, this->buffer);
         glBufferSubData(GL_UNIFORM_BUFFER,
-            uniform_buffer_data_offset,
+            UNIFORM_BUFFER_DATA_OFFSET,
             static_cast<GLsizeiptr>(data.byte_width()),
             data.raw_data());
         glBindBufferBase(GL_UNIFORM_BUFFER, this->binding, this->buffer);
