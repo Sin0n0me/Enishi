@@ -1,230 +1,20 @@
 #include "opengl40_renderer.h"
+#include "opengl40_helpers.h"
 #include <algorithm>
 #include <engine_types/assets/model/model_data.h>
 #include <glad/gl.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <renderer/opengl/common/opengl_image_view.h>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace enishi::renderer::opengl {
-    class OpenGL40Renderer::State {
-      public:
-        std::unordered_map<types::RenderHandle, std::uint32_t> objects;
-        std::unordered_map<types::RenderHandle, types::ShaderKind> shader_kinds;
-        std::unordered_map<types::RenderHandle, types::DrawBinding> draw_bindings;
-        std::unordered_map<types::RenderHandle, std::uint32_t> index_types;
-        std::unordered_map<types::RenderHandle, std::uint32_t> index_strides;
-        std::unordered_map<types::RenderHandle, std::vector<types::DrawBinding>> mesh_draw_bindings;
-        std::unordered_map<types::RenderHandle, types::ImageDescription> images;
-        std::unordered_set<types::RenderHandle> back_buffer_images;
-        std::unordered_map<types::RenderHandle, types::RasterizerStateDescription> rasterizers;
-        std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depth_stencils;
-        std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
-        std::unordered_map<types::RenderHandle, types::SamplerStateDescription> samplers;
-        std::unordered_map<types::RenderHandle, std::shared_ptr<GLSLShaderReflection>> reflections;
-        std::unordered_map<std::string, std::uint32_t> uniform_block_bindings;
-        std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
-        std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
-        std::vector<GLuint> buffers;
-        std::vector<GLuint> textures;
-        std::vector<GLuint> vertex_arrays;
-        std::vector<GLuint> shaders;
-        std::unordered_map<std::uint64_t, GLuint> programs;
-        std::vector<GLuint> framebuffers;
-        std::uint32_t topology;
-        std::uint32_t active_vertex_shader;
-        std::uint32_t active_fragment_shader;
-        std::uint32_t active_program;
-        std::uint32_t active_framebuffer;
-        std::uint32_t active_index_type;
-
-        State(void)
-            : topology(GL_TRIANGLES)
-            , active_vertex_shader(0)
-            , active_fragment_shader(0)
-            , active_program(0)
-            , active_framebuffer(0)
-            , active_index_type(GL_UNSIGNED_INT) {
-        }
-    };
-
-    namespace {
-        template <typename T> platform::RenderResult<T> unsupported(void) {
-            return foundation::Error(platform::RenderError::MakeError,
-                "This OpenGL 4.0 resource operation has not been implemented");
-        }
-
-        GLenum to_gl_compare(const types::CompareOperator value) {
-            switch (value) {
-                case types::CompareOperator::Never:
-                    return GL_NEVER;
-                case types::CompareOperator::Less:
-                    return GL_LESS;
-                case types::CompareOperator::Equal:
-                    return GL_EQUAL;
-                case types::CompareOperator::LessEqual:
-                    return GL_LEQUAL;
-                case types::CompareOperator::Greater:
-                    return GL_GREATER;
-                case types::CompareOperator::NotEqual:
-                    return GL_NOTEQUAL;
-                case types::CompareOperator::GreaterEqual:
-                    return GL_GEQUAL;
-                case types::CompareOperator::Always:
-                    return GL_ALWAYS;
-            }
-            return GL_ALWAYS;
-        }
-
-        GLenum to_gl_blend_factor(const types::BlendFactor value) {
-            switch (value) {
-                case types::BlendFactor::Zero:
-                    return GL_ZERO;
-                case types::BlendFactor::One:
-                    return GL_ONE;
-                case types::BlendFactor::SrcColor:
-                    return GL_SRC_COLOR;
-                case types::BlendFactor::OneMinusSrcColor:
-                    return GL_ONE_MINUS_SRC_COLOR;
-                case types::BlendFactor::DstColor:
-                    return GL_DST_COLOR;
-                case types::BlendFactor::OneMinusDstColor:
-                    return GL_ONE_MINUS_DST_COLOR;
-                case types::BlendFactor::SrcAlpha:
-                    return GL_SRC_ALPHA;
-                case types::BlendFactor::OneMinusSrcAlpha:
-                    return GL_ONE_MINUS_SRC_ALPHA;
-                case types::BlendFactor::DstAlpha:
-                    return GL_DST_ALPHA;
-                case types::BlendFactor::OneMinusDstAlpha:
-                    return GL_ONE_MINUS_DST_ALPHA;
-                case types::BlendFactor::ConstantColor:
-                    return GL_CONSTANT_COLOR;
-                case types::BlendFactor::OneMinusConstantColor:
-                    return GL_ONE_MINUS_CONSTANT_COLOR;
-                case types::BlendFactor::ConstantAlpha:
-                    return GL_CONSTANT_ALPHA;
-                case types::BlendFactor::OneMinusConstantAlpha:
-                    return GL_ONE_MINUS_CONSTANT_ALPHA;
-                case types::BlendFactor::SrcAlphaSaturate:
-                    return GL_SRC_ALPHA_SATURATE;
-                case types::BlendFactor::Src1Color:
-                    return GL_SRC1_COLOR;
-                case types::BlendFactor::OneMinusSrc1Color:
-                    return GL_ONE_MINUS_SRC1_COLOR;
-                case types::BlendFactor::Src1Alpha:
-                    return GL_SRC1_ALPHA;
-                case types::BlendFactor::OneMinusSrc1Alpha:
-                    return GL_ONE_MINUS_SRC1_ALPHA;
-            }
-            return GL_ONE;
-        }
-
-        GLenum to_gl_blend_operator(const types::BlendOperator value) {
-            switch (value) {
-                case types::BlendOperator::Add:
-                    return GL_FUNC_ADD;
-                case types::BlendOperator::Subtract:
-                    return GL_FUNC_SUBTRACT;
-                case types::BlendOperator::ReverseSubtract:
-                    return GL_FUNC_REVERSE_SUBTRACT;
-                case types::BlendOperator::Min:
-                    return GL_MIN;
-                case types::BlendOperator::Max:
-                    return GL_MAX;
-            }
-            return GL_FUNC_ADD;
-        }
-
-        GLenum to_gl_address_mode(const types::AddressMode value) {
-            switch (value) {
-                case types::AddressMode::Repeat:
-                    return GL_REPEAT;
-                case types::AddressMode::Clamp:
-                    return GL_CLAMP_TO_EDGE;
-                case types::AddressMode::Mirror:
-                    return GL_MIRRORED_REPEAT;
-            }
-            return GL_REPEAT;
-        }
-
-        GLenum to_gl_image_internal_format(const types::ImageFormat value) {
-            switch (value) {
-                case types::ImageFormat::D32_FLOAT:
-                    return GL_DEPTH_COMPONENT32F;
-                case types::ImageFormat::D24_UNORM_S8_UINT:
-                    return GL_DEPTH24_STENCIL8;
-                case types::ImageFormat::D16_UNORM:
-                    return GL_DEPTH_COMPONENT16;
-                case types::ImageFormat::RGBA16_FLOAT:
-                    return GL_RGBA16F;
-                default:
-                    return GL_RGBA8;
-            }
-        }
-
-        GLenum to_gl_image_format(const types::ImageFormat value) {
-            switch (value) {
-                case types::ImageFormat::D32_FLOAT:
-                case types::ImageFormat::D16_UNORM:
-                    return GL_DEPTH_COMPONENT;
-                case types::ImageFormat::D24_UNORM_S8_UINT:
-                    return GL_DEPTH_STENCIL;
-                case types::ImageFormat::BGRA8_UNORM:
-                    return GL_BGRA;
-                default:
-                    return GL_RGBA;
-            }
-        }
-
-        GLenum to_gl_image_type(const types::ImageFormat value) {
-            switch (value) {
-                case types::ImageFormat::D32_FLOAT:
-                    return GL_FLOAT;
-                case types::ImageFormat::D16_UNORM:
-                    return GL_UNSIGNED_SHORT;
-                case types::ImageFormat::D24_UNORM_S8_UINT:
-                    return GL_UNSIGNED_INT_24_8;
-                default:
-                    return GL_UNSIGNED_BYTE;
-            }
-        }
-
-        GLenum to_gl_texture_internal_format(const types::TextureFormat value) {
-            switch (value) {
-                case types::TextureFormat::R8_UNORM:
-                    return GL_R8;
-                case types::TextureFormat::RG8_UNORM:
-                    return GL_RG8;
-                case types::TextureFormat::RGBA16_FLOAT:
-                    return GL_RGBA16F;
-                case types::TextureFormat::RGBA8_SRGB:
-                    return GL_SRGB8_ALPHA8;
-                default:
-                    return GL_RGBA8;
-            }
-        }
-
-        GLenum to_gl_texture_format(const types::TextureFormat value) {
-            switch (value) {
-                case types::TextureFormat::R8_UNORM:
-                    return GL_RED;
-                case types::TextureFormat::RG8_UNORM:
-                    return GL_RG;
-                default:
-                    return GL_RGBA;
-            }
-        }
-
-        GLenum to_gl_texture_type(const types::TextureFormat value) {
-            if (value == types::TextureFormat::RGBA16_FLOAT) {
-                return GL_HALF_FLOAT;
-            }
-            return GL_UNSIGNED_BYTE;
-        }
-
-    } // namespace
+    OpenGL40Renderer::State::State(void)
+        : topology(GL_TRIANGLES)
+        , active_vertex_shader(0)
+        , active_fragment_shader(0)
+        , active_program(0)
+        , active_framebuffer(0)
+        , active_index_type(GL_UNSIGNED_INT) {
+    }
 
     OpenGL40Renderer::OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context)
         : context(std::move(context))
@@ -289,7 +79,8 @@ namespace enishi::renderer::opengl {
     platform::RenderResult<std::unique_ptr<platform::IPipelineLayout>>
     OpenGL40Renderer::create_vertex_layout(
         const types::VertexLayout&, const types::RenderHandle&, const types::RenderHandle&) {
-        return unsupported<std::unique_ptr<platform::IPipelineLayout>>();
+        return foundation::Error(
+            platform::RenderError::MakeError, "OpenGL 4.0 vertex layouts are not implemented");
     }
     platform::RenderResult<types::RenderHandle>
     OpenGL40Renderer::create_vertex_layout_from_shader_data(const types::ShaderData& data) {
@@ -351,12 +142,12 @@ namespace enishi::renderer::opengl {
             this->state->objects.emplace(handle, 0);
             return handle;
         }
-        const auto internal_format = to_gl_image_internal_format(description.format);
+        const auto internal_format = helpers::to_gl_image_internal_format(description.format);
         GLuint texture = 0;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
-        const auto format = to_gl_image_format(description.format);
-        const auto type = to_gl_image_type(description.format);
+        const auto format = helpers::to_gl_image_format(description.format);
+        const auto type = helpers::to_gl_image_type(description.format);
         auto width = description.size.x;
         auto height = description.size.y;
         for (std::uint32_t level = 0; level < description.mip_levels; ++level) {
@@ -551,9 +342,9 @@ namespace enishi::renderer::opengl {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported OpenGL 4.0 texture format");
         }
-        const auto internal_format = to_gl_texture_internal_format(texture.format);
-        const auto format = to_gl_texture_format(texture.format);
-        const auto type = to_gl_texture_type(texture.format);
+        const auto internal_format = helpers::to_gl_texture_internal_format(texture.format);
+        const auto format = helpers::to_gl_texture_format(texture.format);
+        const auto type = helpers::to_gl_texture_type(texture.format);
         GLuint object = 0;
         glGenTextures(1, &object);
         glBindTexture(GL_TEXTURE_2D, object);
@@ -845,7 +636,7 @@ namespace enishi::renderer::opengl {
             it->second.depth.enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
 
             glDepthMask(it->second.depth.write_enabled ? GL_TRUE : GL_FALSE);
-            glDepthFunc(to_gl_compare(it->second.depth.compare_operator));
+            glDepthFunc(helpers::to_gl_compare(it->second.depth.compare_operator));
             return;
         }
         if (const auto it = this->state->blends.find(command.handle);
@@ -853,12 +644,12 @@ namespace enishi::renderer::opengl {
             const auto& target = it->second.render_targets[0];
 
             target.enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
-            glBlendFuncSeparate(to_gl_blend_factor(target.src_color),
-                to_gl_blend_factor(target.dst_color),
-                to_gl_blend_factor(target.src_alpha),
-                to_gl_blend_factor(target.dst_alpha));
-            glBlendEquationSeparate(to_gl_blend_operator(target.color_operator),
-                to_gl_blend_operator(target.alpha_operator));
+            glBlendFuncSeparate(helpers::to_gl_blend_factor(target.src_color),
+                helpers::to_gl_blend_factor(target.dst_color),
+                helpers::to_gl_blend_factor(target.src_alpha),
+                helpers::to_gl_blend_factor(target.dst_alpha));
+            glBlendEquationSeparate(helpers::to_gl_blend_operator(target.color_operator),
+                helpers::to_gl_blend_operator(target.alpha_operator));
             glColorMask((target.write_mask &
                             static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteR)) != 0,
                 (target.write_mask &
@@ -878,10 +669,12 @@ namespace enishi::renderer::opengl {
             glTexParameteri(GL_TEXTURE_2D,
                 GL_TEXTURE_MAG_FILTER,
                 it->second.mag_filter == types::FilterMode::Nearest ? GL_NEAREST : GL_LINEAR);
-            glTexParameteri(
-                GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, to_gl_address_mode(it->second.address_u));
-            glTexParameteri(
-                GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, to_gl_address_mode(it->second.address_v));
+            glTexParameteri(GL_TEXTURE_2D,
+                GL_TEXTURE_WRAP_S,
+                helpers::to_gl_address_mode(it->second.address_u));
+            glTexParameteri(GL_TEXTURE_2D,
+                GL_TEXTURE_WRAP_T,
+                helpers::to_gl_address_mode(it->second.address_v));
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, it->second.min_lod);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, it->second.max_lod);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, it->second.mip_lod_bias);
