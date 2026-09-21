@@ -18,16 +18,19 @@ layout(std140) uniform Bones {
 };
 
 out vec2 uv;
-out vec3 normal;
+out vec3 view_position;
+out vec3 view_normal;
+out vec3 view_light;
 
 void main() {
-    const float total_weight = in_bone_weights.x + in_bone_weights.y;
-    mat4 skin = total_weight > 0.0
-        ? bone_matrices[in_bone_indices.x] * in_bone_weights.x +
-              bone_matrices[in_bone_indices.y] * in_bone_weights.y
-        : mat4(1.0);
-    vec4 position = skin * vec4(in_position, 1.0);
+    const vec3 light_direction = normalize(vec3(0.0, 0.0, -10.0));
+    const mat4 skin = bone_matrices[in_bone_indices.x] * in_bone_weights.x +
+        bone_matrices[in_bone_indices.y] * in_bone_weights.y;
+    const vec4 position = skin * vec4(in_position, 1.0);
+    const mat4 model_view = view * world;
     gl_Position = mvp * position;
     uv = in_uv;
-    normal = mat3(skin) * in_normal;
+    view_position = (model_view * position).xyz;
+    view_normal = normalize(mat3(model_view) * (mat3(skin) * in_normal));
+    view_light = mat3(model_view) * light_direction;
 }
