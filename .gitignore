@@ -1,13 +1,15 @@
 .vs/
 x64/
 out/
-build/
+build/**/
 build_cmake/
 assets/**/
 CMakeFiles/
 ./Debug/
 DesktopCharacter/
 lib/
+
+!/build/build.cmd
 
 *.ini
 *.ttf
@@ -19,7 +21,12 @@ lib/
 *.pmm
 *.vmd
 *.pmd
+*.wav
+*.vrm
 *.aieproj
+
 
 _*.py
 log.txt
+
+

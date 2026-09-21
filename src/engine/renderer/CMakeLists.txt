@@ -77,6 +77,10 @@ elseif(USE_OPENGL40)
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(glad)
+    add_subdirectory(
+        "${glad_SOURCE_DIR}/cmake"
+        "${glad_BINARY_DIR}/cmake"
+    )
     glad_add_library(glad_gl_core_40 REPRODUCIBLE API gl:core=4.0)
 
     set(DEPENDENCIES
