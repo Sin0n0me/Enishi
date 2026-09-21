@@ -74,14 +74,18 @@ namespace enishi::renderer::opengl {
     }
     foundation::Option<types::ImageViewType> OpenGLResourceAccessor::get_view_type(
         const types::HandleId& handle) const noexcept {
-        if (this->render_targets.contains(handle))
+        if (this->render_targets.contains(handle)) {
             return types::ImageViewType::RenderTarget;
-        if (this->depth_stencils.contains(handle))
+        }
+        if (this->depth_stencils.contains(handle)) {
             return types::ImageViewType::DepthStencil;
-        if (this->shader_resources.contains(handle))
+        }
+        if (this->shader_resources.contains(handle)) {
             return types::ImageViewType::ShaderResource;
-        if (this->unordered_accesses.contains(handle))
+        }
+        if (this->unordered_accesses.contains(handle)) {
             return types::ImageViewType::UnorderedAccess;
+        }
         return {};
     }
     types::HandleId OpenGLResourceAccessor::make_render_target_view(

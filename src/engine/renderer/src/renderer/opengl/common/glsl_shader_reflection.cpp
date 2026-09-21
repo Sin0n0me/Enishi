@@ -43,17 +43,19 @@ namespace enishi::renderer::opengl {
     foundation::Option<types::ShaderInputResource>
     GLSLShaderInputReflection::resolve_input_resource(const foundation::UTF8& name) const noexcept {
         for (const auto& resource : this->resources) {
-            if (resource.name == name)
+            if (resource.name == name) {
                 return resource;
+            }
         }
         return {};
     }
 
     foundation::VoidResult<platform::RenderError> GLSLShaderReflection::load(
         const types::ShaderData& shader_data) noexcept {
-        if (shader_data.binary_type != types::ShaderBinaryType::SourceFileGLSL)
+        if (shader_data.binary_type != types::ShaderBinaryType::SourceFileGLSL) {
             return foundation::Error(
                 platform::RenderError::MakeError, "OpenGL 4.0 requires GLSL source");
+        }
         this->hash = shader_data.hash();
         const std::string source(
             reinterpret_cast<const char*>(shader_data.code.data()), shader_data.code.size());
