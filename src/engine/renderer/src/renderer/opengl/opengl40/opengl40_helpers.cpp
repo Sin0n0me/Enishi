@@ -18,7 +18,7 @@ namespace enishi::renderer::opengl::helpers {
         current_context = &context;
         const auto loaded = gladLoadGL(get_proc_address);
         current_context = nullptr;
-        return loaded != 0 && GLAD_GL_VERSION_4_0 != 0;
+        return loaded != GL_FALSE && GLAD_GL_VERSION_4_0 != GL_FALSE;
     }
 
     std::uint32_t to_gl_compare(const types::CompareOperator value) {

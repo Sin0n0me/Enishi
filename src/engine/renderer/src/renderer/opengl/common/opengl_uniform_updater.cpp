@@ -2,6 +2,10 @@
 #include <glad/gl.h>
 
 namespace enishi::renderer::opengl {
+    namespace {
+        constexpr GLintptr uniform_buffer_data_offset = 0;
+    } // namespace
+
     OpenGLUniformUpdater::OpenGLUniformUpdater(types::OwnedRenderData&& resource,
         const std::uint32_t buffer,
         const std::uint32_t binding) noexcept
@@ -12,8 +16,10 @@ namespace enishi::renderer::opengl {
     void OpenGLUniformUpdater::on_update(void) {
         const auto data = this->resource.get_render_data();
         glBindBuffer(GL_UNIFORM_BUFFER, this->buffer);
-        glBufferSubData(
-            GL_UNIFORM_BUFFER, 0, static_cast<GLsizeiptr>(data.byte_width()), data.raw_data());
+        glBufferSubData(GL_UNIFORM_BUFFER,
+            uniform_buffer_data_offset,
+            static_cast<GLsizeiptr>(data.byte_width()),
+            data.raw_data());
         glBindBufferBase(GL_UNIFORM_BUFFER, this->binding, this->buffer);
     }
     types::OwnedRenderData& OpenGLUniformUpdater::get_resource(void) {

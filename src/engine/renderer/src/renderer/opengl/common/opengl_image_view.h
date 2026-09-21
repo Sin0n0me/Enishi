@@ -1,8 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <platform/renderer/view/interface_image_view.h>
 
 namespace enishi::renderer::opengl {
+    namespace image_view_constants {
+        inline constexpr float default_clear_depth = 1.0f;
+        inline constexpr std::uint8_t default_clear_stencil = 0;
+    } // namespace image_view_constants
+
     class OpenGLRenderTargetView final : public platform::IRenderTargetView {
       private:
         types::RenderHandle handle;
@@ -39,8 +45,8 @@ namespace enishi::renderer::opengl {
         OpenGLDepthStencilView(types::RenderHandle handle, types::ImageViewDescription description)
             : handle(handle)
             , description(description)
-            , depth(1.0f)
-            , stencil(0) {
+            , depth(image_view_constants::default_clear_depth)
+            , stencil(image_view_constants::default_clear_stencil) {
         }
         types::ImageViewDescription get_description(void) const noexcept override {
             return this->description;
