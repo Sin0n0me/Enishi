@@ -243,8 +243,9 @@ namespace enishi::physics::bullet3 {
     }
 
     void PhysicsWorld::reset_physics(sub_system::IBoneUpdater* const updater) {
-        const auto rigid_bodies =
-            this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
+        const auto rigid_body_view = this->resource_pool->get_native_rigid_body_accessor();
+        const auto rigid_bodies = rigid_body_view->get_rigid_bodies();
+        const auto native_rigid_bodies = rigid_body_view->get_native_rigid_bodies();
 
         for (auto& rb : rigid_bodies) {
             rb->set_active(false);
@@ -261,14 +262,14 @@ namespace enishi::physics::bullet3 {
             updater->update_global_form_roots();
         }
 
-        for (auto& rb : rigid_bodies) {
+        for (auto& rigid_body : native_rigid_bodies) {
             const auto cache = world->getPairCache();
             if (cache != nullptr) {
-                /*
                 cache->cleanProxyFromPairs(
                     rigid_body->getBroadphaseHandle(), this->world->getDispatcher());
-                */
             }
+        }
+        for (auto& rb : rigid_bodies) {
             rb->reset();
         }
     }
@@ -284,13 +285,12 @@ namespace enishi::physics::bullet3 {
         }
     }
 
-    sub_system::IPhysicsWorldConfigWriter* enishi::physics::bullet3::PhysicsWorld::get_config_writer(
-        void) noexcept {
+    sub_system::IPhysicsWorldConfigWriter* PhysicsWorld::get_config_writer(void) noexcept {
         return this->config.get();
     }
 
-    const sub_system::IPhysicsWorldConfigReader*
-    enishi::physics::bullet3::PhysicsWorld::get_config_reader(void) const noexcept {
+    const sub_system::IPhysicsWorldConfigReader* PhysicsWorld::get_config_reader(
+        void) const noexcept {
         return this->config.get();
     }
 } // namespace enishi::physics::bullet3
