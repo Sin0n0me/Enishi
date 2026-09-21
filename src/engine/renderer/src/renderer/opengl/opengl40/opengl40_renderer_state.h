@@ -20,6 +20,9 @@ namespace enishi::renderer::opengl {
         std::unordered_map<types::RenderHandle, std::uint32_t> index_types;
         std::unordered_map<types::RenderHandle, std::uint32_t> index_strides;
         std::unordered_map<types::RenderHandle, std::vector<types::DrawBinding>> mesh_draw_bindings;
+        std::unordered_map<types::RenderHandle,
+            std::vector<std::unordered_map<std::uint32_t, std::uint32_t>>>
+            mesh_texture_bindings;
         std::unordered_map<types::RenderHandle, types::ImageDescription> images;
         std::unordered_set<types::RenderHandle> back_buffer_images;
         std::unordered_map<types::RenderHandle, types::RasterizerStateDescription> rasterizers;

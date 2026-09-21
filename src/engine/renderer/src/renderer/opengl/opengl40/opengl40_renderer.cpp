@@ -98,10 +98,16 @@ namespace enishi::renderer::opengl {
         for (const auto& resource :
             reflection->get_shader_input_reflection()->get_input_resources()) {
             if (resource.type == types::ShaderInputResourceType::UniformBuffer) {
-                this->state->uniform_block_bindings.emplace(resource.name, resource.binding);
+                if (!this->state->uniform_block_bindings.contains(resource.name)) {
+                    this->state->uniform_block_bindings.emplace(resource.name,
+                        static_cast<std::uint32_t>(this->state->uniform_block_bindings.size()));
+                }
             }
             if (resource.type == types::ShaderInputResourceType::Texture) {
-                this->state->sampler_bindings.emplace(resource.name, resource.binding);
+                if (!this->state->sampler_bindings.contains(resource.name)) {
+                    this->state->sampler_bindings.emplace(resource.name,
+                        static_cast<std::uint32_t>(this->state->sampler_bindings.size()));
+                }
             }
         }
         const auto glsl_reflection = reflection;
@@ -321,10 +327,16 @@ namespace enishi::renderer::opengl {
                     static_cast<GLsizeiptr>(render_data.byte_width()),
                     render_data.raw_data(),
                     GL_DYNAMIC_DRAW);
-                glBindBufferBase(GL_UNIFORM_BUFFER, resource.binding, buffer);
+                const auto binding = this->state->uniform_block_bindings.find(resource.name);
+                if (binding == this->state->uniform_block_bindings.end()) {
+                    glDeleteBuffers(RESOURCE_COUNT, &buffer);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        "Uniform buffer binding was not created for the shader resource");
+                }
+                glBindBufferBase(GL_UNIFORM_BUFFER, binding->second, buffer);
                 this->state->buffers.emplace_back(buffer);
                 auto updater = std::make_shared<OpenGLUniformUpdater>(
-                    std::move(uniform->second), buffer, resource.binding);
+                    std::move(uniform->second), buffer, binding->second);
                 this->state->uniform_updaters.emplace_back(updater);
                 const auto [buffer_handle, _] = this->resource_accessor->make_buffer();
                 this->resource_accessor->add_interface(buffer_handle, updater);
@@ -393,10 +405,37 @@ namespace enishi::renderer::opengl {
         this->state->index_strides.emplace(handle, data.indices.get_render_data().stride);
         std::vector<types::DrawBinding> draw_bindings;
         std::vector<types::RenderHandle> draw_handles;
+        std::vector<std::unordered_map<std::uint32_t, std::uint32_t>> texture_bindings;
         draw_bindings.reserve(data.materials.size());
         draw_handles.reserve(data.materials.size());
+        texture_bindings.reserve(data.materials.size());
+        std::unordered_map<const types::TextureData*, std::uint32_t> texture_objects;
         for (const auto& material : data.materials) {
             draw_bindings.emplace_back(material.draw_binding);
+            std::unordered_map<std::uint32_t, std::uint32_t> material_texture_bindings;
+            for (const auto& [name, texture] : material.textures) {
+                const auto binding = this->state->sampler_bindings.find(name);
+                if (binding == this->state->sampler_bindings.end() || !texture) {
+                    continue;
+                }
+                const auto cached_texture = texture_objects.find(texture.get());
+                if (cached_texture != texture_objects.end()) {
+                    material_texture_bindings.emplace(binding->second, cached_texture->second);
+                    continue;
+                }
+                const auto created_texture = this->create_texture(*texture);
+                if (created_texture.is_err()) {
+                    return created_texture.propagation(platform::RenderError::MakeError);
+                }
+                const auto object = this->state->objects.find(created_texture.unwrap());
+                if (object == this->state->objects.end()) {
+                    return foundation::Error(
+                        platform::RenderError::MakeError, "OpenGL texture object was not created");
+                }
+                texture_objects.emplace(texture.get(), object->second);
+                material_texture_bindings.emplace(binding->second, object->second);
+            }
+            texture_bindings.emplace_back(std::move(material_texture_bindings));
             const auto draw_handle = this->make_handle(types::RenderHandleType::Draw);
             (*this->handle_mapper)[draw_handle].resource =
                 (*this->handle_mapper)[index.unwrap()].resource;
@@ -404,6 +443,7 @@ namespace enishi::renderer::opengl {
             draw_handles.emplace_back(draw_handle);
         }
         this->state->mesh_draw_bindings.emplace(handle, std::move(draw_bindings));
+        this->state->mesh_texture_bindings.emplace(handle, std::move(texture_bindings));
         for (const auto& draw_handle : draw_handles) {
             mesh_handles.mesh_handles.emplace_back(draw_handle);
         }
@@ -531,6 +571,7 @@ namespace enishi::renderer::opengl {
             return false;
         }
         this->state->programs.emplace(program_key, this->state->active_program);
+        glUseProgram(this->state->active_program);
         for (const auto& [name, binding] : this->state->uniform_block_bindings) {
             const auto index = glGetUniformBlockIndex(this->state->active_program, name.c_str());
             if (index != GL_INVALID_INDEX) {
@@ -543,7 +584,6 @@ namespace enishi::renderer::opengl {
                 glUniform1i(location, static_cast<GLint>(binding));
             }
         }
-        glUseProgram(this->state->active_program);
         return true;
     }
     void OpenGL40Renderer::submit_command_shader(const types::DrawCommand& command) const {
@@ -713,10 +753,20 @@ namespace enishi::renderer::opengl {
         if (bindings == this->state->mesh_draw_bindings.end()) {
             return;
         }
+        const auto texture_bindings = this->state->mesh_texture_bindings.find(command.handle);
         const auto index_stride = this->state->index_strides.find(command.handle);
         const auto stride = index_stride == this->state->index_strides.end() ? NO_INDEX_STRIDE
                                                                              : index_stride->second;
-        for (const auto& binding : bindings->second) {
+        for (std::size_t material_index = 0; material_index < bindings->second.size();
+             ++material_index) {
+            if (texture_bindings != this->state->mesh_texture_bindings.end() &&
+                material_index < texture_bindings->second.size()) {
+                for (const auto& [unit, texture] : texture_bindings->second[material_index]) {
+                    glActiveTexture(GL_TEXTURE0 + unit);
+                    glBindTexture(GL_TEXTURE_2D, texture);
+                }
+            }
+            const auto& binding = bindings->second[material_index];
             if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
                 glDrawElementsInstancedBaseVertex(this->state->topology,
                     indexed->index_count,
@@ -733,6 +783,7 @@ namespace enishi::renderer::opengl {
                     std::max(MINIMUM_INSTANCE_COUNT, plain->instance_count));
             }
         }
+        glActiveTexture(GL_TEXTURE0);
     }
     void OpenGL40Renderer::submit_command_topology(const types::DrawCommand& command) const {
         if (command.sub_command != types::SubCommand::Bind) {

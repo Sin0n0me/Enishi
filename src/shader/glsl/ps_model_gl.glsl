@@ -1,9 +1,9 @@
 #version 400 core
 
-layout(std140, binding = 2) uniform Material { vec4 diffuse; vec3 specular; float shininess; vec3 ambient; float sphere_mul; float sphere_add; float edge_flag; vec2 padding; };
-layout(binding = 0) uniform sampler2D model_texture;
-layout(binding = 1) uniform sampler2D sphere_texture;
-layout(binding = 2) uniform sampler2D toon_texture;
+layout(std140) uniform Material { vec4 diffuse; vec3 specular; float shininess; vec3 ambient; float sphere_mul; float sphere_add; float edge_flag; vec2 padding; };
+uniform sampler2D model_texture;
+uniform sampler2D sphere_texture;
+uniform sampler2D toon_texture;
 
 in vec2 uv;
 in vec3 view_position;
