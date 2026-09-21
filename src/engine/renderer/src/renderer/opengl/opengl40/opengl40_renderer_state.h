@@ -53,6 +53,8 @@ namespace enishi::renderer::opengl {
         std::uint32_t back_buffer_color;
         std::int32_t back_buffer_width;
         std::int32_t back_buffer_height;
+        std::int32_t uniform_buffer_binding_limit;
+        std::int32_t texture_unit_limit;
         bool is_back_buffer_framebuffer_complete;
         std::vector<types::RenderHandle> viewport_order;
 

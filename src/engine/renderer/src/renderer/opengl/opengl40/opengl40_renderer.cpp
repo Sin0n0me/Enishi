@@ -7,6 +7,7 @@
 #include <glad/gl.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <renderer/opengl/common/opengl_image_view.h>
+#include <unordered_set>
 
 namespace enishi::renderer::opengl {
     constexpr std::uint32_t NO_GL_OBJECT = 0;
@@ -53,6 +54,8 @@ namespace enishi::renderer::opengl {
         , back_buffer_color(NO_GL_OBJECT)
         , back_buffer_width(0)
         , back_buffer_height(0)
+        , uniform_buffer_binding_limit(0)
+        , texture_unit_limit(0)
         , is_back_buffer_framebuffer_complete(false) {
     }
 
@@ -63,6 +66,8 @@ namespace enishi::renderer::opengl {
         , state(std::make_unique<OpenGL40RendererState>()) {
         this->context->make_current();
         glEnable(GL_DEPTH_TEST);
+        glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &this->state->uniform_buffer_binding_limit);
+        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &this->state->texture_unit_limit);
     }
     OpenGL40Renderer::~OpenGL40Renderer(void) noexcept {
         if (!this->context || !this->context->make_current()) {
@@ -109,19 +114,44 @@ namespace enishi::renderer::opengl {
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
         }
+        std::unordered_set<std::string> new_uniform_blocks;
+        std::unordered_set<std::string> new_samplers;
         for (const auto& resource :
             reflection->get_shader_input_reflection()->get_input_resources()) {
-            if (resource.type == types::ShaderInputResourceType::UniformBuffer) {
-                if (!this->state->uniform_block_bindings.contains(resource.name)) {
-                    this->state->uniform_block_bindings.emplace(resource.name,
-                        static_cast<std::uint32_t>(this->state->uniform_block_bindings.size()));
-                }
+            if (resource.type == types::ShaderInputResourceType::UniformBuffer &&
+                !this->state->uniform_block_bindings.contains(resource.name)) {
+                new_uniform_blocks.emplace(resource.name);
             }
-            if (resource.type == types::ShaderInputResourceType::Texture) {
-                if (!this->state->sampler_bindings.contains(resource.name)) {
-                    this->state->sampler_bindings.emplace(resource.name,
-                        static_cast<std::uint32_t>(this->state->sampler_bindings.size()));
-                }
+            if (resource.type == types::ShaderInputResourceType::Texture &&
+                !this->state->sampler_bindings.contains(resource.name)) {
+                new_samplers.emplace(resource.name);
+            }
+        }
+        const auto uniform_block_count =
+            this->state->uniform_block_bindings.size() + new_uniform_blocks.size();
+        if (this->state->uniform_buffer_binding_limit < 0 ||
+            uniform_block_count >
+                static_cast<std::size_t>(this->state->uniform_buffer_binding_limit)) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL uniform buffer binding limit is too small for the shader resources");
+        }
+        const auto sampler_count = this->state->sampler_bindings.size() + new_samplers.size();
+        if (this->state->texture_unit_limit < 0 ||
+            sampler_count > static_cast<std::size_t>(this->state->texture_unit_limit)) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "OpenGL texture unit limit is too small for the shader resources");
+        }
+        for (const auto& resource :
+            reflection->get_shader_input_reflection()->get_input_resources()) {
+            if (resource.type == types::ShaderInputResourceType::UniformBuffer &&
+                !this->state->uniform_block_bindings.contains(resource.name)) {
+                this->state->uniform_block_bindings.emplace(resource.name,
+                    static_cast<std::uint32_t>(this->state->uniform_block_bindings.size()));
+            }
+            if (resource.type == types::ShaderInputResourceType::Texture &&
+                !this->state->sampler_bindings.contains(resource.name)) {
+                this->state->sampler_bindings.emplace(resource.name,
+                    static_cast<std::uint32_t>(this->state->sampler_bindings.size()));
             }
         }
         const auto glsl_reflection = reflection;
