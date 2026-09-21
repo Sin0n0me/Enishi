@@ -108,50 +108,50 @@ namespace enishi::renderer::opengl {
         this->unordered_accesses.emplace(handle, std::move(view));
         return handle;
     }
-    foundation::Option<RTV&> OpenGLResourceAccessor::get_render_target_view(
+    foundation::Option<OpenGLResourceAccessor::RTV&> OpenGLResourceAccessor::get_render_target_view(
         const types::HandleId handle) noexcept {
         const auto it = this->render_targets.find(handle);
         return it == this->render_targets.end() ? foundation::Option<RTV&>()
                                                 : foundation::Option<RTV&>(it->second);
     }
-    foundation::Option<const RTV&> OpenGLResourceAccessor::get_render_target_view(
-        const types::HandleId handle) const noexcept {
+    foundation::Option<const OpenGLResourceAccessor::RTV&>
+    OpenGLResourceAccessor::get_render_target_view(const types::HandleId handle) const noexcept {
         const auto it = this->render_targets.find(handle);
         return it == this->render_targets.end() ? foundation::Option<const RTV&>()
                                                 : foundation::Option<const RTV&>(it->second);
     }
-    foundation::Option<SRV&> OpenGLResourceAccessor::get_shader_resource_view(
-        const types::HandleId handle) noexcept {
+    foundation::Option<OpenGLResourceAccessor::SRV&>
+    OpenGLResourceAccessor::get_shader_resource_view(const types::HandleId handle) noexcept {
         const auto it = this->shader_resources.find(handle);
         return it == this->shader_resources.end() ? foundation::Option<SRV&>()
                                                   : foundation::Option<SRV&>(it->second);
     }
-    foundation::Option<const SRV&> OpenGLResourceAccessor::get_shader_resource_view(
-        const types::HandleId handle) const noexcept {
+    foundation::Option<const OpenGLResourceAccessor::SRV&>
+    OpenGLResourceAccessor::get_shader_resource_view(const types::HandleId handle) const noexcept {
         const auto it = this->shader_resources.find(handle);
         return it == this->shader_resources.end() ? foundation::Option<const SRV&>()
                                                   : foundation::Option<const SRV&>(it->second);
     }
-    foundation::Option<DSV&> OpenGLResourceAccessor::get_depth_stencil_view(
+    foundation::Option<OpenGLResourceAccessor::DSV&> OpenGLResourceAccessor::get_depth_stencil_view(
         const types::HandleId handle) noexcept {
         const auto it = this->depth_stencils.find(handle);
         return it == this->depth_stencils.end() ? foundation::Option<DSV&>()
                                                 : foundation::Option<DSV&>(it->second);
     }
-    foundation::Option<const DSV&> OpenGLResourceAccessor::get_depth_stencil_view(
-        const types::HandleId handle) const noexcept {
+    foundation::Option<const OpenGLResourceAccessor::DSV&>
+    OpenGLResourceAccessor::get_depth_stencil_view(const types::HandleId handle) const noexcept {
         const auto it = this->depth_stencils.find(handle);
         return it == this->depth_stencils.end() ? foundation::Option<const DSV&>()
                                                 : foundation::Option<const DSV&>(it->second);
     }
-    foundation::Option<UAV&> OpenGLResourceAccessor::get_unordered_access_view(
-        const types::HandleId handle) noexcept {
+    foundation::Option<OpenGLResourceAccessor::UAV&>
+    OpenGLResourceAccessor::get_unordered_access_view(const types::HandleId handle) noexcept {
         const auto it = this->unordered_accesses.find(handle);
         return it == this->unordered_accesses.end() ? foundation::Option<UAV&>()
                                                     : foundation::Option<UAV&>(it->second);
     }
-    foundation::Option<const UAV&> OpenGLResourceAccessor::get_unordered_access_view(
-        const types::HandleId handle) const noexcept {
+    foundation::Option<const OpenGLResourceAccessor::UAV&>
+    OpenGLResourceAccessor::get_unordered_access_view(const types::HandleId handle) const noexcept {
         const auto it = this->unordered_accesses.find(handle);
         return it == this->unordered_accesses.end() ? foundation::Option<const UAV&>()
                                                     : foundation::Option<const UAV&>(it->second);
