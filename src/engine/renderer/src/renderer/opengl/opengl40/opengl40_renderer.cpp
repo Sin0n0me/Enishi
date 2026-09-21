@@ -7,7 +7,7 @@
 #include <renderer/opengl/common/opengl_image_view.h>
 
 namespace enishi::renderer::opengl {
-    OpenGL40Renderer::State::State(void)
+    OpenGL40RendererState::OpenGL40RendererState(void)
         : topology(GL_TRIANGLES)
         , active_vertex_shader(0)
         , active_fragment_shader(0)
@@ -20,7 +20,7 @@ namespace enishi::renderer::opengl {
         : context(std::move(context))
         , handle_mapper(std::make_unique<RenderHandleMapper>())
         , resource_accessor(std::make_unique<OpenGLResourceAccessor>())
-        , state(std::make_unique<State>()) {
+        , state(std::make_unique<OpenGL40RendererState>()) {
         this->context->make_current();
         glEnable(GL_DEPTH_TEST);
     }
