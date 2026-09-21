@@ -37,9 +37,8 @@ namespace enishi::renderer::opengl {
     constexpr std::uint32_t SHADER_PROGRAM_KEY_SHIFT = 32u;
     constexpr std::uint32_t FIRST_RENDER_TARGET = 0;
     constexpr std::uint32_t MINIMUM_INSTANCE_COUNT = 1;
+    constexpr std::uint32_t UNSUPPORTED_FIRST_INSTANCE = 0;
     constexpr std::uint8_t EMPTY_COLOR_WRITE_MASK = 0;
-    constexpr float DEFAULT_CLEAR_COLOR = 0.25f;
-    constexpr float OPAQUE_ALPHA = 1.0f;
 
     OpenGL40RendererState::OpenGL40RendererState(void)
         : topology(GL_TRIANGLES)
@@ -273,6 +272,21 @@ namespace enishi::renderer::opengl {
             return mesh.propagation(platform::RenderError::MakeError);
         }
         auto data = std::move(mesh.unwrap_mut());
+        for (const auto& material : data.materials) {
+            if (const auto indexed =
+                    std::get_if<types::DrawIndexedParameter>(&material.draw_binding.parameter)) {
+                if (indexed->first_instance != UNSUPPORTED_FIRST_INSTANCE) {
+                    return foundation::Error(platform::RenderError::MakeError,
+                        "OpenGL 4.0 does not support non-zero first_instance");
+                }
+            } else if (const auto plain =
+                           std::get_if<types::DrawParameter>(&material.draw_binding.parameter)) {
+                if (plain->first_instance != UNSUPPORTED_FIRST_INSTANCE) {
+                    return foundation::Error(platform::RenderError::MakeError,
+                        "OpenGL 4.0 does not support non-zero first_instance");
+                }
+            }
+        }
         auto vertex = this->make_buffer(data.vertices.get_render_data(), GL_ARRAY_BUFFER);
         if (vertex.is_err()) {
             return std::move(vertex);
@@ -375,16 +389,27 @@ namespace enishi::renderer::opengl {
         this->state->index_types.emplace(handle, index_type);
         this->state->index_strides.emplace(handle, data.indices.get_render_data().stride);
         std::vector<types::DrawBinding> draw_bindings;
+        std::vector<types::RenderHandle> draw_handles;
         draw_bindings.reserve(data.materials.size());
+        draw_handles.reserve(data.materials.size());
         for (const auto& material : data.materials) {
             draw_bindings.emplace_back(material.draw_binding);
+            const auto draw_handle = this->make_handle(types::RenderHandleType::Draw);
+            (*this->handle_mapper)[draw_handle].resource =
+                (*this->handle_mapper)[index.unwrap()].resource;
+            this->state->draw_bindings.emplace(draw_handle, material.draw_binding);
+            draw_handles.emplace_back(draw_handle);
         }
         this->state->mesh_draw_bindings.emplace(handle, std::move(draw_bindings));
+        for (const auto& draw_handle : draw_handles) {
+            mesh_handles.mesh_handles.emplace_back(draw_handle);
+        }
         return handle;
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(
         const types::TextureData& texture) {
-        if (texture.is_cubemap || texture.depth > SINGLE_IMAGE_LAYER || texture.mips.empty() ||
+        if (texture.is_cubemap || texture.depth > SINGLE_IMAGE_LAYER ||
+            texture.array_size != SINGLE_IMAGE_LAYER || texture.mips.empty() ||
             types::TextureData::is_compressed(texture.format)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported OpenGL 4.0 texture format");
@@ -539,7 +564,8 @@ namespace enishi::renderer::opengl {
         if (view_type.is_none()) {
             return;
         }
-        if (view_type.unwrap() == types::ImageViewType::ShaderResource) {
+        const auto type = view_type.unwrap();
+        if (type == types::ImageViewType::ShaderResource) {
             const auto object = this->state->objects.find(command.handle);
 
             if (object != this->state->objects.end()) {
@@ -558,9 +584,24 @@ namespace enishi::renderer::opengl {
             (render_target.is_valid() && this->state->back_buffer_images.contains(render_target));
         if (is_back_buffer) {
             glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-
-            glClearColor(
-                DEFAULT_CLEAR_COLOR, DEFAULT_CLEAR_COLOR, DEFAULT_CLEAR_COLOR, OPAQUE_ALPHA);
+            if (type == types::ImageViewType::RenderTarget) {
+                const auto render_target_view =
+                    this->resource_accessor->get_render_target_view(command.handle.id);
+                if (render_target_view.is_none()) {
+                    return;
+                }
+                const auto color = render_target_view.unwrap()->get_clear_color();
+                glClearColor(color.r, color.g, color.b, color.a);
+            }
+            if (type == types::ImageViewType::DepthStencil) {
+                const auto depth_stencil_view =
+                    this->resource_accessor->get_depth_stencil_view(command.handle.id);
+                if (depth_stencil_view.is_none()) {
+                    return;
+                }
+                glClearDepth(depth_stencil_view.unwrap()->clear_depth());
+                glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+            }
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             return;
         }
@@ -570,36 +611,42 @@ namespace enishi::renderer::opengl {
             this->state->framebuffers.emplace_back(this->state->active_framebuffer);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, this->state->active_framebuffer);
-        if (view_type.unwrap() == types::ImageViewType::RenderTarget) {
+        if (type == types::ImageViewType::RenderTarget) {
             const auto render_target_view =
                 this->resource_accessor->get_render_target_view(command.handle.id);
             if (render_target_view.is_none()) {
                 return;
             }
+            const auto color = render_target_view.unwrap()->get_clear_color();
+            glClearColor(color.r, color.g, color.b, color.a);
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,
                 object->second,
                 static_cast<GLint>(render_target_view.unwrap()->get_description().base_mip_level));
         }
-        if (view_type.unwrap() == types::ImageViewType::DepthStencil) {
+        if (type == types::ImageViewType::DepthStencil) {
             const auto depth_stencil_view =
                 this->resource_accessor->get_depth_stencil_view(command.handle.id);
             if (depth_stencil_view.is_none()) {
                 return;
             }
+            glClearDepth(depth_stencil_view.unwrap()->clear_depth());
+            glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_DEPTH_STENCIL_ATTACHMENT,
                 GL_TEXTURE_2D,
                 object->second,
                 static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
         }
-        if (render_target.is_valid() && view_type.unwrap() == types::ImageViewType::DepthStencil) {
+        if (render_target.is_valid() && type == types::ImageViewType::DepthStencil) {
             const auto target = this->state->objects.find(render_target);
             const auto render_target_view =
                 this->resource_accessor->get_render_target_view(render_target.id);
 
             if (target != this->state->objects.end() && render_target_view.is_some()) {
+                const auto color = render_target_view.unwrap()->get_clear_color();
+                glClearColor(color.r, color.g, color.b, color.a);
                 glFramebufferTexture2D(GL_FRAMEBUFFER,
                     GL_COLOR_ATTACHMENT0,
                     GL_TEXTURE_2D,
