@@ -69,10 +69,12 @@ namespace enishi::renderer::opengl {
             static_cast<GLsizei>(this->state->textures.size()), this->state->textures.data());
         glDeleteVertexArrays(static_cast<GLsizei>(this->state->vertex_arrays.size()),
             this->state->vertex_arrays.data());
-        for (const auto shader : this->state->shaders)
+        for (const auto shader : this->state->shaders) {
             glDeleteShader(shader);
-        for (const auto& [_, program] : this->state->programs)
+        }
+        for (const auto& [_, program] : this->state->programs) {
             glDeleteProgram(program);
+        }
         glDeleteFramebuffers(static_cast<GLsizei>(this->state->framebuffers.size()),
             this->state->framebuffers.data());
     }
@@ -374,8 +376,9 @@ namespace enishi::renderer::opengl {
         this->state->index_strides.emplace(handle, data.indices.get_render_data().stride);
         std::vector<types::DrawBinding> draw_bindings;
         draw_bindings.reserve(data.materials.size());
-        for (const auto& material : data.materials)
+        for (const auto& material : data.materials) {
             draw_bindings.emplace_back(material.draw_binding);
+        }
         this->state->mesh_draw_bindings.emplace(handle, std::move(draw_bindings));
         return handle;
     }
