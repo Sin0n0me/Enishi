@@ -24,7 +24,10 @@ namespace enishi::types {
         glm::quat rotation;
     };
 
-    enum class MorphOperation { Multiply, Add };
+    enum class MorphOperation {
+        Multiply,
+        Add,
+    };
 
     struct MaterialPropertyOffset {
         std::string property;
@@ -57,7 +60,10 @@ namespace enishi::types {
         MorphWeightOffset,
         ImpulseMorphOffset>;
 
-    enum class MorphWeightMode { Continuous, DiscreteSelection };
+    enum class MorphWeightMode {
+        Continuous,
+        DiscreteSelection,
+    };
 
     struct MorphTarget {
         std::string name;

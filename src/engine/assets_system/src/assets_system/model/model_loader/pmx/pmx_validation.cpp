@@ -5,7 +5,7 @@ namespace enishi::assets_system {
     namespace {
         bool reference(std::int32_t index, std::size_t count, bool optional = false) {
             return (optional && index == -1) ||
-                   (index >= 0 && static_cast<std::size_t>(index) < count);
+                   (index > -1 && static_cast<std::size_t>(index) < count);
         }
 
         bool acyclic(const std::vector<std::vector<std::size_t>>& edges) {
@@ -61,7 +61,7 @@ namespace enishi::assets_system {
             return invalid("incomplete triangle");
         }
         for (const auto index : data.indices) {
-            if (index >= data.vertices.size()) {
+            if (!(index < data.vertices.size())) {
                 return invalid("vertex index out of range");
             }
         }
@@ -93,13 +93,13 @@ namespace enishi::assets_system {
                     !reference(bone.inherit_parent, data.bones.size(), true))) {
                 return invalid("bone reference out of range");
             }
-            if (bone.parent >= 0) {
+            if (bone.parent > -1) {
                 bone_edges[i].push_back(bone.parent);
             }
-            if ((bone.flags & 0x0300) && bone.inherit_parent >= 0) {
+            if ((bone.flags & 0x0300) != 0 && bone.inherit_parent > -1) {
                 bone_edges[i].push_back(bone.inherit_parent);
             }
-            if (bone.flags & 0x0020) {
+            if ((bone.flags & 0x0020) != 0) {
                 if (!reference(bone.ik_target, data.bones.size()) || bone.ik_iterations < 0) {
                     return invalid("invalid IK target or iterations");
                 }
@@ -108,7 +108,7 @@ namespace enishi::assets_system {
                         return invalid("IK link out of range");
                     }
                     for (std::size_t axis = 0; axis < 3; ++axis) {
-                        if (link.limited && link.lower[axis] > link.upper[axis]) {
+                        if (link.limited != 0 && link.lower[axis] > link.upper[axis]) {
                             return invalid("inverted IK angle limits");
                         }
                     }
@@ -126,11 +126,16 @@ namespace enishi::assets_system {
                 return invalid("invalid morph type");
             }
             for (const auto& offset : morph.offsets) {
-                const auto count = morph.type == 0 || morph.type == 9 ? data.morphs.size()
-                                   : morph.type == 2                  ? data.bones.size()
-                                   : morph.type == 8                  ? data.materials.size()
-                                   : morph.type == 10                 ? data.rigid_bodies.size()
-                                                                      : data.vertices.size();
+                std::size_t count = data.vertices.size();
+                if (morph.type == 0 || morph.type == 9) {
+                    count = data.morphs.size();
+                } else if (morph.type == 2) {
+                    count = data.bones.size();
+                } else if (morph.type == 8) {
+                    count = data.materials.size();
+                } else if (morph.type == 10) {
+                    count = data.rigid_bodies.size();
+                }
                 if (!reference(offset.index, count, morph.type == 8)) {
                     return invalid("morph reference out of range");
                 }
@@ -152,7 +157,7 @@ namespace enishi::assets_system {
             }
         }
         for (const auto& body : data.rigid_bodies) {
-            if (body.shape > 2 || body.mode > 2 || body.group >= 16 ||
+            if (body.shape > 2 || body.mode > 2 || body.group > 15 ||
                 !reference(body.bone, data.bones.size(), true)) {
                 return invalid("rigid body bone out of range");
             }
@@ -165,7 +170,7 @@ namespace enishi::assets_system {
             }
         }
         for (const auto& body : data.soft_bodies) {
-            if (data.version != 2.1f || body.shape > 1 || body.group >= 16 || body.aero_model < 0 ||
+            if (data.version != 2.1f || body.shape > 1 || body.group > 15 || body.aero_model < 0 ||
                 body.aero_model > 4 || !reference(body.material, data.materials.size())) {
                 return invalid("soft body material out of range");
             }

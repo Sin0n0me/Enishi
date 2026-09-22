@@ -1,6 +1,8 @@
 #pragma once
 #include "bone.h"
+#include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace enishi::types {
     struct BoneConstraint {

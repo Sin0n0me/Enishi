@@ -29,7 +29,7 @@ namespace enishi::assets_system {
             }
 
             template <typename T> void read(T& value) {
-                if (!this->require(sizeof(T) <= this->bytes.size() - this->position,
+                if (!this->require(!(sizeof(T) > this->bytes.size() - this->position),
                         "unexpected end of file")) {
                     return;
                 }
@@ -113,12 +113,16 @@ namespace enishi::assets_system {
                         if (first < 0x80) {
                             continue;
                         }
-                        const int extra = first >= 0xC2 && first <= 0xDF   ? 1
-                                          : first >= 0xE0 && first <= 0xEF ? 2
-                                          : first >= 0xF0 && first <= 0xF4 ? 3
-                                                                           : 0;
+                        int extra{};
+                        if (first > 0xC1 && first < 0xE0) {
+                            extra = 1;
+                        } else if (first > 0xDF && first < 0xF0) {
+                            extra = 2;
+                        } else if (first > 0xEF && first < 0xF5) {
+                            extra = 3;
+                        }
                         if (!this->require(
-                                extra != 0 && end - this->position >= extra, "invalid UTF-8")) {
+                                extra != 0 && end - this->position > extra - 1, "invalid UTF-8")) {
                             return;
                         }
                         std::uint32_t code = first & ((1u << (6 - extra)) - 1);
@@ -127,10 +131,16 @@ namespace enishi::assets_system {
                             this->require((next & 0xC0) == 0x80, "invalid UTF-8 continuation");
                             code = (code << 6) | (next & 0x3F);
                         }
-                        this->require(code >= (extra == 1      ? 0x80u
-                                                  : extra == 2 ? 0x800u
-                                                               : 0x10000u) &&
-                                          code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF),
+                        std::uint32_t minimum_code{};
+                        if (extra == 1) {
+                            minimum_code = 0x80;
+                        } else if (extra == 2) {
+                            minimum_code = 0x800;
+                        } else {
+                            minimum_code = 0x10000;
+                        }
+                        this->require(code > minimum_code - 1 && code < 0x110000 &&
+                                          !(code > 0xD7FF && code < 0xE000),
                             "invalid UTF-8 code point");
                     }
                     return;
@@ -142,14 +152,14 @@ namespace enishi::assets_system {
                     std::uint16_t unit{};
                     this->read(unit);
                     std::uint32_t code = unit;
-                    if (unit >= 0xD800 && unit <= 0xDBFF) {
-                        if (!this->require(end - this->position >= 2, "truncated surrogate pair")) {
+                    if (unit > 0xD7FF && unit < 0xDC00) {
+                        if (!this->require(end - this->position > 1, "truncated surrogate pair")) {
                             return;
                         }
                         std::uint16_t low{};
                         this->read(low);
                         if (!this->require(
-                                low >= 0xDC00 && low <= 0xDFFF, "invalid surrogate pair")) {
+                                low > 0xDBFF && low < 0xE000, "invalid surrogate pair")) {
                             return;
                         }
                         code = 0x10000 + ((unit - 0xD800) << 10) + low - 0xDC00;
@@ -160,12 +170,17 @@ namespace enishi::assets_system {
                     if (code < 0x80) {
                         value.push_back(static_cast<char>(code));
                     } else {
-                        const int extra = code < 0x800 ? 1 : code < 0x10000 ? 2 : 3;
-                        value.push_back(static_cast<char>((extra == 1      ? 0xC0
-                                                              : extra == 2 ? 0xE0
-                                                                           : 0xF0) |
-                                                          (code >> (extra * 6))));
-                        for (int i = extra - 1; i >= 0; --i) {
+                        int extra{3};
+                        std::uint32_t prefix{0xF0};
+                        if (code < 0x800) {
+                            extra = 1;
+                            prefix = 0xC0;
+                        } else if (code < 0x10000) {
+                            extra = 2;
+                            prefix = 0xE0;
+                        }
+                        value.push_back(static_cast<char>(prefix | (code >> (extra * 6))));
+                        for (int i = extra - 1; i != -1; --i) {
                             value.push_back(static_cast<char>(0x80 | ((code >> (i * 6)) & 0x3F)));
                         }
                     }
@@ -212,13 +227,16 @@ namespace enishi::assets_system {
                         this->read(uv);
                     }
                     this->read(v.deform_type);
-                    if (!this->require(v.deform_type <= (data.version == 2.1f ? 4 : 3),
+                    if (!this->require(v.deform_type < (data.version == 2.1f ? 5 : 4),
                             "invalid deformation type")) {
                         return;
                     }
-                    const int bone_count = v.deform_type == 0                         ? 1
-                                           : v.deform_type == 1 || v.deform_type == 3 ? 2
-                                                                                      : 4;
+                    int bone_count{4};
+                    if (v.deform_type == 0) {
+                        bone_count = 1;
+                    } else if (v.deform_type == 1 || v.deform_type == 3) {
+                        bone_count = 2;
+                    }
                     for (int i = 0; i < bone_count; ++i) {
                         v.bones[i] = index(3);
                     }
@@ -254,7 +272,7 @@ namespace enishi::assets_system {
                     v.texture = index(1);
                     v.sphere_texture = index(1);
                     this->fields(v.sphere_mode, v.shared_toon);
-                    this->require(v.sphere_mode <= 3 && v.shared_toon <= 1, "invalid texture mode");
+                    this->require(v.sphere_mode < 4 && v.shared_toon < 2, "invalid texture mode");
                     if (v.shared_toon == 1) {
                         std::uint8_t toon{};
                         this->read(toon);
@@ -272,34 +290,34 @@ namespace enishi::assets_system {
                     this->read(v.position);
                     v.parent = index(3);
                     this->fields(v.layer, v.flags);
-                    if (v.flags & 1) {
+                    if ((v.flags & 1) != 0) {
                         v.tail = index(3);
                     } else {
                         this->read(v.tail_offset);
                     }
-                    if (v.flags & 0x0300) {
+                    if ((v.flags & 0x0300) != 0) {
                         v.inherit_parent = index(3);
                         this->read(v.inherit_weight);
                     }
-                    if (v.flags & 0x0400) {
+                    if ((v.flags & 0x0400) != 0) {
                         this->read(v.fixed_axis);
                     }
-                    if (v.flags & 0x0800) {
+                    if ((v.flags & 0x0800) != 0) {
                         this->fields(v.local_x, v.local_z);
                     }
-                    if (v.flags & 0x2000) {
+                    if ((v.flags & 0x2000) != 0) {
                         this->read(v.external_parent);
                     }
-                    if (v.flags & 0x0020) {
+                    if ((v.flags & 0x0020) != 0) {
                         v.ik_target = index(3);
                         this->fields(v.ik_iterations, v.ik_angle);
                         this->require(
-                            v.ik_iterations >= 0 && v.ik_angle >= 0, "invalid IK settings");
+                            v.ik_iterations > -1 && v.ik_angle > -1, "invalid IK settings");
                         this->records(v.ik_links, 2, [&](PMXIKLink& link) {
                             link.bone = index(3);
                             this->read(link.limited);
-                            this->require(link.limited <= 1, "invalid IK limit flag");
-                            if (link.limited) {
+                            this->require(link.limited < 2, "invalid IK limit flag");
+                            if (link.limited != 0) {
                                 this->fields(link.lower, link.upper);
                             }
                         });
@@ -309,16 +327,22 @@ namespace enishi::assets_system {
                 this->records(data.morphs, 14, [&](PMXMorph& v) {
                     names(v);
                     this->fields(v.panel, v.type);
-                    if (!this->require(v.panel <= 4 && v.type <= (data.version == 2.1f ? 10 : 8),
+                    if (!this->require(v.panel < 5 && v.type < (data.version == 2.1f ? 11 : 9),
                             "invalid morph type or panel")) {
                         return;
                     }
                     this->records(v.offsets, 5, [&](PMXMorphOffset& o) {
-                        o.index = index(v.type == 0 || v.type == 9 ? 4
-                                        : v.type == 2              ? 3
-                                        : v.type == 8              ? 2
-                                        : v.type == 10             ? 5
-                                                                   : 0);
+                        int index_kind{};
+                        if (v.type == 0 || v.type == 9) {
+                            index_kind = 4;
+                        } else if (v.type == 2) {
+                            index_kind = 3;
+                        } else if (v.type == 8) {
+                            index_kind = 2;
+                        } else if (v.type == 10) {
+                            index_kind = 5;
+                        }
+                        o.index = index(index_kind);
                         switch (v.type) {
                             case 0:
                             case 9:
@@ -341,11 +365,11 @@ namespace enishi::assets_system {
                                     o.texture,
                                     o.sphere,
                                     o.toon);
-                                this->require(o.operation <= 1, "invalid material morph operation");
+                                this->require(o.operation < 2, "invalid material morph operation");
                                 break;
                             case 10:
                                 this->fields(o.operation, o.translation, o.torque);
-                                this->require(o.operation <= 1, "invalid impulse coordinate space");
+                                this->require(o.operation < 2, "invalid impulse coordinate space");
                                 break;
                             default:
                                 this->read(o.uv);
@@ -357,10 +381,10 @@ namespace enishi::assets_system {
                 this->records(data.display_frames, 13, [&](PMXDisplayFrame& v) {
                     names(v);
                     this->read(v.special);
-                    this->require(v.special <= 1, "invalid display frame flag");
+                    this->require(v.special < 2, "invalid display frame flag");
                     this->records(v.elements, 2, [&](PMXDisplayElement& e) {
                         this->read(e.type);
-                        this->require(e.type <= 1, "invalid display element type");
+                        this->require(e.type < 2, "invalid display element type");
                         e.index = index(e.type == 0 ? 3 : 4);
                     });
                 });
@@ -381,13 +405,13 @@ namespace enishi::assets_system {
                         v.friction,
                         v.mode);
                     this->require(
-                        v.group < 16 && v.shape <= 2 && v.mode <= 2, "invalid rigid body settings");
+                        v.group < 16 && v.shape < 3 && v.mode < 3, "invalid rigid body settings");
                 });
                 this->section = "joints";
                 this->records(data.joints, 107, [&](PMXJoint& v) {
                     names(v);
                     this->read(v.type);
-                    this->require(v.type <= (data.version == 2.1f ? 5 : 0), "invalid joint type");
+                    this->require(v.type < (data.version == 2.1f ? 6 : 1), "invalid joint type");
                     v.body_a = index(5);
                     v.body_b = index(5);
                     this->fields(v.position,
@@ -417,15 +441,15 @@ namespace enishi::assets_system {
                             v.cluster,
                             v.iterations,
                             v.stiffness);
-                        this->require(v.shape <= 1 && v.group < 16 && v.link_distance >= 0 &&
-                                          v.cluster_count >= 0 && v.aero_model >= 0 &&
-                                          v.aero_model <= 4,
+                        this->require(v.shape < 2 && v.group < 16 && v.link_distance > -1 &&
+                                          v.cluster_count > -1 && v.aero_model > -1 &&
+                                          v.aero_model < 5,
                             "invalid soft body settings");
                         this->records(v.anchors, 3, [&](PMXSoftBodyAnchor& a) {
                             a.body = index(5);
                             a.vertex = index(0);
                             this->read(a.near_mode);
-                            this->require(a.near_mode <= 1, "invalid soft body anchor flag");
+                            this->require(a.near_mode < 2, "invalid soft body anchor flag");
                         });
                         this->records(v.pinned_vertices, 1, [&](std::int32_t& p) { p = index(0); });
                     });

@@ -104,7 +104,7 @@ namespace {
             joint.rotation_spring = {4, 5, 6};
             data.joints.push_back(joint);
         }
-        for (std::uint8_t kind = 0; kind <= 10; ++kind) {
+        for (std::uint8_t kind = 0; kind < 11; ++kind) {
             PMXMorph morph;
             morph.type = kind;
             morph.name = std::to_string(kind);

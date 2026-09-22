@@ -39,7 +39,8 @@ namespace enishi::assets_system {
         }
         auto&& model_data = load_data.unwrap_mut();
 
-        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
+        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data);
+            pmd_data != nullptr) {
             auto&& convert_data =
                 PMDToModelData::to_model_data(path, *pmd_data->get(), this->texture_loader.get())
                     .add_message("データの変換に失敗しました");
@@ -50,7 +51,8 @@ namespace enishi::assets_system {
             return types::AssetData{convert_data.unwrap()};
         }
 
-        if (const auto pmx_data = std::get_if<std::unique_ptr<PMXData>>(&model_data)) {
+        if (const auto pmx_data = std::get_if<std::unique_ptr<PMXData>>(&model_data);
+            pmx_data != nullptr) {
             auto converted =
                 PMXToModelData::to_model_data(path, **pmx_data, this->texture_loader.get());
             if (converted.is_err()) {

@@ -23,7 +23,7 @@ namespace enishi::assets_system {
                 std::ranges::any_of(data.vertices, [](const PMXVertex& vertex) {
                     return vertex.deform_type == 2 || vertex.deform_type == 4 ||
                            std::ranges::any_of(vertex.bones,
-                               [](std::int32_t index) { return index >= UINT16_MAX; });
+                               [](std::int32_t index) { return index > UINT16_MAX - 1; });
                 });
             model.vertices.reserve(data.vertices.size());
             model.skinning_methods.reserve(data.vertices.size());
@@ -73,27 +73,27 @@ namespace enishi::assets_system {
                 dst.bind_bone.local = glm::translate(glm::mat4(1), position - parent_position);
                 dst.bind_bone.global = glm::translate(glm::mat4(1), position);
                 dst.bind_bone.global_inverse = glm::translate(glm::mat4(1), -position);
-                if (src.parent >= 0) {
+                if (src.parent > -1) {
                     bones[src.parent].bone_node.children.push_back(i);
                 }
                 types::BoneConstraint constraint;
                 constraint.bone = i;
                 constraint.source = bone_index(src.inherit_parent);
-                constraint.rotation_weight = (src.flags & 0x0100) ? src.inherit_weight : 0;
-                constraint.translation_weight = (src.flags & 0x0200) ? src.inherit_weight : 0;
+                constraint.rotation_weight = (src.flags & 0x0100) != 0 ? src.inherit_weight : 0;
+                constraint.translation_weight = (src.flags & 0x0200) != 0 ? src.inherit_weight : 0;
                 constraint.local_space = (src.flags & 0x0080) != 0;
                 constraint.after_physics = (src.flags & 0x1000) != 0;
                 constraint.evaluation_order = src.layer;
-                if (src.flags & 0x0400) {
+                if ((src.flags & 0x0400) != 0) {
                     constraint.rotation_axis = vector(src.fixed_axis);
                 }
-                if (src.flags & 0x0800) {
+                if ((src.flags & 0x0800) != 0) {
                     const auto x = vector(src.local_x);
                     const auto z = vector(src.local_z);
                     constraint.local_axes = glm::mat3(x, glm::cross(z, x), z);
                 }
                 constraints.constraints.push_back(constraint);
-                if (src.flags & 0x0020) {
+                if ((src.flags & 0x0020) != 0) {
                     types::CCDIK ik{};
                     ik.iterations = static_cast<std::uint32_t>(src.ik_iterations);
                     ik.target = bone_index(src.ik_target);
@@ -202,23 +202,27 @@ namespace enishi::assets_system {
                 dst.cast_shadow = (src.flags & 0x04) != 0;
                 dst.receive_shadow = (src.flags & 0x08) != 0;
                 dst.outline_color = vector(src.edge_color);
-                dst.outline_width = (src.flags & 0x10) ? src.edge_size : 0;
+                dst.outline_width = (src.flags & 0x10) != 0 ? src.edge_size : 0;
                 dst.vertex_color = (src.flags & 0x20) != 0;
-                dst.topology = (src.flags & 0x40)   ? types::MaterialTopology::Points
-                               : (src.flags & 0x80) ? types::MaterialTopology::Lines
-                                                    : types::MaterialTopology::Triangles;
+                if ((src.flags & 0x40) != 0) {
+                    dst.topology = types::MaterialTopology::Points;
+                } else if ((src.flags & 0x80) != 0) {
+                    dst.topology = types::MaterialTopology::Lines;
+                } else {
+                    dst.topology = types::MaterialTopology::Triangles;
+                }
                 dst.variants = {types::Diffuse{vector(src.diffuse)},
                     types::Specular{vector(src.specular), src.shininess},
                     types::Ambient{vector(src.ambient)},
                     glm::vec1(src.sphere_mode == 1 ? 1.0f : 0.0f),
                     glm::vec1(src.sphere_mode == 2 ? 1.0f : 0.0f),
-                    glm::vec1((src.flags & 0x10) ? 1.0f : 0.0f)};
-                if (src.texture >= 0) {
+                    glm::vec1((src.flags & 0x10) != 0 ? 1.0f : 0.0f)};
+                if (src.texture > -1) {
                     dst.textures.push_back({texture_path(data.textures[src.texture]),
                         types::ModelTexture::MODEL_TEXTURE_NAME,
                         types::ModelTexture::MODEL_SAMPLER_NAME});
                 }
-                if (src.sphere_texture >= 0 && src.sphere_mode != 0) {
+                if (src.sphere_texture > -1 && src.sphere_mode != 0) {
                     types::MaterialTexture texture{texture_path(data.textures[src.sphere_texture]),
                         types::ModelTexture::SPHERE_TEXTURE_NAME,
                         types::ModelTexture::SPHERE_SAMPLER_NAME};
@@ -231,8 +235,8 @@ namespace enishi::assets_system {
                     texture.uv_channel = src.sphere_mode == 3 ? 1 : 0;
                     dst.textures.push_back(std::move(texture));
                 }
-                if (src.toon_texture >= 0) {
-                    const auto name = src.shared_toon
+                if (src.toon_texture > -1) {
+                    const auto name = src.shared_toon != 0
                                           ? std::format("toon{:02}.bmp", src.toon_texture + 1)
                                           : data.textures[src.toon_texture];
                     dst.textures.push_back({texture_path(name),
@@ -251,9 +255,13 @@ namespace enishi::assets_system {
                 dst.relate_bone_index = static_cast<std::uint32_t>(src.bone);
                 dst.group_index = src.group;
                 dst.group_mask = static_cast<std::uint16_t>(~src.non_collision_mask);
-                dst.kind = src.mode == 0   ? types::RigidBodyKind::Kinematic
-                           : src.mode == 1 ? types::RigidBodyKind::Dynamic
-                                           : types::RigidBodyKind::DynamicAdjustBone;
+                if (src.mode == 0) {
+                    dst.kind = types::RigidBodyKind::Kinematic;
+                } else if (src.mode == 1) {
+                    dst.kind = types::RigidBodyKind::Dynamic;
+                } else {
+                    dst.kind = types::RigidBodyKind::DynamicAdjustBone;
+                }
                 if (src.shape == 0) {
                     dst.shape = types::RBShapeSphere{src.size[0]};
                 } else if (src.shape == 1) {
@@ -262,7 +270,7 @@ namespace enishi::assets_system {
                     dst.shape = types::RBShapeCapsule{src.size[0], src.size[1]};
                 }
                 dst.position = vector(src.position);
-                if (src.bone >= 0) {
+                if (src.bone > -1) {
                     dst.position -= vector(data.bones[src.bone].position);
                 }
                 dst.rotation = vector(src.rotation);
@@ -288,7 +296,7 @@ namespace enishi::assets_system {
                 dst.rigid_body_b = static_cast<std::uint32_t>(src.body_b);
                 dst.position = vector(src.position);
                 dst.rotation = vector(src.rotation);
-                if (src.type <= 1) {
+                if (src.type < 2) {
                     dst.constrain_position_min = vector(src.translation_min);
                     dst.constrain_position_max = vector(src.translation_max);
                     dst.constrain_rotation_min = vector(src.rotation_min);
@@ -411,7 +419,7 @@ namespace enishi::assets_system {
                 if (model->textures.contains(texture.path)) {
                     continue;
                 }
-                if (!texture_loader) {
+                if (texture_loader == nullptr) {
                     return foundation::Error(
                         AssetError::MissingDependency, "PMX requires a texture loader");
                 }
@@ -421,7 +429,7 @@ namespace enishi::assets_system {
                         "PMX material texture could not be loaded");
                 }
                 const auto value = std::get_if<types::AssetTextureData>(&loaded.unwrap());
-                if (!value || !*value) {
+                if (value == nullptr || *value == nullptr) {
                     return foundation::Error(
                         AssetError::InvalidAssetData, "PMX texture loader returned invalid data");
                 }

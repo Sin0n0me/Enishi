@@ -121,7 +121,7 @@ namespace {
             }
         }
         out.put(std::int32_t{11});
-        for (std::uint8_t type = 0; type <= 10; ++type) {
+        for (std::uint8_t type = 0; type < 11; ++type) {
             out.text("morph");
             out.text("");
             out.put(std::uint8_t{4});

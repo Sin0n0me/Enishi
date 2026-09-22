@@ -35,7 +35,10 @@ namespace enishi::types {
         glm::vec4 bone_weight;
     };
 
-    enum class SkinningMethod { LinearBlend, DualQuaternion };
+    enum class SkinningMethod {
+        LinearBlend,
+        DualQuaternion,
+    };
 
     using VertexVariant = std::variant<VertexPosition, Vertex, Skinning, EdgeFlag, Skinning4>;
     using VertexVariants = std::vector<VertexVariant>;

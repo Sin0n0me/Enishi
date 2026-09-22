@@ -4,7 +4,14 @@
 #include <string>
 
 namespace enishi::types {
-    enum class JointKind { SpringSixDof, SixDof, PointToPoint, ConeTwist, Slider, Hinge };
+    enum class JointKind {
+        SpringSixDof,
+        SixDof,
+        PointToPoint,
+        ConeTwist,
+        Slider,
+        Hinge,
+    };
 
     struct JointMotor {
         bool enabled{};
@@ -25,8 +32,13 @@ namespace enishi::types {
         glm::vec3 spring_position;        // ばね移動値
         glm::vec3 spring_rotation;        // ばね回転値
         JointKind kind{JointKind::SpringSixDof};
-        float softness{}, bias{}, relaxation{}, damping{}, fix_threshold{};
-        JointMotor linear_motor, angular_motor;
+        float softness{};
+        float bias{};
+        float relaxation{};
+        float damping{};
+        float fix_threshold{};
+        JointMotor linear_motor;
+        JointMotor angular_motor;
         glm::vec3 motor_target_rotation{};
         glm::vec3 angular_span{}; // Cone/twist angular ranges around X, Y and Z.
     };

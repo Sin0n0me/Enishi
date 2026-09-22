@@ -60,14 +60,24 @@ namespace enishi::types {
         std::filesystem::path path;
         std::string texture_target_name;
         std::string sampler_target_name;
-        enum class Blend { Multiply, Add };
-        enum class Coordinates { UV, NormalProjection };
+        enum class Blend {
+            Multiply,
+            Add,
+        };
+        enum class Coordinates {
+            UV,
+            NormalProjection,
+        };
         Blend blend{Blend::Multiply};
         Coordinates coordinates{Coordinates::UV};
         std::uint32_t uv_channel{};
     };
 
-    enum class MaterialTopology { Triangles, Lines, Points };
+    enum class MaterialTopology {
+        Triangles,
+        Lines,
+        Points,
+    };
 
     struct Material {
         std::string name;
