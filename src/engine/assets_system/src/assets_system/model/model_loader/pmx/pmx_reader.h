@@ -14,6 +14,12 @@
 
 namespace enishi::assets_system {
     class PMXReader {
+      private:
+        std::span<const std::uint8_t> bytes;
+        std::size_t position{};
+        std::string error;
+        std::string section{"header"};
+
       public:
         explicit PMXReader(std::span<const std::uint8_t> bytes);
 
@@ -86,11 +92,6 @@ namespace enishi::assets_system {
         void read_rigid_bodies(PMXData& data);
         void read_joints(PMXData& data);
         void read_soft_bodies(PMXData& data);
-
-        std::span<const std::uint8_t> bytes;
-        std::size_t position{};
-        std::string error;
-        std::string section{"header"};
     };
 
     [[nodiscard]] foundation::Result<PMXData, AssetError> parse_pmx(
