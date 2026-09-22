@@ -80,6 +80,9 @@ namespace enishi::assets_system {
             data.additional_uv_count > MAX_ADDITIONAL_UV_COUNT) {
             return invalid("invalid version or additional UV count");
         }
+        if (data.vertices.empty()) {
+            return invalid("model has no vertices");
+        }
         for (const auto& vertex : data.vertices) {
             if (vertex.deform_type >
                     (data.version == PMX_VERSION_2_1 ? PMX_DEFORM_QDEF : PMX_DEFORM_SDEF) ||

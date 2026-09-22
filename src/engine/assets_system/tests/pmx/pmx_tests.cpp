@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <assets_system/model/model_loader/pmx/pmx_model_loader.h>
+#include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <bit>
 #include <cstdlib>
 #include <fstream>
@@ -280,6 +281,45 @@ namespace {
         return out;
     }
 
+    void empty_model_tests() {
+        constexpr float version = 2.0f;
+        constexpr std::uint8_t settings_size = 8;
+        constexpr std::uint8_t utf8_encoding = 1;
+        constexpr std::uint8_t index_width = 1;
+        constexpr std::size_t index_kind_count = 6;
+        constexpr std::size_t model_text_count = 4;
+        constexpr std::size_t section_count = 9;
+        Bytes bytes;
+        for (const char character : std::string_view("PMX ")) {
+            bytes.put(static_cast<std::uint8_t>(character));
+        }
+        bytes.put(version);
+        bytes.put(settings_size);
+        bytes.put(utf8_encoding);
+        bytes.put(std::uint8_t{});
+        for (std::size_t index = 0; index < index_kind_count; ++index) {
+            bytes.put(index_width);
+        }
+        for (std::size_t index = 0; index < model_text_count; ++index) {
+            bytes.text("");
+        }
+        for (std::size_t index = 0; index < section_count; ++index) {
+            bytes.put(std::int32_t{});
+        }
+        const auto parsed = PMXModelLoader::parse(bytes.data);
+        check(parsed.is_err() && parsed.unwrap_err().get_error() == AssetError::InvalidAssetData &&
+                  parsed.unwrap_err().get_message().contains("no vertices"),
+            "empty PMX must fail before reaching mesh generation");
+
+        PMXData data;
+        data.version = version;
+        const auto converted = PMXToModelData::to_model_data("empty.pmx", data, nullptr);
+        check(converted.is_err() &&
+                  converted.unwrap_err().get_error() == AssetError::InvalidAssetData &&
+                  converted.unwrap_err().get_message().contains("no vertices"),
+            "empty direct conversion must not produce drawable model data");
+    }
+
     void parser_tests() {
         for (const auto width : std::array<std::uint8_t, 3>{1, 2, 4}) {
             const auto full = full_fixture(width);
@@ -364,6 +404,7 @@ namespace {
 
         PMXData data;
         data.version = 2.0f;
+        data.vertices.emplace_back();
         data.bones.resize(2);
         data.bones[0].parent = 1;
         data.bones[1].parent = 0;
@@ -395,6 +436,7 @@ namespace {
 void pmx_conversion_tests();
 
 int main() {
+    empty_model_tests();
     parser_tests();
     pmx_conversion_tests();
     std::cout << "PMX tests passed\n";
