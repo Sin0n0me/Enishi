@@ -3,13 +3,16 @@
 import os
 import subprocess
 import glob
+import shutil
 from pathlib import Path
 
 OUTPUT_DIRECTORY = "./assets/shader"
-TARGET_DIRECTORY = "./src/shader"
+TARGET_DIRECTORY = "./src/shader/hlsl"
+GLSL_SOURCE_DIRECTORY = "./src/shader/glsl"
 VERTEX_SHADER_FILE_PREFIX = "vs_"
 PIXEL_SHADER_FILE_PREFIX = "ps_"
 COMPUTE_SHADER_FILE_PREFIX = "cs_"
+EXTENSION = ".dxbc"
 
 
 def get_fxc_path():
@@ -58,9 +61,9 @@ def compile_hlsl_files(input_dir: str, output_root: str):
         # 1. 入力ルートからの相対パスを取得 (例: "subfolder/vs_test.hlsl")
         rel_path = os.path.relpath(filepath, input_dir)
 
-        # 2. 出力先のパスを組み立て、拡張子を .cso に変更
+        # 2. 出力先のパスを組み立て、拡張子を変更
         dest_path = os.path.join(
-            output_root, os.path.splitext(rel_path)[0] + ".cso"
+            output_root, os.path.splitext(rel_path)[0] + EXTENSION
         )
 
         # 3. 出力先ディレクトリが存在しない場合は作成
@@ -97,5 +100,16 @@ def compile_hlsl_files(input_dir: str, output_root: str):
             print(f"Failed to compile {filename}:\n{e.stderr}")
 
 
+def copy_glsl_files(input_dir: str, output_root: str):
+    search_pattern = os.path.join(input_dir, "**/*.glsl")
+    for filepath in glob.glob(search_pattern, recursive=True):
+        rel_path = os.path.relpath(filepath, input_dir)
+        dest_path = os.path.join(output_root, rel_path)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        print(f"Copying: {rel_path} -> {os.path.relpath(dest_path, output_root)}")
+        shutil.copy2(filepath, dest_path)
+
+
 if __name__ == "__main__":
     compile_hlsl_files(TARGET_DIRECTORY, OUTPUT_DIRECTORY)
+    copy_glsl_files(GLSL_SOURCE_DIRECTORY, OUTPUT_DIRECTORY)
