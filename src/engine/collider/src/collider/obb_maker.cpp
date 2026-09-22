@@ -9,7 +9,8 @@ namespace enishi::collider {
             return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
         }
 
-        glm::dmat3 eigen_vectors(glm::dmat3 matrix) {
+        glm::dmat3 eigen_vectors(const glm::dmat3& input_matrix) {
+            glm::dmat3 matrix = input_matrix;
             glm::dmat3 result(1.0);
             for (int iteration = 0; iteration < 32; ++iteration) {
                 int p = 0;
@@ -40,15 +41,15 @@ namespace enishi::collider {
         }
     } // namespace
 
-    std::optional<types::OBB> OBBMaker::make_by_covariance_matrix(
+    foundation::Option<types::OBB> OBBMaker::make_by_covariance_matrix(
         const std::vector<glm::vec3>& positions) {
         if (positions.empty()) {
-            return std::nullopt;
+            return {};
         }
         glm::dvec3 mean(0.0);
         for (const auto& position : positions) {
             if (!finite(position)) {
-                return std::nullopt;
+                return {};
             }
             mean += glm::dvec3(position);
         }
@@ -63,7 +64,7 @@ namespace enishi::collider {
         return OBBMaker::fit(positions, mean, axes);
     }
 
-    std::optional<types::OBB> OBBMaker::fit(
+    foundation::Option<types::OBB> OBBMaker::fit(
         const std::vector<glm::vec3>& positions, const glm::dvec3& mean, const glm::dmat3& axes) {
         types::OBB obb{};
         obb.axis[0] = glm::normalize(glm::vec3(axes[0]));
@@ -87,7 +88,7 @@ namespace enishi::collider {
         }
         obb.center = glm::vec3(center);
         if (!finite(obb.center)) {
-            return std::nullopt;
+            return {};
         }
 
         // Reproject around the rounded center so rounding cannot exclude input vertices.
@@ -105,34 +106,38 @@ namespace enishi::collider {
                     std::nextafter(obb.half_extent[i], std::numeric_limits<float>::infinity());
             }
         }
-        return finite(obb.half_extent) ? std::optional(obb) : std::nullopt;
+        if (!finite(obb.half_extent)) {
+            return {};
+        }
+        return obb;
     }
 
-    std::optional<types::OBB> OBBMaker::transform(const types::OBB& obb, const glm::mat4& matrix) {
+    foundation::Option<types::OBB> OBBMaker::transform(
+        const types::OBB& obb, const glm::mat4& matrix) {
         if (!finite(obb.center) || !finite(obb.half_extent)) {
-            return std::nullopt;
+            return {};
         }
         for (int i = 0; i < 3; ++i) {
             if (obb.half_extent[i] < 0.0f || !finite(obb.axis[i]) ||
                 std::abs(glm::dot(obb.axis[i], obb.axis[i]) - 1.0f) > 1e-5f) {
-                return std::nullopt;
+                return {};
             }
             for (int j = 0; j < i; ++j) {
                 if (std::abs(glm::dot(obb.axis[i], obb.axis[j])) > 1e-5f) {
-                    return std::nullopt;
+                    return {};
                 }
             }
         }
         for (int col = 0; col < 4; ++col) {
             for (int row = 0; row < 4; ++row) {
                 if (!std::isfinite(matrix[col][row])) {
-                    return std::nullopt;
+                    return {};
                 }
             }
         }
         if (matrix[0][3] != 0.0f || matrix[1][3] != 0.0f || matrix[2][3] != 0.0f ||
             matrix[3][3] != 1.0f) {
-            return std::nullopt;
+            return {};
         }
         std::vector<glm::vec3> corners;
         corners.reserve(8);
@@ -144,7 +149,7 @@ namespace enishi::collider {
             }
             corners.emplace_back(glm::dmat4(matrix) * glm::dvec4(corner, 1.0));
             if (!finite(corners.back())) {
-                return std::nullopt;
+                return {};
             }
         }
         // Preserve the rotated frame even when repeated eigenvalues make PCA axes ambiguous.

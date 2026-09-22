@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(SUB_SYSTEM)
 set(DEPENDENCIES
     glm
     engine_types
+    foundation
     sub_system
 )
 

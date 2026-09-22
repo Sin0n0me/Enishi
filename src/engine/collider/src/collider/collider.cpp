@@ -42,7 +42,7 @@ namespace enishi::collider {
         bool clip(const glm::dvec3& origin,
             const glm::dvec3& direction,
             const types::OBB& obb,
-            double margin,
+            const double margin,
             double& lower,
             double& upper) {
             const glm::dvec3 offset = origin - glm::dvec3(obb.center);
@@ -86,7 +86,7 @@ namespace enishi::collider {
 
         void accumulate_intersection(const types::OBB& source,
             const types::OBB& target,
-            double margin,
+            const double margin,
             const glm::dvec3& reference,
             glm::dvec3& sum,
             std::size_t& count) {
@@ -137,16 +137,16 @@ namespace enishi::collider {
         }
     } // namespace
 
-    bool Collider::register_model(types::CollisionModelId model) {
+    bool Collider::register_model(const types::CollisionModelId model) {
         return this->models.try_emplace(model).second;
     }
 
-    bool Collider::remove_model(types::CollisionModelId model) {
+    bool Collider::remove_model(const types::CollisionModelId model) {
         return this->models.erase(model) != 0;
     }
 
-    bool Collider::set_bone(types::CollisionModelId model,
-        types::BoneIndex bone,
+    bool Collider::set_bone(const types::CollisionModelId model,
+        const types::BoneIndex bone,
         const std::vector<glm::vec3>& positions,
         const glm::mat4& transform) {
         const auto found = this->models.find(model);
@@ -154,20 +154,21 @@ namespace enishi::collider {
             return false;
         }
         const auto local = OBBMaker::make_by_covariance_matrix(positions);
-        if (!local) {
+        if (local.is_none()) {
             return false;
         }
-        const auto world = OBBMaker::transform(*local, transform);
-        if (!world) {
+        const auto world = OBBMaker::transform(local.unwrap(), transform);
+        if (world.is_none()) {
             return false;
         }
-        found->second.local_obbs.insert_or_assign(bone, *local);
-        found->second.world_obbs.insert_or_assign(bone, *world);
+        found->second.local_obbs.insert_or_assign(bone, local.unwrap());
+        found->second.world_obbs.insert_or_assign(bone, world.unwrap());
         return true;
     }
 
-    bool Collider::update_bone(
-        types::CollisionModelId model, types::BoneIndex bone, const glm::mat4& transform) {
+    bool Collider::update_bone(const types::CollisionModelId model,
+        const types::BoneIndex bone,
+        const glm::mat4& transform) {
         const auto found = this->models.find(model);
         if (found == this->models.end()) {
             return false;
@@ -177,14 +178,14 @@ namespace enishi::collider {
             return false;
         }
         const auto world = OBBMaker::transform(local->second, transform);
-        if (!world) {
+        if (world.is_none()) {
             return false;
         }
-        found->second.world_obbs.insert_or_assign(bone, *world);
+        found->second.world_obbs.insert_or_assign(bone, world.unwrap());
         return true;
     }
 
-    bool Collider::remove_bone(types::CollisionModelId model, types::BoneIndex bone) {
+    bool Collider::remove_bone(const types::CollisionModelId model, const types::BoneIndex bone) {
         const auto found = this->models.find(model);
         if (found == this->models.end()) {
             return false;
@@ -193,12 +194,13 @@ namespace enishi::collider {
         return found->second.world_obbs.erase(bone) != 0;
     }
 
-    const Collider::OBBMap* Collider::get_obb_map(types::CollisionModelId model) const noexcept {
+    const Collider::OBBMap* Collider::get_obb_map(
+        const types::CollisionModelId model) const noexcept {
         const auto found = this->models.find(model);
         return found == this->models.end() ? nullptr : &found->second.world_obbs;
     }
 
-    bool Collider::add_handler(types::CollisionModelId model,
+    bool Collider::add_handler(const types::CollisionModelId model,
         const std::shared_ptr<sub_system::ICollisionHandler>& handler) {
         const auto found = this->models.find(model);
         if (found == this->models.end() || !handler) {
@@ -212,7 +214,7 @@ namespace enishi::collider {
         return true;
     }
 
-    bool Collider::remove_handler(types::CollisionModelId model,
+    bool Collider::remove_handler(const types::CollisionModelId model,
         const std::shared_ptr<sub_system::ICollisionHandler>& handler) {
         const auto found = this->models.find(model);
         if (found == this->models.end()) {
@@ -247,15 +249,16 @@ namespace enishi::collider {
                     for (const auto& [second_bone, second_obb] : second->second.world_obbs) {
                         const auto contact =
                             Collider::intersect(first->first, first_obb, second->first, second_obb);
-                        if (!contact) {
+                        if (contact.is_none()) {
                             continue;
                         }
                         ++count;
                         for (const auto& handler : first->second.handlers) {
-                            notifications.push_back(
-                                {handler, first_bone, {second->first, second_bone, *contact}});
+                            notifications.push_back({handler,
+                                first_bone,
+                                {second->first, second_bone, contact.unwrap()}});
                         }
-                        auto reverse = *contact;
+                        auto reverse = contact.unwrap();
                         reverse.normal = -reverse.normal;
                         for (const auto& handler : second->second.handlers) {
                             notifications.push_back(
@@ -273,42 +276,44 @@ namespace enishi::collider {
         return count;
     }
 
-    std::optional<types::OBBContact> Collider::intersect(types::CollisionModelId first_model,
+    foundation::Option<types::OBBContact> Collider::intersect(
+        const types::CollisionModelId first_model,
         const types::OBB& first,
-        types::CollisionModelId second_model,
+        const types::CollisionModelId second_model,
         const types::OBB& second) {
         if (first_model == second_model || !valid(first) || !valid(second)) {
-            return std::nullopt;
+            return {};
         }
         const glm::dvec3 delta = glm::dvec3(second.center) - glm::dvec3(first.center);
         double depth = std::numeric_limits<double>::max();
         glm::dvec3 normal(0.0);
-        const auto test_axis = [&](glm::dvec3 axis) {
+        const auto test_axis = [&](const glm::dvec3& axis) {
             const double length_squared = glm::dot(axis, axis);
             if (length_squared <= 1e-24) {
                 return true;
             }
-            axis /= std::sqrt(length_squared);
-            const double distance = glm::dot(delta, axis);
-            const double overlap = radius(first, axis) + radius(second, axis) - std::abs(distance);
+            const glm::dvec3 normalized_axis = axis / std::sqrt(length_squared);
+            const double distance = glm::dot(delta, normalized_axis);
+            const double overlap = radius(first, normalized_axis) +
+                                   radius(second, normalized_axis) - std::abs(distance);
             if (overlap < 0.0) {
                 return false;
             }
             if (overlap < depth) {
                 depth = overlap;
-                normal = distance < 0.0 ? -axis : axis;
+                normal = distance < 0.0 ? -normalized_axis : normalized_axis;
             }
             return true;
         };
         for (int i = 0; i < 3; ++i) {
             if (!test_axis(glm::dvec3(first.axis[i])) || !test_axis(glm::dvec3(second.axis[i]))) {
-                return std::nullopt;
+                return {};
             }
         }
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < 3; ++j) {
                 if (!test_axis(glm::cross(glm::dvec3(first.axis[i]), glm::dvec3(second.axis[j])))) {
-                    return std::nullopt;
+                    return {};
                 }
             }
         }
@@ -333,7 +338,7 @@ namespace enishi::collider {
             accumulate_intersection(second, first, scale * 1e-6, reference, sum, count);
         }
         if (count == 0 || depth > std::numeric_limits<float>::max()) {
-            return std::nullopt;
+            return {};
         }
         return types::OBBContact{glm::vec3(reference + sum / static_cast<double>(count)),
             glm::vec3(normal),

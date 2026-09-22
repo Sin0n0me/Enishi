@@ -17,7 +17,7 @@
 ```cpp
 class CollisionHandler : public enishi::sub_system::ICollisionHandler {
   public:
-    void on_collision(enishi::types::BoneIndex bone_index,
+    void on_collision(const enishi::types::BoneIndex bone_index,
         const enishi::types::Collision& collision) override {
         // bone_index: このハンドラーを登録したモデル側のボーン
         // collision.other_model / other_bone: 相手モデルとボーン

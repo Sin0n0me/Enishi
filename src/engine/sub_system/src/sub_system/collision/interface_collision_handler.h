@@ -7,6 +7,6 @@ namespace enishi::sub_system {
         virtual ~ICollisionHandler(void) noexcept = default;
 
         virtual void on_collision(
-            types::BoneIndex bone_index, const types::Collision& collision) = 0;
+            const types::BoneIndex bone_index, const types::Collision& collision) = 0;
     };
 } // namespace enishi::sub_system

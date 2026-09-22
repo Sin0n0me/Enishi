@@ -22,12 +22,12 @@ namespace {
         }                                                                                          \
     } while (false)
 
-    bool near(float first, float second, float tolerance = 1e-4f) {
+    bool near(const float first, const float second, const float tolerance = 1e-4f) {
         return std::abs(first - second) <= tolerance;
     }
 
-    types::OBB box(glm::vec3 center = glm::vec3(0),
-        glm::vec3 extent = glm::vec3(1),
+    types::OBB box(const glm::vec3 center = glm::vec3(0),
+        const glm::vec3 extent = glm::vec3(1),
         const glm::mat3& rotation = glm::mat3(1)) {
         return {center, {rotation[0], rotation[1], rotation[2]}, extent};
     }
@@ -44,7 +44,7 @@ namespace {
         return result;
     }
 
-    bool contains(const types::OBB& obb, const glm::vec3& point, double tolerance = 1e-4) {
+    bool contains(const types::OBB& obb, const glm::vec3& point, const double tolerance = 1e-4) {
         for (int i = 0; i < 3; ++i) {
             if (std::abs(glm::dot(glm::dvec3(point) - glm::dvec3(obb.center),
                     glm::dvec3(obb.axis[i]))) > obb.half_extent[i] + tolerance) {
@@ -96,82 +96,86 @@ namespace {
     }
 
     void test_maker() {
-        CHECK(!OBBMaker::make_by_covariance_matrix({}));
-        CHECK(!OBBMaker::make_by_covariance_matrix(
-            {glm::vec3(std::numeric_limits<float>::quiet_NaN())}));
-        CHECK(!OBBMaker::make_by_covariance_matrix(
-            {glm::vec3(std::numeric_limits<float>::infinity())}));
+        CHECK(OBBMaker::make_by_covariance_matrix({}).is_none());
+        CHECK(OBBMaker::make_by_covariance_matrix(
+            {glm::vec3(std::numeric_limits<float>::quiet_NaN())})
+                .is_none());
+        CHECK(
+            OBBMaker::make_by_covariance_matrix({glm::vec3(std::numeric_limits<float>::infinity())})
+                .is_none());
         const glm::mat4 rotation =
             glm::rotate(glm::mat4(1), 0.7f, glm::normalize(glm::vec3(1, 2, 3)));
         const auto input =
             vertices(box(glm::vec3(5, -2, 8), glm::vec3(3, 2, 1), glm::mat3(rotation)));
         const auto obb = OBBMaker::make_by_covariance_matrix(input);
-        CHECK(obb);
-        if (!obb) {
+        CHECK(obb.is_some());
+        if (obb.is_none()) {
             return;
         }
         for (const auto& point : input) {
-            CHECK(contains(*obb, point));
+            CHECK(contains(obb.unwrap(), point));
         }
-        CHECK(near(obb->half_extent.x * obb->half_extent.y * obb->half_extent.z, 6.0f));
+        CHECK(near(
+            obb.unwrap().half_extent.x * obb.unwrap().half_extent.y * obb.unwrap().half_extent.z,
+            6.0f));
         for (const auto& points : std::vector<std::vector<glm::vec3>>{{glm::vec3(3, 4, 5)},
                  {glm::vec3(0), glm::vec3(1), glm::vec3(2)},
                  {{-1, -1, 0}, {1, -1, 0}, {1, 1, 0}, {-1, 1, 0}}}) {
             const auto degenerate = OBBMaker::make_by_covariance_matrix(points);
-            CHECK(degenerate);
-            if (degenerate) {
+            CHECK(degenerate.is_some());
+            if (degenerate.is_some()) {
                 for (const auto& point : points) {
-                    CHECK(contains(*degenerate, point));
+                    CHECK(contains(degenerate.unwrap(), point));
                 }
-                CHECK(near(glm::length(degenerate->axis[0]), 1));
-                CHECK(near(glm::dot(degenerate->axis[0], degenerate->axis[1]), 0));
+                CHECK(near(glm::length(degenerate.unwrap().axis[0]), 1));
+                CHECK(near(glm::dot(degenerate.unwrap().axis[0], degenerate.unwrap().axis[1]), 0));
             }
         }
         const auto rotated_cube = OBBMaker::transform(box(), rotation);
-        CHECK(rotated_cube);
-        if (rotated_cube) {
-            CHECK(near(rotated_cube->half_extent.x * rotated_cube->half_extent.y *
-                           rotated_cube->half_extent.z,
+        CHECK(rotated_cube.is_some());
+        if (rotated_cube.is_some()) {
+            CHECK(near(rotated_cube.unwrap().half_extent.x * rotated_cube.unwrap().half_extent.y *
+                           rotated_cube.unwrap().half_extent.z,
                 1.0f));
         }
         glm::mat4 transform = glm::translate(glm::mat4(1), glm::vec3(7, 3, -1)) * rotation *
                               glm::scale(glm::mat4(1), glm::vec3(-2, 3, 0.5));
         transform[1][0] += 0.8f;
-        const auto world = OBBMaker::transform(*obb, transform);
-        CHECK(world);
-        if (world) {
-            for (const auto& point : vertices(*obb)) {
-                CHECK(contains(*world, glm::vec3(transform * glm::vec4(point, 1))));
+        const auto world = OBBMaker::transform(obb.unwrap(), transform);
+        CHECK(world.is_some());
+        if (world.is_some()) {
+            for (const auto& point : vertices(obb.unwrap())) {
+                CHECK(contains(world.unwrap(), glm::vec3(transform * glm::vec4(point, 1))));
             }
         }
-        CHECK(OBBMaker::transform(*obb, glm::scale(glm::mat4(1), glm::vec3(0))));
+        CHECK(OBBMaker::transform(obb.unwrap(), glm::scale(glm::mat4(1), glm::vec3(0))).is_some());
         transform[0][3] = 1;
-        CHECK(!OBBMaker::transform(*obb, transform));
+        CHECK(OBBMaker::transform(obb.unwrap(), transform).is_none());
     }
 
     void test_intersection() {
-        CHECK(!Collider::intersect(1, box(), 1, box()));
-        CHECK(!Collider::intersect(1, box(), 2, box(glm::vec3(3, 0, 0))));
+        CHECK(Collider::intersect(1, box(), 1, box()).is_none());
+        CHECK(Collider::intersect(1, box(), 2, box(glm::vec3(3, 0, 0))).is_none());
         for (const auto& other : {box(glm::vec3(1.5, 0, 0)),
                  box(glm::vec3(2, 0, 0)),
                  box(glm::vec3(2)),
                  box(glm::vec3(0), glm::vec3(0.25f)),
                  box(glm::vec3(0), glm::vec3(0))}) {
             const auto contact = Collider::intersect(1, box(), 2, other);
-            CHECK(contact);
-            if (contact) {
-                CHECK(contains(box(), contact->position));
-                CHECK(contains(other, contact->position));
-                CHECK(contact->penetration_depth >= 0);
-                CHECK(near(glm::length(contact->normal), 1));
+            CHECK(contact.is_some());
+            if (contact.is_some()) {
+                CHECK(contains(box(), contact.unwrap().position));
+                CHECK(contains(other, contact.unwrap().position));
+                CHECK(contact.unwrap().penetration_depth >= 0);
+                CHECK(near(glm::length(contact.unwrap().normal), 1));
             }
         }
         const auto overlap = Collider::intersect(1, box(), 2, box(glm::vec3(1.5, 0, 0)));
-        CHECK(overlap && near(overlap->penetration_depth, 0.5f));
-        CHECK(overlap && near(overlap->normal.x, 1.0f));
+        CHECK(overlap.is_some() && near(overlap.unwrap().penetration_depth, 0.5f));
+        CHECK(overlap.is_some() && near(overlap.unwrap().normal.x, 1.0f));
         const auto contained =
             Collider::intersect(1, box(), 2, box(glm::vec3(0), glm::vec3(0.25f)));
-        CHECK(contained && near(contained->penetration_depth, 1.25f));
+        CHECK(contained.is_some() && near(contained.unwrap().penetration_depth, 1.25f));
         CHECK(Collider::hit_model({{0, 0, -5}, {0, 0, 1}}, box()));
         CHECK(!Collider::hit_model({{0, 0, -5}, {0, 0, -1}}, box()));
         CHECK(!Collider::hit_model({{2, 0, -5}, {0, 0, 1}}, box()));
@@ -196,15 +200,17 @@ namespace {
             const auto second = make_random_box();
             const bool expected = reference_intersection(first, second);
             const auto actual = Collider::intersect(1, first, 2, second);
-            CHECK(actual.has_value() == expected);
+            CHECK(actual.is_some() == expected);
             expected ? ++hits : ++misses;
-            if (actual) {
-                CHECK(contains(first, actual->position));
-                CHECK(contains(second, actual->position));
+            if (actual.is_some()) {
+                CHECK(contains(first, actual.unwrap().position));
+                CHECK(contains(second, actual.unwrap().position));
                 const auto reverse = Collider::intersect(2, second, 1, first);
-                CHECK(reverse);
-                CHECK(reverse && near(actual->penetration_depth, reverse->penetration_depth));
-                CHECK(reverse && glm::length(actual->normal + reverse->normal) < 1e-4f);
+                CHECK(reverse.is_some());
+                CHECK(reverse.is_some() &&
+                      near(actual.unwrap().penetration_depth, reverse.unwrap().penetration_depth));
+                CHECK(reverse.is_some() &&
+                      glm::length(actual.unwrap().normal + reverse.unwrap().normal) < 1e-4f);
             }
         }
         CHECK(hits > 0 && misses > 0);
@@ -214,7 +220,7 @@ namespace {
       public:
         std::vector<std::pair<types::BoneIndex, types::Collision>> events;
         std::function<void()> callback;
-        void on_collision(types::BoneIndex bone, const types::Collision& collision) override {
+        void on_collision(const types::BoneIndex bone, const types::Collision& collision) override {
             this->events.emplace_back(bone, collision);
             if (this->callback) {
                 this->callback();
