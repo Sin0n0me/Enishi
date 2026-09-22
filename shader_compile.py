@@ -12,6 +12,7 @@ GLSL_SOURCE_DIRECTORY = "./src/shader/glsl"
 VERTEX_SHADER_FILE_PREFIX = "vs_"
 PIXEL_SHADER_FILE_PREFIX = "ps_"
 COMPUTE_SHADER_FILE_PREFIX = "cs_"
+EXTENSION = ".dxbc"
 
 
 def get_fxc_path():
@@ -60,9 +61,9 @@ def compile_hlsl_files(input_dir: str, output_root: str):
         # 1. 入力ルートからの相対パスを取得 (例: "subfolder/vs_test.hlsl")
         rel_path = os.path.relpath(filepath, input_dir)
 
-        # 2. 出力先のパスを組み立て、拡張子を .cso に変更
+        # 2. 出力先のパスを組み立て、拡張子を変更
         dest_path = os.path.join(
-            output_root, os.path.splitext(rel_path)[0] + ".cso"
+            output_root, os.path.splitext(rel_path)[0] + EXTENSION
         )
 
         # 3. 出力先ディレクトリが存在しない場合は作成
