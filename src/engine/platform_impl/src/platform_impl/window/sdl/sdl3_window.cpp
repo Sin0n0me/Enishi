@@ -4,6 +4,38 @@
 #include <platform/window/common_settings.h>
 
 namespace enishi::platform_impl {
+    namespace {
+        class SDLOpenGLContext final : public platform::IOpenGLContext {
+          private:
+            SDL_Window* window;
+            SDL_GLContext context;
+
+          public:
+            SDLOpenGLContext(SDL_Window* window, SDL_GLContext context)
+                : window(window)
+                , context(context) {
+            }
+
+            ~SDLOpenGLContext(void) noexcept override {
+                if (this->context) {
+                    SDL_GL_DestroyContext(this->context);
+                }
+            }
+
+            [[nodiscard]] bool make_current(void) const noexcept override {
+                return SDL_GL_MakeCurrent(this->window, this->context);
+            }
+
+            void present(void) const noexcept override {
+                SDL_GL_SwapWindow(this->window);
+            }
+
+            [[nodiscard]] void* get_proc_address(const char* const name) const noexcept override {
+                return SDL_GL_GetProcAddress(name);
+            }
+        };
+    } // namespace
+
     SDL_HitTestResult SDLCALL hit_test_callback(SDL_Window* win, const SDL_Point* pt, void* data) {
         return SDL_HITTEST_DRAGGABLE;
     }
@@ -19,11 +51,21 @@ namespace enishi::platform_impl {
         const platform::WindowSystem window_system,
         const types::GraphicsAPI graphics_api)
         : window_system(window_system)
-        , window(SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
-              size.width,
-              size.height,
-              //  SDL_WINDOW_ALWAYS_ON_TOP |
-              SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api))))
+        , window([&]() {
+            if (graphics_api == types::GraphicsAPI::OpenGL40) {
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+                SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+                SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+                SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+            }
+            return SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
+                size.width,
+                size.height,
+                //  SDL_WINDOW_ALWAYS_ON_TOP |
+                SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api)));
+        }())
         , is_closing(false)
         , size()
         , position() {
@@ -154,6 +196,19 @@ namespace enishi::platform_impl {
             .tag = this->window_system,
             .native_handle = opt_window_handle.unwrap(),
         };
+    }
+
+    foundation::Result<std::shared_ptr<platform::IOpenGLContext>, platform::RenderError>
+    SDL3Window::create_opengl_context(void) {
+        if (!this->window) {
+            return foundation::Error(platform::RenderError::MakeError, "Window is not available");
+        }
+        const auto context = SDL_GL_CreateContext(this->window.get());
+        if (!context) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Failed to create the OpenGL context");
+        }
+        return std::make_shared<SDLOpenGLContext>(this->window.get(), context);
     }
 
     foundation::Option<types::WindowPosition> SDL3Window::get_position(void) const noexcept {

@@ -23,7 +23,17 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # フラグ設定
 #
 set(USE_SDL3 ON)
-set(USE_DIRECTX_11 ON)
+if(WIN32)
+    option(USE_OPENGL40 "Use the OpenGL 4.0 renderer" OFF)
+else()
+    option(USE_OPENGL40 "Use the OpenGL 4.0 renderer" ON)
+endif()
+
+if(USE_OPENGL40)
+    set(USE_DIRECTX_11 OFF)
+else()
+    set(USE_DIRECTX_11 ON)
+endif()
 
 #
 # 以下依存設定

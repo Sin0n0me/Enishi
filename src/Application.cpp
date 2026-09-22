@@ -1,9 +1,9 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
-#include <core/system/skinning/skinning_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
+#include <core/system/skinning/skinning_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
@@ -16,8 +16,12 @@
 
 #include <core/system/asset/shader/shader_data_provider.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
+#if defined(USE_OPENGL40)
+#include <renderer/opengl/opengl40/opengl40_render_initializer.h>
+#else
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
 #include <renderer/directx/directx11/d3d11_renderer.h>
+#endif
 
 int main(void) {
     /*
@@ -107,7 +111,11 @@ namespace enishi {
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
                 platform::WindowSystem::Windows,
+#if defined(USE_OPENGL40)
+                types::GraphicsAPI::OpenGL40));
+#else
                 types::GraphicsAPI::DirectX11));
+#endif
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
@@ -138,8 +146,18 @@ namespace enishi {
             return {};
         }
 
+#if defined(USE_OPENGL40)
+        auto context = root_window->create_opengl_context();
+        if (context.is_err()) {
+            foundation::Logger::error(context.unwrap_err().get_message());
+            return {};
+        }
+        auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
+        auto result_renderer = initializer.init(std::move(context.unwrap_mut()));
+#else
         auto initializer = renderer::directx::D3D11RenderInitializer{};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
+#endif
         if (result_renderer.is_err()) {
             foundation::Logger::error(result_renderer.unwrap_err().get_message());
             return {};

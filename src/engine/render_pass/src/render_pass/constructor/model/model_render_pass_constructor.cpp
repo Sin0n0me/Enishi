@@ -10,8 +10,13 @@
 // #include <platform/window/interface_window.h>
 
 namespace enishi::render_pass {
+#if defined(USE_OPENGL40)
+    constexpr char VS_FILE_NAME[] = "vs_model_gl";
+    constexpr char PS_FILE_NAME[] = "ps_model_gl";
+#else
     constexpr char VS_FILE_NAME[] = "vs_model";
     constexpr char PS_FILE_NAME[] = "ps_model";
+#endif
 
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     enishi::render_pass::ModelRenderPassConstructor::make(platform::IRenderer* const renderer,

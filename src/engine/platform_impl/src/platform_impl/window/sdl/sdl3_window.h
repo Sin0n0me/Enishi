@@ -43,6 +43,8 @@ namespace enishi::platform_impl {
         foundation::VoidResult<platform::WindowError> init(void) noexcept override;
         foundation::Option<const platform::IInput*> get_input(void) const noexcept override;
         foundation::Option<platform::WindowHandle> get_handle(void) const noexcept override;
+        foundation::Result<std::shared_ptr<platform::IOpenGLContext>, platform::RenderError>
+        create_opengl_context(void) override;
         foundation::Option<types::WindowPosition> get_position(void) const noexcept override;
         foundation::VoidResult<platform::WindowError> set_position(
             const types::WindowPosition& position) noexcept override;

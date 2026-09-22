@@ -16,6 +16,12 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
+if(USE_OPENGL40)
+    list(FILTER SOURCES EXCLUDE REGEX ".*/directx/.*")
+else()
+    list(FILTER SOURCES EXCLUDE REGEX ".*/opengl/.*")
+endif()
+
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 
 # 以下依存設定
@@ -61,8 +67,29 @@ elseif(USE_DIRECTX_12)
         PUBLIC dwmapi
         PUBLIC d3dcompiler
     )
-elseif(USE_OPENGL)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_OPENGL")    
+elseif(USE_OPENGL40)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC "USE_OPENGL40")
+
+    FetchContent_Declare(
+        glad
+        GIT_REPOSITORY https://github.com/Dav1dde/glad.git
+        GIT_TAG v2.0.8
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(glad)
+    add_subdirectory(
+        "${glad_SOURCE_DIR}/cmake"
+        "${glad_BINARY_DIR}/cmake"
+    )
+    glad_add_library(glad_gl_core_40 REPRODUCIBLE API gl:core=4.0)
+
+    set(DEPENDENCIES
+        ${DEPENDENCIES}
+        PUBLIC glad_gl_core_40
+    )
+    if(WIN32)
+        list(APPEND DEPENDENCIES PUBLIC opengl32)
+    endif()
 
 elseif(USE_VULKAN)
     target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_VULKAN")
