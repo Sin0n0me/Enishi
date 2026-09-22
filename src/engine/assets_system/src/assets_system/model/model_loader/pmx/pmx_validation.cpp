@@ -42,6 +42,9 @@ namespace enishi::assets_system {
         const auto invalid = [](const char* message) {
             return foundation::Error(AssetError::InvalidAssetData, std::string("PMX: ") + message);
         };
+        if ((data.version != 2.0f && data.version != 2.1f) || data.additional_uv_count > 4) {
+            return invalid("invalid version or additional UV count");
+        }
         for (const auto& vertex : data.vertices) {
             if (vertex.deform_type > (data.version == 2.1f ? 4 : 3) ||
                 vertex.additional_uvs.size() != data.additional_uv_count) {
@@ -64,7 +67,8 @@ namespace enishi::assets_system {
         }
         std::size_t total_indices{};
         for (const auto& material : data.materials) {
-            if (material.index_count < 0 || material.index_count % 3 != 0 ||
+            if (material.sphere_mode > 3 || material.shared_toon > 1 || material.index_count < 0 ||
+                material.index_count % 3 != 0 ||
                 static_cast<std::size_t>(material.index_count) >
                     data.indices.size() - total_indices ||
                 !reference(material.texture, data.textures.size(), true) ||
@@ -130,7 +134,8 @@ namespace enishi::assets_system {
                 if (!reference(offset.index, count, morph.type == 8)) {
                     return invalid("morph reference out of range");
                 }
-                if (morph.type == 0 || morph.type == 9) {
+                // Discrete selections are evaluated in source order and may refer to themselves.
+                if (morph.type == 0) {
                     morph_edges[i].push_back(offset.index);
                 }
             }
@@ -147,18 +152,21 @@ namespace enishi::assets_system {
             }
         }
         for (const auto& body : data.rigid_bodies) {
-            if (!reference(body.bone, data.bones.size(), true)) {
+            if (body.shape > 2 || body.mode > 2 || body.group >= 16 ||
+                !reference(body.bone, data.bones.size(), true)) {
                 return invalid("rigid body bone out of range");
             }
         }
         for (const auto& joint : data.joints) {
-            if (!reference(joint.body_a, data.rigid_bodies.size(), true) ||
+            if (joint.type > (data.version == 2.1f ? 5 : 0) ||
+                !reference(joint.body_a, data.rigid_bodies.size(), true) ||
                 !reference(joint.body_b, data.rigid_bodies.size(), true)) {
                 return invalid("joint body out of range");
             }
         }
         for (const auto& body : data.soft_bodies) {
-            if (!reference(body.material, data.materials.size())) {
+            if (data.version != 2.1f || body.shape > 1 || body.group >= 16 || body.aero_model < 0 ||
+                body.aero_model > 4 || !reference(body.material, data.materials.size())) {
                 return invalid("soft body material out of range");
             }
             for (const auto& anchor : body.anchors) {

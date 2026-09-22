@@ -3,12 +3,15 @@
 #include "../bone/bone_resolver.h"
 #include "pmd/pmd_model_loader.h"
 #include "pmd/pmd_to_model_data.h"
+#include "pmx/pmx_model_loader.h"
+#include "pmx/pmx_to_model_data.h"
 
 namespace enishi::assets_system {
     ModelLoader::ModelLoader(std::shared_ptr<TextureLoader> texture_loader)
         : texture_loader(texture_loader) {
         std::vector<std::unique_ptr<IModelLoader>> loaders;
         loaders.push_back(std::make_unique<PMDModelLoader>());
+        loaders.push_back(std::make_unique<PMXModelLoader>());
 
         for (auto& element : loaders) {
             if (bool(element)) {
@@ -45,6 +48,15 @@ namespace enishi::assets_system {
             }
 
             return types::AssetData{convert_data.unwrap()};
+        }
+
+        if (const auto pmx_data = std::get_if<std::unique_ptr<PMXData>>(&model_data)) {
+            auto converted =
+                PMXToModelData::to_model_data(path, **pmx_data, this->texture_loader.get());
+            if (converted.is_err()) {
+                return std::move(converted).take_err();
+            }
+            return types::AssetData{std::move(converted).unwrap_mut()};
         }
 
         // 仮

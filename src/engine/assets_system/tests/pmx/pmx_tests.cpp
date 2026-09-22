@@ -36,7 +36,173 @@ namespace {
                 this->put(static_cast<std::uint8_t>(static_cast<std::uint32_t>(value) >> (8 * i)));
             }
         }
+        void floats(int count, float value = 0.0f) {
+            for (int i = 0; i < count; ++i) {
+                this->put(value);
+            }
+        }
     };
+
+    Bytes full_fixture(std::uint8_t width) {
+        Bytes out;
+        for (const auto c : std::string_view("PMX ")) {
+            out.put(static_cast<std::uint8_t>(c));
+        }
+        out.put(2.1f);
+        out.put(std::uint8_t{8});
+        out.put(std::uint8_t{1});
+        out.put(std::uint8_t{4});
+        for (int i = 0; i < 6; ++i) {
+            out.put(width);
+        }
+        for (int i = 0; i < 4; ++i) {
+            out.text("");
+        }
+        // Index 255 must remain unsigned with one-byte vertex indices.
+        out.put(std::int32_t{256});
+        for (int i = 0; i < 256; ++i) {
+            out.floats(8);
+            out.floats(16, 0.5f);
+            out.put(std::uint8_t{0});
+            out.index(0, width);
+            out.put(1.0f);
+        }
+        out.put(std::int32_t{3});
+        for (const auto index : {0, 1, 255}) {
+            out.index(index, width);
+        }
+        out.put(std::int32_t{1});
+        out.text("texture.png");
+        out.put(std::int32_t{2});
+        for (int i = 0; i < 2; ++i) {
+            out.text("material");
+            out.text("");
+            out.floats(11, 1.0f);
+            out.put(std::uint8_t{0x1F});
+            out.floats(5, 0.5f);
+            out.index(0, width);
+            out.index(-1, width);
+            out.put(std::uint8_t{0});
+            out.put(static_cast<std::uint8_t>(i));
+            if (i == 0) {
+                out.index(0, width);
+            } else {
+                out.put(std::uint8_t{9});
+            }
+            out.text("memo");
+            out.put(std::int32_t{i == 0 ? 3 : 0});
+        }
+        out.put(std::int32_t{2});
+        for (int i = 0; i < 2; ++i) {
+            out.text("bone");
+            out.text("");
+            out.floats(3);
+            out.index(i == 0 ? 1 : -1, width);
+            out.put(std::int32_t{0});
+            out.put(static_cast<std::uint16_t>(i == 0 ? 0x3FA1 : 0));
+            if (i == 0) {
+                out.index(1, width);
+                out.index(1, width);
+                out.put(0.5f);
+                out.floats(9);
+                out.put(std::int32_t{123});
+                out.index(1, width);
+                out.put(std::int32_t{8});
+                out.put(0.25f);
+                out.put(std::int32_t{1});
+                out.index(1, width);
+                out.put(std::uint8_t{1});
+                out.floats(3, -1.0f);
+                out.floats(3, 1.0f);
+            } else {
+                out.floats(3);
+            }
+        }
+        out.put(std::int32_t{11});
+        for (std::uint8_t type = 0; type <= 10; ++type) {
+            out.text("morph");
+            out.text("");
+            out.put(std::uint8_t{4});
+            out.put(type);
+            out.put(std::int32_t{1});
+            out.index(type == 0 ? 1 : type == 9 ? 9 : type == 8 ? -1 : 0, width);
+            switch (type) {
+                case 0:
+                case 9:
+                    out.put(0.5f);
+                    break;
+                case 1:
+                    out.floats(3, 1.0f);
+                    break;
+                case 2:
+                    out.floats(6);
+                    out.put(1.0f);
+                    break;
+                case 8:
+                    out.put(std::uint8_t{1});
+                    out.floats(28, 1.0f);
+                    break;
+                case 10:
+                    out.put(std::uint8_t{1});
+                    out.floats(6, 0.5f);
+                    break;
+                default:
+                    out.floats(4, 0.5f);
+                    break;
+            }
+        }
+        out.put(std::int32_t{1});
+        out.text("display");
+        out.text("");
+        out.put(std::uint8_t{1});
+        out.put(std::int32_t{2});
+        out.put(std::uint8_t{0});
+        out.index(0, width);
+        out.put(std::uint8_t{1});
+        out.index(1, width);
+        out.put(std::int32_t{1});
+        out.text("body");
+        out.text("");
+        out.index(0, width);
+        out.put(std::uint8_t{15});
+        out.put(std::uint16_t{3});
+        out.put(std::uint8_t{2});
+        out.floats(14, 0.5f);
+        out.put(std::uint8_t{2});
+        out.put(std::int32_t{6});
+        for (std::uint8_t type = 0; type < 6; ++type) {
+            out.text("joint");
+            out.text("");
+            out.put(type);
+            out.index(0, width);
+            out.index(-1, width);
+            out.floats(24);
+        }
+        out.put(std::int32_t{1});
+        out.text("soft");
+        out.text("");
+        out.put(std::uint8_t{0});
+        out.index(0, width);
+        out.put(std::uint8_t{0});
+        out.put(std::uint16_t{0});
+        out.put(std::uint8_t{7});
+        out.put(std::int32_t{2});
+        out.put(std::int32_t{3});
+        out.floats(2, 1.0f);
+        out.put(std::int32_t{4});
+        out.floats(18, 0.5f);
+        for (int i = 0; i < 4; ++i) {
+            out.put(std::int32_t{2});
+        }
+        out.floats(3, 0.5f);
+        out.put(std::int32_t{1});
+        out.index(0, width);
+        out.index(255, width);
+        out.put(std::uint8_t{1});
+        out.put(std::int32_t{1});
+        out.index(255, width);
+        return out;
+    }
 
     Bytes fixture(float version,
         std::uint8_t width,
@@ -90,6 +256,34 @@ namespace {
     }
 
     void parser_tests() {
+        for (const auto width : std::array<std::uint8_t, 3>{1, 2, 4}) {
+            const auto full = full_fixture(width);
+            auto parsed = PMXModelLoader::parse(full.data);
+            if (parsed.is_err()) {
+                std::cerr << parsed.unwrap_err().get_message() << '\n';
+            }
+            check(parsed.is_ok(), "full PMX fixture rejected");
+            const auto& data = parsed.unwrap();
+            check(data.indices[2] == 255, "unsigned vertex reference");
+            check(data.vertices[0].additional_uvs[3][3] == 0.5f, "four additional UV channels");
+            check(data.materials[1].toon_texture == 9, "shared toon index");
+            check(data.bones[0].external_parent == 123 && data.bones[0].ik_links[0].upper[2] == 1,
+                "conditional bone fields");
+            check(data.morphs.size() == 11 && data.morphs[8].offsets[0].toon[3] == 1,
+                "all binary morph payloads");
+            check(data.display_frames[0].elements[1].index == 1, "display frame payload");
+            check(data.rigid_bodies[0].friction == 0.5f && data.joints.size() == 6,
+                "binary physics payloads");
+            check(data.soft_bodies[0].anchors[0].vertex == 255 &&
+                      data.soft_bodies[0].pinned_vertices[0] == 255,
+                "soft body vertex indices");
+            // Exercise every truncation point in the variable-length sections after vertices.
+            const auto tail = full.data.size() - 1200;
+            for (std::size_t size = tail; size < full.data.size(); ++size) {
+                check(PMXModelLoader::parse(std::span(full.data).first(size)).is_err(),
+                    "truncated section accepted");
+            }
+        }
         for (const auto version : {2.0f, 2.1f}) {
             for (const auto width : std::array<std::uint8_t, 3>{1, 2, 4}) {
                 const auto bytes = fixture(version, width);
@@ -146,7 +340,10 @@ namespace {
     }
 } // namespace
 
+void pmx_conversion_tests();
+
 int main() {
     parser_tests();
+    pmx_conversion_tests();
     std::cout << "PMX tests passed\n";
 }

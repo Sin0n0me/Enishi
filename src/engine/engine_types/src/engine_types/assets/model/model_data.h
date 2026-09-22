@@ -30,7 +30,14 @@ namespace enishi::types {
         float flag; // 0-1
     };
 
-    using VertexVariant = std::variant<VertexPosition, Vertex, Skinning, EdgeFlag>;
+    struct Skinning4 {
+        glm::u32vec4 bone_index; // UINT32_MAX denotes an unbound influence.
+        glm::vec4 bone_weight;
+    };
+
+    enum class SkinningMethod { LinearBlend, DualQuaternion };
+
+    using VertexVariant = std::variant<VertexPosition, Vertex, Skinning, EdgeFlag, Skinning4>;
     using VertexVariants = std::vector<VertexVariant>;
     using IndicesVariant = std::variant<std::monostate,
         std::vector<std::uint8_t>,
@@ -47,6 +54,10 @@ namespace enishi::types {
         std::vector<ModelAddon> addons;
         std::vector<Material> materials;
         std::unordered_map<std::filesystem::path, std::shared_ptr<TextureData>> textures;
+
+        // Optional metadata; empty means linear blending and no extra UV channels.
+        std::vector<SkinningMethod> skinning_methods;
+        std::vector<std::vector<glm::vec4>> additional_uv_channels;
 
         [[nodiscard]] bool is_valid_data(void) const;
     };

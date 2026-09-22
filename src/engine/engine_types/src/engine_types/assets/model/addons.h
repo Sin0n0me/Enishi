@@ -1,9 +1,12 @@
 #pragma once
 #include "addons/bone.h"
+#include "addons/bone_constraints.h"
 #include "addons/ik.h"
 #include "addons/morph.h"
+#include "addons/morph_target.h"
 #include "addons/physics_joint.h"
 #include "addons/rigid_body.h"
+#include "addons/soft_body.h"
 #include <variant>
 #include <vector>
 
@@ -19,5 +22,8 @@ namespace enishi::types {
         AddonIKs,
         AddonMorphs,
         AddonRigidBodies,
-        AddonPhysicsJoints>;
+        AddonPhysicsJoints,
+        AddonMorphTargets,
+        AddonBoneConstraints,
+        AddonSoftBodies>;
 } // namespace enishi::types
