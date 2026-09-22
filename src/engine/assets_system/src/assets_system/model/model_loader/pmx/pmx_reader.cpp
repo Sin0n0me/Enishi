@@ -15,17 +15,9 @@ namespace enishi::assets_system {
             std::string section{"header"};
 
           public:
-            explicit PMXReader(std::span<const std::uint8_t> bytes)
-                : bytes(bytes) {
-            }
+            explicit PMXReader(std::span<const std::uint8_t> bytes);
 
-            bool require(bool condition, const char* message) {
-                if (!condition && this->error.empty()) {
-                    this->error = std::format(
-                        "PMX {} at byte {}: {}", this->section, this->position, message);
-                }
-                return this->error.empty();
-            }
+            bool require(bool condition, const char* message);
 
             template <typename T> void read(T& value) {
                 if (!this->require(!(sizeof(T) > this->bytes.size() - this->position),
@@ -58,33 +50,9 @@ namespace enishi::assets_system {
                 (this->read(values), ...);
             }
 
-            std::int32_t index(std::uint8_t size, bool vertex = false) {
-                if (size == 1) {
-                    std::uint8_t value{};
-                    this->read(value);
-                    return vertex ? value : std::bit_cast<std::int8_t>(value);
-                }
-                if (size == 2) {
-                    std::uint16_t value{};
-                    this->read(value);
-                    return vertex ? value : std::bit_cast<std::int16_t>(value);
-                }
-                std::int32_t value{};
-                this->read(value);
-                return value;
-            }
+            std::int32_t index(std::uint8_t size, bool vertex = false);
 
-            std::int32_t count(std::size_t minimum_size) {
-                std::int32_t value{};
-                this->read(value);
-                if (!this->require(
-                        value >= 0 && static_cast<std::size_t>(value) <=
-                                          (this->bytes.size() - this->position) / minimum_size,
-                        "invalid count or truncated section")) {
-                    return 0;
-                }
-                return value;
-            }
+            std::int32_t count(std::size_t minimum_size);
 
             template <typename T, typename F>
             void records(std::vector<T>& values, std::size_t minimum_size, F read_record) {
@@ -465,6 +433,46 @@ namespace enishi::assets_system {
             }
         };
     } // namespace
+
+    PMXReader::PMXReader(std::span<const std::uint8_t> bytes)
+        : bytes(bytes) {
+    }
+
+    bool PMXReader::require(bool condition, const char* message) {
+        if (!condition && this->error.empty()) {
+            this->error =
+                std::format("PMX {} at byte {}: {}", this->section, this->position, message);
+        }
+        return this->error.empty();
+    }
+
+    std::int32_t PMXReader::index(std::uint8_t size, bool vertex) {
+        if (size == 1) {
+            std::uint8_t value{};
+            this->read(value);
+            return vertex ? value : std::bit_cast<std::int8_t>(value);
+        }
+        if (size == 2) {
+            std::uint16_t value{};
+            this->read(value);
+            return vertex ? value : std::bit_cast<std::int16_t>(value);
+        }
+        std::int32_t value{};
+        this->read(value);
+        return value;
+    }
+
+    std::int32_t PMXReader::count(std::size_t minimum_size) {
+        std::int32_t value{};
+        this->read(value);
+        if (!this->require(value > -1 &&
+                !(static_cast<std::size_t>(value) >
+                    (this->bytes.size() - this->position) / minimum_size),
+                "invalid count or truncated section")) {
+            return 0;
+        }
+        return value;
+    }
 
     foundation::Result<PMXData, AssetError> parse_pmx(std::span<const std::uint8_t> bytes) {
         return PMXReader(bytes).parse();
