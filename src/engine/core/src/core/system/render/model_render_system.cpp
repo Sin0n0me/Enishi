@@ -42,14 +42,14 @@ namespace enishi::core {
         const auto shader_reflection_list =
             std::vector<types::RenderHandle>{shader_reflections.begin(), shader_reflections.end()};
         for (const auto& model_name : model_names) {
-            const auto result = this->model_controller->make_model(model_name, shader_reflection_list);
+            auto result = this->model_controller->make_model(model_name, shader_reflection_list);
             if (result.is_err()) {
                 foundation::Logger::error(result.unwrap_err().get_message());
                 continue;
             }
 
             const auto entity = this->registry->create();
-            auto model_component = result.unwrap();
+            auto& model_component = result.unwrap_mut();
             auto insert_result = this->registry->insert(entity, std::move(model_component));
             if (insert_result.is_err()) {
                 foundation::Logger::error(insert_result.unwrap_err().get_message());
@@ -58,6 +58,7 @@ namespace enishi::core {
             }
 
             this->model_render_pass->add_mesh(insert_result.unwrap_mut().render_handle);
+            break;
         }
     }
 
