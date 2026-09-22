@@ -77,5 +77,8 @@ jobs:
         env:
           VCPKG_INSTALLED_DIR: ${{ github.workspace }}\vcpkg_installed
         run: |
+          set "PYTHON_EXECUTABLE=%pythonLocation%\python.exe"
+          set "PATH=%pythonLocation%;%PATH%"
+          "%PYTHON_EXECUTABLE%" -c "import jinja2"
           build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} visualstudio
         shell: cmd

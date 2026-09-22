@@ -10,6 +10,7 @@ set "TOOLCHAIN=%~3"
 if "%BACKEND%"=="" goto :usage
 if "%CONFIG%"=="" set "CONFIG=Debug"
 if "%TOOLCHAIN%"=="" set "TOOLCHAIN=auto"
+if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS=-DPython_EXECUTABLE=%PYTHON_EXECUTABLE% -DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%"
 if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON"
 if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF"
 if /I "%BACKEND%"=="vulkan" goto :vulkan
@@ -82,14 +83,14 @@ exit /b 1
 :build_visualstudio
 call :configure_packages
 if errorlevel 1 exit /b %errorlevel%
-cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G "%GENERATOR%" %BACKEND_OPTIONS% %PACKAGE_OPTIONS%
+cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G "%GENERATOR%" %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %PYTHON_OPTIONS%
 if errorlevel 1 exit /b %errorlevel%
 cmake --build "%BUILD_DIR%" --config "%CONFIG%"
 exit /b %errorlevel%
 :build_ninja
 call :configure_packages
 if errorlevel 1 exit /b %errorlevel%
-cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %COMPILER_OPTIONS% -DCMAKE_BUILD_TYPE=%CONFIG%
+cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %COMPILER_OPTIONS% %PYTHON_OPTIONS% -DCMAKE_BUILD_TYPE=%CONFIG%
 if errorlevel 1 exit /b %errorlevel%
 cmake --build "%BUILD_DIR%"
 exit /b %errorlevel%
