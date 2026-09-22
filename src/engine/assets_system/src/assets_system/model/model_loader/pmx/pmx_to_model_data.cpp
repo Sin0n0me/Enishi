@@ -1,13 +1,60 @@
 #include "pmx_to_model_data.h"
 #include "pmx_model_loader.h"
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <format>
 #include <glm/gtc/matrix_transform.hpp>
+#include <limits>
+#include <ranges>
+#include <string>
 
 namespace enishi::assets_system {
     namespace {
+        constexpr std::int32_t NO_PMX_INDEX{-1};
+        constexpr std::uint8_t PMX_DEFORM_BDEF4{2};
+        constexpr std::uint8_t PMX_DEFORM_QDEF{4};
+        constexpr std::uint16_t BONE_FLAG_INHERIT_ROTATION{0x0100};
+        constexpr std::uint16_t BONE_FLAG_INHERIT_TRANSLATION{0x0200};
+        constexpr std::uint16_t BONE_FLAG_LOCAL_TRANSFORM{0x0080};
+        constexpr std::uint16_t BONE_FLAG_FIXED_AXIS{0x0400};
+        constexpr std::uint16_t BONE_FLAG_LOCAL_COORDINATE{0x0800};
+        constexpr std::uint16_t BONE_FLAG_AFTER_PHYSICS{0x1000};
+        constexpr std::uint16_t BONE_FLAG_IK{0x0020};
+        constexpr std::uint8_t MORPH_TYPE_GROUP{};
+        constexpr std::uint8_t MORPH_TYPE_VERTEX{1};
+        constexpr std::uint8_t MORPH_TYPE_BONE{2};
+        constexpr std::uint8_t MORPH_TYPE_MATERIAL{8};
+        constexpr std::uint8_t MORPH_TYPE_FLIP{9};
+        constexpr std::uint8_t MORPH_TYPE_IMPULSE{10};
+        constexpr std::uint8_t MATERIAL_FLAG_DRAW_BOTH_SIDES{0x01};
+        constexpr std::uint8_t MATERIAL_FLAG_GROUND_SHADOW{0x02};
+        constexpr std::uint8_t MATERIAL_FLAG_CAST_SHADOW{0x04};
+        constexpr std::uint8_t MATERIAL_FLAG_RECEIVE_SHADOW{0x08};
+        constexpr std::uint8_t MATERIAL_FLAG_DRAW_EDGE{0x10};
+        constexpr std::uint8_t MATERIAL_FLAG_VERTEX_COLOR{0x20};
+        constexpr std::uint8_t MATERIAL_FLAG_POINT_TOPOLOGY{0x40};
+        constexpr std::uint8_t MATERIAL_FLAG_LINE_TOPOLOGY{0x80};
+        constexpr std::uint8_t SPHERE_MODE_DISABLED{};
+        constexpr std::uint8_t SPHERE_MODE_MULTIPLY{1};
+        constexpr std::uint8_t SPHERE_MODE_ADD{2};
+        constexpr std::uint8_t SPHERE_MODE_SUB_TEXTURE{3};
+        constexpr std::uint8_t RIGID_BODY_MODE_KINEMATIC{};
+        constexpr std::uint8_t RIGID_BODY_MODE_DYNAMIC{1};
+        constexpr std::uint8_t RIGID_BODY_SHAPE_SPHERE{};
+        constexpr std::uint8_t RIGID_BODY_SHAPE_BOX{1};
+        constexpr std::uint8_t JOINT_TYPE_SPRING_SIX_DOF{};
+        constexpr std::uint8_t JOINT_TYPE_WITH_CONSTRAINTS_END{2};
+        constexpr std::uint8_t JOINT_TYPE_CONE_TWIST{3};
+        constexpr std::uint8_t JOINT_TYPE_SLIDER{4};
+        constexpr std::uint8_t JOINT_TYPE_HINGE{5};
+        constexpr std::uint8_t SOFT_BODY_SHAPE_TRIANGLE_MESH{};
+        constexpr std::uint8_t SOFT_BODY_FLAG_BENDING{1};
+        constexpr std::uint8_t SOFT_BODY_FLAG_CLUSTER{2};
+        constexpr std::uint8_t SOFT_BODY_FLAG_RANDOMIZE{4};
+
         glm::vec3 vector(const PMXVec3& v) {
             return {v[0], v[1], v[2]};
         }
@@ -15,15 +62,18 @@ namespace enishi::assets_system {
             return {v[0], v[1], v[2], v[3]};
         }
         types::BoneIndex bone_index(std::int32_t index) {
-            return index == -1 ? types::INVALID_BONE_INDEX : static_cast<types::BoneIndex>(index);
+            return index == NO_PMX_INDEX ? types::INVALID_BONE_INDEX
+                                         : static_cast<types::BoneIndex>(index);
         }
 
         void make_vertices(types::ModelData& model, const PMXData& data) {
             const bool wide_skinning =
                 std::ranges::any_of(data.vertices, [](const PMXVertex& vertex) {
-                    return vertex.deform_type == 2 || vertex.deform_type == 4 ||
-                           std::ranges::any_of(vertex.bones,
-                               [](std::int32_t index) { return index > UINT16_MAX - 1; });
+                    return vertex.deform_type == PMX_DEFORM_BDEF4 ||
+                           vertex.deform_type == PMX_DEFORM_QDEF ||
+                           std::ranges::any_of(vertex.bones, [](std::int32_t index) {
+                               return index > std::numeric_limits<std::uint16_t>::max() - 1;
+                           });
                 });
             model.vertices.reserve(data.vertices.size());
             model.skinning_methods.reserve(data.vertices.size());
@@ -47,7 +97,7 @@ namespace enishi::assets_system {
                 model.vertices.push_back(std::move(vertex));
                 // Spherical deformation falls back to its two linear blend weights.
                 // Its format-specific correction vectors remain in PMXData.
-                model.skinning_methods.push_back(v.deform_type == 4
+                model.skinning_methods.push_back(v.deform_type == PMX_DEFORM_QDEF
                                                      ? types::SkinningMethod::DualQuaternion
                                                      : types::SkinningMethod::LinearBlend);
                 for (std::size_t channel = 0; channel < v.additional_uvs.size(); ++channel) {
@@ -73,27 +123,29 @@ namespace enishi::assets_system {
                 dst.bind_bone.local = glm::translate(glm::mat4(1), position - parent_position);
                 dst.bind_bone.global = glm::translate(glm::mat4(1), position);
                 dst.bind_bone.global_inverse = glm::translate(glm::mat4(1), -position);
-                if (src.parent > -1) {
+                if (src.parent > NO_PMX_INDEX) {
                     bones[src.parent].bone_node.children.push_back(i);
                 }
                 types::BoneConstraint constraint;
                 constraint.bone = i;
                 constraint.source = bone_index(src.inherit_parent);
-                constraint.rotation_weight = (src.flags & 0x0100) != 0 ? src.inherit_weight : 0;
-                constraint.translation_weight = (src.flags & 0x0200) != 0 ? src.inherit_weight : 0;
-                constraint.local_space = (src.flags & 0x0080) != 0;
-                constraint.after_physics = (src.flags & 0x1000) != 0;
+                constraint.rotation_weight =
+                    (src.flags & BONE_FLAG_INHERIT_ROTATION) != 0 ? src.inherit_weight : 0;
+                constraint.translation_weight =
+                    (src.flags & BONE_FLAG_INHERIT_TRANSLATION) != 0 ? src.inherit_weight : 0;
+                constraint.local_space = (src.flags & BONE_FLAG_LOCAL_TRANSFORM) != 0;
+                constraint.after_physics = (src.flags & BONE_FLAG_AFTER_PHYSICS) != 0;
                 constraint.evaluation_order = src.layer;
-                if ((src.flags & 0x0400) != 0) {
+                if ((src.flags & BONE_FLAG_FIXED_AXIS) != 0) {
                     constraint.rotation_axis = vector(src.fixed_axis);
                 }
-                if ((src.flags & 0x0800) != 0) {
+                if ((src.flags & BONE_FLAG_LOCAL_COORDINATE) != 0) {
                     const auto x = vector(src.local_x);
                     const auto z = vector(src.local_z);
                     constraint.local_axes = glm::mat3(x, glm::cross(z, x), z);
                 }
                 constraints.constraints.push_back(constraint);
-                if ((src.flags & 0x0020) != 0) {
+                if ((src.flags & BONE_FLAG_IK) != 0) {
                     types::CCDIK ik{};
                     ik.iterations = static_cast<std::uint32_t>(src.ik_iterations);
                     ik.target = bone_index(src.ik_target);
@@ -124,27 +176,28 @@ namespace enishi::assets_system {
                 const auto& src = data.morphs[i];
                 types::MorphTarget target;
                 target.name = src.name;
-                target.weight_mode = src.type == 9 ? types::MorphWeightMode::DiscreteSelection
-                                                   : types::MorphWeightMode::Continuous;
+                target.weight_mode = src.type == MORPH_TYPE_FLIP
+                                         ? types::MorphWeightMode::DiscreteSelection
+                                         : types::MorphWeightMode::Continuous;
                 for (const auto& o : src.offsets) {
                     const auto index = static_cast<std::uint32_t>(o.index);
                     switch (src.type) {
-                        case 0:
-                        case 9:
+                        case MORPH_TYPE_GROUP:
+                        case MORPH_TYPE_FLIP:
                             target.offsets.emplace_back(types::MorphWeightOffset{index, o.weight});
                             break;
-                        case 1:
+                        case MORPH_TYPE_VERTEX:
                             target.offsets.emplace_back(
                                 types::VertexMorphOffset{index, vector(o.translation)});
                             vertices.vertices[i].push_back({index, vector(o.translation)});
                             break;
-                        case 2:
+                        case MORPH_TYPE_BONE:
                             target.offsets.emplace_back(types::BoneMorphOffset{index,
                                 vector(o.translation),
                                 glm::quat(
                                     o.rotation[3], o.rotation[0], o.rotation[1], o.rotation[2])});
                             break;
-                        case 8: {
+                        case MORPH_TYPE_MATERIAL: {
                             types::MaterialMorphOffset material{index,
                                 o.operation == 0 ? types::MorphOperation::Multiply
                                                  : types::MorphOperation::Add,
@@ -163,7 +216,7 @@ namespace enishi::assets_system {
                             target.offsets.emplace_back(std::move(material));
                             break;
                         }
-                        case 10:
+                        case MORPH_TYPE_IMPULSE:
                             target.offsets.emplace_back(types::ImpulseMorphOffset{index,
                                 o.operation != 0,
                                 vector(o.translation),
@@ -197,16 +250,16 @@ namespace enishi::assets_system {
                 dst.count = static_cast<std::uint32_t>(src.index_count);
                 dst.instance_count = 1;
                 first += dst.count;
-                dst.double_sided = (src.flags & 0x01) != 0;
-                dst.cast_ground_shadow = (src.flags & 0x02) != 0;
-                dst.cast_shadow = (src.flags & 0x04) != 0;
-                dst.receive_shadow = (src.flags & 0x08) != 0;
+                dst.double_sided = (src.flags & MATERIAL_FLAG_DRAW_BOTH_SIDES) != 0;
+                dst.cast_ground_shadow = (src.flags & MATERIAL_FLAG_GROUND_SHADOW) != 0;
+                dst.cast_shadow = (src.flags & MATERIAL_FLAG_CAST_SHADOW) != 0;
+                dst.receive_shadow = (src.flags & MATERIAL_FLAG_RECEIVE_SHADOW) != 0;
                 dst.outline_color = vector(src.edge_color);
-                dst.outline_width = (src.flags & 0x10) != 0 ? src.edge_size : 0;
-                dst.vertex_color = (src.flags & 0x20) != 0;
-                if ((src.flags & 0x40) != 0) {
+                dst.outline_width = (src.flags & MATERIAL_FLAG_DRAW_EDGE) != 0 ? src.edge_size : 0;
+                dst.vertex_color = (src.flags & MATERIAL_FLAG_VERTEX_COLOR) != 0;
+                if ((src.flags & MATERIAL_FLAG_POINT_TOPOLOGY) != 0) {
                     dst.topology = types::MaterialTopology::Points;
-                } else if ((src.flags & 0x80) != 0) {
+                } else if ((src.flags & MATERIAL_FLAG_LINE_TOPOLOGY) != 0) {
                     dst.topology = types::MaterialTopology::Lines;
                 } else {
                     dst.topology = types::MaterialTopology::Triangles;
@@ -214,28 +267,29 @@ namespace enishi::assets_system {
                 dst.variants = {types::Diffuse{vector(src.diffuse)},
                     types::Specular{vector(src.specular), src.shininess},
                     types::Ambient{vector(src.ambient)},
-                    glm::vec1(src.sphere_mode == 1 ? 1.0f : 0.0f),
-                    glm::vec1(src.sphere_mode == 2 ? 1.0f : 0.0f),
-                    glm::vec1((src.flags & 0x10) != 0 ? 1.0f : 0.0f)};
-                if (src.texture > -1) {
+                    glm::vec1(src.sphere_mode == SPHERE_MODE_MULTIPLY ? 1.0f : 0.0f),
+                    glm::vec1(src.sphere_mode == SPHERE_MODE_ADD ? 1.0f : 0.0f),
+                    glm::vec1((src.flags & MATERIAL_FLAG_DRAW_EDGE) != 0 ? 1.0f : 0.0f)};
+                if (src.texture > NO_PMX_INDEX) {
                     dst.textures.push_back({texture_path(data.textures[src.texture]),
                         types::ModelTexture::MODEL_TEXTURE_NAME,
                         types::ModelTexture::MODEL_SAMPLER_NAME});
                 }
-                if (src.sphere_texture > -1 && src.sphere_mode != 0) {
+                if (src.sphere_texture > NO_PMX_INDEX && src.sphere_mode != SPHERE_MODE_DISABLED) {
                     types::MaterialTexture texture{texture_path(data.textures[src.sphere_texture]),
                         types::ModelTexture::SPHERE_TEXTURE_NAME,
                         types::ModelTexture::SPHERE_SAMPLER_NAME};
-                    texture.blend = src.sphere_mode == 2 ? types::MaterialTexture::Blend::Add
-                                                         : types::MaterialTexture::Blend::Multiply;
+                    texture.blend = src.sphere_mode == SPHERE_MODE_ADD
+                                        ? types::MaterialTexture::Blend::Add
+                                        : types::MaterialTexture::Blend::Multiply;
                     texture.coordinates =
-                        src.sphere_mode == 3
+                        src.sphere_mode == SPHERE_MODE_SUB_TEXTURE
                             ? types::MaterialTexture::Coordinates::UV
                             : types::MaterialTexture::Coordinates::NormalProjection;
-                    texture.uv_channel = src.sphere_mode == 3 ? 1 : 0;
+                    texture.uv_channel = src.sphere_mode == SPHERE_MODE_SUB_TEXTURE ? 1 : 0;
                     dst.textures.push_back(std::move(texture));
                 }
-                if (src.toon_texture > -1) {
+                if (src.toon_texture > NO_PMX_INDEX) {
                     const auto name = src.shared_toon != 0
                                           ? std::format("toon{:02}.bmp", src.toon_texture + 1)
                                           : data.textures[src.toon_texture];
@@ -255,26 +309,26 @@ namespace enishi::assets_system {
                 dst.relate_bone_index = static_cast<std::uint32_t>(src.bone);
                 dst.group_index = src.group;
                 dst.group_mask = static_cast<std::uint16_t>(~src.non_collision_mask);
-                if (src.mode == 0) {
+                if (src.mode == RIGID_BODY_MODE_KINEMATIC) {
                     dst.kind = types::RigidBodyKind::Kinematic;
-                } else if (src.mode == 1) {
+                } else if (src.mode == RIGID_BODY_MODE_DYNAMIC) {
                     dst.kind = types::RigidBodyKind::Dynamic;
                 } else {
                     dst.kind = types::RigidBodyKind::DynamicAdjustBone;
                 }
-                if (src.shape == 0) {
+                if (src.shape == RIGID_BODY_SHAPE_SPHERE) {
                     dst.shape = types::RBShapeSphere{src.size[0]};
-                } else if (src.shape == 1) {
+                } else if (src.shape == RIGID_BODY_SHAPE_BOX) {
                     dst.shape = types::RBShapeBox{src.size[0], src.size[1], src.size[2]};
                 } else {
                     dst.shape = types::RBShapeCapsule{src.size[0], src.size[1]};
                 }
                 dst.position = vector(src.position);
-                if (src.bone > -1) {
+                if (src.bone > NO_PMX_INDEX) {
                     dst.position -= vector(data.bones[src.bone].position);
                 }
                 dst.rotation = vector(src.rotation);
-                dst.mass = src.mode == 0 ? 0 : src.mass;
+                dst.mass = src.mode == RIGID_BODY_MODE_KINEMATIC ? 0 : src.mass;
                 dst.linear_damping = src.linear_damping;
                 dst.angular_damping = src.angular_damping;
                 dst.restitution = src.restitution;
@@ -296,36 +350,36 @@ namespace enishi::assets_system {
                 dst.rigid_body_b = static_cast<std::uint32_t>(src.body_b);
                 dst.position = vector(src.position);
                 dst.rotation = vector(src.rotation);
-                if (src.type < 2) {
+                if (src.type < JOINT_TYPE_WITH_CONSTRAINTS_END) {
                     dst.constrain_position_min = vector(src.translation_min);
                     dst.constrain_position_max = vector(src.translation_max);
                     dst.constrain_rotation_min = vector(src.rotation_min);
                     dst.constrain_rotation_max = vector(src.rotation_max);
                 }
-                if (src.type == 0) {
+                if (src.type == JOINT_TYPE_SPRING_SIX_DOF) {
                     dst.spring_position = vector(src.translation_spring);
                     dst.spring_rotation = vector(src.rotation_spring);
                 }
-                if (src.type == 3 || src.type == 5) {
+                if (src.type == JOINT_TYPE_CONE_TWIST || src.type == JOINT_TYPE_HINGE) {
                     dst.softness = src.translation_spring[0];
                     dst.bias = src.translation_spring[1];
                     dst.relaxation = src.translation_spring[2];
                 }
-                if (src.type == 3) {
+                if (src.type == JOINT_TYPE_CONE_TWIST) {
                     dst.angular_span = vector(src.rotation_min);
                     dst.damping = src.translation_min[0];
                     dst.fix_threshold = src.translation_max[0];
                     dst.angular_motor = {src.translation_min[2] != 0, 0, src.translation_max[2]};
                     dst.motor_target_rotation = vector(src.rotation_spring);
                 }
-                if (src.type == 4) {
+                if (src.type == JOINT_TYPE_SLIDER) {
                     dst.constrain_position_min.x = src.translation_min[0];
                     dst.constrain_position_max.x = src.translation_max[0];
                     dst.linear_motor = {src.translation_spring[0] != 0,
                         src.translation_spring[1],
                         src.translation_spring[2]};
                 }
-                if (src.type == 4 || src.type == 5) {
+                if (src.type == JOINT_TYPE_SLIDER || src.type == JOINT_TYPE_HINGE) {
                     dst.constrain_rotation_min.x = src.rotation_min[0];
                     dst.constrain_rotation_max.x = src.rotation_max[0];
                     dst.angular_motor = {src.rotation_spring[0] != 0,
@@ -348,14 +402,15 @@ namespace enishi::assets_system {
             for (const auto& src : data.soft_bodies) {
                 types::SoftBody dst;
                 dst.name = src.name;
-                dst.shape = src.shape == 0 ? types::SoftBodyShape::TriangleMesh
-                                           : types::SoftBodyShape::Rope;
+                dst.shape = src.shape == SOFT_BODY_SHAPE_TRIANGLE_MESH
+                                ? types::SoftBodyShape::TriangleMesh
+                                : types::SoftBodyShape::Rope;
                 dst.material = static_cast<std::uint32_t>(src.material);
                 dst.group_index = src.group;
                 dst.collision_mask = static_cast<std::uint16_t>(~src.non_collision_mask);
-                dst.generate_bending_constraints = (src.flags & 1) != 0;
-                dst.generate_clusters = (src.flags & 2) != 0;
-                dst.randomize_constraints = (src.flags & 4) != 0;
+                dst.generate_bending_constraints = (src.flags & SOFT_BODY_FLAG_BENDING) != 0;
+                dst.generate_clusters = (src.flags & SOFT_BODY_FLAG_CLUSTER) != 0;
+                dst.randomize_constraints = (src.flags & SOFT_BODY_FLAG_RANDOMIZE) != 0;
                 dst.bending_distance = src.link_distance;
                 dst.cluster_count = src.cluster_count;
                 dst.mass = src.mass;

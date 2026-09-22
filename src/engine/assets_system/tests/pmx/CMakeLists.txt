@@ -10,6 +10,7 @@ add_executable(pmx_tests
     pmx_tests.cpp
     pmx_conversion_tests.cpp
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_model_loader.cpp"
+    "${ASSETS_ROOT}/model/model_loader/pmx/pmx_reader.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_validation.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_to_model_data.cpp"
     "${ASSETS_ROOT}/utility/binary_reader.cpp"
