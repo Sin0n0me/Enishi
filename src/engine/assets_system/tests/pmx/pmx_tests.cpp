@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <assets_system/model/model_loader/pmx/pmx_model_loader.h>
 #include <bit>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 
 using namespace enishi;
@@ -278,7 +280,7 @@ namespace {
                       data.soft_bodies[0].pinned_vertices[0] == 255,
                 "soft body vertex indices");
             // Exercise every truncation point in the variable-length sections after vertices.
-            const auto tail = full.data.size() - 1200;
+            const auto tail = 37 + 256 * (101 + width);
             for (std::size_t size = tail; size < full.data.size(); ++size) {
                 check(PMXModelLoader::parse(std::span(full.data).first(size)).is_err(),
                     "truncated section accepted");
@@ -323,6 +325,19 @@ namespace {
         bytes.data[0] = 'p';
         check(PMXModelLoader::parse(bytes.data).is_err(), "invalid signature accepted");
         check(PMXModelLoader::parse(fixture(3.0f, 1).data).is_err(), "unknown version accepted");
+        for (const auto offset : {17u, 38u}) {
+            bytes = fixture(2.0f, 1);
+            std::fill_n(bytes.data.begin() + offset, 4, std::uint8_t{0xFF});
+            check(PMXModelLoader::parse(bytes.data).is_err(),
+                "negative text length or vertex count accepted");
+            bytes.data[offset + 3] = 0x7F;
+            check(PMXModelLoader::parse(bytes.data).is_err(),
+                "oversized text length or vertex count accepted");
+        }
+        bytes = fixture(2.0f, 1);
+        bytes.data[44] = 0x80;
+        bytes.data[45] = 0x7F;
+        check(PMXModelLoader::parse(bytes.data).is_err(), "infinite coordinate accepted");
 
         PMXData data;
         data.version = 2.0f;
@@ -337,6 +352,20 @@ namespace {
         PMXModelLoader loader;
         check(loader.get_supported_extension() == ".pmx", "extension registration");
         check(loader.load("missing-pmx-test-file.pmx").is_err(), "missing file accepted");
+        const std::filesystem::path path = "generated-pmx-loader-test.pmx";
+        check(!std::filesystem::exists(path), "test fixture path already exists");
+        bytes = full_fixture(4);
+        {
+            std::ofstream file(path, std::ios::binary);
+            file.write(reinterpret_cast<const char*>(bytes.data.data()),
+                static_cast<std::streamsize>(bytes.data.size()));
+            check(file.good(), "could not write test fixture");
+        }
+        auto loaded = loader.load(path);
+        check(std::filesystem::remove(path), "could not remove generated fixture");
+        check(loaded.is_ok() &&
+                  std::get<std::unique_ptr<PMXData>>(loaded.unwrap())->bones.size() == 2,
+            "file load and model variant");
     }
 } // namespace
 

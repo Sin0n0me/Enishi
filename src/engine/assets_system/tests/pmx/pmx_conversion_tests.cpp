@@ -219,4 +219,27 @@ void pmx_conversion_tests() {
     data.joints[0].type = 255;
     check(PMXToModelData::to_model_data("model.pmx", data, nullptr).is_err(),
         "invalid direct conversion input");
+
+    PMXData narrow;
+    narrow.version = 2.0f;
+    narrow.bones.resize(1);
+    PMXVertex vertex;
+    vertex.deform_type = 3;
+    vertex.bones = {0, -1, -1, -1};
+    vertex.weights = {0.25f, 0.75f, 0, 0};
+    narrow.vertices.push_back(vertex);
+    auto linear = PMXToModelData::to_model_data("model.pmx", narrow, nullptr);
+    check(linear.is_ok() &&
+              std::get<types::Skinning>(linear.unwrap()->vertices[0][1]).bone_weight.y == 0.75f,
+        "two-influence compatibility and spherical fallback");
+    data = model_fixture();
+    data.materials[0].texture = -1;
+    data.materials[0].sphere_texture = -1;
+    data.morphs[10].offsets[0].translation = {};
+    auto stopped = PMXToModelData::to_model_data("model.pmx", data, nullptr);
+    check(stopped.is_ok() &&
+              std::get<types::ImpulseMorphOffset>(
+                  addon<types::AddonMorphTargets>(*stopped.unwrap()).targets[10].offsets[0])
+                  .reset_velocity,
+        "zero impulse becomes a velocity reset");
 }

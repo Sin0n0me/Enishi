@@ -2,7 +2,9 @@
 #include "../../../utility/binary_reader.h"
 #include <bit>
 #include <cmath>
+#include <format>
 #include <limits>
+#include <type_traits>
 
 namespace enishi::assets_system {
     namespace {

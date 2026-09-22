@@ -164,8 +164,11 @@ namespace enishi::assets_system {
                             break;
                         }
                         case 10:
-                            target.offsets.emplace_back(types::ImpulseMorphOffset{
-                                index, o.operation != 0, vector(o.translation), vector(o.torque)});
+                            target.offsets.emplace_back(types::ImpulseMorphOffset{index,
+                                o.operation != 0,
+                                vector(o.translation),
+                                vector(o.torque),
+                                o.translation == PMXVec3{} && o.torque == PMXVec3{}});
                             break;
                         default:
                             target.offsets.emplace_back(types::UVMorphOffset{

@@ -47,6 +47,7 @@ namespace enishi::types {
         bool local_space;
         glm::vec3 velocity;
         glm::vec3 torque;
+        bool reset_velocity{};
     };
 
     using MorphOffset = std::variant<VertexMorphOffset,
