@@ -23,6 +23,19 @@ namespace {
         std::exit(1);
     }
 
+    std::int32_t morph_offset_index(std::uint8_t kind) {
+        if (kind == 0) {
+            return 1;
+        }
+        if (kind == 9) {
+            return 9;
+        }
+        if (kind == 8) {
+            return -1;
+        }
+        return 0;
+    }
+
     class TestTextureLoader : public IAssetLoader {
       public:
         std::vector<std::filesystem::path> paths;
@@ -109,7 +122,7 @@ namespace {
             morph.type = kind;
             morph.name = std::to_string(kind);
             PMXMorphOffset offset;
-            offset.index = kind == 0 ? 1 : kind == 9 ? 9 : kind == 8 ? -1 : 0;
+            offset.index = morph_offset_index(kind);
             offset.weight = 0.7f;
             offset.translation = {1, 2, 3};
             offset.rotation = {0, 0, 0, 1};

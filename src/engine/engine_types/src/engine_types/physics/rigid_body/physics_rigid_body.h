@@ -9,7 +9,7 @@ namespace enishi::types {
     struct PhysicsRigidBody {
         std::string name;                // 剛体の名前
         std::uint32_t relate_bone_index; // UINT32_MAX denotes no related bone.
-        std::uint16_t group_mask;      // 対象剛体グループマスク
+        std::uint16_t group_mask;        // 対象剛体グループマスク
         std::uint8_t group_index;        // 剛体グループ番号
         RigidBodyKind kind;              // 剛体タイプ
         RigidBodyShape shape;            // 衝突形状

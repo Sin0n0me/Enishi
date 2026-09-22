@@ -45,6 +45,29 @@ namespace {
         }
     };
 
+    std::int32_t morph_offset_index(std::uint8_t type) {
+        if (type == 0) {
+            return 1;
+        }
+        if (type == 9) {
+            return 9;
+        }
+        if (type == 8) {
+            return -1;
+        }
+        return 0;
+    }
+
+    int deform_bone_count(int type) {
+        if (type == 0) {
+            return 1;
+        }
+        if (type == 1 || type == 3) {
+            return 2;
+        }
+        return 4;
+    }
+
     Bytes full_fixture(std::uint8_t width) {
         Bytes out;
         for (const auto c : std::string_view("PMX ")) {
@@ -127,7 +150,7 @@ namespace {
             out.put(std::uint8_t{4});
             out.put(type);
             out.put(std::int32_t{1});
-            out.index(type == 0 ? 1 : type == 9 ? 9 : type == 8 ? -1 : 0, width);
+            out.index(morph_offset_index(type), width);
             switch (type) {
                 case 0:
                 case 9:
@@ -232,7 +255,7 @@ namespace {
                 out.put(0.0f);
             }
             out.put(static_cast<std::uint8_t>(type));
-            const int bones = type == 0 ? 1 : type == 1 || type == 3 ? 2 : 4;
+            const int bones = deform_bone_count(type);
             for (int i = 0; i < bones; ++i) {
                 out.index(-1, width);
             }
