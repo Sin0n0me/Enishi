@@ -1,22 +1,23 @@
 #pragma once
 #include <engine_types/collider/obb.h>
-#include <engine_types/collider/ray.h>
-#include <memory>
+#include <optional>
+#include <vector>
 
 namespace enishi::collider {
     class OBBMaker {
+      private:
+        static std::optional<types::OBB> fit(const std::vector<glm::vec3>& positions,
+            const glm::dvec3& mean,
+            const glm::dmat3& axes);
+
       public:
-        static types::OBB make_by_covariance_matrix(const std::vector<glm::vec3>& positions);
+        // Empty/non-finite input, or an unrepresentable result, returns nullopt.
+        [[nodiscard]] static std::optional<types::OBB> make_by_covariance_matrix(
+            const std::vector<glm::vec3>& positions);
 
-        static types::OBB make(const std::vector<glm::vec3>& positions,
-            const glm::vec3& mean,
-            const glm::mat4& eigen_vectors);
-
-        // 最大値の取得
-        static std::tuple<float, std::uint32_t, std::uint32_t> find_jacobi_pivot(
-            const glm::mat4& matrix) noexcept;
-
-        // ヤコビ法による固有ベクトル取得
-        static glm::mat4 jacobi_eigen_decomposition(const glm::mat4& matrix) noexcept;
+        // Refit transformed corners, including non-uniform scale and shear.
+        // The matrix maps the original OBB space into world space.
+        [[nodiscard]] static std::optional<types::OBB> transform(
+            const types::OBB& obb, const glm::mat4& matrix);
     };
 } // namespace enishi::collider

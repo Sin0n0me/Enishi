@@ -5,18 +5,18 @@ include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
 
 # 以下依存設定
 set(DEPENDENCIES)
-set(DEPENDENT_LOACAL_DIRS)
+include(FetchContent)
 
 # ローカル
-set(DEPENDENT_LOACAL_DIRS
-    "../engine_types"
-    "../foundation"
-)
+FetchContent_Declare(ENGINE_TYPES SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engine_types)
+FetchContent_MakeAvailable(ENGINE_TYPES)
+FetchContent_Declare(SUB_SYSTEM SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../sub_system)
+FetchContent_MakeAvailable(SUB_SYSTEM)
 
 set(DEPENDENCIES
     glm
     engine_types
-    foundation
+    sub_system
 )
 
 #
@@ -29,12 +29,6 @@ if(MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
 endif()
 
-# 依存しているローカルディレクトリの追加
-foreach(dir_path IN LISTS DEPENDENT_LOACAL_DIRS)
-    get_filename_component(dir_name "${dir_path}" NAME)
-    add_subdirectory("${dir_path}" "${CMAKE_CURRENT_BINARY_DIR}/build_${dir_name}")
-endforeach()
-
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
     "src/*.h"
     "src/*.c"
@@ -45,7 +39,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
-    DEPENDENCIES ${DEPENDENCIES}
+    PUBLIC_DEPENDENCIES ${DEPENDENCIES}
 )
 
 # MSVCコンパイラのホットリロードを有効に
@@ -56,9 +50,9 @@ endif()
 
 
 # 以下テスト用設定
-option(BUILD_TESTING OFF)
+option(COLLIDER_BUILD_TESTING "Build collider tests" OFF)
 
-if(BUILD_TESTING)
+if(COLLIDER_BUILD_TESTING)
     enable_testing()
 
     # テスト用実行ファイルの生成
@@ -69,8 +63,10 @@ if(BUILD_TESTING)
         "tests/*.cpp"
     )
 
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
+    add_executable(${PROJECT_NAME}_test ${TEST_SOURCES})
+    target_link_libraries(${PROJECT_NAME}_test PRIVATE collider)
+    target_compile_features(${PROJECT_NAME}_test PRIVATE cxx_std_23)
 
     # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
+    add_test(NAME ColliderTests COMMAND collider_test)
 endif()

@@ -1,34 +1,56 @@
 #pragma once
 #include <engine_types/collider/obb.h>
 #include <engine_types/collider/ray.h>
-#include <engine_types/renderer/camera.h>
 #include <memory>
+#include <optional>
+#include <sub_system/collision/interface_collision_handler.h>
+#include <unordered_map>
+#include <vector>
 
 namespace enishi::collider {
     class Collider {
-      private:
-        const std::shared_ptr<types::Camera> camera;
-        const std::shared_ptr<IOBBMapGetter> obb_map_getter;
-
-        float client_x;
-        float client_y;
-        int16_t hit_index;
-        bool is_hit;
+      public:
+        using OBBMap = std::unordered_map<types::BoneIndex, types::OBB>;
 
       private:
-        void on_collision_check(void);
+        struct Model {
+            OBBMap local_obbs;
+            OBBMap world_obbs;
+            std::vector<std::shared_ptr<sub_system::ICollisionHandler>> handlers;
+        };
+        std::unordered_map<types::CollisionModelId, Model> models;
 
       public:
-        static bool hit_model(const types::Ray& ray, const types::OBB& obb);
+        [[nodiscard]] bool register_model(types::CollisionModelId model);
+        bool remove_model(types::CollisionModelId model);
 
-      public:
-        explicit Collider(const std::shared_ptr<types::Camera>& camera,
-            const std::shared_ptr<IOBBMapGetter> obb_map_getter);
+        // Vertices are bone-local; transform maps that space into world space.
+        // Invalid input leaves an existing bone unchanged.
+        [[nodiscard]] bool set_bone(types::CollisionModelId model,
+            types::BoneIndex bone,
+            const std::vector<glm::vec3>& positions,
+            const glm::mat4& transform = glm::mat4(1.0f));
+        [[nodiscard]] bool update_bone(
+            types::CollisionModelId model, types::BoneIndex bone, const glm::mat4& transform);
+        bool remove_bone(types::CollisionModelId model, types::BoneIndex bone);
+        [[nodiscard]] const OBBMap* get_obb_map(types::CollisionModelId model) const noexcept;
 
-        int16_t get_hit_index(void) const noexcept;
+        [[nodiscard]] bool add_handler(types::CollisionModelId model,
+            const std::shared_ptr<sub_system::ICollisionHandler>& handler);
+        bool remove_handler(types::CollisionModelId model,
+            const std::shared_ptr<sub_system::ICollisionHandler>& handler);
 
-        bool is_hit_model(void) const noexcept;
+        // Call after pose updates once per step. Returns the colliding bone-pair count.
+        // Notifications are snapshotted: callback mutations affect the next check.
+        // Single-threaded; handlers must not recursively call check_collisions().
+        std::size_t check_collisions(void);
 
-        void set_client_position(const float x, const float y);
+        // Same-owner rejection precedes geometric work. Touching counts as collision.
+        [[nodiscard]] static std::optional<types::OBBContact> intersect(
+            types::CollisionModelId first_model,
+            const types::OBB& first,
+            types::CollisionModelId second_model,
+            const types::OBB& second);
+        [[nodiscard]] static bool hit_model(const types::Ray& ray, const types::OBB& obb);
     };
 } // namespace enishi::collider
