@@ -173,8 +173,8 @@ namespace enishi::assets_system {
             minimum_code = UTF8_THREE_BYTE_LIMIT;
         }
         return this->require(
-            code > minimum_code - 1 && code < UTF8_CODE_POINT_LIMIT &&
-                !(code > UTF16_HIGH_SURROGATE_END && code < UTF16_LOW_SURROGATE_BEGIN),
+            minimum_code - 1 < code && code < UTF8_CODE_POINT_LIMIT &&
+                (code < UTF16_HIGH_SURROGATE_BEGIN || UTF16_LOW_SURROGATE_END < code),
             "invalid UTF-8 code point");
     }
 

@@ -281,6 +281,25 @@ namespace {
         return out;
     }
 
+    void utf8_surrogate_tests() {
+        constexpr float version = 2.0f;
+        constexpr std::uint8_t index_width = 1;
+        constexpr std::uint8_t utf8_encoding = 1;
+        constexpr std::array invalid_names{
+            "\xED\xA0\x80", "\xED\xAF\xBF", "\xED\xB0\x80", "\xED\xBF\xBF"};
+        for (const auto name : invalid_names) {
+            check(PMXModelLoader::parse(fixture(version, index_width, utf8_encoding, name).data)
+                      .is_err(),
+                "UTF-8 surrogate boundary accepted");
+        }
+        constexpr std::array valid_names{"\xED\x9F\xBF", "\xEE\x80\x80"};
+        for (const auto name : valid_names) {
+            check(PMXModelLoader::parse(fixture(version, index_width, utf8_encoding, name).data)
+                      .is_ok(),
+                "valid code point adjacent to surrogate range rejected");
+        }
+    }
+
     void empty_model_tests() {
         constexpr float version = 2.0f;
         constexpr std::uint8_t settings_size = 8;
@@ -436,6 +455,7 @@ namespace {
 void pmx_conversion_tests();
 
 int main() {
+    utf8_surrogate_tests();
     empty_model_tests();
     parser_tests();
     pmx_conversion_tests();
