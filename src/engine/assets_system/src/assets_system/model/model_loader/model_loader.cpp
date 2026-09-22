@@ -14,7 +14,7 @@ namespace enishi::assets_system {
         loaders.push_back(std::make_unique<PMXModelLoader>());
 
         for (auto& element : loaders) {
-            if (bool(element)) {
+            if (element != nullptr) {
                 auto extension = element->get_supported_extension();
                 this->loaders.emplace(std::move(extension), std::move(element));
             }

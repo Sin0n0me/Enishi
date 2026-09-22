@@ -7,6 +7,31 @@
 
 namespace enishi::assets_system {
     namespace {
+        constexpr float PMX_VERSION_2_0{2.0f};
+        constexpr float PMX_VERSION_2_1{2.1f};
+        constexpr std::uint8_t UTF8_ENCODING{1};
+        constexpr std::uint8_t GLOBAL_SETTINGS_SIZE{8};
+        constexpr std::uint8_t ENCODING_COUNT{2};
+        constexpr std::uint8_t ADDITIONAL_UV_COUNT_LIMIT{5};
+        constexpr std::uint8_t ONE_BYTE_INDEX_SIZE{1};
+        constexpr std::uint8_t TWO_BYTE_INDEX_SIZE{2};
+        constexpr std::uint8_t FOUR_BYTE_INDEX_SIZE{4};
+        constexpr std::size_t VERTEX_MINIMUM_SIZE{38};
+        constexpr std::size_t TEXTURE_MINIMUM_SIZE{4};
+        constexpr std::size_t MATERIAL_MINIMUM_SIZE{80};
+        constexpr std::size_t BONE_MINIMUM_SIZE{28};
+        constexpr std::size_t MORPH_MINIMUM_SIZE{14};
+        constexpr std::size_t DISPLAY_FRAME_MINIMUM_SIZE{13};
+        constexpr std::size_t RIGID_BODY_MINIMUM_SIZE{69};
+        constexpr std::size_t JOINT_MINIMUM_SIZE{107};
+        constexpr std::size_t SOFT_BODY_MINIMUM_SIZE{141};
+        constexpr std::uint16_t BONE_FLAG_TAIL_IS_BONE{0x0001};
+        constexpr std::uint16_t BONE_FLAG_INHERIT{0x0300};
+        constexpr std::uint16_t BONE_FLAG_FIXED_AXIS{0x0400};
+        constexpr std::uint16_t BONE_FLAG_LOCAL_COORDINATE{0x0800};
+        constexpr std::uint16_t BONE_FLAG_EXTERNAL_PARENT{0x2000};
+        constexpr std::uint16_t BONE_FLAG_IK{0x0020};
+
         class PMXReader {
           private:
             std::span<const std::uint8_t> bytes;
@@ -72,7 +97,7 @@ namespace enishi::assets_system {
                     return;
                 }
                 const auto end = this->position + size;
-                if (encoding == 1) {
+                if (encoding == UTF8_ENCODING) {
                     value.assign(
                         reinterpret_cast<const char*>(this->bytes.data() + this->position), size);
                     while (this->position < end && this->error.empty()) {
@@ -161,18 +186,22 @@ namespace enishi::assets_system {
                 this->require(
                     magic == std::array<std::uint8_t, 4>{'P', 'M', 'X', ' '}, "invalid signature");
                 this->read(data.version);
-                if (this->error.empty() && data.version != 2.0f && data.version != 2.1f) {
+                if (this->error.empty() && data.version != PMX_VERSION_2_0 &&
+                    data.version != PMX_VERSION_2_1) {
                     return foundation::Error(
                         AssetError::UnsupportedVersion, "PMX version must be 2.0 or 2.1");
                 }
                 std::uint8_t header_size{};
                 this->fields(
                     header_size, data.encoding, data.additional_uv_count, data.index_sizes);
-                this->require(
-                    header_size == 8 && data.encoding <= 1 && data.additional_uv_count <= 4,
+                this->require(header_size == GLOBAL_SETTINGS_SIZE &&
+                                  data.encoding < ENCODING_COUNT &&
+                                  data.additional_uv_count < ADDITIONAL_UV_COUNT_LIMIT,
                     "invalid global settings");
                 for (const auto size : data.index_sizes) {
-                    this->require(size == 1 || size == 2 || size == 4, "invalid index width");
+                    this->require(size == ONE_BYTE_INDEX_SIZE || size == TWO_BYTE_INDEX_SIZE ||
+                                      size == FOUR_BYTE_INDEX_SIZE,
+                        "invalid index width");
                 }
                 const auto text = [&](std::string& value) { this->text(value, data.encoding); };
                 const auto names = [&](auto& value) {
@@ -187,14 +216,14 @@ namespace enishi::assets_system {
                 text(data.english_comment);
 
                 this->section = "vertices";
-                this->records(data.vertices, 38, [&](PMXVertex& v) {
+                this->records(data.vertices, VERTEX_MINIMUM_SIZE, [&](PMXVertex& v) {
                     this->fields(v.position, v.normal, v.uv);
                     v.additional_uvs.resize(data.additional_uv_count);
                     for (auto& uv : v.additional_uvs) {
                         this->read(uv);
                     }
                     this->read(v.deform_type);
-                    if (!this->require(v.deform_type < (data.version == 2.1f ? 5 : 4),
+                    if (!this->require(v.deform_type < (data.version == PMX_VERSION_2_1 ? 5 : 4),
                             "invalid deformation type")) {
                         return;
                     }
@@ -225,9 +254,9 @@ namespace enishi::assets_system {
                     data.index_sizes[0] == 0 ? 1 : data.index_sizes[0],
                     [&](std::uint32_t& v) { v = static_cast<std::uint32_t>(index(0)); });
                 this->section = "textures";
-                this->records(data.textures, 4, text);
+                this->records(data.textures, TEXTURE_MINIMUM_SIZE, text);
                 this->section = "materials";
-                this->records(data.materials, 80, [&](PMXMaterial& v) {
+                this->records(data.materials, MATERIAL_MINIMUM_SIZE, [&](PMXMaterial& v) {
                     names(v);
                     this->fields(v.diffuse,
                         v.specular,
@@ -252,30 +281,30 @@ namespace enishi::assets_system {
                     this->read(v.index_count);
                 });
                 this->section = "bones";
-                this->records(data.bones, 28, [&](PMXBone& v) {
+                this->records(data.bones, BONE_MINIMUM_SIZE, [&](PMXBone& v) {
                     names(v);
                     this->read(v.position);
                     v.parent = index(3);
                     this->fields(v.layer, v.flags);
-                    if ((v.flags & 1) != 0) {
+                    if ((v.flags & BONE_FLAG_TAIL_IS_BONE) != 0) {
                         v.tail = index(3);
                     } else {
                         this->read(v.tail_offset);
                     }
-                    if ((v.flags & 0x0300) != 0) {
+                    if ((v.flags & BONE_FLAG_INHERIT) != 0) {
                         v.inherit_parent = index(3);
                         this->read(v.inherit_weight);
                     }
-                    if ((v.flags & 0x0400) != 0) {
+                    if ((v.flags & BONE_FLAG_FIXED_AXIS) != 0) {
                         this->read(v.fixed_axis);
                     }
-                    if ((v.flags & 0x0800) != 0) {
+                    if ((v.flags & BONE_FLAG_LOCAL_COORDINATE) != 0) {
                         this->fields(v.local_x, v.local_z);
                     }
-                    if ((v.flags & 0x2000) != 0) {
+                    if ((v.flags & BONE_FLAG_EXTERNAL_PARENT) != 0) {
                         this->read(v.external_parent);
                     }
-                    if ((v.flags & 0x0020) != 0) {
+                    if ((v.flags & BONE_FLAG_IK) != 0) {
                         v.ik_target = index(3);
                         this->fields(v.ik_iterations, v.ik_angle);
                         this->require(
@@ -291,10 +320,11 @@ namespace enishi::assets_system {
                     }
                 });
                 this->section = "morphs";
-                this->records(data.morphs, 14, [&](PMXMorph& v) {
+                this->records(data.morphs, MORPH_MINIMUM_SIZE, [&](PMXMorph& v) {
                     names(v);
                     this->fields(v.panel, v.type);
-                    if (!this->require(v.panel < 5 && v.type < (data.version == 2.1f ? 11 : 9),
+                    if (!this->require(
+                            v.panel < 5 && v.type < (data.version == PMX_VERSION_2_1 ? 11 : 9),
                             "invalid morph type or panel")) {
                         return;
                     }
@@ -345,18 +375,19 @@ namespace enishi::assets_system {
                     });
                 });
                 this->section = "display frames";
-                this->records(data.display_frames, 13, [&](PMXDisplayFrame& v) {
-                    names(v);
-                    this->read(v.special);
-                    this->require(v.special < 2, "invalid display frame flag");
-                    this->records(v.elements, 2, [&](PMXDisplayElement& e) {
-                        this->read(e.type);
-                        this->require(e.type < 2, "invalid display element type");
-                        e.index = index(e.type == 0 ? 3 : 4);
+                this->records(
+                    data.display_frames, DISPLAY_FRAME_MINIMUM_SIZE, [&](PMXDisplayFrame& v) {
+                        names(v);
+                        this->read(v.special);
+                        this->require(v.special < 2, "invalid display frame flag");
+                        this->records(v.elements, 2, [&](PMXDisplayElement& e) {
+                            this->read(e.type);
+                            this->require(e.type < 2, "invalid display element type");
+                            e.index = index(e.type == 0 ? 3 : 4);
+                        });
                     });
-                });
                 this->section = "rigid bodies";
-                this->records(data.rigid_bodies, 69, [&](PMXRigidBody& v) {
+                this->records(data.rigid_bodies, RIGID_BODY_MINIMUM_SIZE, [&](PMXRigidBody& v) {
                     names(v);
                     v.bone = index(3);
                     this->fields(v.group,
@@ -375,10 +406,11 @@ namespace enishi::assets_system {
                         v.group < 16 && v.shape < 3 && v.mode < 3, "invalid rigid body settings");
                 });
                 this->section = "joints";
-                this->records(data.joints, 107, [&](PMXJoint& v) {
+                this->records(data.joints, JOINT_MINIMUM_SIZE, [&](PMXJoint& v) {
                     names(v);
                     this->read(v.type);
-                    this->require(v.type < (data.version == 2.1f ? 6 : 1), "invalid joint type");
+                    this->require(
+                        v.type < (data.version == PMX_VERSION_2_1 ? 6 : 1), "invalid joint type");
                     v.body_a = index(5);
                     v.body_b = index(5);
                     this->fields(v.position,
@@ -390,9 +422,9 @@ namespace enishi::assets_system {
                         v.translation_spring,
                         v.rotation_spring);
                 });
-                if (data.version == 2.1f) {
+                if (data.version == PMX_VERSION_2_1) {
                     this->section = "soft bodies";
-                    this->records(data.soft_bodies, 141, [&](PMXSoftBody& v) {
+                    this->records(data.soft_bodies, SOFT_BODY_MINIMUM_SIZE, [&](PMXSoftBody& v) {
                         names(v);
                         this->read(v.shape);
                         v.material = index(2);
@@ -447,12 +479,12 @@ namespace enishi::assets_system {
     }
 
     std::int32_t PMXReader::index(std::uint8_t size, bool vertex) {
-        if (size == 1) {
+        if (size == ONE_BYTE_INDEX_SIZE) {
             std::uint8_t value{};
             this->read(value);
             return vertex ? value : std::bit_cast<std::int8_t>(value);
         }
-        if (size == 2) {
+        if (size == TWO_BYTE_INDEX_SIZE) {
             std::uint16_t value{};
             this->read(value);
             return vertex ? value : std::bit_cast<std::int16_t>(value);
@@ -465,9 +497,8 @@ namespace enishi::assets_system {
     std::int32_t PMXReader::count(std::size_t minimum_size) {
         std::int32_t value{};
         this->read(value);
-        if (!this->require(value > -1 &&
-                !(static_cast<std::size_t>(value) >
-                    (this->bytes.size() - this->position) / minimum_size),
+        if (!this->require(value > -1 && !(static_cast<std::size_t>(value) >
+                                             (this->bytes.size() - this->position) / minimum_size),
                 "invalid count or truncated section")) {
             return 0;
         }
