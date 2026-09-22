@@ -9,6 +9,7 @@ set(ASSETS_ROOT "${ENGINE_ROOT}/assets_system/src/assets_system")
 add_executable(pmx_tests
     pmx_tests.cpp
     pmx_conversion_tests.cpp
+    pmx_runtime_support_tests.cpp
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_model_loader.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_reader.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_validation.cpp"

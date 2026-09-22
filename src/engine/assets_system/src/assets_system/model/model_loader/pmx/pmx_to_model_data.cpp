@@ -55,6 +55,16 @@ namespace enishi::assets_system {
         constexpr std::uint8_t SOFT_BODY_FLAG_CLUSTER{2};
         constexpr std::uint8_t SOFT_BODY_FLAG_RANDOMIZE{4};
 
+        foundation::Result<void, AssetError> validate_rigid_body_support(const PMXData& data) {
+            for (const auto& body : data.rigid_bodies) {
+                if (body.bone == NO_PMX_INDEX) {
+                    return foundation::Error(AssetError::UnsupportedFeature,
+                        "PMX runtime does not support rigid bodies without a related bone");
+                }
+            }
+            return {};
+        }
+
         glm::vec3 vector(const PMXVec3& v) {
             return {v[0], v[1], v[2]};
         }
@@ -459,6 +469,10 @@ namespace enishi::assets_system {
         auto valid = PMXModelLoader::validate(data);
         if (valid.is_err()) {
             return std::move(valid).take_err();
+        }
+        auto supported = validate_rigid_body_support(data);
+        if (supported.is_err()) {
+            return std::move(supported).take_err();
         }
         auto model = std::make_shared<types::ModelData>();
         model->name = data.name;

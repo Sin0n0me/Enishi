@@ -453,11 +453,13 @@ namespace {
 } // namespace
 
 void pmx_conversion_tests();
+void pmx_runtime_support_tests();
 
 int main() {
     utf8_surrogate_tests();
     empty_model_tests();
     parser_tests();
     pmx_conversion_tests();
+    pmx_runtime_support_tests();
     std::cout << "PMX tests passed\n";
 }
