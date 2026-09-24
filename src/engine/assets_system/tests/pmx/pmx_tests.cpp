@@ -348,6 +348,10 @@ namespace {
             }
             check(parsed.is_ok(), "full PMX fixture rejected");
             const auto& data = parsed.unwrap();
+            const auto converted = PMXToModelData::to_model_data("unsupported.pmx", data, nullptr);
+            check(converted.is_err() &&
+                      converted.unwrap_err().get_error() == AssetError::UnsupportedFeature,
+                "unsupported features remain readable but must not become runtime model data");
             check(data.indices[2] == 255, "unsigned vertex reference");
             check(data.vertices[0].additional_uvs[3][3] == 0.5f, "four additional UV channels");
             check(data.materials[1].toon_texture == 9, "shared toon index");

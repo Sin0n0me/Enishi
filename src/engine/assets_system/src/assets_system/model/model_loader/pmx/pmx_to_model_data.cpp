@@ -1,5 +1,6 @@
 #include "pmx_to_model_data.h"
 #include "pmx_model_loader.h"
+#include "pmx_runtime_support.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -76,6 +77,13 @@ namespace enishi::assets_system {
                                          : static_cast<types::BoneIndex>(index);
         }
 
+        std::uint16_t legacy_skinning_index(std::int32_t index) {
+            // The shader fetches both matrices, even when an influence has zero weight.
+            // Runtime validation rejects missing bones with a nonzero weight.
+            constexpr std::uint16_t first_bone = 0;
+            return index == NO_PMX_INDEX ? first_bone : static_cast<std::uint16_t>(index);
+        }
+
         void make_vertices(types::ModelData& model, const PMXData& data) {
             const bool wide_skinning =
                 std::ranges::any_of(data.vertices, [](const PMXVertex& vertex) {
@@ -99,8 +107,8 @@ namespace enishi::assets_system {
                                              static_cast<std::uint32_t>(v.bones[3])},
                             vector(v.weights)});
                 } else {
-                    vertex.emplace_back(types::Skinning{{static_cast<std::uint16_t>(v.bones[0]),
-                                                            static_cast<std::uint16_t>(v.bones[1])},
+                    vertex.emplace_back(types::Skinning{
+                        {legacy_skinning_index(v.bones[0]), legacy_skinning_index(v.bones[1])},
                         {v.weights[0], v.weights[1]}});
                 }
                 vertex.emplace_back(types::EdgeFlag{v.edge_scale});
@@ -471,6 +479,10 @@ namespace enishi::assets_system {
             return std::move(valid).take_err();
         }
         auto supported = validate_rigid_body_support(data);
+        if (supported.is_err()) {
+            return std::move(supported).take_err();
+        }
+        supported = validate_pmx_runtime_support(data);
         if (supported.is_err()) {
             return std::move(supported).take_err();
         }
