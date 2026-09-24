@@ -199,12 +199,6 @@ void pmx_conversion_error_tests() {
     data.materials[0].sphere_texture = -1;
     check(PMXToModelData::to_model_data("model.pmx", data, nullptr).is_ok(),
         "untextured model conversion");
-    data.bones.resize(65537);
-    data.vertices[0].bones[0] = 65535;
-    auto large = PMXToModelData::to_model_data("model.pmx", data, nullptr);
-    check(large.is_ok() &&
-              std::get<types::Skinning4>(large.unwrap()->vertices[0][1]).bone_index.x == 65535,
-        "wide bone index must not become the root sentinel");
     data.joints[0].type = 255;
     check(PMXToModelData::to_model_data("model.pmx", data, nullptr).is_err(),
         "invalid direct conversion input");
@@ -219,6 +213,14 @@ void pmx_unsupported_before_texture_test() {
     check(result.is_err() && result.unwrap_err().get_error() == AssetError::UnsupportedFeature &&
               textures.paths.empty(),
         "unsupported model must be rejected before texture loading");
+    data = model_fixture();
+    constexpr std::size_t over_runtime_bone_limit = 513;
+    data.bones.resize(over_runtime_bone_limit);
+    const auto oversized = PMXToModelData::to_model_data("oversized.pmx", data, &textures);
+    check(oversized.is_err() &&
+              oversized.unwrap_err().get_error() == AssetError::UnsupportedFeature &&
+              textures.paths.empty(),
+        "oversized bone palette must be rejected before texture loading");
 }
 
 void pmx_conversion_tests() {

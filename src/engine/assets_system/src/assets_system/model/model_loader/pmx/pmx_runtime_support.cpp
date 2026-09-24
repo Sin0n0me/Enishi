@@ -25,6 +25,8 @@ namespace enishi::assets_system {
         constexpr std::int32_t NO_BODY = -1;
         constexpr std::int32_t NO_BONE = -1;
         constexpr std::size_t LEGACY_INFLUENCE_COUNT = 2;
+        // Matches the bone matrix arrays in vs_model_gl.glsl and bones.hlsl.
+        constexpr std::size_t RUNTIME_BONE_LIMIT = 512;
 
         foundation::Error<AssetError> unsupported(const char* feature) {
             return foundation::Error(AssetError::UnsupportedFeature,
@@ -32,6 +34,12 @@ namespace enishi::assets_system {
         }
 
         foundation::Result<void, AssetError> validate_rendering(const PMXData& data) {
+            // TODO: Support large models with 32-bit bone references, matching vertex layouts,
+            // matrix buffer allocation/transfer, and shaders in both rendering backends;
+            // then replace this fixed limit with the supported runtime capacity.
+            if (data.bones.size() > RUNTIME_BONE_LIMIT) {
+                return unsupported("models with more than 512 bones");
+            }
             for (const auto& vertex : data.vertices) {
                 if (vertex.deform_type == DEFORM_BDEF4) {
                     return unsupported("BDEF4 skinning");

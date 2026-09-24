@@ -106,6 +106,31 @@ namespace {
         expect_unsupported(data, "models without bones");
     }
 
+    void bone_capacity_tests() {
+        constexpr std::size_t shader_bone_capacity = 512;
+        constexpr std::int32_t last_shader_bone = 511;
+        constexpr std::int32_t first_unsupported_bone = 512;
+        constexpr std::int32_t first_wide_bone = 65535;
+        constexpr std::uint8_t bdef2 = 1;
+        constexpr std::size_t skinning_attribute = 1;
+        auto data = supported_model();
+        data.bones.resize(shader_bone_capacity);
+        data.vertices.front().deform_type = bdef2;
+        data.vertices.front().bones[1] = last_shader_bone;
+        const auto converted = PMXToModelData::to_model_data("boundary.pmx", data, nullptr);
+        check(converted.is_ok() && std::get<types::Skinning>(
+                                       converted.unwrap()->vertices.front()[skinning_attribute])
+                                           .bone_index.y == last_shader_bone,
+            "512 bones and reference 511 must retain the supported vertex layout");
+        data.bones.emplace_back();
+        expect_unsupported(data, "more than 512 bones");
+        data.vertices.front().bones[1] = first_unsupported_bone;
+        expect_unsupported(data, "more than 512 bones");
+        data.bones.resize(static_cast<std::size_t>(first_wide_bone) + 1);
+        data.vertices.front().bones[1] = first_wide_bone;
+        expect_unsupported(data, "more than 512 bones");
+    }
+
     void animation_support_tests() {
         for (const auto flag : {INHERIT_ROTATION,
                  INHERIT_TRANSLATION,
@@ -183,6 +208,7 @@ void pmx_runtime_support_tests() {
     unbound_rigid_body_tests();
     rendering_support_tests();
     missing_influence_tests();
+    bone_capacity_tests();
     animation_support_tests();
     physics_support_tests();
 }
