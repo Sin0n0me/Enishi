@@ -3,15 +3,18 @@
 #include "../bone/bone_resolver.h"
 #include "pmd/pmd_model_loader.h"
 #include "pmd/pmd_to_model_data.h"
+#include "pmx/pmx_model_loader.h"
+#include "pmx/pmx_to_model_data.h"
 
 namespace enishi::assets_system {
     ModelLoader::ModelLoader(std::shared_ptr<TextureLoader> texture_loader)
         : texture_loader(texture_loader) {
         std::vector<std::unique_ptr<IModelLoader>> loaders;
         loaders.push_back(std::make_unique<PMDModelLoader>());
+        loaders.push_back(std::make_unique<PMXModelLoader>());
 
         for (auto& element : loaders) {
-            if (bool(element)) {
+            if (element != nullptr) {
                 auto extension = element->get_supported_extension();
                 this->loaders.emplace(std::move(extension), std::move(element));
             }
@@ -36,7 +39,8 @@ namespace enishi::assets_system {
         }
         auto&& model_data = load_data.unwrap_mut();
 
-        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data)) {
+        if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data);
+            pmd_data != nullptr) {
             auto&& convert_data =
                 PMDToModelData::to_model_data(path, *pmd_data->get(), this->texture_loader.get())
                     .add_message("データの変換に失敗しました");
@@ -45,6 +49,16 @@ namespace enishi::assets_system {
             }
 
             return types::AssetData{convert_data.unwrap()};
+        }
+
+        if (const auto pmx_data = std::get_if<std::unique_ptr<PMXData>>(&model_data);
+            pmx_data != nullptr) {
+            auto converted =
+                PMXToModelData::to_model_data(path, **pmx_data, this->texture_loader.get());
+            if (converted.is_err()) {
+                return std::move(converted).take_err();
+            }
+            return types::AssetData{std::move(converted).unwrap_mut()};
         }
 
         // 仮

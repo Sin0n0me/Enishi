@@ -9,6 +9,7 @@
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <ranges>
+#include <renderer/common/converter/skinned_vertices.h>
 
 namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
@@ -78,11 +79,23 @@ namespace enishi::renderer::directx {
         const auto& reflection = opt_refection.unwrap();
         const auto input_layouts = reflection->get_shader_input_reflection()
                                        ->get_input_layouts(); // 保持しなければ名前が消える
-        const auto input_elements = input_layouts |
-                                    std::views::transform([](const types::ShaderInputLayout& info) {
-                                        return D3D11Converter::to_input_element_description(info);
-                                    }) |
-                                    std::ranges::to<std::vector>();
+        auto input_elements = input_layouts |
+                              std::views::transform([](const types::ShaderInputLayout& info) {
+                                  return D3D11Converter::to_input_element_description(info);
+                              }) |
+                              std::ranges::to<std::vector>();
+
+        // Reflection may omit unused model attributes in edge and shadow passes.
+        // Their byte offsets still refer to the same complete vertex buffer.
+        if (std::ranges::any_of(
+                input_layouts, [](const auto& input) { return input.name == "BONEWEIGHTS"; })) {
+            for (auto& element : input_elements) {
+                const auto offset = skinned_vertex_offset(element.SemanticName);
+                if (offset.has_value()) {
+                    element.AlignedByteOffset = *offset;
+                }
+            }
+        }
 
         const auto [resource_handle, input_layout] =
             this->native_resource->get_native_input_layout_accessor()->make_native_input_layout();
