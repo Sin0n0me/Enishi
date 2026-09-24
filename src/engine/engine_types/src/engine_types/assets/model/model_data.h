@@ -38,6 +38,15 @@ namespace enishi::types {
     enum class SkinningMethod {
         LinearBlend,
         DualQuaternion,
+        SphericalBlend,
+    };
+
+    // Bind-space pivot and two corrected anchors for spherical two-bone blending.
+    // At bind pose, the weighted anchors equal the center.
+    struct SphericalBlend {
+        glm::vec3 center{};
+        glm::vec3 anchor0{};
+        glm::vec3 anchor1{};
     };
 
     using VertexVariant = std::variant<VertexPosition, Vertex, Skinning, EdgeFlag, Skinning4>;
@@ -60,6 +69,8 @@ namespace enishi::types {
 
         // Optional metadata; empty means linear blending and no extra UV channels.
         std::vector<SkinningMethod> skinning_methods;
+        // Empty unless spherical blending is used; otherwise indexed by vertex.
+        std::vector<SphericalBlend> spherical_blends;
         std::vector<std::vector<glm::vec4>> additional_uv_channels;
 
         [[nodiscard]] bool is_valid_data(void) const;

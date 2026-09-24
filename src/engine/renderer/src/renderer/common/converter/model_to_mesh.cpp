@@ -1,4 +1,6 @@
 #include "model_to_mesh.h"
+#include "skinned_vertices.h"
+#include <algorithm>
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
@@ -47,6 +49,21 @@ namespace enishi::renderer {
     foundation::Result<types::OwnedRenderData, RendererError> ModelToMesh::to_vertices(
         const types::ModelData& model_data) {
         std::vector<std::byte> vertices;
+
+        if (model_data.vertices.empty()) {
+            return foundation::Error(RendererError::ConvertError, "Model has no vertices");
+        }
+        const auto& attributes = model_data.vertices.front();
+        if (std::ranges::any_of(attributes, [](const auto& attribute) {
+                return std::holds_alternative<types::Skinning>(attribute) ||
+                       std::holds_alternative<types::Skinning4>(attribute);
+            })) {
+            auto converted = make_skinned_vertices(model_data);
+            if (converted.is_err()) {
+                return std::move(converted).unwrap_err();
+            }
+            return types::OwnedRenderData{converted.unwrap()};
+        }
 
         const auto append_vertex = [&vertices](const std::vector<types::VertexVariant>& vertex) {
             for (const auto& variant : vertex) {
