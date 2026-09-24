@@ -95,6 +95,22 @@ namespace enishi::assets_system {
                     return invalid("invalid vertex bone or weight");
                 }
             }
+            if (vertex.deform_type == PMX_DEFORM_BDEF4 || vertex.deform_type == PMX_DEFORM_QDEF) {
+                const auto total =
+                    vertex.weights[0] + vertex.weights[1] + vertex.weights[2] + vertex.weights[3];
+                if (!std::isfinite(total) || !(total > 0.0f)) {
+                    return invalid("four-influence skinning requires a positive finite weight sum");
+                }
+            }
+            if (vertex.deform_type == PMX_DEFORM_SDEF) {
+                for (std::size_t axis = 0; axis < AXIS_COUNT; ++axis) {
+                    if (!std::isfinite(vertex.sdef_center[axis]) ||
+                        !std::isfinite(vertex.sdef_radius0[axis]) ||
+                        !std::isfinite(vertex.sdef_radius1[axis])) {
+                        return invalid("invalid spherical deformation parameters");
+                    }
+                }
+            }
         }
         if (data.indices.size() % TRIANGLE_VERTEX_COUNT != 0) {
             return invalid("incomplete triangle");

@@ -7,7 +7,6 @@ using namespace enishi::assets_system;
 
 namespace {
     constexpr std::uint8_t BDEF2 = 1;
-    constexpr std::uint8_t BDEF4 = 2;
     void check(bool condition, const char* message) {
         if (!condition) {
             std::cerr << message << '\n';
@@ -206,7 +205,7 @@ void pmx_conversion_error_tests() {
 
 void pmx_unsupported_before_texture_test() {
     auto data = model_fixture();
-    data.vertices.front().deform_type = BDEF4;
+    data.bones.front().layer = 1;
     TestTextureLoader textures;
     textures.fail = true;
     const auto result = PMXToModelData::to_model_data("unsupported.pmx", data, &textures);

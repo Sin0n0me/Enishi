@@ -74,7 +74,8 @@ namespace {
         for (const auto deform : {BDEF4, SDEF, QDEF}) {
             auto data = supported_model();
             data.vertices.front().deform_type = deform;
-            expect_unsupported(data, "skinning");
+            check(PMXToModelData::to_model_data("supported.pmx", data, nullptr).is_ok(),
+                "BDEF4, SDEF and QDEF must be supported");
         }
         auto data = supported_model();
         data.additional_uv_count = ONE_ADDITIONAL_UV;

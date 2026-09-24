@@ -10,6 +10,8 @@ add_executable(pmx_tests
     pmx_tests.cpp
     pmx_conversion_tests.cpp
     pmx_runtime_support_tests.cpp
+    pmx_deformation_tests.cpp
+    "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_model_loader.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_reader.cpp"
     "${ASSETS_ROOT}/model/model_loader/pmx/pmx_validation.cpp"
@@ -22,6 +24,7 @@ target_include_directories(pmx_tests PRIVATE
     "${ENGINE_ROOT}/assets_system/src"
     "${ENGINE_ROOT}/engine_types/src"
     "${ENGINE_ROOT}/foundation/src"
+    "${ENGINE_ROOT}/renderer/src"
     "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}"
 )
 if(MSVC)

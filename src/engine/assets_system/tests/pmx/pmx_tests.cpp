@@ -458,6 +458,7 @@ namespace {
 
 void pmx_conversion_tests();
 void pmx_runtime_support_tests();
+void pmx_deformation_tests();
 
 int main() {
     utf8_surrogate_tests();
@@ -465,5 +466,6 @@ int main() {
     parser_tests();
     pmx_conversion_tests();
     pmx_runtime_support_tests();
+    pmx_deformation_tests();
     std::cout << "PMX tests passed\n";
 }

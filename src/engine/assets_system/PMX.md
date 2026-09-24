@@ -22,7 +22,6 @@
 `AssetError::UnsupportedFeature` と対象機能を示すメッセージを返します。
 検査はモデル生成・テクスチャ読み込みより前に行い、部分的なモデルは返しません。
 
-- BDEF4、QDEF、SDEF
 - ボーンを持たないモデル、ウェイトが0でない未関連ボーン参照
 - ボーン数が512を超えるモデル（未使用ボーンも含む）
 - 追加UV、頂点カラー、点・線材質、追加UVを使うスフィアのサブテクスチャ
@@ -38,7 +37,8 @@
 | 情報 | 共通型での表現 |
 | --- | --- |
 | 頂点ウェイト | 既存の `Skinning`、または32ビット参照の `Skinning4` |
-| 変形方式 | `SkinningMethod::LinearBlend` / `DualQuaternion` |
+| 変形方式 | `SkinningMethod::LinearBlend` / `DualQuaternion` / `SphericalBlend` |
+| 球面補間 | `SphericalBlend` のバインド空間の中心と補正済みアンカー |
 | 追加UV | 頂点順の `additional_uv_channels` |
 | ボーン | 名前、親子関係、ローカル・グローバル・逆バインド行列 |
 | ボーンの付与・制約 | `AddonBoneConstraints` の変形継承、軸、評価順序 |
@@ -49,16 +49,18 @@
 | ジョイント | 汎用の種類、制限、ばね、モーター |
 | ソフトボディ | 形状、空力・ソルバー設定、アンカー、固定頂点 |
 
-頂点レイアウトはモデル内で統一します。BDEF4/QDEFは変換時に拒否します。
-16ビット範囲内のBDEF1/BDEF2には既存の `Skinning` を使用します。
+頂点レイアウトはモデル内で統一します。BDEF4/QDEFを含むモデルには `Skinning4` を使い、
+4ウェイトの合計を1に正規化します。それ以外には既存の `Skinning` を使用します。
+描画前に両形式を共通の4ウェイトGPU頂点へ変換するため、PMDや変形方式の混在にも対応します。
 現行のOpenGL/HLSLシェーダの行列配列に合わせ、ボーン数の上限は512です。
 構造検証で参照番号の範囲も確認するため、変換成功時の有効な参照番号は0〜511です。
 この上限はウェイト0の参照にも適用され、32ビット参照を必要とするモデルも拒否します。
-将来の32ビット参照・頂点形式・行列転送・シェーダの拡張は、上限チェックにTODOとして残しています。
+頂点転送は32ビット参照に対応しましたが、512ボーン制限は維持しています。
+将来の行列転送・シェーダ容量の拡張は、上限チェックにTODOとして残しています。
 面の参照番号は32ビットで保持します。共通の `BoneIndex` の無効値は型の最大値とし、
 実在する65535番のボーンと区別します。
-ウェイト0の未関連参照は0番ボーンへ置き換えます。既存シェーダはウェイト0でも行列を
-取得するため、BDEF1の未使用枠などに無効な添字を渡さないためです。
+GPUへ渡すウェイト0の参照は0番ボーンへ置き換えます。球面補間やGPUの分岐評価で
+未使用枠から行列を取得しても、無効な添字を渡さないためです。
 
 頂点モーフは既存の `AddonMorphs` にも変換します。モーフ番号は元の順序を維持し、
 頂点以外のモーフの頂点リストは空です。`AddonMorphTargets` を処理する利用側は、
@@ -75,12 +77,16 @@
 
 ## 変換と実行の範囲
 
-- SDEFは以前の線形近似を停止し、変換時に拒否します。補正値は `PMXData` に保持します。
+- BDEF4は4行列の線形ブレンド、QDEFは符号を揃えて正規化する二重クォータニオン、
+  SDEFは2回転の球面補間と補正済みアンカーの変換で実行します。位置と法線の双方が対象です。
+- SDEFの生のC/R0/R1は `PMXData` に保持します。共通型には、中心と
+  `anchor_i = C + (R_i - (w0*R0 + w1*R1))/2` で得たアンカーを渡します。
+  描画位置は `slerp(q0,q1,w1)*(position-C) + w0*M0*anchor0 + w1*M1*anchor1` です。
+  球面補間と二重クォータニオンは回転・平行移動からなるボーン変換を前提とします。
+- OpenGLのモデル描画と、DirectXのモデル・エッジ・シャドウ描画に実装しています。
 - 表示枠、英語名・コメント、ボーン表示用情報、外部親のキー、ソフトボディのNear補正は
   PMX側のデータとして保持し、共通モデルの動作には変換しません。
-- この実装は読み込みと共通データへの変換です。既存の描画・アニメーション・物理処理に、
-  `Skinning4`、二重クォータニオン、追加モーフ、追加制約、拡張ジョイント、ソフトボディを
-  実行する処理は追加していません。未対応機能は上記の検査で拒否します。
+- 追加モーフ、追加制約、拡張ジョイント、ソフトボディなどの未対応機能は上記の検査で拒否します。
 
 ## 検証
 
@@ -97,9 +103,24 @@ ctest --test-dir build/pmx-tests --output-on-failure
 階層・ウェイト・モーフ・物理データ・テクスチャの変換とエラー伝播を確認します。
 実モデルによる描画結果の検証は含みません。
 
+Windows SDKの開発者環境では、描画側の独立テストも実行できます。既存のGLM/ICUのみを使用し、
+新しい依存は取得しません。WARPで本番HLSLの変形関数を実行し、3描画パスのコンパイルと入力を検証します。
+
+```powershell
+cmake -G "NMake Makefiles" -S src/engine/renderer/tests/skinning -B build/skinning-tests -DGLM_INCLUDE_DIR=<GLMヘッダの親ディレクトリ> -DICU_INCLUDE_DIR=<unicodeヘッダの親ディレクトリ>
+cmake --build build/skinning-tests
+ctest --test-dir build/skinning-tests --output-on-failure
+python src/engine/renderer/tests/skinning/gl_skinning_tests.py
+```
+
+最後のテストはWindowsの非表示WGLコンテキストで本番GLSLを実行し、座標と法線を読み戻します。
+OpenGL 4.0対応ドライバが必要です。テスト対象は4ウェイト、単位変換、回転・平行移動、
+クォータニオンの符号反転、SDEFアンカー、PMXからGPU頂点への変換とPMD形式の互換性です。
+
 ## 参照資料
 
 - [PMX仕様（PMXエディタ仕様書のミラー）](https://github.com/hirakuni45/glfw3_app/blob/master/glfw3_app/docs/PMX_spec.txt)
 - [SabaのPMXローダ](https://github.com/benikabocha/saba/blob/master/src/Saba/Model/MMD/PMXFile.cpp)
+- [SabaのSDEF/QDEF変形処理](https://github.com/benikabocha/saba/blob/master/src/Saba/Model/MMD/PMXModel.cpp)
 
 仕様確認のみを行い、外部実装や新しい依存ライブラリは取り込んでいません。

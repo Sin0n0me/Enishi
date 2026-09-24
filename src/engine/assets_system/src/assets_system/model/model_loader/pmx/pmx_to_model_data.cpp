@@ -16,6 +16,7 @@ namespace enishi::assets_system {
     namespace {
         constexpr std::int32_t NO_PMX_INDEX{-1};
         constexpr std::uint8_t PMX_DEFORM_BDEF4{2};
+        constexpr std::uint8_t PMX_DEFORM_SDEF{3};
         constexpr std::uint8_t PMX_DEFORM_QDEF{4};
         constexpr std::uint16_t BONE_FLAG_INHERIT_ROTATION{0x0100};
         constexpr std::uint16_t BONE_FLAG_INHERIT_TRANSLATION{0x0200};
@@ -96,16 +97,25 @@ namespace enishi::assets_system {
             model.vertices.reserve(data.vertices.size());
             model.skinning_methods.reserve(data.vertices.size());
             model.additional_uv_channels.resize(data.additional_uv_count);
+            const bool spherical = std::ranges::any_of(data.vertices,
+                [](const auto& vertex) { return vertex.deform_type == PMX_DEFORM_SDEF; });
+            if (spherical) {
+                model.spherical_blends.reserve(data.vertices.size());
+            }
             for (const auto& v : data.vertices) {
                 types::VertexVariants vertex{
                     types::Vertex{vector(v.position), vector(v.normal), {v.uv[0], v.uv[1]}}};
                 if (wide_skinning) {
+                    auto weights = vector(v.weights);
+                    if (v.deform_type == PMX_DEFORM_BDEF4 || v.deform_type == PMX_DEFORM_QDEF) {
+                        weights /= weights.x + weights.y + weights.z + weights.w;
+                    }
                     vertex.emplace_back(
                         types::Skinning4{{static_cast<std::uint32_t>(v.bones[0]),
                                              static_cast<std::uint32_t>(v.bones[1]),
                                              static_cast<std::uint32_t>(v.bones[2]),
                                              static_cast<std::uint32_t>(v.bones[3])},
-                            vector(v.weights)});
+                            weights});
                 } else {
                     vertex.emplace_back(types::Skinning{
                         {legacy_skinning_index(v.bones[0]), legacy_skinning_index(v.bones[1])},
@@ -113,11 +123,26 @@ namespace enishi::assets_system {
                 }
                 vertex.emplace_back(types::EdgeFlag{v.edge_scale});
                 model.vertices.push_back(std::move(vertex));
-                // Spherical deformation falls back to its two linear blend weights.
-                // Its format-specific correction vectors remain in PMXData.
-                model.skinning_methods.push_back(v.deform_type == PMX_DEFORM_QDEF
-                                                     ? types::SkinningMethod::DualQuaternion
-                                                     : types::SkinningMethod::LinearBlend);
+                auto method = types::SkinningMethod::LinearBlend;
+                if (v.deform_type == PMX_DEFORM_QDEF) {
+                    method = types::SkinningMethod::DualQuaternion;
+                } else if (v.deform_type == PMX_DEFORM_SDEF) {
+                    method = types::SkinningMethod::SphericalBlend;
+                }
+                model.skinning_methods.push_back(method);
+                if (spherical) {
+                    types::SphericalBlend blend;
+                    if (v.deform_type == PMX_DEFORM_SDEF) {
+                        constexpr float correction_scale = 0.5f;
+                        blend.center = vector(v.sdef_center);
+                        const auto radius0 = vector(v.sdef_radius0);
+                        const auto radius1 = vector(v.sdef_radius1);
+                        const auto weighted = radius0 * v.weights[0] + radius1 * v.weights[1];
+                        blend.anchor0 = blend.center + (radius0 - weighted) * correction_scale;
+                        blend.anchor1 = blend.center + (radius1 - weighted) * correction_scale;
+                    }
+                    model.spherical_blends.push_back(blend);
+                }
                 for (std::size_t channel = 0; channel < v.additional_uvs.size(); ++channel) {
                     model.additional_uv_channels[channel].push_back(
                         vector(v.additional_uvs[channel]));

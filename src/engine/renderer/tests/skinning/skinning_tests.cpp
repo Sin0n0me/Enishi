@@ -196,6 +196,32 @@ RWStructuredBuffer<Output> results : register(u0);
         }
     }
 
+    void rigid_quaternion_tests(ShaderRunner& runner) {
+        const auto rotation =
+            glm::angleAxis(glm::radians(123.0f), glm::normalize(glm::vec3(1, 2, 3)));
+        const auto transform =
+            glm::translate(glm::mat4(1), glm::vec3(4, -5, 6)) * glm::mat4_cast(rotation);
+        Palette bones;
+        bones.fill(transform);
+        renderer::SkinnedVertex vertex;
+        vertex.method = static_cast<std::uint32_t>(types::SkinningMethod::DualQuaternion);
+        vertex.position = {3, 2, -1};
+        vertex.normal = {0, 1, 0};
+        vertex.bones = {0, 1, 2, 3};
+        vertex.weights = {0.1f, 0.2f, 0.3f, 0.4f};
+        const auto result = runner.run(vertex, bones);
+        check_near(result.position,
+            glm::vec3(transform * glm::vec4(vertex.position, 1)),
+            "dual quaternion combines translation and non-axis-aligned rotation");
+        check_near(result.normal, rotation * vertex.normal, "rigid quaternion normal");
+        constexpr std::uint32_t last_bone = BONE_CAPACITY - 1;
+        vertex.bones = {last_bone, 0, 0, 0};
+        vertex.weights = {1, 0, 0, 0};
+        check_near(runner.run(vertex, bones).position,
+            result.position,
+            "last shader bone remains accessible");
+    }
+
     void spherical_anchor_tests(ShaderRunner& runner) {
         Palette bones;
         bones.fill(glm::mat4(1));
@@ -289,6 +315,7 @@ int main() {
     packing_tests();
     ShaderRunner runner;
     deformation_tests(runner);
+    rigid_quaternion_tests(runner);
     spherical_anchor_tests(runner);
     std::cout << "Skinning packing and WARP shader tests passed\n";
 }

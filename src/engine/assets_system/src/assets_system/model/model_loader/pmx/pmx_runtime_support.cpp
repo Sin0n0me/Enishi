@@ -3,7 +3,6 @@
 namespace enishi::assets_system {
     namespace {
         constexpr std::uint8_t DEFORM_BDEF4 = 2;
-        constexpr std::uint8_t DEFORM_SDEF = 3;
         constexpr std::uint8_t DEFORM_QDEF = 4;
         constexpr std::uint8_t MORPH_VERTEX = 1;
         constexpr std::uint16_t BONE_INHERIT_ROTATION = 0x0100;
@@ -25,6 +24,7 @@ namespace enishi::assets_system {
         constexpr std::int32_t NO_BODY = -1;
         constexpr std::int32_t NO_BONE = -1;
         constexpr std::size_t LEGACY_INFLUENCE_COUNT = 2;
+        constexpr std::size_t FOUR_INFLUENCE_COUNT = 4;
         // Matches the bone matrix arrays in vs_model_gl.glsl and bones.hlsl.
         constexpr std::size_t RUNTIME_BONE_LIMIT = 512;
 
@@ -34,23 +34,17 @@ namespace enishi::assets_system {
         }
 
         foundation::Result<void, AssetError> validate_rendering(const PMXData& data) {
-            // TODO: Support large models with 32-bit bone references, matching vertex layouts,
-            // matrix buffer allocation/transfer, and shaders in both rendering backends;
-            // then replace this fixed limit with the supported runtime capacity.
+            // TODO: Extend matrix buffer allocation/transfer and both shaders for large models,
+            // then replace this limit. Four-influence vertices already use 32-bit references.
             if (data.bones.size() > RUNTIME_BONE_LIMIT) {
                 return unsupported("models with more than 512 bones");
             }
             for (const auto& vertex : data.vertices) {
-                if (vertex.deform_type == DEFORM_BDEF4) {
-                    return unsupported("BDEF4 skinning");
-                }
-                if (vertex.deform_type == DEFORM_QDEF) {
-                    return unsupported("QDEF skinning");
-                }
-                if (vertex.deform_type == DEFORM_SDEF) {
-                    return unsupported("SDEF skinning");
-                }
-                for (std::size_t influence = 0; influence < LEGACY_INFLUENCE_COUNT; ++influence) {
+                const auto influence_count =
+                    vertex.deform_type == DEFORM_BDEF4 || vertex.deform_type == DEFORM_QDEF
+                        ? FOUR_INFLUENCE_COUNT
+                        : LEGACY_INFLUENCE_COUNT;
+                for (std::size_t influence = 0; influence < influence_count; ++influence) {
                     if (vertex.bones[influence] == NO_BONE && vertex.weights[influence] != 0.0f) {
                         return unsupported("weighted influences without bones");
                     }
