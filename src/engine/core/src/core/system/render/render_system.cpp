@@ -1,4 +1,5 @@
 #include "render_system.h"
+#include "bone_matrix_upload.h"
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <foundation/log/logger.h>
@@ -25,6 +26,13 @@ namespace enishi::core {
     }
 
     void RenderSystem::update(const types::DeltaTime& delta_time) {
+        for (auto [entity, model, skinning] :
+            this->registry->view<component::ModelComponent, component::SkinningComponent>()) {
+            const auto result = upload_bone_matrices(*this->renderer, model, skinning);
+            if (result.is_err()) {
+                foundation::Logger::warning(result.unwrap_err().get_message());
+            }
+        }
         // 各パイプラインに応じた描画コマンド実行
         for (const auto& pass : this->render_passes) {
             pass->update();

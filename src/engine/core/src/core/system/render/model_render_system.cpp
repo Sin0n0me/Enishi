@@ -1,4 +1,5 @@
 #include "model_render_system.h"
+#include <core/system/skinning/model_pose_initializer.h>
 #include <filesystem>
 #include <foundation/log/logger.h>
 #include <utility>
@@ -57,6 +58,13 @@ namespace enishi::core {
                 continue;
             }
 
+            const auto pose_result =
+                initialize_model_pose(*this->registry, entity, insert_result.unwrap_mut());
+            if (pose_result.is_err()) {
+                foundation::Logger::error(pose_result.unwrap_err().get_message());
+                this->registry->destroy(entity);
+                continue;
+            }
             this->model_render_pass->add_mesh(insert_result.unwrap_mut().render_handle);
         }
     }

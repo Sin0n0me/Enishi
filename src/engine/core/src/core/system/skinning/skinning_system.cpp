@@ -6,6 +6,7 @@
 #include <component/skinning_component.h>
 #include <core/system/physics/physics_body_factory.h>
 #include <ik_system/ik_solver.h>
+#include <numeric>
 #include <utility>
 
 namespace enishi::core {
@@ -79,10 +80,18 @@ namespace enishi::core {
 
         // IKComponentを持たないモデルもある
         if (ik.is_some()) {
+            bones->ik_base_local.resize(model.bone_node.size());
+            bones->evaluation_order = model.evaluation_order;
+            if (bones->evaluation_order.empty()) {
+                bones->evaluation_order.resize(model.bone_node.size());
+                std::iota(bones->evaluation_order.begin(),
+                    bones->evaluation_order.end(),
+                    types::BoneIndex{});
+            }
             bones->ik_cache = std::make_unique<skinning_system::IKBoneCache>(
                 model.bone_node, BoneViewFactory::make_ik_view(ik.unwrap_mut()));
             bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(
-                *bones->ik_cache, *bones->bind_cache);
+                *bones->ik_cache, *bones->bind_cache, bones->ik_base_local);
         }
 
         // PhysicsComponentを持たないモデルもある
@@ -119,14 +128,29 @@ namespace enishi::core {
 
     void SkinningSystem::solve_ik(
         ModelBones& bones, foundation::Option<component::IKComponent&> opt_ik) const noexcept {
-        if (bones.ik_cache || bones.ik_updater || opt_ik.is_none()) {
+        if (bones.ik_cache == nullptr || bones.ik_updater == nullptr || opt_ik.is_none()) {
             return;
         }
         const auto& ik = opt_ik.unwrap();
 
-        for (const auto& [bone_index, ik_index] : ik.ik_map) {
+        // Start each frame from animation, not the previous frame's IK correction.
+        for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
+            bones.ik_base_local[index] =
+                bones.animation_cache->at(index)->get_animation_local_transform();
+            bones.ik_cache->at(index)->set_ik_rotation(glm::quat(1, 0, 0, 0));
+        }
+        bones.ik_updater->update_global_form_roots();
+        for (const auto bone_index : bones.evaluation_order) {
+            const auto found = ik.ik_map.find(bone_index);
+            if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
+                continue;
+            }
             ik::IKSolver::apply_ik(
-                ik.iks[ik_index], bones.ik_cache.get(), bones.ik_updater.get(), bone_index);
+                ik.iks[found->second], bones.ik_cache.get(), bones.ik_updater.get(), bone_index);
+        }
+        for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
+            bones.animation_cache->at(index)->set_animation_global_transform(
+                bones.ik_cache->at(index)->get_ik_global_transform());
         }
     }
 

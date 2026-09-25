@@ -72,9 +72,6 @@ namespace enishi::assets_system {
                 if ((bone.flags & UNSUPPORTED_BONE_FLAGS) != 0) {
                     return unsupported("bone inheritance, axes, or external/physics transforms");
                 }
-                if (bone.layer != 0) {
-                    return unsupported("bone evaluation layers");
-                }
                 for (const auto& link : bone.ik_links) {
                     if (link.limited != 0) {
                         return unsupported("per-link IK limits");

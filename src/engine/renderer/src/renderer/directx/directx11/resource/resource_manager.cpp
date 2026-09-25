@@ -154,7 +154,8 @@ namespace enishi::renderer::directx {
         // 定数バッファやサンプラーなどのバインド位置を取得
         auto&& result = this->resolve_mesh_binding(std::move(mesh_data),
                                 this->get_shader_reflections(shader_reflections),
-                                std::move(mapped_index_buffer))
+                                std::move(mapped_index_buffer),
+                                mesh.uniform_buffers)
                             .add_message("バインド情報の取得に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
@@ -828,11 +829,13 @@ namespace enishi::renderer::directx {
     foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
     ResourceManager::resolve_mesh_binding(types::MeshData&& mesh_data,
         std::vector<platform::IShaderAccessor::ShaderReflection>&& shader_reflections,
-        types::HandleId&& mapped_index_buffer) {
+        types::HandleId&& mapped_index_buffer,
+        types::MeshHandles::UniformBuffers& named_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
 
         auto&& result_uniforms =
-            this->resolve_uniforms(std::move(mesh_data.uniforms), shader_reflections)
+            this->resolve_uniforms(
+                    std::move(mesh_data.uniforms), shader_reflections, named_uniforms)
                 .add_message("Unifromバッファのバインド情報の解決に失敗しました");
         if (result_uniforms.is_err()) {
             return result_uniforms;
@@ -865,7 +868,8 @@ namespace enishi::renderer::directx {
 
     foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
     ResourceManager::resolve_uniforms(types::MeshData::UniformMap&& uniforms,
-        const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections) {
+        const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections,
+        types::MeshHandles::UniformBuffers& named_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
 
         // 定数バッファの作成
@@ -884,6 +888,13 @@ namespace enishi::renderer::directx {
                     }
 
                     mesh_handles.emplace_back(result.unwrap());
+
+                    const auto mapped = this->handle_mapper->get(result.unwrap());
+                    if (mapped.is_none()) {
+                        return foundation::Error(
+                            platform::RenderError::MakeError, "Uniform buffer handle is missing");
+                    }
+                    named_uniforms[name].push_back(mapped.unwrap().configurable);
 
                     iter = uniforms.erase(iter);
                 } else {

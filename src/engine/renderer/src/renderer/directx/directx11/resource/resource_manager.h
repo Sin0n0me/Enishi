@@ -101,10 +101,12 @@ namespace enishi::renderer::directx {
         [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
         resolve_mesh_binding(types::MeshData&& mesh_data,
             std::vector<platform::IShaderAccessor::ShaderReflection>&& shader_reflections,
-            types::HandleId&& mapped_index_buffer);
+            types::HandleId&& mapped_index_buffer,
+            types::MeshHandles::UniformBuffers& named_uniforms);
         [[nodiscard]] foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
         resolve_uniforms(types::MeshData::UniformMap&& uniforms,
-            const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections);
+            const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections,
+            types::MeshHandles::UniformBuffers& named_uniforms);
         [[nodiscard]] foundation::Result<types::RenderHandle, platform::RenderError>
         resolve_uniform(const types::ShaderInputResource& input_resource,
             const types::ShaderKind& shader_kind,

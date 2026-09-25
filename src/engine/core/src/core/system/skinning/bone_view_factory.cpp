@@ -4,7 +4,7 @@ namespace enishi::core {
     BoneViewFactory::Views<skinning_system::AnimationBoneView> BoneViewFactory::make_animation_view(
         component::AnimationComponent& animation) noexcept {
         const auto size = animation.animation.size();
-        if (size != animation.animation.size()) {
+        if (size != animation.global.size()) {
             return {};
         }
 
@@ -49,6 +49,7 @@ namespace enishi::core {
             views.emplace_back(std::make_unique<skinning_system::IKBoneView>(
                 ik.rotation[index], ik.globals[index]));
         }
+        return views;
     }
 
     BoneViewFactory::Views<skinning_system::BindBoneView> BoneViewFactory::make_bind_view(

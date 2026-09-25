@@ -1,0 +1,57 @@
+#include "model_pose_initializer.h"
+#include <component/animation_component.h>
+#include <component/ik_component.h>
+#include <component/skinning_component.h>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
+
+namespace enishi::core {
+    foundation::Result<void, ModelPoseError> initialize_model_pose(
+        ecs::Registry& registry, types::HandleId entity, const component::ModelComponent& model) {
+        if (model.bone_node.empty()) {
+            return {};
+        }
+        if (model.bind_bone.size() != model.bone_node.size()) {
+            return foundation::Error(
+                ModelPoseError::InvalidBindTransform, "Bone and bind counts differ");
+        }
+        component::AnimationComponent animation{};
+        component::IKComponent ik;
+        component::SkinningComponent skinning;
+        for (const auto& bind : model.bind_bone) {
+            component::AnimationBuffer pose;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            if (!glm::decompose(
+                    bind.local, pose.scale, pose.rotation, pose.position, skew, perspective)) {
+                return foundation::Error(
+                    ModelPoseError::InvalidBindTransform, "Invalid bind transform");
+            }
+            animation.animation.push_back(pose);
+            animation.global.push_back(bind.global);
+            ik.rotation.emplace_back(1.0f, 0.0f, 0.0f, 0.0f);
+            ik.globals.push_back(bind.global);
+            skinning.skinning_matrices.push_back(bind.global * bind.global_inverse);
+        }
+        ik.iks = model.iks;
+        for (std::size_t index = 0; index < ik.iks.size(); ++index) {
+            const auto& chain = std::get<types::CCDIK>(ik.iks[index].method);
+            ik.ik_map.emplace(chain.ik_bone, static_cast<types::IkIndex>(index));
+        }
+        auto animation_result = registry.insert(entity, std::move(animation));
+        if (animation_result.is_err()) {
+            return animation_result.propagation(ModelPoseError::RegistrationFailed);
+        }
+        auto skinning_result = registry.insert(entity, std::move(skinning));
+        if (skinning_result.is_err()) {
+            return skinning_result.propagation(ModelPoseError::RegistrationFailed);
+        }
+        if (!ik.iks.empty()) {
+            auto ik_result = registry.insert(entity, std::move(ik));
+            if (ik_result.is_err()) {
+                return ik_result.propagation(ModelPoseError::RegistrationFailed);
+            }
+        }
+        return {};
+    }
+} // namespace enishi::core

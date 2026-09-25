@@ -404,6 +404,7 @@ namespace enishi::renderer::opengl {
             return std::move(index);
         }
         std::vector<types::HandleId> mesh_uniform_handles;
+        types::MeshHandles::UniformBuffers named_uniforms;
         for (const auto& reflection_handle : shader_reflections) {
             const auto reflection = this->state->reflections.find(reflection_handle);
             if (reflection == this->state->reflections.end()) {
@@ -440,6 +441,7 @@ namespace enishi::renderer::opengl {
                 const auto [buffer_handle, _] = this->resource_accessor->make_buffer();
                 this->resource_accessor->add_interface(buffer_handle, updater);
                 mesh_uniform_handles.emplace_back(buffer_handle);
+                named_uniforms[resource.name].push_back(buffer_handle);
             }
         }
         GLuint vao = NO_GL_OBJECT;
@@ -506,6 +508,7 @@ namespace enishi::renderer::opengl {
         }
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         auto [mesh_resource, mesh_handles] = this->resource_accessor->make_mesh_handles();
+        mesh_handles.uniform_buffers = std::move(named_uniforms);
         mesh_handles.mesh_handles.emplace_back(vertex.unwrap());
         mesh_handles.mesh_handles.emplace_back(index.unwrap());
         (*this->handle_mapper)[handle].resource = mesh_resource;

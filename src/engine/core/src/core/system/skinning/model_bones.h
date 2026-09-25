@@ -23,6 +23,8 @@ namespace enishi::core {
         std::unique_ptr<skinning_system::AnimationBonesUpdater> animation_updater;
         std::shared_ptr<skinning_system::PhysicsBonesUpdater> physics_updater;
         std::unique_ptr<skinning_system::IKBonesUpdater> ik_updater;
+        std::vector<glm::mat4> ik_base_local;
+        std::vector<types::BoneIndex> evaluation_order;
 
         ModelBones(void) = default;
 

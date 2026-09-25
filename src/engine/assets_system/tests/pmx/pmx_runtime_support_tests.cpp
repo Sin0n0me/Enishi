@@ -145,7 +145,8 @@ namespace {
         }
         auto data = supported_model();
         data.bones.front().layer = 1;
-        expect_unsupported(data, "bone evaluation layers");
+        check(PMXToModelData::to_model_data("layers.pmx", data, nullptr).is_ok(),
+            "bone evaluation layers are supported");
         data = supported_model();
         auto& bone = data.bones.front();
         bone.flags = BONE_IK;
