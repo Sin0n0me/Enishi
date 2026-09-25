@@ -3,10 +3,12 @@
 #include <glm/gtc/quaternion.hpp>
 
 namespace enishi::skinning_system {
-    IKBonesUpdater::IKBonesUpdater(
-        IKBoneCache& ik_view, const sub_system::IBindBoneViewList& bind_view) noexcept
+    IKBonesUpdater::IKBonesUpdater(IKBoneCache& ik_view,
+        const sub_system::IBindBoneViewList& bind_view,
+        std::span<const glm::mat4> animation_local) noexcept
         : ik_view(&ik_view)
-        , bind_view(&bind_view) {
+        , bind_view(&bind_view)
+        , animation_local(animation_local) {
     }
 
     std::span<const types::BoneNode> IKBonesUpdater::bone_nodes(void) const noexcept {
@@ -18,16 +20,14 @@ namespace enishi::skinning_system {
     }
 
     void IKBonesUpdater::update_global(const types::BoneIndex index) noexcept {
-        if (this->bone_nodes().size() <= index) {
+        if (!(index < this->bone_nodes().size())) {
             return;
         }
         auto* const view = this->ik_view->at(index);
-        const auto& bind = this->bind_view->at(index);
-
-        // pivotはバインドポーズのローカル位置(不変)を使う
-        const auto bind_local_translation = glm::vec3(bind->get_bind_local()[3]);
-        const auto local = glm::translate(glm::mat4(1.0f), bind_local_translation) *
-                           glm::mat4_cast(view->get_ik_rotation());
+        const auto base = this->animation_local.empty()
+                              ? this->bind_view->at(index)->get_bind_local()
+                              : this->animation_local[index];
+        const auto local = base * glm::mat4_cast(view->get_ik_rotation());
 
         const auto& bone_node = this->bone_nodes()[index];
         if (bone_node.has_parent()) {
@@ -42,7 +42,7 @@ namespace enishi::skinning_system {
     }
 
     void IKBonesUpdater::update_children_global(const types::BoneIndex index) noexcept {
-        if (this->bone_nodes().size() + 1 < index) {
+        if (!(index < this->bone_nodes().size())) {
             return;
         }
         for (const auto& child : this->bone_nodes()[index].children) {
