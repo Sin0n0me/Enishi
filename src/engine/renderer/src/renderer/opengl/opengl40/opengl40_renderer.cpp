@@ -7,6 +7,7 @@
 #include <glad/gl.h>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/vertex_buffer_updater.h>
 #include <renderer/opengl/common/opengl_image_view.h>
 #include <unordered_set>
 
@@ -509,6 +510,20 @@ namespace enishi::renderer::opengl {
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         auto [mesh_resource, mesh_handles] = this->resource_accessor->make_mesh_handles();
         mesh_handles.uniform_buffers = std::move(named_uniforms);
+        const auto vertex_object = this->state->objects.at(vertex.unwrap());
+        auto vertex_updater = std::make_shared<VertexBufferUpdater>(
+            std::move(data.vertices), [vertex_object](const types::RenderData& vertices) {
+                constexpr GLintptr DATA_OFFSET = 0;
+                glBindBuffer(GL_ARRAY_BUFFER, vertex_object);
+                glBufferSubData(GL_ARRAY_BUFFER,
+                    DATA_OFFSET,
+                    static_cast<GLsizeiptr>(vertices.byte_width()),
+                    vertices.raw_data());
+            });
+        const auto [position_handle, position_buffer] = this->resource_accessor->make_buffer();
+        position_buffer = std::move(vertex_updater);
+        mesh_handles.positions =
+            types::MeshHandles::PositionStream{position_handle, offsetof(SkinnedVertex, position)};
         mesh_handles.mesh_handles.emplace_back(vertex.unwrap());
         mesh_handles.mesh_handles.emplace_back(index.unwrap());
         (*this->handle_mapper)[handle].resource = mesh_resource;

@@ -10,6 +10,7 @@
 #include <foundation/str/string_builder.h>
 #include <ranges>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/vertex_buffer_updater.h>
 
 namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
@@ -129,6 +130,32 @@ namespace enishi::renderer::directx {
                 return std::move(result);
             }
             mesh.mesh_handles.emplace_back(result.unwrap());
+            const auto mapped = this->handle_mapper->get(result.unwrap()).unwrap();
+            const auto native = this->native_resource->get_native_buffer_accessor()
+                                    ->get_native_buffer(mapped.resource)
+                                    .unwrap();
+            const auto context = this->context->get_context();
+            const auto [position_handle, position_buffer] =
+                this->native_resource->get_buffer_accessor()->make_buffer();
+            position_buffer = std::make_shared<VertexBufferUpdater>(std::move(mesh_data.vertices),
+                [context, native](const types::RenderData& vertices) {
+                    constexpr UINT SUBRESOURCE = 0;
+                    constexpr UINT MAP_FLAGS = 0;
+                    D3D11_MAPPED_SUBRESOURCE mapped_data{};
+                    const auto result = context->Map(native.Get(),
+                        SUBRESOURCE,
+                        D3D11_MAP_WRITE_DISCARD,
+                        MAP_FLAGS,
+                        &mapped_data);
+                    if (FAILED(result)) {
+                        foundation::Logger::error("Failed to map morph vertex buffer");
+                        return;
+                    }
+                    std::memcpy(mapped_data.pData, vertices.raw_data(), vertices.byte_width());
+                    context->Unmap(native.Get(), SUBRESOURCE);
+                });
+            mesh.positions = types::MeshHandles::PositionStream{
+                position_handle, offsetof(SkinnedVertex, position)};
         }
 
         // インデックスバッファ作成
