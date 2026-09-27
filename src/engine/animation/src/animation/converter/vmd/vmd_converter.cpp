@@ -11,7 +11,7 @@ namespace enishi::animation {
 
         if (FrameConverter::write_bone_track(clip_data.bone_tracks, data.bone_key_frames, resolver)
                 .is_err()) {
-            // return;
+            foundation::Logger::warning("Failed to convert VMD bone tracks");
         }
 
         for (const auto& bone_key_frame : data.bone_key_frames) {
@@ -32,67 +32,54 @@ namespace enishi::animation {
         std::vector<BoneTrack>& bone_tracks,
         const std::vector<assets_system::VMDBoneKeyFrame>& bone_key_frames,
         const assets_system::IBoneResolver* resolver) {
-        std::unordered_map<std::uint32_t, std::uint32_t> tmep;
-
-        for (const auto& bone_key_frame : bone_key_frames) {
-            const auto utf8 = foundation::sjis_to_utf8(bone_key_frame.bone_name);
+        if (resolver == nullptr) {
+            return foundation::Error(AnimationError::FailedConvert, "Bone resolver is missing");
+        }
+        auto frames = bone_key_frames;
+        std::stable_sort(frames.begin(), frames.end(), [](const auto& a, const auto& b) {
+            return a.frame < b.frame;
+        });
+        std::unordered_map<types::BoneIndex, std::size_t> tracks;
+        for (const auto& frame : frames) {
+            const std::string name(std::begin(frame.bone_name),
+                std::find(std::begin(frame.bone_name), std::end(frame.bone_name), '\0'));
+            const auto utf8 = foundation::sjis_to_utf8(name);
             if (utf8.is_err()) {
-                foundation::Logger::warning("UTF8に変換できない文字が含まれています");
+                return utf8.propagation(AnimationError::FailedConvert);
+            }
+            const auto index = resolver->resolve_index(utf8.unwrap());
+            if (index.is_none()) {
                 continue;
             }
-
-            const auto opt_index = resolver->resolve_index(utf8.unwrap());
-            if (opt_index.is_none()) {
-                foundation::Logger::warning("モデルに存在しないボーンが含まれています");
-                continue;
-            };
-            const auto bone_index = opt_index.unwrap();
-
-            if (!tmep.contains(bone_index)) {
-                const auto track_index = bone_tracks.size();
-                tmep[bone_index] = track_index;
-
-                bone_tracks.emplace_back();
-                BoneTrack& bone_track = bone_tracks.back();
-                bone_track.bone_index = bone_index;
-                bone_track.positions.interpolation_type = InterpolationType::VmdBezier;
-                bone_track.rotations.interpolation_type = InterpolationType::VmdBezier;
-
-                // 初回追加時のみ
-                if (track_index == 0) {
-                    BoneTrack& bone_track = bone_tracks[0];
-                    bone_track.bone_index = bone_index;
-                    bone_track.positions.interpolation_type = InterpolationType::VmdBezier;
-                    bone_track.rotations.interpolation_type = InterpolationType::VmdBezier;
-                }
+            const auto [entry, inserted] = tracks.try_emplace(index.unwrap(), bone_tracks.size());
+            if (inserted) {
+                auto& track = bone_tracks.emplace_back();
+                track.bone_index = index.unwrap();
+                track.positions.interpolation_type = InterpolationType::VmdBezier;
+                track.rotations.interpolation_type = InterpolationType::VmdBezier;
             }
-
-            BoneTrack& bone_track = bone_tracks[tmep[bone_index]];
-
-            // フレーム単位なので時間に変換
-            const float time = static_cast<float>(bone_key_frame.frame) / assets_system::VMD_FPS;
-            bone_track.positions.times.emplace_back(time);
-            bone_track.rotations.times.emplace_back(time);
-
-            // アニメーションの補完用
-            bone_track.scales;
-            const auto bezier =
-                VMDAnimationBezier::make(std::to_array(bone_key_frame.interpolation));
-
-            const auto translate = glm::vec3(bone_key_frame.translation[0],
-                bone_key_frame.translation[1],
-                bone_key_frame.translation[2]);
-
-            // VMDはxyzwの順序でデータが格納されている
-            const auto rotate = glm::quat(bone_key_frame.rotation[3],
-                bone_key_frame.rotation[0],
-                bone_key_frame.rotation[1],
-                bone_key_frame.rotation[2]);
-
-            bone_track.positions.values.emplace_back(translate);
-            bone_track.rotations.values.emplace_back(rotate);
-            bone_track.positions.interpolation.emplace_back(bezier);
-            bone_track.rotations.interpolation.emplace_back(bezier);
+            auto& track = bone_tracks[entry->second];
+            const auto time = static_cast<float>(frame.frame) / assets_system::VMD_FPS;
+            // Last source key wins at a duplicate frame, including its interpolation curve.
+            if (!track.positions.times.empty() && track.positions.times.back() == time) {
+                track.positions.times.pop_back();
+                track.positions.values.pop_back();
+                track.positions.interpolation.pop_back();
+                track.rotations.times.pop_back();
+                track.rotations.values.pop_back();
+                track.rotations.interpolation.pop_back();
+            }
+            const auto curve = VMDAnimationBezier::make(std::to_array(frame.interpolation));
+            track.positions.times.push_back(time);
+            track.rotations.times.push_back(time);
+            track.positions.values.emplace_back(
+                frame.translation[0], frame.translation[1], frame.translation[2]);
+            const glm::quat rotation(
+                frame.rotation[3], frame.rotation[0], frame.rotation[1], frame.rotation[2]);
+            track.rotations.values.push_back(
+                glm::length(rotation) > 0.0f ? glm::normalize(rotation) : glm::quat(1, 0, 0, 0));
+            track.positions.interpolation.emplace_back(curve);
+            track.rotations.interpolation.emplace_back(curve);
         }
 
         return {};
