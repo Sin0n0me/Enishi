@@ -1,5 +1,5 @@
 #include "animation_system.h"
-#include <animation/keyframe_interpolator.h>
+#include "clip_sampler.h"
 
 namespace enishi::core {
     AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registry> registry)
@@ -8,7 +8,7 @@ namespace enishi::core {
 
     void AnimationSystem::set_controller(
         const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
-        if (controller) {
+        if (controller != nullptr) {
             this->controllers.insert_or_assign(entity, std::move(controller));
             return;
         }
@@ -42,49 +42,26 @@ namespace enishi::core {
         for (auto [entity, animation, model] :
             this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
             const auto controller = this->get_controller(entity);
-            if (!controller) {
+            if (controller == nullptr) {
                 continue;
             }
 
             controller->update(delta_time.to_float_second());
-            this->apply_clip(animation, *controller);
+            const auto* clip = controller->get_active_clip();
+            if (clip == nullptr) {
+                continue;
+            }
+            auto morph = this->registry->get<component::MorphComponent>(entity);
+            auto ik = this->registry->get<component::IKComponent>(entity);
+            sample_model_clip(*clip,
+                controller->get_time(),
+                animation,
+                morph.is_some() ? &morph.unwrap_mut() : nullptr,
+                ik.is_some() ? &ik.unwrap_mut() : nullptr);
         }
     }
 
     void AnimationSystem::render(void) const {
     }
 
-    void AnimationSystem::apply_clip(component::AnimationComponent& animation,
-        const animation::IAnimationController& controller) const {
-        const auto* const clip = controller.get_active_clip();
-        if (!clip) {
-            return;
-        }
-
-        for (auto& bone : animation.animation) {
-            bone.position = glm::vec3(0.0f);
-            bone.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-            bone.scale = glm::vec3(1.0f);
-        }
-
-        const float time = controller.get_time();
-        for (const auto& track : clip->bone_tracks) {
-            if (track.bone_index >= animation.animation.size()) {
-                continue;
-            }
-
-            auto& bone = animation.animation[track.bone_index];
-            if (!track.positions.times.empty()
-                && track.positions.times.size() == track.positions.values.size()) {
-                bone.position = animation::KeyframeInterpolator::sample(track.positions, time);
-            }
-            if (!track.rotations.times.empty()
-                && track.rotations.times.size() == track.rotations.values.size()) {
-                bone.rotation = animation::KeyframeInterpolator::sample(track.rotations, time);
-            }
-            if (!track.scales.times.empty() && track.scales.times.size() == track.scales.values.size()) {
-                bone.scale = animation::KeyframeInterpolator::sample(track.scales, time);
-            }
-        }
-    }
 } // namespace enishi::core

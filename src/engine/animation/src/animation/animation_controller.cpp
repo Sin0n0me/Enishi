@@ -31,19 +31,22 @@ namespace enishi::animation {
     }
 
     void AnimationController::update(const float elapsed_seconds) {
-        if (!this->playing || !this->active_clip || elapsed_seconds <= 0.0f) {
+        if (!this->playing || this->active_clip == nullptr || !(elapsed_seconds > 0.0f) ||
+            !std::isfinite(elapsed_seconds)) {
             return;
         }
-        this->time += elapsed_seconds;
         const float duration = this->active_clip->duration;
-        if (duration <= 0.0f) {
+        if (!(duration > 0.0f) || !std::isfinite(duration)) {
+            this->time = 0;
+            this->playing = false;
             return;
         }
+        const double next_time = static_cast<double>(this->time) + elapsed_seconds;
         if (this->active_clip->is_looping) {
-            this->time = std::fmod(this->time, duration);
+            this->time = static_cast<float>(std::fmod(next_time, duration));
             return;
         }
-        this->time = std::min(this->time, duration);
+        this->time = static_cast<float>(std::min(next_time, static_cast<double>(duration)));
         if (this->time == duration) {
             this->playing = false;
         }

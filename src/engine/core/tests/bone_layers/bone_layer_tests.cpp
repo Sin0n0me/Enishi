@@ -107,6 +107,11 @@ namespace {
         check(core::write_bone_matrices(too_small, skinning.skinning_matrices).is_err() &&
                   !too_small.uploaded,
             "undersized GPU buffer must not be uploaded");
+        auto ik = registry->get<component::IKComponent>(entity);
+        ik.unwrap_mut().disabled_bones = {GOAL_A, GOAL_B};
+        system.update(types::DeltaTime(0.0f));
+        check(glm::length(glm::vec3(pose.global[tip][3]) - position) < TOLERANCE,
+            "disabled IK chains must preserve the animation pose");
     }
 
     void stable_order_test() {

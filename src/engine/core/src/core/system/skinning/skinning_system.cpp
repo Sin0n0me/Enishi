@@ -141,6 +141,9 @@ namespace enishi::core {
         }
         bones.ik_updater->update_global_form_roots();
         for (const auto bone_index : bones.evaluation_order) {
+            if (ik.disabled_bones.contains(bone_index)) {
+                continue;
+            }
             const auto found = ik.ik_map.find(bone_index);
             if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
                 continue;

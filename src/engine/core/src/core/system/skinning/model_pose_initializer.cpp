@@ -37,6 +37,7 @@ namespace enishi::core {
                     ModelPoseError::InvalidBindTransform, "Invalid bind transform");
             }
             animation.animation.push_back(pose);
+            animation.bind_pose.push_back(pose);
             animation.global.push_back(bind.global);
             ik.rotation.emplace_back(1.0f, 0.0f, 0.0f, 0.0f);
             ik.globals.push_back(bind.global);

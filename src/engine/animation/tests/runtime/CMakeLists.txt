@@ -4,7 +4,9 @@ find_path(GLM_INCLUDE_DIR glm/glm.hpp REQUIRED)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 find_library(ICU_UC_LIBRARY NAMES icuuc REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
-add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp vmd_loader_tests.cpp
+add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp vmd_loader_tests.cpp clip_sampler_tests.cpp
+    "${ENGINE_ROOT}/core/src/core/system/animation/clip_sampler.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/animation_controller.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/animation/vmd/vmd_loader.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/utility/binary_reader.cpp"
     "${ENGINE_ROOT}/animation/src/animation/converter/vmd/vmd_converter.cpp"
@@ -20,7 +22,7 @@ add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expressio
     "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/log/log_level.cpp")
 target_compile_features(animation_runtime_tests PRIVATE cxx_std_23)
-foreach(module animation assets_system engine_types foundation)
+foreach(module animation assets_system engine_types foundation core component)
     target_include_directories(animation_runtime_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(animation_runtime_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

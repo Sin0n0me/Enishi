@@ -30,8 +30,5 @@ namespace enishi::core {
         void update(const types::DeltaTime& delta_time) override;
         void render(void) const override;
 
-      private:
-        void apply_clip(component::AnimationComponent& animation,
-            const animation::IAnimationController& controller) const;
     };
 } // namespace enishi::core
