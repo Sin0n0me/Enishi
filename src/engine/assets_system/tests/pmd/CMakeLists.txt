@@ -5,6 +5,12 @@ find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 find_library(ICU_UC_LIBRARY NAMES icuuc REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(pmd_morph_tests pmd_morph_tests.cpp
+    "${ENGINE_ROOT}/assets_system/src/assets_system/model/model_loader/pmd/pmd_to_model_data.cpp"
+    "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_resolver.cpp"
+    "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_name_map.cpp"
+    "${ENGINE_ROOT}/foundation/src/foundation/log/logger.cpp"
+    "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"
+    "${ENGINE_ROOT}/foundation/src/foundation/log/log_level.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/model/model_loader/pmd/pmd_morph_converter.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/str/to_utf8.cpp")
 target_compile_features(pmd_morph_tests PRIVATE cxx_std_23)
