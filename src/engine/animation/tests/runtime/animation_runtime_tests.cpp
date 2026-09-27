@@ -56,7 +56,10 @@ namespace {
     }
 } // namespace
 
+void vmd_expression_tests();
+
 int main() {
+    vmd_expression_tests();
     bone_tracks_test();
     step_boundary_test();
     std::cout << "Animation runtime tests passed\n";

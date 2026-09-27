@@ -4,8 +4,12 @@ find_path(GLM_INCLUDE_DIR glm/glm.hpp REQUIRED)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 find_library(ICU_UC_LIBRARY NAMES icuuc REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
-add_executable(animation_runtime_tests animation_runtime_tests.cpp
+add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp
     "${ENGINE_ROOT}/animation/src/animation/converter/vmd/vmd_converter.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/converter/vmd/vmd_morph_tracks.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/converter/vmd/vmd_ik_tracks.cpp"
+    "${ENGINE_ROOT}/assets_system/src/assets_system/model/morph/morph_resolver.cpp"
+    "${ENGINE_ROOT}/assets_system/src/assets_system/model/morph/morph_name_map.cpp"
     "${ENGINE_ROOT}/animation/src/animation/clip_data/interpolation/vmd/vmd_interpolation_data.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_resolver.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_name_map.cpp"
