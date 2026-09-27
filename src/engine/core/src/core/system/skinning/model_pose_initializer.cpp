@@ -1,6 +1,7 @@
 #include "model_pose_initializer.h"
 #include <component/animation_component.h>
 #include <component/ik_component.h>
+#include <component/morph_component.h>
 #include <component/skinning_component.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
@@ -8,6 +9,14 @@
 namespace enishi::core {
     foundation::Result<void, ModelPoseError> initialize_model_pose(
         ecs::Registry& registry, types::HandleId entity, const component::ModelComponent& model) {
+        if (!model.morph_targets.targets.empty()) {
+            component::MorphComponent morph;
+            morph.weights.resize(model.morph_targets.targets.size());
+            auto result = registry.insert(entity, std::move(morph));
+            if (result.is_err()) {
+                return result.propagation(ModelPoseError::RegistrationFailed);
+            }
+        }
         if (model.bone_node.empty()) {
             return {};
         }

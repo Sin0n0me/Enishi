@@ -15,6 +15,24 @@ namespace enishi::model_controller {
                 }
             } else if (const auto* iks = std::get_if<types::AddonIKs>(&addon); iks != nullptr) {
                 model.iks = *iks;
+            } else if (const auto* morphs = std::get_if<types::AddonMorphTargets>(&addon);
+                       morphs != nullptr) {
+                model.morph_targets = *morphs;
+            }
+        }
+        if (!model.morph_targets.targets.empty()) {
+            model.morph_base_positions.resize(data.vertices.size());
+            for (std::size_t index = 0; index < data.vertices.size(); ++index) {
+                for (const auto& attribute : data.vertices[index]) {
+                    if (const auto* vertex = std::get_if<types::Vertex>(&attribute);
+                        vertex != nullptr) {
+                        model.morph_base_positions[index] = vertex->position;
+                    } else if (const auto* position =
+                                   std::get_if<types::VertexPosition>(&attribute);
+                               position != nullptr) {
+                        model.morph_base_positions[index] = position->position;
+                    }
+                }
             }
         }
         std::vector<std::int32_t> priorities(model.bone_node.size());
