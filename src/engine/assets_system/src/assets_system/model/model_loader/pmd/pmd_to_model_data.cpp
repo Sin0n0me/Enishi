@@ -1,4 +1,5 @@
 #include "pmd_to_model_data.h"
+#include "pmd_morph_converter.h"
 #include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/log/logger.h>
@@ -32,7 +33,10 @@ namespace enishi::assets_system {
         const auto parent_path = path.parent_path();
 
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
-        auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
+        auto morphs = convert_pmd_morphs(data.morphs, data.vertices.size());
+        if (morphs.is_err()) {
+            return morphs.propagation(AssetError::InvalidAssetData);
+        }
         auto materials =
             PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
         auto textures = PMDToModelData::make_textures(materials, texture_loader);
@@ -45,7 +49,8 @@ namespace enishi::assets_system {
             .addons =
                 {
                     std::move(bones),
-                    std::move(morphs),
+                    std::move(morphs.unwrap_mut().legacy),
+                    std::move(morphs.unwrap_mut().targets),
                     PMDToModelData::make_iks(data.iks, &bone_resolver),
                     PMDToModelData::make_rigid_bodies(data.rigid_bodies),
                     PMDToModelData::make_joints(data.physics_joints),
@@ -216,50 +221,6 @@ namespace enishi::assets_system {
         }
 
         return ik_vec;
-    }
-
-    std::tuple<types::AddonMorphs, MorphResolver> PMDToModelData::make_morphs(
-        const std::vector<PMDMorph>& morphs) {
-        types::AddonMorphs model_morphs;
-        MorphNameMapConstructor constructor;
-        const auto size = morphs.size();
-        const auto transform = [](const PMDMorphVertex& v) {
-            return types::MorphVertex{
-                .index = v.index,
-                .offset =
-                    glm::vec3{
-                        v.position[0],
-                        v.position[1],
-                        v.position[2],
-                    },
-            };
-        };
-
-        // ベースの作成
-        model_morphs.base_vertices =
-            morphs[0].vertices | std::views::transform(transform) | std::ranges::to<std::vector>();
-
-        // indexが0はベースの頂点群なので開始は1
-        for (std::size_t i = 1; i < size; ++i) {
-            const auto& morph = morphs[i];
-
-            // 名前の変換
-            // 変換できない場合は仕方ないのでそのまま保持
-            const std::string sjis_name(morph.name, sizeof(morph.name));
-            const auto utf8_name = foundation::sjis_to_utf8(sjis_name);
-            if (utf8_name.is_err()) {
-                foundation::Logger::warning("utf8に変換できない文字が含まれています");
-            }
-            constructor.morph_names.push_back(utf8_name.unwrap_or(sjis_name));
-
-            // モーフで扱う頂点を共通の型に変換
-            const auto vertices =
-                morph.vertices | std::views::transform(transform) | std::ranges::to<std::vector>();
-
-            model_morphs.vertices.emplace_back(vertices);
-        }
-
-        return {model_morphs, MorphResolver(constructor)};
     }
 
     types::AddonPhysicsJoints PMDToModelData::make_joints(
