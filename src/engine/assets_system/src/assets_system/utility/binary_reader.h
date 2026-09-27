@@ -44,6 +44,7 @@ namespace enishi::assets_system {
         [[nodiscard]] static IOResult<BinaryReader> make_reader(const std::filesystem::path& path);
 
         [[nodiscard]] IOResult<void> read(void* data, const std::streamsize size);
+        [[nodiscard]] IOResult<std::size_t> remaining_bytes(void);
 
         template <typename T>
             requires std::is_trivially_copyable_v<T>
@@ -54,6 +55,13 @@ namespace enishi::assets_system {
         template <typename T>
             requires std::is_trivially_copyable_v<T>
         [[nodiscard]] IOResult<void> read_to_vec(std::vector<T>& data, const std::uint64_t count) {
+            const auto remaining = this->remaining_bytes();
+            if (remaining.is_err()) {
+                return remaining.propagation(IOError::ReadFailed);
+            }
+            if (count > remaining.unwrap() / sizeof(T)) {
+                return foundation::Error(IOError::UnexpectedEof, "Array exceeds remaining file bytes");
+            }
             std::vector<T> temp(count);
             auto&& result = this->read(temp.data(), sizeof(T) * count);
             if (result.is_err()) {

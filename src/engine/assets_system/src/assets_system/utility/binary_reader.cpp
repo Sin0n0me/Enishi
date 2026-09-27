@@ -38,6 +38,19 @@ namespace enishi::assets_system {
         return reader;
     }
 
+    IOResult<std::size_t> BinaryReader::remaining_bytes(void) {
+        detail::StreamPosGuard position(this->file);
+        if (position.is_invalid()) {
+            return foundation::Error(IOError::InvalidStreamPosition);
+        }
+        this->file.seekg(0, std::ios::end);
+        const auto end = this->file.tellg();
+        if (end < position.get_position()) {
+            return foundation::Error(IOError::InvalidStreamPosition);
+        }
+        return static_cast<std::size_t>(end - position.get_position());
+    }
+
     IOResult<void> BinaryReader::read(void* data, const std::streamsize size) {
         if (!bool(this->file)) {
             return foundation::Error(IOError::ReadFailed);

@@ -1,49 +1,25 @@
 #include "vmd_loader.h"
+#include <algorithm>
+#include <array>
 
 namespace enishi::assets_system {
-    VMDLoader::Result VMDLoader::load_vmd(BinaryReader& binary_reader, VMDData* const vmd_data) {
-        // ヘッダ読み込み
-        auto result = this->load_vmd_header(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
+    VMDLoader::Result VMDLoader::load_vmd(BinaryReader& reader, VMDData* const data) {
+        auto result = this->load_vmd_header(reader, data);
+        if (result.is_err()) { return result; }
+        result = this->load_vmd_bone_key_frame(reader, data);
+        if (result.is_err()) { return result; }
+        const std::array optional_sections{&VMDLoader::load_vmd_morph_key_frame,
+            &VMDLoader::load_vmd_camera, &VMDLoader::load_vmd_light,
+            &VMDLoader::load_vmd_shadow, &VMDLoader::load_vmd_ik};
+        for (const auto section : optional_sections) {
+            const auto remaining = reader.remaining_bytes();
+            if (remaining.is_err()) {
+                return remaining.propagation(IOError::ReadFailed);
+            }
+            if (remaining.unwrap() == 0) { return {}; }
+            result = (this->*section)(reader, data);
+            if (result.is_err()) { return result; }
         }
-
-        // ボーンキーフレームの読み込み
-        result = this->load_vmd_bone_key_frame(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
-        // モーフの読み込み
-        result = this->load_vmd_morph_key_frame(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
-        // カメラの読み込み
-        result = this->load_vmd_camera(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
-        // ライトの読み込み
-        result = this->load_vmd_light(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
-        // 影の読み込み
-        result = this->load_vmd_shadow(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
-        // IKの読み込み
-        result = this->load_vmd_ik(binary_reader, vmd_data);
-        if (result.is_err()) {
-            return result;
-        }
-
         return {};
     }
 
@@ -59,21 +35,13 @@ namespace enishi::assets_system {
             }
         }
 
-        {
-            auto&& result = binary_reader.read_magic_number("Vocaloid Motion Data");
-            if (result.is_ok()) {
-                return {};
-            }
-
-            auto&& result2 = binary_reader.read_magic_number("Vocaloid Motion Data 0002");
-            if (result2.is_ok()) {
-                return {};
-            }
-
-            return result2;
+        const std::string signature(std::begin(header.header),
+            std::find(std::begin(header.header), std::end(header.header), '\0'));
+        if (signature != "Vocaloid Motion Data 0002" && signature != "Vocaloid Motion Data") {
+            return foundation::Error(IOError::MismatchHeader, "Invalid VMD signature");
         }
-
-        return foundation::Error(assets_system::IOError::InvalidFormat);
+        std::copy(std::begin(header.model_name), std::end(header.model_name), vmd_data->name.begin());
+        return {};
     }
 
     VMDLoader::Result VMDLoader::load_vmd_bone_key_frame(
@@ -194,24 +162,24 @@ namespace enishi::assets_system {
             }
         }
 
+        constexpr std::size_t IK_HEADER_BYTES = sizeof(std::uint32_t) * 2 + sizeof(std::uint8_t);
+        const auto remaining = binary_reader.remaining_bytes();
+        if (remaining.is_err()) {
+            return remaining.propagation(IOError::ReadFailed);
+        }
+        if (size > remaining.unwrap() / IK_HEADER_BYTES) {
+            return foundation::Error(IOError::UnexpectedEof, "IK frame count exceeds file size");
+        }
         vmd_data->iks.resize(size);
         for (auto& ik : vmd_data->iks) {
-            //
-            {
-                auto&& result =
-                    binary_reader.read(&ik, sizeof(VMDIKKeyFrame) - sizeof(VMDIKKeyFrame::ik_infos))
-                        .add_message("");
-                if (result.is_err()) {
-                    return result;
-                }
-            }
-
-            {
-                auto&& result = binary_reader.read_to_vec(ik.ik_infos, ik.count).add_message("");
-                if (result.is_err()) {
-                    return result;
-                }
-            }
+            auto result = binary_reader.read_to(&ik.frame);
+            if (result.is_err()) { return result; }
+            result = binary_reader.read_to(&ik.show_flag);
+            if (result.is_err()) { return result; }
+            result = binary_reader.read_to(&ik.count);
+            if (result.is_err()) { return result; }
+            result = binary_reader.read_to_vec(ik.ik_infos, ik.count);
+            if (result.is_err()) { return result; }
         }
 
         return {};
