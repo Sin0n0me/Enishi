@@ -8,9 +8,12 @@ add_executable(material_tests material_tests.cpp
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/str/string_builder.cpp")
 target_sources(material_tests PRIVATE
-    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp")
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/material_morph.cpp"
+    material_morph_tests.cpp)
 target_compile_features(material_tests PRIVATE cxx_std_23)
-foreach(module renderer engine_types foundation platform)
+foreach(module renderer engine_types foundation platform core)
     target_include_directories(material_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(material_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

@@ -15,7 +15,10 @@ namespace {
     }
 } // namespace
 
+void material_morph_tests();
+
 int main() {
+    material_morph_tests();
     types::ModelData model;
     model.vertices = {{types::VertexPosition{{0, 0, 0}}}};
     model.indices = std::vector<std::uint32_t>{0, 0};
