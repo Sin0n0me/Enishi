@@ -135,13 +135,20 @@ namespace {
     void animation_support_tests() {
         for (const auto flag : {INHERIT_ROTATION,
                  INHERIT_TRANSLATION,
-                 FIXED_AXIS,
-                 LOCAL_AXES,
                  AFTER_PHYSICS,
                  EXTERNAL_PARENT}) {
             auto data = supported_model();
             data.bones.front().flags = flag;
-            expect_unsupported(data, "bone inheritance, axes, or external/physics transforms");
+            expect_unsupported(data, "bone inheritance or external/physics transforms");
+        }
+        for (const auto flag : {FIXED_AXIS, LOCAL_AXES}) {
+            auto data = supported_model();
+            data.bones.front().flags = flag;
+            data.bones.front().fixed_axis = {1, 0, 0};
+            data.bones.front().local_x = {1, 0, 0};
+            data.bones.front().local_z = {0, 0, 1};
+            check(PMXToModelData::to_model_data("axes.pmx", data, nullptr).is_ok(),
+                "manipulation axes must not reject animation playback");
         }
         auto data = supported_model();
         data.bones.front().layer = 1;

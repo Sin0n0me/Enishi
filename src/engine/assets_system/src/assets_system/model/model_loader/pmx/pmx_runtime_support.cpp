@@ -7,13 +7,11 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MORPH_VERTEX = 1;
         constexpr std::uint16_t BONE_INHERIT_ROTATION = 0x0100;
         constexpr std::uint16_t BONE_INHERIT_TRANSLATION = 0x0200;
-        constexpr std::uint16_t BONE_FIXED_AXIS = 0x0400;
-        constexpr std::uint16_t BONE_LOCAL_AXES = 0x0800;
         constexpr std::uint16_t BONE_AFTER_PHYSICS = 0x1000;
         constexpr std::uint16_t BONE_EXTERNAL_PARENT = 0x2000;
-        constexpr std::uint16_t UNSUPPORTED_BONE_FLAGS =
-            BONE_INHERIT_ROTATION | BONE_INHERIT_TRANSLATION | BONE_FIXED_AXIS | BONE_LOCAL_AXES |
-            BONE_AFTER_PHYSICS | BONE_EXTERNAL_PARENT;
+        constexpr std::uint16_t UNSUPPORTED_BONE_FLAGS = BONE_INHERIT_ROTATION |
+                                                         BONE_INHERIT_TRANSLATION |
+                                                         BONE_AFTER_PHYSICS | BONE_EXTERNAL_PARENT;
         constexpr std::uint8_t MATERIAL_VERTEX_COLOR = 0x20;
         constexpr std::uint8_t MATERIAL_POINTS = 0x40;
         constexpr std::uint8_t MATERIAL_LINES = 0x80;
@@ -70,7 +68,7 @@ namespace enishi::assets_system {
         foundation::Result<void, AssetError> validate_animation(const PMXData& data) {
             for (const auto& bone : data.bones) {
                 if ((bone.flags & UNSUPPORTED_BONE_FLAGS) != 0) {
-                    return unsupported("bone inheritance, axes, or external/physics transforms");
+                    return unsupported("bone inheritance or external/physics transforms");
                 }
                 for (const auto& link : bone.ik_links) {
                     if (link.limited != 0) {

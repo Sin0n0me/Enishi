@@ -185,7 +185,9 @@ namespace enishi::assets_system {
                 if ((src.flags & BONE_FLAG_LOCAL_COORDINATE) != 0) {
                     const auto x = vector(src.local_x);
                     const auto z = vector(src.local_z);
-                    constraint.local_axes = glm::mat3(x, glm::cross(z, x), z);
+                    const auto y = glm::cross(z, x);
+                    // Manipulation axes are metadata, not a restriction on motion rotations.
+                    constraint.local_axes = glm::mat3(x, y, glm::cross(x, y));
                 }
                 constraints.constraints.push_back(constraint);
                 if ((src.flags & BONE_FLAG_IK) != 0) {

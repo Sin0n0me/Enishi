@@ -40,6 +40,7 @@ namespace enishi::model_controller {
         for (const auto& addon : data.addons) {
             if (const auto* constraints = std::get_if<types::AddonBoneConstraints>(&addon);
                 constraints != nullptr) {
+                model.bone_constraints = *constraints;
                 for (const auto& constraint : constraints->constraints) {
                     if (constraint.bone < priorities.size()) {
                         priorities[constraint.bone] = constraint.evaluation_order;

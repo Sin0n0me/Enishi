@@ -205,8 +205,8 @@ void pmx_conversion_error_tests() {
 
 void pmx_unsupported_before_texture_test() {
     auto data = model_fixture();
-    constexpr std::uint16_t fixed_axis = 0x0400;
-    data.bones.front().flags |= fixed_axis;
+    constexpr std::uint8_t point_material = 0x40;
+    data.materials.front().flags |= point_material;
     TestTextureLoader textures;
     textures.fail = true;
     const auto result = PMXToModelData::to_model_data("unsupported.pmx", data, &textures);

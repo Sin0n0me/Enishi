@@ -69,6 +69,8 @@ namespace {
         auto converted = assets_system::PMXToModelData::to_model_data("layers.pmx", data, nullptr);
         check(converted.is_ok(), "layered PMX conversion must succeed");
         auto model = model_controller::make_model_component(*converted.unwrap(), {});
+        check(model.bone_constraints.constraints.size() == data.bones.size(),
+            "bone manipulation metadata must survive model creation");
         check(model.bone_node[tip].parent == static_cast<types::BoneIndex>(data.bones[tip].parent),
             "evaluation sorting must preserve bone references");
         auto registry = std::make_shared<ecs::Registry>();
@@ -187,6 +189,13 @@ namespace {
 } // namespace
 
 int main() {
+    auto axes = fixture(20, 10);
+    constexpr std::uint16_t manipulation_axes = 0x0c00;
+    axes.bones[ROOT].flags |= manipulation_axes;
+    axes.bones[ROOT].fixed_axis = {1, 0, 0};
+    axes.bones[ROOT].local_x = {1, 0, 0};
+    axes.bones[ROOT].local_z = {0, 0, 1};
+    runtime_test(axes, {0, 1, 0});
     runtime_test(fixture(10, 20), {0, -1, 0});
     runtime_test(fixture(20, 10), {0, 1, 0});
     runtime_test(fixture(10, 10), {0, -1, 0});
