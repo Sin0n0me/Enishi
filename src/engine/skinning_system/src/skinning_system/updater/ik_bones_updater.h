@@ -13,11 +13,13 @@ namespace enishi::skinning_system {
         IKBoneCache* const ik_view;
         const sub_system::IBindBoneViewList* const bind_view;
         std::span<const glm::mat4> animation_local;
+        std::span<const glm::mat4> external_transforms;
 
       public:
         IKBonesUpdater(IKBoneCache& ik_view,
             const sub_system::IBindBoneViewList& bind_view,
-            std::span<const glm::mat4> animation_local = {}) noexcept;
+            std::span<const glm::mat4> animation_local = {},
+            std::span<const glm::mat4> external_transforms = {}) noexcept;
 
         [[nodiscard]] std::span<const types::BoneNode> bone_nodes(void) const noexcept;
 

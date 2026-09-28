@@ -7,6 +7,7 @@ set(CORE_ROOT "${ENGINE_ROOT}/core/src/core")
 set(PMX_ROOT "${ENGINE_ROOT}/assets_system/src/assets_system/model/model_loader/pmx")
 file(GLOB SKINNING_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/skinning_system/src/skinning_system/*/*.cpp")
 add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp bone_morph_tests.cpp
+    external_transform_tests.cpp
     ${SKINNING_SOURCES}
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"
     "${CORE_ROOT}/system/skinning/bone_inheritance.cpp"

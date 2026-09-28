@@ -13,6 +13,7 @@ namespace enishi::types {
         bool local_space{};
         bool after_physics{};
         std::int32_t evaluation_order{};
+        std::optional<std::int32_t> external_transform_slot;
         std::optional<glm::vec3> rotation_axis;
         std::optional<glm::mat3> local_axes;
     };

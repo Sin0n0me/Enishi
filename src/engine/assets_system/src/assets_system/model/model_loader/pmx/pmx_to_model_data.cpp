@@ -179,6 +179,10 @@ namespace enishi::assets_system {
                 constraint.local_space = (src.flags & BONE_FLAG_LOCAL_TRANSFORM) != 0;
                 constraint.after_physics = (src.flags & BONE_FLAG_AFTER_PHYSICS) != 0;
                 constraint.evaluation_order = src.layer;
+                constexpr std::uint16_t BONE_FLAG_EXTERNAL_PARENT = 0x2000;
+                if ((src.flags & BONE_FLAG_EXTERNAL_PARENT) != 0) {
+                    constraint.external_transform_slot = src.external_parent;
+                }
                 if ((src.flags & BONE_FLAG_FIXED_AXIS) != 0) {
                     constraint.rotation_axis = vector(src.fixed_axis);
                 }

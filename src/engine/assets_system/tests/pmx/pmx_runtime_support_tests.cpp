@@ -134,12 +134,12 @@ namespace {
     }
 
     void animation_support_tests() {
-        for (const auto flag : {AFTER_PHYSICS, EXTERNAL_PARENT}) {
+        for (const auto flag : {AFTER_PHYSICS}) {
             auto data = supported_model();
             data.bones.front().flags = flag;
-            expect_unsupported(data, "external/physics transforms");
+            expect_unsupported(data, "after-physics transforms");
         }
-        for (const auto flag : {FIXED_AXIS, LOCAL_AXES}) {
+        for (const auto flag : {FIXED_AXIS, LOCAL_AXES, EXTERNAL_PARENT}) {
             auto data = supported_model();
             data.bones.front().flags = flag;
             data.bones.front().fixed_axis = {1, 0, 0};

@@ -5,10 +5,12 @@
 namespace enishi::skinning_system {
     IKBonesUpdater::IKBonesUpdater(IKBoneCache& ik_view,
         const sub_system::IBindBoneViewList& bind_view,
-        std::span<const glm::mat4> animation_local) noexcept
+        std::span<const glm::mat4> animation_local,
+        std::span<const glm::mat4> external_transforms) noexcept
         : ik_view(&ik_view)
         , bind_view(&bind_view)
-        , animation_local(animation_local) {
+        , animation_local(animation_local)
+        , external_transforms(external_transforms) {
     }
 
     std::span<const types::BoneNode> IKBonesUpdater::bone_nodes(void) const noexcept {
@@ -28,14 +30,16 @@ namespace enishi::skinning_system {
                               ? this->bind_view->at(index)->get_bind_local()
                               : this->animation_local[index];
         const auto local = base * glm::mat4_cast(view->get_ik_rotation());
+        const auto external =
+            this->external_transforms.empty() ? glm::mat4(1) : this->external_transforms[index];
 
         const auto& bone_node = this->bone_nodes()[index];
         if (bone_node.has_parent()) {
             auto* const parent_view = this->ik_view->at(bone_node.parent);
             const auto parent_global = parent_view->get_ik_global_transform();
-            view->set_ik_global_transform(parent_global * local);
+            view->set_ik_global_transform(external * parent_global * local);
         } else {
-            view->set_ik_global_transform(local);
+            view->set_ik_global_transform(external * local);
         }
 
         this->update_children_global(index);

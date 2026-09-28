@@ -26,6 +26,7 @@ namespace enishi::core {
         std::shared_ptr<skinning_system::PhysicsBonesUpdater> physics_updater;
         std::unique_ptr<skinning_system::IKBonesUpdater> ik_updater;
         std::vector<glm::mat4> ik_base_local;
+        std::vector<glm::mat4> external_transforms;
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::BoneConstraint> constraints;
         std::vector<BoneMorphDelta> morph_delta;

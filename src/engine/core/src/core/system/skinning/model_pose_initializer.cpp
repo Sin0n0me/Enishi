@@ -60,7 +60,9 @@ namespace enishi::core {
         const auto& constraints = model.bone_constraints.constraints;
         const auto has_inheritance =
             std::any_of(constraints.begin(), constraints.end(), [](const auto& constraint) {
-                return constraint.rotation_weight != 0.0f || constraint.translation_weight != 0.0f;
+                return constraint.rotation_weight != 0.0f ||
+                       constraint.translation_weight != 0.0f ||
+                       constraint.external_transform_slot.has_value();
             });
         const auto& targets = model.morph_targets.targets;
         const auto has_bone_morph =

@@ -38,6 +38,16 @@ namespace enishi::core {
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
+            for (std::size_t index = 0; index < bones.external_transforms.size(); ++index) {
+                bones.external_transforms[index] = glm::mat4(1);
+                const auto slot = bones.constraints[index].external_transform_slot;
+                if (slot.has_value()) {
+                    const auto found = model.external_transforms.find(*slot);
+                    if (found != model.external_transforms.end()) {
+                        bones.external_transforms[index] = found->second;
+                    }
+                }
+            }
             bones.morph_delta.clear();
             const auto morph = this->registry->get<component::MorphComponent>(entity);
             if (morph.is_some()) {
@@ -96,6 +106,7 @@ namespace enishi::core {
         // IKComponentを持たないモデルもある
         if (ik.is_some()) {
             bones->ik_base_local.resize(model.bone_node.size());
+            bones->external_transforms.resize(model.bone_node.size(), glm::mat4(1));
             bones->constraints.resize(model.bone_node.size());
             for (const auto& constraint : model.bone_constraints.constraints) {
                 if (constraint.bone < bones->constraints.size()) {
@@ -111,8 +122,10 @@ namespace enishi::core {
             }
             bones->ik_cache = std::make_unique<skinning_system::IKBoneCache>(
                 model.bone_node, BoneViewFactory::make_ik_view(ik.unwrap_mut()));
-            bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(
-                *bones->ik_cache, *bones->bind_cache, bones->ik_base_local);
+            bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(*bones->ik_cache,
+                *bones->bind_cache,
+                bones->ik_base_local,
+                bones->external_transforms);
         }
 
         // PhysicsComponentを持たないモデルもある
