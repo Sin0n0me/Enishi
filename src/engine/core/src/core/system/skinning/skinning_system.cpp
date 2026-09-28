@@ -148,8 +148,11 @@ namespace enishi::core {
             if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
                 continue;
             }
-            ik::IKSolver::apply_ik(
-                ik.iks[found->second], bones.ik_cache.get(), bones.ik_updater.get(), bone_index);
+            ik::IKSolver::apply_ik(ik.iks[found->second],
+                bones.ik_cache.get(),
+                bones.ik_updater.get(),
+                bone_index,
+                bones.ik_base_local);
         }
         for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
             bones.animation_cache->at(index)->set_animation_global_transform(

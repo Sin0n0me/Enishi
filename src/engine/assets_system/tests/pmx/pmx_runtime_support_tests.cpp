@@ -159,7 +159,8 @@ namespace {
         bone.flags = BONE_IK;
         bone.ik_target = ROOT_BONE;
         bone.ik_links.push_back({ROOT_BONE, LIMIT_ENABLED});
-        expect_unsupported(data, "per-link IK limits");
+        check(PMXToModelData::to_model_data("limited-ik.pmx", data, nullptr).is_ok(),
+            "per-link IK limits are supported");
         for (const auto type : {GROUP_MORPH,
                  BONE_MORPH,
                  UV_MORPH,

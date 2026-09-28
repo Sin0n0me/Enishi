@@ -59,14 +59,17 @@ namespace {
             this->updater->update_global_form_roots();
         }
 
-        void solve(types::IkLimit limit = types::IKLimitAngle{glm::quarter_pi<float>()}) {
+        void solve(types::IkLimit limit = types::IKLimitAngle{glm::quarter_pi<float>()},
+            std::vector<types::IKLinkLimit> bounds = {}) {
             types::CCDIK chain{};
             chain.ik_bone = GOAL;
             chain.target = TIP;
             chain.chain = {JOINT};
             chain.iterations = 8;
             chain.limit = limit;
-            ik::IKSolver::apply_ik(types::IK{chain}, this->cache.get(), this->updater.get(), GOAL);
+            chain.link_limits = std::move(bounds);
+            ik::IKSolver::apply_ik(
+                types::IK{chain}, this->cache.get(), this->updater.get(), GOAL, this->local);
         }
     };
 
@@ -115,11 +118,43 @@ namespace {
             glm::length(glm::vec3(axis_limited.globals[TIP][3]) - glm::vec3(1, -1, 0)) < TOLERANCE,
             "axis-constrained rotation must retain its sign");
     }
+
+    void link_limit_tests() {
+        const auto quarter = glm::quarter_pi<float>();
+        Fixture limited;
+        limited.solve(types::IKLimitAngle{quarter}, {{true, {0, 0, -quarter}, {0, 0, quarter}}});
+        check(std::abs(glm::eulerAngles(limited.rotations[JOINT]).z - quarter) < TOLERANCE,
+            "unreachable goal must stop at the per-link upper bound");
+
+        Fixture animated;
+        animated.local[JOINT] *= glm::rotate(glm::mat4(1), quarter, glm::vec3(0, 0, 1));
+        animated.updater->update_global_form_roots();
+        animated.solve(types::IKLimitAngle{quarter}, {{true, {0, 0, -quarter}, {0, 0, quarter}}});
+        check(std::abs(animated.rotations[JOINT].w - 1.0f) < TOLERANCE,
+            "link limits apply to animation plus IK, not the correction alone");
+
+        Fixture negative;
+        negative.local[GOAL] = glm::translate(glm::mat4(1), glm::vec3(1, -1, 0));
+        negative.updater->update_global_form_roots();
+        negative.solve(types::IKLimitAngle{quarter}, {{true, {0, 0, -quarter}, {0, 0, 0}}});
+        check(std::abs(glm::eulerAngles(negative.rotations[JOINT]).z + quarter) < TOLERANCE,
+            "negative hinge range must keep its sign");
+
+        Fixture locked;
+        locked.solve(types::IKLimitAngle{quarter}, {{true, {0, 0, 0}, {0, 0, 0}}});
+        check(locked.rotations[JOINT] == glm::quat(1, 0, 0, 0), "locked link must stay fixed");
+        Fixture disabled;
+        disabled.solve(types::IKLimitAngle{quarter}, {{false, {0, 0, 0}, {0, 0, 0}}});
+        check(glm::length(glm::vec3(disabled.globals[TIP][3] - disabled.globals[GOAL][3])) <
+                  TOLERANCE,
+            "disabled limits must preserve unrestricted CCD");
+    }
 } // namespace
 
 int main() {
     chain_test();
     animated_parent_test();
     boundary_tests();
+    link_limit_tests();
     std::cout << "IK runtime tests passed\n";
 }

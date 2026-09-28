@@ -189,6 +189,11 @@ namespace {
 } // namespace
 
 int main() {
+    auto limited = fixture(20, 10);
+    limited.bones[GOAL_A].ik_links.front().limited = 1;
+    limited.bones[GOAL_A].ik_links.front().lower = {0, 0, 0};
+    limited.bones[GOAL_A].ik_links.front().upper = {0, 0, 0};
+    runtime_test(limited, {1, 0, 0});
     auto axes = fixture(20, 10);
     constexpr std::uint16_t manipulation_axes = 0x0c00;
     axes.bones[ROOT].flags |= manipulation_axes;

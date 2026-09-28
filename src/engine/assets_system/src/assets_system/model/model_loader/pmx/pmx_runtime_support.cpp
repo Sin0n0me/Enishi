@@ -70,11 +70,6 @@ namespace enishi::assets_system {
                 if ((bone.flags & UNSUPPORTED_BONE_FLAGS) != 0) {
                     return unsupported("bone inheritance or external/physics transforms");
                 }
-                for (const auto& link : bone.ik_links) {
-                    if (link.limited != 0) {
-                        return unsupported("per-link IK limits");
-                    }
-                }
             }
             for (const auto& morph : data.morphs) {
                 if (morph.type != MORPH_VERTEX) {
