@@ -3,9 +3,12 @@
 #include "bone_view_factory.h"
 #include <component/animation_component.h>
 #include <component/ik_component.h>
+#include <component/morph_component.h>
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/physics/physics_body_factory.h>
+#include <foundation/log/logger.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
 #include <numeric>
 #include <utility>
@@ -35,6 +38,17 @@ namespace enishi::core {
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
+            bones.morph_delta.clear();
+            const auto morph = this->registry->get<component::MorphComponent>(entity);
+            if (morph.is_some()) {
+                auto deltas = evaluate_bone_morphs(
+                    model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
+                if (deltas.is_err()) {
+                    foundation::Logger::warning(deltas.unwrap_err().get_message());
+                    continue;
+                }
+                bones.morph_delta = std::move(deltas).unwrap();
+            }
 
             // モデルごとに順序を変えられるようにする。指定が無ければ既定順序を使う
             const std::span<const types::SkinningCommand> order =
@@ -144,6 +158,15 @@ namespace enishi::core {
         for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
             bones.ik_base_local[index] =
                 bones.animation_cache->at(index)->get_animation_local_transform();
+            if (index < bones.morph_delta.size()) {
+                const auto* pose = bones.animation_cache->at(index);
+                const auto& delta = bones.morph_delta[index];
+                bones.ik_base_local[index] =
+                    glm::translate(
+                        glm::mat4(1), pose->get_animation_translation() + delta.translation) *
+                    glm::mat4_cast(pose->get_animation_rotation() * delta.rotation) *
+                    glm::scale(glm::mat4(1), pose->get_animation_scale());
+            }
             bones.ik_cache->at(index)->set_ik_rotation(glm::quat(1, 0, 0, 0));
         }
         bones.ik_updater->update_global_form_roots();

@@ -158,8 +158,7 @@ namespace {
         bone.ik_links.push_back({ROOT_BONE, LIMIT_ENABLED});
         check(PMXToModelData::to_model_data("limited-ik.pmx", data, nullptr).is_ok(),
             "per-link IK limits are supported");
-        for (const auto type : {BONE_MORPH,
-                 UV_MORPH,
+        for (const auto type : {UV_MORPH,
                  FIRST_ADDITIONAL_UV_MORPH,
                  SECOND_ADDITIONAL_UV_MORPH,
                  THIRD_ADDITIONAL_UV_MORPH,
@@ -168,9 +167,9 @@ namespace {
                  IMPULSE_MORPH}) {
             data = supported_model();
             data.morphs.emplace_back().type = type;
-            expect_unsupported(data, "bone, UV, material or impulse morphs");
+            expect_unsupported(data, "UV, material or impulse morphs");
         }
-        for (const auto type : {GROUP_MORPH, FLIP_MORPH}) {
+        for (const auto type : {GROUP_MORPH, FLIP_MORPH, BONE_MORPH}) {
             data = supported_model();
             data.morphs.emplace_back().type = type;
             check(PMXToModelData::to_model_data("weight-morph.pmx", data, nullptr).is_ok(),

@@ -62,7 +62,15 @@ namespace enishi::core {
             std::any_of(constraints.begin(), constraints.end(), [](const auto& constraint) {
                 return constraint.rotation_weight != 0.0f || constraint.translation_weight != 0.0f;
             });
-        if (!ik.iks.empty() || has_inheritance) {
+        const auto& targets = model.morph_targets.targets;
+        const auto has_bone_morph =
+            std::any_of(targets.begin(), targets.end(), [](const auto& target) {
+                return std::any_of(
+                    target.offsets.begin(), target.offsets.end(), [](const auto& offset) {
+                        return std::holds_alternative<types::BoneMorphOffset>(offset);
+                    });
+            });
+        if (!ik.iks.empty() || has_inheritance || has_bone_morph) {
             auto ik_result = registry.insert(entity, std::move(ik));
             if (ik_result.is_err()) {
                 return ik_result.propagation(ModelPoseError::RegistrationFailed);

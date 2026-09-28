@@ -189,9 +189,11 @@ namespace {
 } // namespace
 
 void bone_inheritance_tests();
+void bone_morph_tests();
 
 int main() {
     bone_inheritance_tests();
+    bone_morph_tests();
     auto limited = fixture(20, 10);
     limited.bones[GOAL_A].ik_links.front().limited = 1;
     limited.bones[GOAL_A].ik_links.front().lower = {0, 0, 0};

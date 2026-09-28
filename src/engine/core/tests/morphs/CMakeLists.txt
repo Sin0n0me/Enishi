@@ -6,6 +6,7 @@ set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(vertex_morph_tests vertex_morph_tests.cpp morph_weight_tests.cpp
     "${ENGINE_ROOT}/core/src/core/system/animation/vertex_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/bone_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/render/vertex_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
     "${ENGINE_ROOT}/model_controller/src/model_controller/model_component_builder.cpp"

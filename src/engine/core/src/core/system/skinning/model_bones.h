@@ -1,4 +1,5 @@
 #pragma once
+#include <core/system/animation/bone_morph.h>
 #include <engine_types/assets/model/addons/bone_constraints.h>
 #include <memory>
 #include <skinning_system/cache/animation_bone_cache.h>
@@ -27,6 +28,7 @@ namespace enishi::core {
         std::vector<glm::mat4> ik_base_local;
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::BoneConstraint> constraints;
+        std::vector<BoneMorphDelta> morph_delta;
 
         ModelBones(void) = default;
 
