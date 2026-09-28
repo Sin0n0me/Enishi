@@ -95,6 +95,16 @@ namespace enishi::physics::bullet3 {
         }
     }
 
+    void BulletRigidBody::sync_animation(void) {
+        const auto accessor = this->native_view->get_native_motion_state_accessor();
+        for (const auto handle : {this->kinematic_motion_state, this->active_motion_state}) {
+            auto state = accessor->get_motion_state(handle);
+            if (state.is_some()) {
+                state.unwrap()->update_global_transform(this->views.physics_bone_view.get());
+            }
+        }
+    }
+
     void BulletRigidBody::apply_local_transform(void) {
         this->views.updater->update_local(this->bone_index); // 物理状態の反映(ローカル空間)
     }

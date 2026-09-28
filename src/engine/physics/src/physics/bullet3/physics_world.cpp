@@ -76,6 +76,10 @@ namespace enishi::physics::bullet3 {
         }
 
         const auto fixed_step_time = this->config->get_fixed_step_time();
+        for (auto& body :
+            this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies()) {
+            body->sync_animation();
+        }
         const auto max_step = this->config->get_max_step_count();
 
         this->world->stepSimulation(
@@ -100,7 +104,7 @@ namespace enishi::physics::bullet3 {
         std::shared_ptr<sub_system::IPhysicsBoneViewList> view_list,
         std::shared_ptr<sub_system::IBoneUpdater> updater,
         std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view) noexcept {
-        auto&& [kinematic_motion_state, active_motion_state] =
+        auto&& [active_motion_state, kinematic_motion_state] =
             PhysicsNativeResourceMaker::make_motion_state(rigid_body_description, true);
         const auto kinematic_motion_state_shared =
             std::shared_ptr<IMMDMotionState>(std::move(kinematic_motion_state));
@@ -275,6 +279,9 @@ namespace enishi::physics::bullet3 {
     }
 
     void PhysicsWorld::apply_physics(void) {
+        if (!this->config->can_update()) {
+            return;
+        }
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
         for (auto& rb : rigid_bodies) {

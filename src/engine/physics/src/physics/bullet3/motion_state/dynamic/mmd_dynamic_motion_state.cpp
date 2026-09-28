@@ -54,6 +54,6 @@ namespace enishi::physics::bullet3 {
 
         // MMDの世界に変換
         physics_bone->set_physics_global(std::move(global));
-        bone_updater->update_children_global(this->index);
+        // Rebuild descendants after all bodies have supplied their global transforms.
     }
 } // namespace enishi::physics::bullet3

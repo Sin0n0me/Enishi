@@ -12,6 +12,7 @@ namespace enishi::sub_system {
         virtual void reset(void) = 0;
 
         virtual void reset_transform(void) = 0;
+        virtual void sync_animation(void) = 0;
 
         virtual void apply_local_transform(void) = 0;
 

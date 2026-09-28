@@ -35,6 +35,7 @@ namespace enishi::physics::bullet3 {
         void set_active(const bool active_flag) override;
         void reset(void) override;
         void reset_transform(void) override;
+        void sync_animation(void) override;
         void apply_local_transform(void) override;
         void apply_global_transform(void) override;
     };

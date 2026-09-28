@@ -32,6 +32,7 @@ namespace enishi::physics::bullet3 {
         MotionState kinematic_motion_state;
         switch (rigid_body.kind) {
             case types::RigidBodyKind::Kinematic: {
+                active_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
                 kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
             } break;
             case types::RigidBodyKind::Dynamic: {
