@@ -15,7 +15,7 @@ float4 apply_sphere(
     const float3 normal
 ) {
     const float2 sphere_uv = calc_sphere_uv(position, normal);
-    const float3 sphere_color = sphere_texture.Sample(sphere_sampler, sphere_uv).rgb;
+    const float4 sphere_color = sphere_texture.Sample(sphere_sampler, sphere_uv) * environment_texture_factor + environment_texture_add;
     
     return apply_sphere_map(color, sphere_color);
 }
@@ -27,13 +27,13 @@ float4 apply_toon(
 ) {
     const float dot_nl = saturate(dot(normalize(normal), light_direction));
     const float2 toon_uv = float2(dot_nl, 0.0f);
-    const float3 toon_color = toon_texture.Sample(toon_sampler, toon_uv).rgb;
+    const float4 toon_color = toon_texture.Sample(toon_sampler, toon_uv) * shading_ramp_texture_factor + shading_ramp_texture_add;
 
-    return color * float4(toon_color, 1.0);
+    return color * toon_color;
 }
 
 float4 main(const PSInput input) : SV_TARGET {    
-    const float4 base_color = model_texture.Sample(model_sampler, input.uv);
+    const float4 base_color = model_texture.Sample(model_sampler, input.uv) * base_color_texture_factor + base_color_texture_add;
     
     // 光の適用
     // TODO: 光源位置や色を定数バッファで指定できるように

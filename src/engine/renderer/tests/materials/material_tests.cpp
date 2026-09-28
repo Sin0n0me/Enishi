@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <cstring>
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <iostream>
 #include <renderer/common/converter/model_to_mesh.h>
 
@@ -42,7 +43,12 @@ int main() {
         std::memcpy(&color, data.raw_data(), sizeof(color));
         check(color == std::get<types::Diffuse>(model.materials[index].variants[0]).color,
             "same-named materials retain independent uniform contents");
-        check(data.byte_width() == sizeof(color), "aligned material must not gain an extra block");
+        check(data.byte_width() == sizeof(types::UniformMaterial), "material uniform layout size");
+        types::UniformMaterial uniform;
+        std::memcpy(&uniform, data.raw_data(), sizeof(uniform));
+        check(uniform.base_color_texture_factor == glm::vec4(1) &&
+                  uniform.base_color_texture_add == glm::vec4(0),
+            "default texture colors preserve sampling");
     }
     std::cout << "Material binding tests passed\n";
 }

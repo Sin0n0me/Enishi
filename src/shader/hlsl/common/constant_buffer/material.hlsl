@@ -7,6 +7,14 @@ cbuffer Material {
     float sphere_add;
     float edge_flag; // 0-1
     float2 _pad;
+    float4 base_color_texture_factor;
+    float4 base_color_texture_add;
+    float4 environment_texture_factor;
+    float4 environment_texture_add;
+    float4 shading_ramp_texture_factor;
+    float4 shading_ramp_texture_add;
+    float4 outline_color;
+    float4 outline_parameters;
 };
 
 float4 apply_lighting(
@@ -23,7 +31,7 @@ float4 apply_lighting(
    
     const float3 lighting_color = light_color.rgb * fixed_diffuse.rgb + ambient;
 
-    return float4(color.rgb * saturate(lighting_color), color.a);
+    return float4(color.rgb * saturate(lighting_color), color.a * diffuse.a);
 }
 
 // Specular(Blinn-Phong)
@@ -80,13 +88,13 @@ float2 calc_sphere_uv(
 // IFによる分岐を減らすために以下のような回りくどい計算をしている
 float4 apply_sphere_map(
     const float4 color,
-    const float3 sphere_color
+    const float4 sphere_color
 ) {
     const float3 base_color = color.rgb;
-    const float3 mul_case = (base_color * sphere_color) * sphere_mul;
-    const float3 add_case = (base_color + sphere_color) * sphere_add;
+    const float3 mul_case = (base_color * sphere_color.rgb) * sphere_mul;
+    const float3 add_case = (base_color + sphere_color.rgb) * sphere_add;
     const float3 no_case = base_color * (1.0 - (sphere_mul + sphere_add)); // 適用なしの場合
     const float3 result = no_case + add_case + mul_case;
 
-    return float4(result, color.a);
+    return float4(result, color.a * (1.0 - sphere_mul + sphere_mul * sphere_color.a));
 }

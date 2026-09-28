@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include <d3d11shader.h>
 #include <d3dcompiler.h>
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -322,8 +323,39 @@ void shader_signature_tests() {
     }
 }
 
+void material_shader_tests() {
+    for (const auto* file : {"ps_model.hlsl", "ps_model_edge.hlsl"}) {
+        const auto path = std::filesystem::path(SHADER_ROOT) / "hlsl" / file;
+        ComPtr<ID3DBlob> code;
+        ComPtr<ID3DBlob> errors;
+        const auto compiled = D3DCompileFromFile(path.c_str(),
+            nullptr,
+            D3D_COMPILE_STANDARD_FILE_INCLUDE,
+            "main",
+            "ps_5_0",
+            D3DCOMPILE_WARNINGS_ARE_ERRORS,
+            0,
+            &code,
+            &errors);
+        if (FAILED(compiled) && errors != nullptr) {
+            std::cerr << static_cast<const char*>(errors->GetBufferPointer());
+        }
+        succeeded(compiled);
+        ComPtr<ID3D11ShaderReflection> reflection;
+        succeeded(D3DReflect(code->GetBufferPointer(),
+            code->GetBufferSize(),
+            IID_ID3D11ShaderReflection,
+            reinterpret_cast<void**>(reflection.GetAddressOf())));
+        D3D11_SHADER_BUFFER_DESC buffer{};
+        succeeded(reflection->GetConstantBufferByName("Material")->GetDesc(&buffer));
+        check(buffer.Size == sizeof(types::UniformMaterial),
+            "CPU and pixel shader material layouts agree");
+    }
+}
+
 int main() {
     shader_signature_tests();
+    material_shader_tests();
     packing_tests();
     ShaderRunner runner;
     deformation_tests(runner);

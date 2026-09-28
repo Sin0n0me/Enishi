@@ -4,6 +4,7 @@
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/str/string_builder.h>
 
 #include <glm/ext/matrix_clip_space.hpp>
@@ -222,8 +223,12 @@ namespace enishi::renderer {
                 RendererError::ConvertError, "Uniform alignment must be positive");
         }
         std::vector<std::byte> uniform;
-        for (const auto& variant : material.variants) {
-            std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
+        if (material.name == types::UniformMaterial::UNIFORM_NAME) {
+            append_bytes(uniform, types::make_uniform_material(material));
+        } else {
+            for (const auto& variant : material.variants) {
+                std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
+            }
         }
 
         // 指定のByte区切りにする

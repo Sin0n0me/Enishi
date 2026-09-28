@@ -7,6 +7,8 @@ add_executable(material_tests material_tests.cpp
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/model_to_mesh.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/str/string_builder.cpp")
+target_sources(material_tests PRIVATE
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp")
 target_compile_features(material_tests PRIVATE cxx_std_23)
 foreach(module renderer engine_types foundation platform)
     target_include_directories(material_tests PRIVATE "${ENGINE_ROOT}/${module}/src")

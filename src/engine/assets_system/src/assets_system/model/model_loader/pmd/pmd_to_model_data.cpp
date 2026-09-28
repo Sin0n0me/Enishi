@@ -389,6 +389,8 @@ namespace enishi::assets_system {
                 pmd_material.edge_flag != 0 ? 1.0f : 0.0f,
             });
 
+            material.outline_color = glm::vec4(0, 0, 0, 1);
+            material.outline_width = 1.0f;
             materials.emplace_back(material);
         }
 
