@@ -11,7 +11,6 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MORPH_LAST_ADDITIONAL_UV = 7;
         constexpr std::uint8_t MORPH_FLIP = 9;
         constexpr std::uint8_t MORPH_MATERIAL = 8;
-        constexpr std::uint16_t BONE_AFTER_PHYSICS = 0x1000;
         constexpr std::uint8_t MATERIAL_VERTEX_COLOR = 0x20;
         constexpr std::uint8_t MATERIAL_POINTS = 0x40;
         constexpr std::uint8_t MATERIAL_LINES = 0x80;
@@ -63,11 +62,6 @@ namespace enishi::assets_system {
         }
 
         foundation::Result<void, AssetError> validate_animation(const PMXData& data) {
-            for (const auto& bone : data.bones) {
-                if ((bone.flags & BONE_AFTER_PHYSICS) != 0) {
-                    return unsupported("after-physics transforms");
-                }
-            }
             for (const auto& morph : data.morphs) {
                 if (!(morph.type < MORPH_UV) && !(morph.type > MORPH_LAST_ADDITIONAL_UV)) {
                     continue;

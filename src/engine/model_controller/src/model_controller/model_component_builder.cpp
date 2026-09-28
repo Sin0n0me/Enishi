@@ -43,6 +43,7 @@ namespace enishi::model_controller {
             }
         }
         std::vector<std::int32_t> priorities(model.bone_node.size());
+        std::vector<bool> after_physics(model.bone_node.size());
         for (const auto& addon : data.addons) {
             if (const auto* constraints = std::get_if<types::AddonBoneConstraints>(&addon);
                 constraints != nullptr) {
@@ -50,6 +51,7 @@ namespace enishi::model_controller {
                 for (const auto& constraint : constraints->constraints) {
                     if (constraint.bone < priorities.size()) {
                         priorities[constraint.bone] = constraint.evaluation_order;
+                        after_physics[constraint.bone] = constraint.after_physics;
                     }
                 }
             }
@@ -58,7 +60,12 @@ namespace enishi::model_controller {
         std::iota(model.evaluation_order.begin(), model.evaluation_order.end(), types::BoneIndex{});
         std::stable_sort(model.evaluation_order.begin(),
             model.evaluation_order.end(),
-            [&priorities](auto a, auto b) { return priorities[a] < priorities[b]; });
+            [&priorities, &after_physics](auto a, auto b) {
+                if (after_physics[a] != after_physics[b]) {
+                    return !after_physics[a];
+                }
+                return priorities[a] < priorities[b];
+            });
         return model;
     }
 } // namespace enishi::model_controller

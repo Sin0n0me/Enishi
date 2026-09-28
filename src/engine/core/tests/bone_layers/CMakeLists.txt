@@ -10,6 +10,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     external_transform_tests.cpp
     ${SKINNING_SOURCES}
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"
+    "${CORE_ROOT}/system/skinning/skinning_physics.cpp"
     "${CORE_ROOT}/system/skinning/bone_inheritance.cpp"
     "${CORE_ROOT}/system/animation/bone_morph.cpp"
     "${CORE_ROOT}/system/animation/morph_weights.cpp"

@@ -30,6 +30,8 @@ namespace enishi::core {
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::BoneConstraint> constraints;
         std::vector<BoneMorphDelta> morph_delta;
+        std::vector<bool> physics_driven;
+        bool pending_after_physics{};
 
         ModelBones(void) = default;
 

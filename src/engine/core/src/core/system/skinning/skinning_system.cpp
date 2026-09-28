@@ -38,6 +38,7 @@ namespace enishi::core {
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
+            bones.pending_after_physics = false;
             for (std::size_t index = 0; index < bones.external_transforms.size(); ++index) {
                 bones.external_transforms[index] = glm::mat4(1);
                 const auto slot = bones.constraints[index].external_transform_slot;
@@ -72,6 +73,10 @@ namespace enishi::core {
 
             // Skinning行列の確定は順序に関わらず、全ステップの後に必ず行う
             this->write_skinning_matrices(animation, model, skinning);
+            bones.pending_after_physics = true;
+        }
+        if (this->physics_engine == nullptr) {
+            this->update_after_physics();
         }
     }
 
@@ -147,7 +152,16 @@ namespace enishi::core {
             }
             bones->physics_updater->update_global_form_roots();
 
+            bones->physics_driven.resize(model.bone_node.size(), false);
             if (physics_bodies.is_some()) {
+                for (const auto& body : physics_bodies.unwrap().rigid_bodies) {
+                    if (body.relate_bone_index < bones->physics_driven.size() &&
+                        body.kind != types::RigidBodyKind::Kinematic) {
+                        bones->physics_driven[body.relate_bone_index] = true;
+                    }
+                }
+            }
+            if (physics_bodies.is_some() && this->physics_engine != nullptr) {
                 PhysicsBodyFactory::build(*this->physics_engine->get_world(),
                     physics_bodies.unwrap_mut(),
                     bones->physics_cache,
@@ -165,7 +179,6 @@ namespace enishi::core {
         if (bones.ik_cache == nullptr || bones.ik_updater == nullptr || opt_ik.is_none()) {
             return;
         }
-        const auto& ik = opt_ik.unwrap();
 
         // Start each frame from animation, not the previous frame's IK correction.
         for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
@@ -183,7 +196,20 @@ namespace enishi::core {
             bones.ik_cache->at(index)->set_ik_rotation(glm::quat(1, 0, 0, 0));
         }
         bones.ik_updater->update_global_form_roots();
+        this->evaluate_bone_phase(bones, opt_ik, false);
+    }
+
+    void SkinningSystem::evaluate_bone_phase(ModelBones& bones,
+        foundation::Option<component::IKComponent&> opt_ik,
+        bool after_physics) const noexcept {
+        if (bones.ik_cache == nullptr || opt_ik.is_none()) {
+            return;
+        }
+        const auto& ik = opt_ik.unwrap();
         for (const auto bone_index : bones.evaluation_order) {
+            if (bones.constraints[bone_index].after_physics != after_physics) {
+                continue;
+            }
             apply_bone_inheritance(bones, bone_index);
             if (ik.disabled_bones.contains(bone_index)) {
                 continue;
@@ -217,25 +243,19 @@ namespace enishi::core {
                 break;
 
             case types::SkinningCommand::PhysicsSimulate:
-                if (bones.physics_cache && bones.animation_cache) {
-                    const auto bone_count = bones.physics_cache->size();
-                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
-                        auto* const physics_view = bones.physics_cache->at(i);
-                        auto* const animation_view = bones.animation_cache->at(i);
-                        animation_view->set_animation_global_transform(
-                            physics_view->get_physics_global());
-                    }
-                }
+                this->import_physics_pose(bones);
                 break;
 
             case types::SkinningCommand::WriteBackPhysicsSimulate:
-                if (bones.physics_cache && bones.animation_cache) {
+                if (bones.physics_cache != nullptr && bones.animation_cache != nullptr) {
                     const auto bone_count = bones.physics_cache->size();
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         auto* const animation_view = bones.animation_cache->at(i);
                         auto* const physics_view = bones.physics_cache->at(i);
                         physics_view->set_physics_global(
                             animation_view->get_animation_global_transform());
+                    }
+                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         bones.physics_updater->update_local(i);
                     }
                 }
