@@ -1,6 +1,59 @@
+#include "bone_view_factory.h"
 #include "skinning_system.h"
+#include <algorithm>
+#include <core/system/physics/physics_body_factory.h>
+#include <foundation/log/logger.h>
 
 namespace enishi::core {
+    void SkinningSystem::build_physics(ModelBones& bones,
+        const component::ModelComponent& model,
+        foundation::Option<component::PhysicsComponent&> physics,
+        foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const {
+        // PhysicsComponentを持たないモデルもある
+        if (physics.is_some()) {
+            auto views = BoneViewFactory::to_shared_views(
+                BoneViewFactory::make_physics_view(physics.unwrap_mut()));
+
+            bones.physics_cache = std::make_shared<skinning_system::PhysicsBonesCache>(
+                model.bone_node, std::move(views));
+            bones.physics_updater =
+                std::make_shared<skinning_system::PhysicsBonesUpdater>(*bones.physics_cache);
+
+            // 剛体を生成する前に、物理用ボーンを現在のアニメーション姿勢で初期化する。
+            // これにより Bullet 側の初期剛体座標がモデルのボーン座標と一致する。
+            const auto bone_count = bones.physics_cache->size();
+            for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                bones.physics_cache->at(i)->set_physics_global(
+                    bones.animation_cache->at(i)->get_animation_global_transform());
+            }
+            for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                bones.physics_updater->update_local(i);
+            }
+
+            bones.physics_driven.resize(model.bone_node.size(), false);
+            if (physics_bodies.is_some()) {
+                for (const auto& body : physics_bodies.unwrap().rigid_bodies) {
+                    if (body.relate_bone_index < bones.physics_driven.size() &&
+                        body.kind != types::RigidBodyKind::Kinematic) {
+                        bones.physics_driven[body.relate_bone_index] = true;
+                    }
+                }
+            }
+            if (physics_bodies.is_some() && this->physics_engine != nullptr) {
+                auto built = PhysicsBodyFactory::build(*this->physics_engine->get_world(),
+                    physics_bodies.unwrap_mut(),
+                    bones.physics_cache,
+                    bones.physics_updater);
+                if (built.is_err()) {
+                    foundation::Logger::warning(built.unwrap_err().get_message());
+                    std::fill(bones.physics_driven.begin(), bones.physics_driven.end(), false);
+                } else {
+                    physics_bodies.unwrap_mut().handles = std::move(built).unwrap_mut();
+                }
+            }
+        }
+    }
+
     void SkinningSystem::import_physics_pose(ModelBones& bones) const noexcept {
         if (bones.physics_cache == nullptr || bones.ik_cache == nullptr) {
             return;

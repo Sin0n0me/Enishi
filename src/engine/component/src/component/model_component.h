@@ -5,6 +5,8 @@
 #include <engine_types/assets/model/addons/morph_target.h>
 #include <engine_types/assets/model/material/material.h>
 #include <engine_types/handle/renderer/render_handle.h>
+#include <engine_types/physics/joint/physics_joint.h>
+#include <engine_types/physics/rigid_body/physics_rigid_body.h>
 #include <unordered_map>
 #include <vector>
 
@@ -24,5 +26,7 @@ namespace enishi::component {
         std::vector<types::Material> morph_base_materials;
         std::vector<std::vector<glm::vec4>> morph_base_uvs;
         types::AddonMorphTargets morph_targets;
+        std::vector<types::PhysicsRigidBody> rigid_bodies;
+        std::vector<types::PhysicsJoint> physics_joints;
     };
 } // namespace enishi::component

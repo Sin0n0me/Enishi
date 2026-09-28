@@ -19,6 +19,12 @@ namespace enishi::model_controller {
             } else if (const auto* morphs = std::get_if<types::AddonMorphTargets>(&addon);
                        morphs != nullptr) {
                 model.morph_targets = *morphs;
+            } else if (const auto* bodies = std::get_if<types::AddonRigidBodies>(&addon);
+                       bodies != nullptr) {
+                model.rigid_bodies = *bodies;
+            } else if (const auto* joints = std::get_if<types::AddonPhysicsJoints>(&addon);
+                       joints != nullptr) {
+                model.physics_joints = *joints;
             }
         }
         if (!model.morph_targets.targets.empty()) {

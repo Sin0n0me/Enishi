@@ -3,11 +3,45 @@
 #include <component/animation_component.h>
 #include <component/ik_component.h>
 #include <component/morph_component.h>
+#include <component/physics_bodies_component.h>
+#include <component/physics_component.h>
 #include <component/skinning_component.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
 
 namespace enishi::core {
+    namespace {
+        foundation::Result<void, ModelPoseError> initialize_physics(ecs::Registry& registry,
+            types::HandleId entity,
+            const component::ModelComponent& model) {
+            if (model.rigid_bodies.empty()) {
+                return {};
+            }
+            for (const auto& body : model.rigid_bodies) {
+                if (!(body.relate_bone_index < model.bone_node.size())) {
+                    return foundation::Error(ModelPoseError::InvalidPhysicsDefinition,
+                        "Rigid body references a missing bone");
+                }
+            }
+            component::PhysicsComponent physics;
+            for (const auto& bind : model.bind_bone) {
+                physics.local.push_back(bind.local);
+                physics.global.push_back(bind.global);
+            }
+            auto result = registry.insert(entity, std::move(physics));
+            if (result.is_err()) {
+                return result.propagation(ModelPoseError::RegistrationFailed);
+            }
+            component::PhysicsBodiesComponent bodies;
+            bodies.rigid_bodies = model.rigid_bodies;
+            bodies.joints = model.physics_joints;
+            auto bodies_result = registry.insert(entity, std::move(bodies));
+            if (bodies_result.is_err()) {
+                return bodies_result.propagation(ModelPoseError::RegistrationFailed);
+            }
+            return {};
+        }
+    } // namespace
     foundation::Result<void, ModelPoseError> initialize_model_pose(
         ecs::Registry& registry, types::HandleId entity, const component::ModelComponent& model) {
         if (!model.morph_targets.targets.empty()) {
@@ -72,12 +106,12 @@ namespace enishi::core {
                         return std::holds_alternative<types::BoneMorphOffset>(offset);
                     });
             });
-        if (!ik.iks.empty() || has_inheritance || has_bone_morph) {
+        if (!ik.iks.empty() || has_inheritance || has_bone_morph || !model.rigid_bodies.empty()) {
             auto ik_result = registry.insert(entity, std::move(ik));
             if (ik_result.is_err()) {
                 return ik_result.propagation(ModelPoseError::RegistrationFailed);
             }
         }
-        return {};
+        return initialize_physics(registry, entity, model);
     }
 } // namespace enishi::core

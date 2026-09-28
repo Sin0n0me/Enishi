@@ -23,6 +23,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     "${ENGINE_ROOT}/ecs/src/ecs/registry.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/handle_allocator.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/renderer/render_handle.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/handle/physics/physics_handle.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/assets/model/addons/bone.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/log/logger.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"

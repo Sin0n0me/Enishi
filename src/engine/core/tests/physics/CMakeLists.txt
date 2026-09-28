@@ -11,10 +11,9 @@ find_library(BULLET_DYNAMICS_LIBRARY NAMES BulletDynamics_Debug BulletDynamics R
 find_library(BULLET_COLLISION_LIBRARY NAMES BulletCollision_Debug BulletCollision REQUIRED)
 find_library(BULLET_MATH_LIBRARY NAMES LinearMath_Debug LinearMath REQUIRED)
 file(GLOB_RECURSE PHYSICS_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/physics/src/*.cpp")
-add_executable(physics_runtime_tests physics_runtime_tests.cpp ${BONE_SOURCES} ${PHYSICS_SOURCES}
+add_executable(physics_runtime_tests physics_runtime_tests.cpp model_physics_tests.cpp ${BONE_SOURCES} ${PHYSICS_SOURCES}
     "${ENGINE_ROOT}/platform_impl/src/platform_impl/physics/physics_config.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/physics/physics_system.cpp"
-    "${ENGINE_ROOT}/engine_types/src/engine_types/handle/physics/physics_handle.cpp")
+    "${ENGINE_ROOT}/core/src/core/system/physics/physics_system.cpp")
 target_compile_features(physics_runtime_tests PRIVATE cxx_std_23)
 target_include_directories(physics_runtime_tests PRIVATE ${BONE_INCLUDES} "${BULLET_INCLUDE_DIR}"
     "${ENGINE_ROOT}/physics/src" "${ENGINE_ROOT}/platform_impl/src")

@@ -64,6 +64,10 @@ namespace enishi::core {
             foundation::Option<component::IKComponent&> ik,
             bool after_physics) const noexcept;
         void import_physics_pose(ModelBones& bones) const noexcept;
+        void build_physics(ModelBones& bones,
+            const component::ModelComponent& model,
+            foundation::Option<component::PhysicsComponent&> physics,
+            foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const;
 
         void execute_command(const types::SkinningCommand command,
             ModelBones& bones,

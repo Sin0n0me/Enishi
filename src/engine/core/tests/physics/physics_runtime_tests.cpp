@@ -93,6 +93,8 @@ namespace {
 } // namespace
 
 int main() {
+    extern void model_physics_tests();
+    model_physics_tests();
     motion_state_tests();
     world_tests();
     std::cout << "Physics runtime tests passed\n";

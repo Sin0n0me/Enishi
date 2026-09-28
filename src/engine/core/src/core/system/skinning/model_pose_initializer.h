@@ -3,7 +3,11 @@
 #include <ecs/registry.h>
 
 namespace enishi::core {
-    enum class ModelPoseError { InvalidBindTransform, RegistrationFailed };
+    enum class ModelPoseError {
+        InvalidBindTransform,
+        RegistrationFailed,
+        InvalidPhysicsDefinition
+    };
     [[nodiscard]] foundation::Result<void, ModelPoseError> initialize_model_pose(
         ecs::Registry& registry, types::HandleId entity, const component::ModelComponent& model);
 } // namespace enishi::core
