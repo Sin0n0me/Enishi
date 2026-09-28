@@ -10,6 +10,7 @@ namespace enishi::types {
         std::vector<RenderHandle> mesh_handles;
         using UniformBuffers = std::unordered_map<std::string, std::vector<HandleId>>;
         UniformBuffers uniform_buffers;
+        std::vector<UniformBuffers> material_uniform_buffers;
         struct PositionStream {
             HandleId buffer;
             std::size_t offset;

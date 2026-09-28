@@ -183,7 +183,8 @@ namespace enishi::renderer::directx {
         auto&& result = this->resolve_mesh_binding(std::move(mesh_data),
                                 this->get_shader_reflections(shader_reflections),
                                 std::move(mapped_index_buffer),
-                                mesh.uniform_buffers)
+                                mesh.uniform_buffers,
+                                mesh.material_uniform_buffers)
                             .add_message("バインド情報の取得に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
@@ -858,7 +859,8 @@ namespace enishi::renderer::directx {
     ResourceManager::resolve_mesh_binding(types::MeshData&& mesh_data,
         std::vector<platform::IShaderAccessor::ShaderReflection>&& shader_reflections,
         types::HandleId&& mapped_index_buffer,
-        types::MeshHandles::UniformBuffers& named_uniforms) {
+        types::MeshHandles::UniformBuffers& named_uniforms,
+        std::vector<types::MeshHandles::UniformBuffers>& material_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
 
         auto&& result_uniforms =
@@ -872,6 +874,15 @@ namespace enishi::renderer::directx {
 
         // サンプラーとテクスチャの作成
         for (auto& material : mesh_data.materials) {
+            auto& named = material_uniforms.emplace_back();
+            if (material.uniforms != nullptr) {
+                auto resolved = this->resolve_uniforms(
+                    std::move(*material.uniforms), shader_reflections, named);
+                if (resolved.is_err()) {
+                    return resolved;
+                }
+                mesh_handles.append_range(std::move(resolved).unwrap_mut());
+            }
             auto&& result_textures =
                 this->resolve_texture(material, shader_reflections)
                     .add_message("テクスチャのバインド情報の解決に失敗しました");
@@ -899,6 +910,7 @@ namespace enishi::renderer::directx {
         const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections,
         types::MeshHandles::UniformBuffers& named_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
+        std::vector<std::string> resolved_names;
 
         // 定数バッファの作成
         for (const auto& shader_reflection : shader_reflections) {
@@ -909,8 +921,12 @@ namespace enishi::renderer::directx {
                 const auto opt_input_resource = input_reflection->resolve_input_resource(name);
 
                 if (opt_input_resource.is_some()) {
+                    const auto bytes = owned_render_data.get_render_data();
+                    types::OwnedRenderData stage_data{
+                        std::vector<std::byte>(bytes.bytes.begin(), bytes.bytes.end()),
+                        bytes.stride};
                     auto&& result = this->resolve_uniform(
-                        opt_input_resource.unwrap(), shader_kind, std::move(owned_render_data));
+                        opt_input_resource.unwrap(), shader_kind, std::move(stage_data));
                     if (result.is_err()) {
                         return std::move(result).unwrap_err();
                     }
@@ -924,13 +940,17 @@ namespace enishi::renderer::directx {
                     }
                     named_uniforms[name].push_back(mapped.unwrap().configurable);
 
-                    iter = uniforms.erase(iter);
+                    resolved_names.push_back(name);
+                    ++iter;
                 } else {
                     iter++;
                 }
             }
         }
 
+        for (const auto& name : resolved_names) {
+            uniforms.erase(name);
+        }
         if (!uniforms.empty()) {
             foundation::StringBuilder strings;
             strings.push_back("解決できないデータが見つかりました");

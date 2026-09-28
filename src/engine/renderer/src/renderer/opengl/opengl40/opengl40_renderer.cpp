@@ -404,46 +404,70 @@ namespace enishi::renderer::opengl {
         if (index.is_err()) {
             return std::move(index);
         }
-        std::vector<types::HandleId> mesh_uniform_handles;
+        const auto make_uniforms = [&](types::MeshData::UniformMap& uniforms,
+                                       types::MeshHandles::UniformBuffers& named_uniforms)
+            -> platform::RenderResult<std::vector<types::HandleId>> {
+            std::vector<types::HandleId> uniform_handles;
+            for (const auto& reflection_handle : shader_reflections) {
+                const auto reflection = this->state->reflections.find(reflection_handle);
+                if (reflection == this->state->reflections.end()) {
+                    continue;
+                }
+                const auto* inputs = reflection->second->get_shader_input_reflection();
+                for (const auto& resource : inputs->get_input_resources()) {
+                    if (resource.type != types::ShaderInputResourceType::UniformBuffer) {
+                        continue;
+                    }
+                    const auto uniform = uniforms.find(resource.name);
+                    if (uniform == uniforms.end()) {
+                        continue;
+                    }
+                    const auto render_data = uniform->second.get_render_data();
+                    GLuint buffer = NO_GL_OBJECT;
+                    glGenBuffers(RESOURCE_COUNT, &buffer);
+                    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+                    glBufferData(GL_UNIFORM_BUFFER,
+                        static_cast<GLsizeiptr>(render_data.byte_width()),
+                        render_data.raw_data(),
+                        GL_DYNAMIC_DRAW);
+                    const auto binding = this->state->uniform_block_bindings.find(resource.name);
+                    if (binding == this->state->uniform_block_bindings.end()) {
+                        glDeleteBuffers(RESOURCE_COUNT, &buffer);
+                        return foundation::Error(platform::RenderError::MakeError,
+                            "Uniform buffer binding was not created for the shader resource");
+                    }
+                    glBindBufferBase(GL_UNIFORM_BUFFER, binding->second, buffer);
+                    this->state->buffers.emplace_back(buffer);
+                    auto updater = std::make_shared<OpenGLUniformUpdater>(
+                        std::move(uniform->second), buffer, binding->second);
+                    this->state->uniform_updaters.emplace_back(updater);
+                    const auto [buffer_handle, _] = this->resource_accessor->make_buffer();
+                    this->resource_accessor->add_interface(buffer_handle, updater);
+                    uniform_handles.emplace_back(buffer_handle);
+                    named_uniforms[resource.name].push_back(buffer_handle);
+                    uniforms.erase(uniform);
+                }
+            }
+            return uniform_handles;
+        };
         types::MeshHandles::UniformBuffers named_uniforms;
-        for (const auto& reflection_handle : shader_reflections) {
-            const auto reflection = this->state->reflections.find(reflection_handle);
-            if (reflection == this->state->reflections.end()) {
+        auto shared_uniforms = make_uniforms(data.uniforms, named_uniforms);
+        if (shared_uniforms.is_err()) {
+            return shared_uniforms.propagation(platform::RenderError::MakeError);
+        }
+        std::vector<std::vector<types::HandleId>> material_uniform_handles;
+        std::vector<types::MeshHandles::UniformBuffers> material_uniforms;
+        for (auto& material : data.materials) {
+            auto& named = material_uniforms.emplace_back();
+            if (material.uniforms == nullptr) {
+                material_uniform_handles.emplace_back();
                 continue;
             }
-            const auto* inputs = reflection->second->get_shader_input_reflection();
-            for (const auto& resource : inputs->get_input_resources()) {
-                if (resource.type != types::ShaderInputResourceType::UniformBuffer) {
-                    continue;
-                }
-                const auto uniform = data.uniforms.find(resource.name);
-                if (uniform == data.uniforms.end()) {
-                    continue;
-                }
-                const auto render_data = uniform->second.get_render_data();
-                GLuint buffer = NO_GL_OBJECT;
-                glGenBuffers(RESOURCE_COUNT, &buffer);
-                glBindBuffer(GL_UNIFORM_BUFFER, buffer);
-                glBufferData(GL_UNIFORM_BUFFER,
-                    static_cast<GLsizeiptr>(render_data.byte_width()),
-                    render_data.raw_data(),
-                    GL_DYNAMIC_DRAW);
-                const auto binding = this->state->uniform_block_bindings.find(resource.name);
-                if (binding == this->state->uniform_block_bindings.end()) {
-                    glDeleteBuffers(RESOURCE_COUNT, &buffer);
-                    return foundation::Error(platform::RenderError::MakeError,
-                        "Uniform buffer binding was not created for the shader resource");
-                }
-                glBindBufferBase(GL_UNIFORM_BUFFER, binding->second, buffer);
-                this->state->buffers.emplace_back(buffer);
-                auto updater = std::make_shared<OpenGLUniformUpdater>(
-                    std::move(uniform->second), buffer, binding->second);
-                this->state->uniform_updaters.emplace_back(updater);
-                const auto [buffer_handle, _] = this->resource_accessor->make_buffer();
-                this->resource_accessor->add_interface(buffer_handle, updater);
-                mesh_uniform_handles.emplace_back(buffer_handle);
-                named_uniforms[resource.name].push_back(buffer_handle);
+            auto uniforms = make_uniforms(*material.uniforms, named);
+            if (uniforms.is_err()) {
+                return uniforms.propagation(platform::RenderError::MakeError);
             }
+            material_uniform_handles.push_back(std::move(uniforms).unwrap());
         }
         GLuint vao = NO_GL_OBJECT;
         glGenVertexArrays(RESOURCE_COUNT, &vao);
@@ -510,6 +534,7 @@ namespace enishi::renderer::opengl {
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         auto [mesh_resource, mesh_handles] = this->resource_accessor->make_mesh_handles();
         mesh_handles.uniform_buffers = std::move(named_uniforms);
+        mesh_handles.material_uniform_buffers = std::move(material_uniforms);
         const auto vertex_object = this->state->objects.at(vertex.unwrap());
         auto vertex_updater = std::make_shared<VertexBufferUpdater>(
             std::move(data.vertices), [vertex_object](const types::RenderData& vertices) {
@@ -528,7 +553,8 @@ namespace enishi::renderer::opengl {
         mesh_handles.mesh_handles.emplace_back(vertex.unwrap());
         mesh_handles.mesh_handles.emplace_back(index.unwrap());
         (*this->handle_mapper)[handle].resource = mesh_resource;
-        this->state->mesh_uniform_buffers.emplace(handle, std::move(mesh_uniform_handles));
+        this->state->mesh_uniform_buffers.emplace(handle, std::move(shared_uniforms).unwrap());
+        this->state->material_uniform_buffers.emplace(handle, std::move(material_uniform_handles));
         this->state->objects.emplace(handle, vao);
         const auto index_stride = data.indices.get_render_data().stride;
         auto index_type = GL_UNSIGNED_INT;
@@ -968,11 +994,21 @@ namespace enishi::renderer::opengl {
             return;
         }
         const auto texture_bindings = this->state->mesh_texture_bindings.find(command.handle);
+        const auto material_uniforms = this->state->material_uniform_buffers.find(command.handle);
         const auto index_stride = this->state->index_strides.find(command.handle);
         const auto stride = index_stride == this->state->index_strides.end() ? NO_INDEX_STRIDE
                                                                              : index_stride->second;
         for (std::size_t material_index = 0; material_index < bindings->second.size();
              ++material_index) {
+            if (material_uniforms != this->state->material_uniform_buffers.end() &&
+                material_index < material_uniforms->second.size()) {
+                for (const auto buffer : material_uniforms->second[material_index]) {
+                    const auto updater = accessor->get_buffer(buffer);
+                    if (updater.is_some() && updater.unwrap() != nullptr) {
+                        updater.unwrap()->on_update();
+                    }
+                }
+            }
             if (texture_bindings != this->state->mesh_texture_bindings.end() &&
                 material_index < texture_bindings->second.size()) {
                 for (const auto& [unit, texture] : texture_bindings->second[material_index]) {

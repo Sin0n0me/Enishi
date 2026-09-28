@@ -33,7 +33,7 @@ namespace enishi::renderer {
         if (uniforms.is_err()) {
             return std::move(uniforms).unwrap_err();
         }
-        auto&& materials = ModelToMesh::to_mesh_material(model_data);
+        auto&& materials = ModelToMesh::to_mesh_material(model_data, config);
         if (materials.is_err()) {
             return std::move(materials).unwrap_err();
         }
@@ -149,11 +149,6 @@ namespace enishi::renderer {
         if (addon_result.is_err()) {
             return std::move(addon_result).unwrap_err();
         }
-        auto&& material_result =
-            ModelToMesh::to_uniforms_from_material(model_data, uniforms, config);
-        if (material_result.is_err()) {
-            return std::move(material_result).unwrap_err();
-        }
 
         return uniforms;
     }
@@ -221,36 +216,37 @@ namespace enishi::renderer {
     }
 
     foundation::VoidResult<RendererError> ModelToMesh::to_uniforms_from_material(
-        const types::ModelData& model_data, Uniforms& uniforms, const MeshConfig& config) {
-        std::vector<std::byte> uniform;
-        for (const auto& material : model_data.materials) {
-            for (const auto& variant : material.variants) {
-                std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
-            }
-
-            // 指定のByte区切りにする
-            // 基本16ByteでDirectX12なら256バイト区切り
-            const auto stride = uniform.size();
-            const auto padding = config.uniform_separator - stride % config.uniform_separator;
-            const auto buffer_size = stride + padding;
-            if (padding != 0) {
-                uniform.resize(buffer_size);
-            }
-
-            uniforms.emplace(material.name,
-                types::OwnedRenderData{
-                    std::move(uniform),
-                    static_cast<std::uint32_t>(buffer_size),
-                });
-
-            uniform.reserve(buffer_size);
+        const types::Material& material, Uniforms& uniforms, const MeshConfig& config) {
+        if (config.uniform_separator == 0) {
+            return foundation::Error(
+                RendererError::ConvertError, "Uniform alignment must be positive");
         }
+        std::vector<std::byte> uniform;
+        for (const auto& variant : material.variants) {
+            std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
+        }
+
+        // 指定のByte区切りにする
+        // 基本16ByteでDirectX12なら256バイト区切り
+        const auto stride = uniform.size();
+        const auto padding = (config.uniform_separator - stride % config.uniform_separator) %
+                             config.uniform_separator;
+        const auto buffer_size = stride + padding;
+        if (padding != 0) {
+            uniform.resize(buffer_size);
+        }
+
+        uniforms.emplace(material.name,
+            types::OwnedRenderData{
+                std::move(uniform),
+                static_cast<std::uint32_t>(buffer_size),
+            });
 
         return {};
     }
 
     foundation::Result<std::vector<types::MeshMaterial>, RendererError>
-    ModelToMesh::to_mesh_material(const types::ModelData& model_data) {
+    ModelToMesh::to_mesh_material(const types::ModelData& model_data, const MeshConfig& config) {
         std::vector<types::MeshMaterial> mesh_materials;
 
         if (model_data.materials.empty()) {
@@ -277,9 +273,16 @@ namespace enishi::renderer {
                 return std::move(textures).unwrap_err();
             }
 
+            Uniforms uniforms;
+            auto material_uniforms =
+                ModelToMesh::to_uniforms_from_material(material, uniforms, config);
+            if (material_uniforms.is_err()) {
+                return std::move(material_uniforms).unwrap_err();
+            }
             mesh_materials.emplace_back(types::MeshMaterial{
                 .draw_binding = std::move(draw_binding).unwrap_mut(),
                 .textures = std::move(textures).unwrap_mut(),
+                .uniforms = std::make_unique<Uniforms>(std::move(uniforms)),
             });
         }
 
