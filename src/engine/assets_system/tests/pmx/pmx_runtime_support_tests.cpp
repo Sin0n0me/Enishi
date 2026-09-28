@@ -133,13 +133,10 @@ namespace {
     }
 
     void animation_support_tests() {
-        for (const auto flag : {INHERIT_ROTATION,
-                 INHERIT_TRANSLATION,
-                 AFTER_PHYSICS,
-                 EXTERNAL_PARENT}) {
+        for (const auto flag : {AFTER_PHYSICS, EXTERNAL_PARENT}) {
             auto data = supported_model();
             data.bones.front().flags = flag;
-            expect_unsupported(data, "bone inheritance or external/physics transforms");
+            expect_unsupported(data, "external/physics transforms");
         }
         for (const auto flag : {FIXED_AXIS, LOCAL_AXES}) {
             auto data = supported_model();

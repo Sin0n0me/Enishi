@@ -1,4 +1,5 @@
 #include "skinning_system.h"
+#include "bone_inheritance.h"
 #include "bone_view_factory.h"
 #include <component/animation_component.h>
 #include <component/ik_component.h>
@@ -81,6 +82,12 @@ namespace enishi::core {
         // IKComponentを持たないモデルもある
         if (ik.is_some()) {
             bones->ik_base_local.resize(model.bone_node.size());
+            bones->constraints.resize(model.bone_node.size());
+            for (const auto& constraint : model.bone_constraints.constraints) {
+                if (constraint.bone < bones->constraints.size()) {
+                    bones->constraints[constraint.bone] = constraint;
+                }
+            }
             bones->evaluation_order = model.evaluation_order;
             if (bones->evaluation_order.empty()) {
                 bones->evaluation_order.resize(model.bone_node.size());
@@ -141,6 +148,7 @@ namespace enishi::core {
         }
         bones.ik_updater->update_global_form_roots();
         for (const auto bone_index : bones.evaluation_order) {
+            apply_bone_inheritance(bones, bone_index);
             if (ik.disabled_bones.contains(bone_index)) {
                 continue;
             }

@@ -1,4 +1,5 @@
 #include "model_pose_initializer.h"
+#include <algorithm>
 #include <component/animation_component.h>
 #include <component/ik_component.h>
 #include <component/morph_component.h>
@@ -56,7 +57,12 @@ namespace enishi::core {
         if (skinning_result.is_err()) {
             return skinning_result.propagation(ModelPoseError::RegistrationFailed);
         }
-        if (!ik.iks.empty()) {
+        const auto& constraints = model.bone_constraints.constraints;
+        const auto has_inheritance =
+            std::any_of(constraints.begin(), constraints.end(), [](const auto& constraint) {
+                return constraint.rotation_weight != 0.0f || constraint.translation_weight != 0.0f;
+            });
+        if (!ik.iks.empty() || has_inheritance) {
             auto ik_result = registry.insert(entity, std::move(ik));
             if (ik_result.is_err()) {
                 return ik_result.propagation(ModelPoseError::RegistrationFailed);
