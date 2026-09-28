@@ -7,6 +7,8 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MORPH_VERTEX = 1;
         constexpr std::uint8_t MORPH_GROUP = 0;
         constexpr std::uint8_t MORPH_BONE = 2;
+        constexpr std::uint8_t MORPH_UV = 3;
+        constexpr std::uint8_t MORPH_LAST_ADDITIONAL_UV = 7;
         constexpr std::uint8_t MORPH_FLIP = 9;
         constexpr std::uint16_t BONE_AFTER_PHYSICS = 0x1000;
         constexpr std::uint16_t BONE_EXTERNAL_PARENT = 0x2000;
@@ -50,9 +52,6 @@ namespace enishi::assets_system {
             if (data.bones.empty()) {
                 return unsupported("models without bones");
             }
-            if (data.additional_uv_count != 0) {
-                return unsupported("additional UV channels");
-            }
             for (const auto& material : data.materials) {
                 if ((material.flags & UNSUPPORTED_MATERIAL_FLAGS) != 0) {
                     return unsupported("vertex colors or point/line materials");
@@ -71,9 +70,12 @@ namespace enishi::assets_system {
                 }
             }
             for (const auto& morph : data.morphs) {
+                if (!(morph.type < MORPH_UV) && !(morph.type > MORPH_LAST_ADDITIONAL_UV)) {
+                    continue;
+                }
                 if (morph.type != MORPH_VERTEX && morph.type != MORPH_GROUP &&
                     morph.type != MORPH_BONE && morph.type != MORPH_FLIP) {
-                    return unsupported("UV, material or impulse morphs");
+                    return unsupported("material or impulse morphs");
                 }
             }
             return {};

@@ -80,7 +80,8 @@ namespace {
         auto data = supported_model();
         data.additional_uv_count = ONE_ADDITIONAL_UV;
         data.vertices.front().additional_uvs.emplace_back();
-        expect_unsupported(data, "additional UV channels");
+        check(PMXToModelData::to_model_data("extra-uv.pmx", data, nullptr).is_ok(),
+            "additional UV channels are retained");
         for (const auto flag : {MATERIAL_VERTEX_COLOR, MATERIAL_POINTS, MATERIAL_LINES}) {
             data = supported_model();
             data.materials.emplace_back().flags = flag;
@@ -158,18 +159,19 @@ namespace {
         bone.ik_links.push_back({ROOT_BONE, LIMIT_ENABLED});
         check(PMXToModelData::to_model_data("limited-ik.pmx", data, nullptr).is_ok(),
             "per-link IK limits are supported");
-        for (const auto type : {UV_MORPH,
+        for (const auto type : {MATERIAL_MORPH, IMPULSE_MORPH}) {
+            data = supported_model();
+            data.morphs.emplace_back().type = type;
+            expect_unsupported(data, "material or impulse morphs");
+        }
+        for (const auto type : {GROUP_MORPH,
+                 FLIP_MORPH,
+                 BONE_MORPH,
+                 UV_MORPH,
                  FIRST_ADDITIONAL_UV_MORPH,
                  SECOND_ADDITIONAL_UV_MORPH,
                  THIRD_ADDITIONAL_UV_MORPH,
-                 FOURTH_ADDITIONAL_UV_MORPH,
-                 MATERIAL_MORPH,
-                 IMPULSE_MORPH}) {
-            data = supported_model();
-            data.morphs.emplace_back().type = type;
-            expect_unsupported(data, "UV, material or impulse morphs");
-        }
-        for (const auto type : {GROUP_MORPH, FLIP_MORPH, BONE_MORPH}) {
+                 FOURTH_ADDITIONAL_UV_MORPH}) {
             data = supported_model();
             data.morphs.emplace_back().type = type;
             check(PMXToModelData::to_model_data("weight-morph.pmx", data, nullptr).is_ok(),

@@ -17,6 +17,7 @@ namespace enishi::component {
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::IK> iks;
         std::vector<glm::vec3> morph_base_positions;
+        std::vector<std::vector<glm::vec4>> morph_base_uvs;
         types::AddonMorphTargets morph_targets;
     };
 } // namespace enishi::component

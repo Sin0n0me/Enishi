@@ -53,7 +53,11 @@ namespace {
     }
 
     void mixed_deformation_test() {
-        const auto data = deformation_fixture();
+        auto data = deformation_fixture();
+        data.additional_uv_count = 4;
+        for (auto& vertex : data.vertices) {
+            vertex.additional_uvs.resize(data.additional_uv_count, {1, 2, 3, 4});
+        }
         const auto result = PMXToModelData::to_model_data("mixed.pmx", data, nullptr);
         check(result.is_ok(), "mixed BDEF1/BDEF2/BDEF4/SDEF/QDEF conversion");
         const auto& model = *result.unwrap();
@@ -75,6 +79,8 @@ namespace {
         const auto packed = renderer::make_skinned_vertices(model);
         check(packed.is_ok(), "PMX model must reach the GPU vertex layout");
         const auto& gpu = packed.unwrap();
+        check(gpu.front().additional_uvs.back() == glm::vec4(1, 2, 3, 4),
+            "additional PMX UV channels survive conversion and packing");
         check(gpu[BDEF1].bones == glm::uvec4(0),
             "unused references must not reach GPU array lookups");
         check(

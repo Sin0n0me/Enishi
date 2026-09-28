@@ -1,4 +1,5 @@
 #include "vertex_morph_upload.h"
+#include "uv_morph_upload.h"
 #include <core/system/animation/vertex_morph.h>
 #include <cstring>
 
@@ -46,6 +47,23 @@ namespace enishi::core {
         if (updater.is_none() || updater.unwrap() == nullptr) {
             return foundation::Error(
                 platform::RenderError::ResolveError, "Morph vertex updater is missing");
+        }
+        const auto uvs =
+            evaluate_uv_morphs(model.morph_base_uvs, model.morph_targets.targets, morph.weights);
+        if (uvs.is_err()) {
+            return uvs.propagation(platform::RenderError::ResolveError);
+        }
+        if (!uvs.unwrap().empty()) {
+            for (const auto& uv : mesh.unwrap().uvs) {
+                if (uv.buffer != stream.buffer) {
+                    return foundation::Error(platform::RenderError::ResolveError,
+                        "Morph UV and position buffers differ");
+                }
+            }
+            auto staged = stage_vertex_uvs(*updater.unwrap(), mesh.unwrap().uvs, uvs.unwrap());
+            if (staged.is_err()) {
+                return staged;
+            }
         }
         return write_vertex_positions(*updater.unwrap(), stream.offset, positions.unwrap());
     }

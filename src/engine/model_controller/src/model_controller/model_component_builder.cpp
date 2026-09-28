@@ -23,11 +23,16 @@ namespace enishi::model_controller {
         }
         if (!model.morph_targets.targets.empty()) {
             model.morph_base_positions.resize(data.vertices.size());
+            model.morph_base_uvs.emplace_back(data.vertices.size(), glm::vec4(0));
+            model.morph_base_uvs.insert(model.morph_base_uvs.end(),
+                data.additional_uv_channels.begin(),
+                data.additional_uv_channels.end());
             for (std::size_t index = 0; index < data.vertices.size(); ++index) {
                 for (const auto& attribute : data.vertices[index]) {
                     if (const auto* vertex = std::get_if<types::Vertex>(&attribute);
                         vertex != nullptr) {
                         model.morph_base_positions[index] = vertex->position;
+                        model.morph_base_uvs.front()[index] = glm::vec4(vertex->uv, 0, 0);
                     } else if (const auto* position =
                                    std::get_if<types::VertexPosition>(&attribute);
                                position != nullptr) {
