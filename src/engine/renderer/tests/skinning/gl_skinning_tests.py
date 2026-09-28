@@ -108,9 +108,9 @@ def run_tests():
             (3,4,32,True), (4,4,48,False), (5,1,68,True), (6,3,72,False), (7,3,84,False), (8,3,96,False)):
         gl("glEnableVertexAttribArray", None, uint)(location)
         if is_integer:
-            gl("glVertexAttribIPointer", None, uint, integer, uint, integer, pointer)(location, count, 0x1405, 108, offset)
+            gl("glVertexAttribIPointer", None, uint, integer, uint, integer, pointer)(location, count, 0x1405, 172, offset)
         else:
-            gl("glVertexAttribPointer", None, uint, integer, uint, c.c_ubyte, integer, pointer)(location, count, 0x1406, 0, 108, offset)
+            gl("glVertexAttribPointer", None, uint, integer, uint, c.c_ubyte, integer, pointer)(location, count, 0x1406, 0, 172, offset)
     base(0x8C8E, 0, buffers[3])
     bind(0x8C8E, buffers[3])
     upload(0x8C8E, 24, None, 0x88E8)
@@ -122,6 +122,7 @@ def run_tests():
         upload(0x8A11, c.sizeof(palette), palette, 0x88E8)
         vertex = struct.pack("<3f3f2f4I4ffI9f", 1,0,0, 1,0,0, 0,0, 0,1,2,3,
                              *weights, 0, method, *center, *a0, *a1)
+        vertex += struct.pack("<16f", *([0.0] * 16))
         bind(0x8892, buffers[2])
         upload(0x8892, len(vertex), c.c_char_p(vertex), 0x88E8)
         gl("glBeginTransformFeedback", None, uint)(0)  # GL_POINTS

@@ -156,6 +156,7 @@ namespace enishi::renderer::directx {
                 });
             mesh.positions = types::MeshHandles::PositionStream{
                 position_handle, offsetof(SkinnedVertex, position)};
+            mesh.uvs = skinned_uv_streams(position_handle);
         }
 
         // インデックスバッファ作成

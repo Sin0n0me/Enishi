@@ -524,6 +524,7 @@ namespace enishi::renderer::opengl {
         position_buffer = std::move(vertex_updater);
         mesh_handles.positions =
             types::MeshHandles::PositionStream{position_handle, offsetof(SkinnedVertex, position)};
+        mesh_handles.uvs = skinned_uv_streams(position_handle);
         mesh_handles.mesh_handles.emplace_back(vertex.unwrap());
         mesh_handles.mesh_handles.emplace_back(index.unwrap());
         (*this->handle_mapper)[handle].resource = mesh_resource;

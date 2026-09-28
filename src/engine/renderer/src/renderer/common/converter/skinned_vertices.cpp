@@ -1,6 +1,18 @@
 #include "skinned_vertices.h"
 
 namespace enishi::renderer {
+    std::vector<types::MeshHandles::UVStream> skinned_uv_streams(types::HandleId buffer) {
+        constexpr std::size_t PRIMARY_COMPONENTS = 2;
+        constexpr std::size_t ADDITIONAL_COMPONENTS = 4;
+        std::vector<types::MeshHandles::UVStream> streams{
+            {buffer, offsetof(SkinnedVertex, uv), PRIMARY_COMPONENTS}};
+        for (std::size_t channel = 0; channel < ADDITIONAL_UV_CAPACITY; ++channel) {
+            streams.push_back({buffer,
+                offsetof(SkinnedVertex, additional_uvs) + channel * sizeof(glm::vec4),
+                ADDITIONAL_COMPONENTS});
+        }
+        return streams;
+    }
     std::optional<std::uint32_t> skinned_vertex_offset(std::string_view semantic) {
         if (semantic == "POSITION") {
             return static_cast<std::uint32_t>(offsetof(SkinnedVertex, position));
@@ -78,6 +90,16 @@ namespace enishi::renderer {
 
     foundation::Result<std::vector<SkinnedVertex>, RendererError> make_skinned_vertices(
         const types::ModelData& model) {
+        if (model.additional_uv_channels.size() > ADDITIONAL_UV_CAPACITY) {
+            return foundation::Error(
+                RendererError::ConvertError, "Too many additional UV channels");
+        }
+        for (const auto& channel : model.additional_uv_channels) {
+            if (channel.size() != model.vertices.size()) {
+                return foundation::Error(
+                    RendererError::ConvertError, "Invalid additional UV channel size");
+            }
+        }
         if ((!model.skinning_methods.empty() &&
                 model.skinning_methods.size() != model.vertices.size()) ||
             (!model.spherical_blends.empty() &&
@@ -92,6 +114,10 @@ namespace enishi::renderer {
                 return std::move(converted).unwrap_err();
             }
             auto vertex = std::move(converted).unwrap_mut();
+            for (std::size_t channel = 0; channel < model.additional_uv_channels.size();
+                 ++channel) {
+                vertex.additional_uvs[channel] = model.additional_uv_channels[channel][index];
+            }
             if (!model.skinning_methods.empty()) {
                 vertex.method = static_cast<std::uint32_t>(model.skinning_methods[index]);
             }

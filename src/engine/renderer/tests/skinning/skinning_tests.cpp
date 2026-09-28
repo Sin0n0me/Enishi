@@ -273,6 +273,18 @@ RWStructuredBuffer<Output> results : register(u0);
         check(renderer::skinned_vertex_offset("BLEND_ANCHOR_B") ==
                   offsetof(renderer::SkinnedVertex, anchor1),
             "shadow and edge input layout offset");
+        const glm::vec4 extra(1, 2, 3, 4);
+        model.additional_uv_channels = {{extra}, {extra}, {extra}, {extra}};
+        result = renderer::make_skinned_vertices(model);
+        check(result.is_ok() && result.unwrap().front().additional_uvs.back() == extra,
+            "all additional UV channels reach the vertex buffer");
+        const auto streams = renderer::skinned_uv_streams({});
+        check(streams.front().offset == offsetof(renderer::SkinnedVertex, uv) &&
+                  streams.front().components == 2 && streams.back().components == 4 &&
+                  streams.back().offset + sizeof(glm::vec4) == sizeof(renderer::SkinnedVertex),
+            "UV updater offsets match the packed buffer");
+        model.additional_uv_channels.front().clear();
+        check(renderer::make_skinned_vertices(model).is_err(), "mismatched UV channel rejected");
     }
 } // namespace
 

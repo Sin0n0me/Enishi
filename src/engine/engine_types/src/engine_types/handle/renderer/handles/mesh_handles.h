@@ -15,5 +15,11 @@ namespace enishi::types {
             std::size_t offset;
         };
         std::optional<PositionStream> positions;
+        struct UVStream {
+            HandleId buffer;
+            std::size_t offset;
+            std::size_t components;
+        };
+        std::vector<UVStream> uvs;
     };
 } // namespace enishi::types
