@@ -7,7 +7,7 @@ namespace enishi::assets_system {
         map.morph_names = std::move(this->morph_names);
 
         for (std::size_t i = 0; i < size; ++i) {
-            map.name_map[map.morph_names[i]] = i;
+            map.name_map[map.morph_names[i]] = static_cast<types::MorphIndex>(i);
         }
 
         return map;

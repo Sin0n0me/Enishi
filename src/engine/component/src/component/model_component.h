@@ -10,6 +10,7 @@ namespace enishi::component {
         types::RenderHandle render_handle;
         std::vector<types::BoneNode> bone_node; // 接続先などの情報
         std::vector<types::BindBone> bind_bone; // バインドボーン
+        std::vector<std::string> bone_names;
         // Evaluation order references the original bone indices; storage is never reordered.
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::IK> iks;

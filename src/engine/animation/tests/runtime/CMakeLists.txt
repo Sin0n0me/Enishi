@@ -4,7 +4,13 @@ find_path(GLM_INCLUDE_DIR glm/glm.hpp REQUIRED)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 find_library(ICU_UC_LIBRARY NAMES icuuc REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
-add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp vmd_loader_tests.cpp clip_sampler_tests.cpp
+add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp vmd_loader_tests.cpp clip_sampler_tests.cpp model_motion_tests.cpp
+    "${ENGINE_ROOT}/core/src/core/system/animation/animation_system.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/model_motion_loader.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/model_motion_playback.cpp"
+    "${ENGINE_ROOT}/ecs/src/ecs/registry.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/handle/handle_allocator.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/handle/renderer/render_handle.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/clip_sampler.cpp"
     "${ENGINE_ROOT}/animation/src/animation/animation_controller.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/animation/vmd/vmd_loader.cpp"
@@ -22,7 +28,7 @@ add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expressio
     "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/log/log_level.cpp")
 target_compile_features(animation_runtime_tests PRIVATE cxx_std_23)
-foreach(module animation assets_system engine_types foundation core component)
+foreach(module animation assets_system engine_types foundation core component ecs platform)
     target_include_directories(animation_runtime_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(animation_runtime_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

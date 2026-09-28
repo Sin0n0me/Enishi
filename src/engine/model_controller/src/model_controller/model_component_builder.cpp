@@ -12,6 +12,7 @@ namespace enishi::model_controller {
                 for (const auto& bone : *bones) {
                     model.bone_node.push_back(bone.bone_node);
                     model.bind_bone.push_back(bone.bind_bone);
+                    model.bone_names.push_back(bone.name);
                 }
             } else if (const auto* iks = std::get_if<types::AddonIKs>(&addon); iks != nullptr) {
                 model.iks = *iks;
