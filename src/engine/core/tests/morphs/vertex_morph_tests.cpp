@@ -23,6 +23,8 @@ void morph_weight_tests();
 void uv_morph_tests();
 
 int main() {
+    extern void impulse_morph_tests();
+    impulse_morph_tests();
     morph_weight_tests();
     uv_morph_tests();
     types::ModelData source;

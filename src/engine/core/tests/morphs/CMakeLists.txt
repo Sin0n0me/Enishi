@@ -4,6 +4,8 @@ find_path(GLM_INCLUDE_DIR glm/glm.hpp REQUIRED)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(vertex_morph_tests vertex_morph_tests.cpp morph_weight_tests.cpp uv_morph_tests.cpp
+    impulse_morph_tests.cpp
+    "${ENGINE_ROOT}/core/src/core/system/animation/impulse_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/vertex_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/bone_morph.cpp"
