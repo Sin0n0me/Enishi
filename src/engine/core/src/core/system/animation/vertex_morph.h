@@ -4,7 +4,13 @@
 #include <span>
 
 namespace enishi::core {
-    enum class MorphError { InvalidWeight, InvalidVertex, UnsupportedOffset };
+    enum class MorphError {
+        InvalidWeight,
+        InvalidVertex,
+        UnsupportedOffset,
+        InvalidReference,
+        CyclicReference
+    };
 
     [[nodiscard]] foundation::Result<std::vector<glm::vec3>, MorphError> evaluate_vertex_morphs(
         std::span<const glm::vec3> base_positions,

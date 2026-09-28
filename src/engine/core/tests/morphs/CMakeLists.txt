@@ -3,8 +3,9 @@ project(vertex_morph_tests LANGUAGES CXX)
 find_path(GLM_INCLUDE_DIR glm/glm.hpp REQUIRED)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
-add_executable(vertex_morph_tests vertex_morph_tests.cpp
+add_executable(vertex_morph_tests vertex_morph_tests.cpp morph_weight_tests.cpp
     "${ENGINE_ROOT}/core/src/core/system/animation/vertex_morph.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
     "${ENGINE_ROOT}/core/src/core/system/render/vertex_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
     "${ENGINE_ROOT}/model_controller/src/model_controller/model_component_builder.cpp"

@@ -19,7 +19,10 @@ namespace {
     }
 } // namespace
 
+void morph_weight_tests();
+
 int main() {
+    morph_weight_tests();
     types::ModelData source;
     const glm::vec3 base(1, 2, 3);
     source.vertices = {{types::VertexPosition{base}}, {types::VertexPosition{glm::vec3(0)}}};
