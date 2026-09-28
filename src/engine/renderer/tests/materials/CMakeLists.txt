@@ -11,9 +11,11 @@ target_sources(material_tests PRIVATE
     "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/material_morph.cpp"
+    "${ENGINE_ROOT}/core/src/core/system/render/material_morph_upload.cpp"
+    "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
     material_morph_tests.cpp)
 target_compile_features(material_tests PRIVATE cxx_std_23)
-foreach(module renderer engine_types foundation platform core)
+foreach(module renderer engine_types foundation platform core component)
     target_include_directories(material_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(material_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

@@ -1,5 +1,6 @@
 #include "render_system.h"
 #include "bone_matrix_upload.h"
+#include "material_morph_upload.h"
 #include "vertex_morph_upload.h"
 #include <component/animation_component.h>
 #include <component/model_component.h>
@@ -32,6 +33,10 @@ namespace enishi::core {
             const auto result = upload_vertex_morphs(*this->renderer, model, morph);
             if (result.is_err()) {
                 foundation::Logger::warning(result.unwrap_err().get_message());
+            }
+            const auto material_result = upload_material_morphs(*this->renderer, model, morph);
+            if (material_result.is_err()) {
+                foundation::Logger::warning(material_result.unwrap_err().get_message());
             }
         }
         for (auto [entity, model, skinning] :

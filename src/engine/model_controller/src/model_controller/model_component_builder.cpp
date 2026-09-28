@@ -22,6 +22,7 @@ namespace enishi::model_controller {
             }
         }
         if (!model.morph_targets.targets.empty()) {
+            model.morph_base_materials = data.materials;
             model.morph_base_positions.resize(data.vertices.size());
             model.morph_base_uvs.emplace_back(data.vertices.size(), glm::vec4(0));
             model.morph_base_uvs.insert(model.morph_base_uvs.end(),

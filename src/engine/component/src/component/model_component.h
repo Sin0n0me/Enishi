@@ -3,6 +3,7 @@
 #include <engine_types/assets/model/addons/bone_constraints.h>
 #include <engine_types/assets/model/addons/ik.h>
 #include <engine_types/assets/model/addons/morph_target.h>
+#include <engine_types/assets/model/material/material.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <vector>
 
@@ -17,6 +18,7 @@ namespace enishi::component {
         std::vector<types::BoneIndex> evaluation_order;
         std::vector<types::IK> iks;
         std::vector<glm::vec3> morph_base_positions;
+        std::vector<types::Material> morph_base_materials;
         std::vector<std::vector<glm::vec4>> morph_base_uvs;
         types::AddonMorphTargets morph_targets;
     };

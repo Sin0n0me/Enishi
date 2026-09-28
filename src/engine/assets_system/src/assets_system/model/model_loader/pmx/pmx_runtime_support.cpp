@@ -10,6 +10,7 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MORPH_UV = 3;
         constexpr std::uint8_t MORPH_LAST_ADDITIONAL_UV = 7;
         constexpr std::uint8_t MORPH_FLIP = 9;
+        constexpr std::uint8_t MORPH_MATERIAL = 8;
         constexpr std::uint16_t BONE_AFTER_PHYSICS = 0x1000;
         constexpr std::uint16_t BONE_EXTERNAL_PARENT = 0x2000;
         constexpr std::uint16_t UNSUPPORTED_BONE_FLAGS = BONE_AFTER_PHYSICS | BONE_EXTERNAL_PARENT;
@@ -74,8 +75,9 @@ namespace enishi::assets_system {
                     continue;
                 }
                 if (morph.type != MORPH_VERTEX && morph.type != MORPH_GROUP &&
-                    morph.type != MORPH_BONE && morph.type != MORPH_FLIP) {
-                    return unsupported("material or impulse morphs");
+                    morph.type != MORPH_BONE && morph.type != MORPH_FLIP &&
+                    morph.type != MORPH_MATERIAL) {
+                    return unsupported("impulse morphs");
                 }
             }
             return {};

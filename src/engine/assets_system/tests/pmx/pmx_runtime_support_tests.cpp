@@ -159,12 +159,13 @@ namespace {
         bone.ik_links.push_back({ROOT_BONE, LIMIT_ENABLED});
         check(PMXToModelData::to_model_data("limited-ik.pmx", data, nullptr).is_ok(),
             "per-link IK limits are supported");
-        for (const auto type : {MATERIAL_MORPH, IMPULSE_MORPH}) {
+        for (const auto type : {IMPULSE_MORPH}) {
             data = supported_model();
             data.morphs.emplace_back().type = type;
-            expect_unsupported(data, "material or impulse morphs");
+            expect_unsupported(data, "impulse morphs");
         }
         for (const auto type : {GROUP_MORPH,
+                 MATERIAL_MORPH,
                  FLIP_MORPH,
                  BONE_MORPH,
                  UV_MORPH,
