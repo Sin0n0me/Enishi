@@ -45,6 +45,8 @@ namespace enishi::physics::bullet3 {
 
         void reset_physics(sub_system::IBoneUpdater* const updater) override;
         void apply_physics(void) override;
+        foundation::Result<void, sub_system::PhysicsError> apply_impulse(
+            const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) override;
 
         sub_system::IPhysicsWorldConfigWriter* get_config_writer(void) noexcept override;
         const sub_system::IPhysicsWorldConfigReader* get_config_reader(void) const noexcept override;

@@ -78,6 +78,9 @@ namespace {
         body.group_mask = UINT16_MAX;
         const auto handle = world.add_rigid_body(object.unwrap(), body, cache, updater, view);
         check(handle.is_ok(), "link native body and motion state to registered handles");
+        check(world.apply_impulse(handle.unwrap(), {}).is_ok(), "resolve body impulse handle");
+        check(world.apply_impulse(object.unwrap(), {}).is_err(), "reject object as impulse target");
+        check(world.apply_impulse({}, {}).is_err(), "reject missing impulse target");
         for (int frame = 0; frame < 4; ++frame) {
             world.simulation(types::DeltaTime(1.0f / 60.0f));
             world.apply_physics();
@@ -93,6 +96,8 @@ namespace {
 } // namespace
 
 int main() {
+    extern void rigid_body_impulse_tests();
+    rigid_body_impulse_tests();
     extern void model_physics_tests();
     model_physics_tests();
     motion_state_tests();

@@ -12,6 +12,7 @@ find_library(BULLET_COLLISION_LIBRARY NAMES BulletCollision_Debug BulletCollisio
 find_library(BULLET_MATH_LIBRARY NAMES LinearMath_Debug LinearMath REQUIRED)
 file(GLOB_RECURSE PHYSICS_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/physics/src/*.cpp")
 add_executable(physics_runtime_tests physics_runtime_tests.cpp model_physics_tests.cpp ${BONE_SOURCES} ${PHYSICS_SOURCES}
+    rigid_body_impulse_tests.cpp
     "${ENGINE_ROOT}/platform_impl/src/platform_impl/physics/physics_config.cpp"
     "${ENGINE_ROOT}/core/src/core/system/physics/physics_system.cpp")
 target_compile_features(physics_runtime_tests PRIVATE cxx_std_23)

@@ -2,13 +2,14 @@
 #include <engine_types/handle/physics/physics_handle.h>
 #include <engine_types/physics/joint/physics_joint.h>
 #include <engine_types/physics/rigid_body/physics_rigid_body.h>
+#include <engine_types/physics/rigid_body/rigid_body_impulse.h>
 #include <engine_types/system/delta_time.h>
 #include <foundation/result/result.h>
 #include <glm/glm.hpp>
 #include <memory>
-#include <sub_system/physics/errors/physics_errors.h>
 #include <sub_system/physics/bone/interface_physics_bone_view.h>
 #include <sub_system/physics/bone/interface_physics_bone_view_list.h>
+#include <sub_system/physics/errors/physics_errors.h>
 #include <sub_system/physics/interface_physics_world_config_writer.h>
 #include <sub_system/physics/rigid_body/interface_rigid_body.h>
 #include <sub_system/skinning_system/interface_bone_updater.h>
@@ -28,6 +29,8 @@ namespace enishi::sub_system {
         virtual void reset_physics(IBoneUpdater* const updater) = 0;
 
         virtual void apply_physics(void) = 0;
+        [[nodiscard]] virtual foundation::Result<void, PhysicsError> apply_impulse(
+            const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) = 0;
 
         [[nodiscard]] virtual IPhysicsWorldConfigWriter* get_config_writer(void) noexcept = 0;
 
