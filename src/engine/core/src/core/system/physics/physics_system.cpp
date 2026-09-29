@@ -1,4 +1,5 @@
 #include "physics_system.h"
+#include "impulse_morph_application.h"
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <core/system/skinning/skinning_system.h>
@@ -21,6 +22,18 @@ namespace enishi::core {
     }
 
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
+        auto* world = this->physics_engine->get_world();
+        if (world->get_config_reader()->can_update()) {
+            for (auto [entity, model, morph, bodies] :
+                this->registry->view<component::ModelComponent,
+                    component::MorphComponent,
+                    component::PhysicsBodiesComponent>()) {
+                const auto result = apply_impulse_morphs(*world, model, morph, bodies);
+                if (result.is_err()) {
+                    foundation::Logger::warning(result.unwrap_err().get_message());
+                }
+            }
+        }
         this->physics_engine->update(delta_time);
         this->physics_engine->get_world()->apply_physics();
         if (this->skinning_system != nullptr) {

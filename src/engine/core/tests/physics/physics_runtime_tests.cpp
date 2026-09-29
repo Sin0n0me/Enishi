@@ -96,6 +96,8 @@ namespace {
 } // namespace
 
 int main() {
+    extern void impulse_playback_tests();
+    impulse_playback_tests();
     extern void rigid_body_impulse_tests();
     rigid_body_impulse_tests();
     extern void model_physics_tests();

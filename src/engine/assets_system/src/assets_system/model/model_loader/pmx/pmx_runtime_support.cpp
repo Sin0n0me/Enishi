@@ -4,13 +4,6 @@ namespace enishi::assets_system {
     namespace {
         constexpr std::uint8_t DEFORM_BDEF4 = 2;
         constexpr std::uint8_t DEFORM_QDEF = 4;
-        constexpr std::uint8_t MORPH_VERTEX = 1;
-        constexpr std::uint8_t MORPH_GROUP = 0;
-        constexpr std::uint8_t MORPH_BONE = 2;
-        constexpr std::uint8_t MORPH_UV = 3;
-        constexpr std::uint8_t MORPH_LAST_ADDITIONAL_UV = 7;
-        constexpr std::uint8_t MORPH_FLIP = 9;
-        constexpr std::uint8_t MORPH_MATERIAL = 8;
         constexpr std::uint8_t MATERIAL_VERTEX_COLOR = 0x20;
         constexpr std::uint8_t MATERIAL_POINTS = 0x40;
         constexpr std::uint8_t MATERIAL_LINES = 0x80;
@@ -61,20 +54,6 @@ namespace enishi::assets_system {
             return {};
         }
 
-        foundation::Result<void, AssetError> validate_animation(const PMXData& data) {
-            for (const auto& morph : data.morphs) {
-                if (!(morph.type < MORPH_UV) && !(morph.type > MORPH_LAST_ADDITIONAL_UV)) {
-                    continue;
-                }
-                if (morph.type != MORPH_VERTEX && morph.type != MORPH_GROUP &&
-                    morph.type != MORPH_BONE && morph.type != MORPH_FLIP &&
-                    morph.type != MORPH_MATERIAL) {
-                    return unsupported("impulse morphs");
-                }
-            }
-            return {};
-        }
-
         foundation::Result<void, AssetError> validate_physics(const PMXData& data) {
             for (const auto& joint : data.joints) {
                 if (joint.type != JOINT_SPRING_SIX_DOF) {
@@ -93,10 +72,6 @@ namespace enishi::assets_system {
 
     foundation::Result<void, AssetError> validate_pmx_runtime_support(const PMXData& data) {
         auto result = validate_rendering(data);
-        if (result.is_err()) {
-            return result;
-        }
-        result = validate_animation(data);
         if (result.is_err()) {
             return result;
         }
