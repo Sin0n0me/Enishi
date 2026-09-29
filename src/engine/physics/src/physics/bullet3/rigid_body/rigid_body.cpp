@@ -3,14 +3,14 @@
 #include <utility>
 
 namespace enishi::physics::bullet3 {
-    BulletRigidBody::BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> native_view,
+    BulletRigidBody::BulletRigidBody(INativePhysicsAccessor& native_view,
         PhysicsBoneViews&& views,
         types::HandleId rigid_body,
         types::HandleId active_motion_state,
         types::HandleId kinematic_motion_state,
         const types::RigidBodyKind kind,
         const types::BoneIndex bone_index)
-        : native_view(native_view)
+        : native_view(&native_view)
         , views(std::move(views))
         , rigid_body(rigid_body)
         , active_motion_state(active_motion_state)

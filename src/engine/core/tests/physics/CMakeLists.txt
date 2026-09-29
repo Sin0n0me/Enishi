@@ -14,6 +14,7 @@ file(GLOB_RECURSE PHYSICS_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/physics/src/
 add_executable(physics_runtime_tests physics_runtime_tests.cpp model_physics_tests.cpp ${BONE_SOURCES} ${PHYSICS_SOURCES}
     rigid_body_impulse_tests.cpp
     impulse_playback_tests.cpp
+    physics_object_tests.cpp
     "${ENGINE_ROOT}/core/src/core/system/animation/impulse_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/physics/impulse_morph_application.cpp"
     "${ENGINE_ROOT}/platform_impl/src/platform_impl/physics/physics_config.cpp"

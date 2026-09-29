@@ -15,7 +15,8 @@
 namespace enishi::physics::bullet3 {
     class BulletRigidBody : public sub_system::IRigidBody {
       private:
-        std::shared_ptr<INativePhysicsAccessor> native_view;
+        // The resource pool owns this wrapper, so retaining shared ownership would form a cycle.
+        INativePhysicsAccessor* const native_view;
         PhysicsBoneViews views;
         types::HandleId rigid_body;
         types::HandleId active_motion_state;
@@ -24,7 +25,7 @@ namespace enishi::physics::bullet3 {
         types::BoneIndex bone_index;
 
       public:
-        explicit BulletRigidBody(std::shared_ptr<INativePhysicsAccessor> native_view,
+        explicit BulletRigidBody(INativePhysicsAccessor& native_view,
             PhysicsBoneViews&& views,
             types::HandleId rigid_body,
             types::HandleId active_motion_state,
