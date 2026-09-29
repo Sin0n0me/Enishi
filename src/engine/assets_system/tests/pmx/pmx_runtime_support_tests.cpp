@@ -23,12 +23,6 @@ namespace {
     constexpr std::uint8_t MATERIAL_VERTEX_COLOR = 0x20;
     constexpr std::uint8_t MATERIAL_POINTS = 0x40;
     constexpr std::uint8_t MATERIAL_LINES = 0x80;
-    constexpr std::uint8_t SPHERE_SUB_TEXTURE = 3;
-    constexpr std::uint8_t SIX_DOF_JOINT = 1;
-    constexpr std::uint8_t POINT_JOINT = 2;
-    constexpr std::uint8_t CONE_JOINT = 3;
-    constexpr std::uint8_t SLIDER_JOINT = 4;
-    constexpr std::uint8_t HINGE_JOINT = 5;
 
     void check(bool condition, const char* message) {
         if (!condition) {
@@ -75,7 +69,7 @@ namespace {
             expect_unsupported(data, "vertex colors or point/line materials");
         }
         data = supported_model();
-        data.materials.emplace_back().sphere_mode = SPHERE_SUB_TEXTURE;
+        data.materials.emplace_back().sphere_mode = PMXSphereMode::SubTexture;
         expect_unsupported(data, "sphere sub-textures");
     }
 
@@ -158,8 +152,11 @@ namespace {
     }
 
     void physics_support_tests() {
-        for (const auto type :
-            {SIX_DOF_JOINT, POINT_JOINT, CONE_JOINT, SLIDER_JOINT, HINGE_JOINT}) {
+        for (const auto type : {PMXJointType::SixDof,
+                 PMXJointType::PointToPoint,
+                 PMXJointType::ConeTwist,
+                 PMXJointType::Slider,
+                 PMXJointType::Hinge}) {
             auto data = supported_model();
             data.joints.emplace_back().type = type;
             expect_unsupported(data, "non-spring-six-DOF joints");

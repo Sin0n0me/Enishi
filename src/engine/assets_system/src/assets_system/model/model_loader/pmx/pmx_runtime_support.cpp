@@ -7,8 +7,6 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MATERIAL_LINES = 0x80;
         constexpr std::uint8_t UNSUPPORTED_MATERIAL_FLAGS =
             MATERIAL_VERTEX_COLOR | MATERIAL_POINTS | MATERIAL_LINES;
-        constexpr std::uint8_t SPHERE_SUB_TEXTURE = 3;
-        constexpr std::uint8_t JOINT_SPRING_SIX_DOF = 0;
         constexpr std::int32_t NO_BODY = -1;
         constexpr std::int32_t NO_BONE = -1;
         constexpr std::size_t LEGACY_INFLUENCE_COUNT = 2;
@@ -45,7 +43,7 @@ namespace enishi::assets_system {
                 if ((material.flags & UNSUPPORTED_MATERIAL_FLAGS) != 0) {
                     return unsupported("vertex colors or point/line materials");
                 }
-                if (material.sphere_mode == SPHERE_SUB_TEXTURE) {
+                if (material.sphere_mode == PMXSphereMode::SubTexture) {
                     return unsupported("sphere sub-textures");
                 }
             }
@@ -54,7 +52,7 @@ namespace enishi::assets_system {
 
         foundation::Result<void, AssetError> validate_physics(const PMXData& data) {
             for (const auto& joint : data.joints) {
-                if (joint.type != JOINT_SPRING_SIX_DOF) {
+                if (joint.type != PMXJointType::SpringSixDof) {
                     return unsupported("non-spring-six-DOF joints");
                 }
                 if (joint.body_a == NO_BODY || joint.body_b == NO_BODY) {

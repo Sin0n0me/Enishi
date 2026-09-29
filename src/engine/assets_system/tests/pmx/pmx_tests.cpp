@@ -367,6 +367,38 @@ namespace {
         check(PMXModelLoader::validate(data).is_err(), "unknown morph type accepted");
     }
 
+    void material_and_physics_enum_tests() {
+        const auto parsed = PMXModelLoader::parse(full_fixture(1).data);
+        check(parsed.is_ok(), "physics enum decoding fixture rejected");
+        auto data = parsed.unwrap();
+        check(data.materials.front().sphere_mode == PMXSphereMode::Disabled &&
+                  data.rigid_bodies.front().shape == PMXRigidBodyShape::Capsule &&
+                  data.rigid_bodies.front().mode == PMXRigidBodyMode::DynamicAdjustBone &&
+                  data.joints.front().type == PMXJointType::SpringSixDof &&
+                  data.joints.back().type == PMXJointType::Hinge &&
+                  data.soft_bodies.front().shape == PMXSoftBodyShape::TriangleMesh &&
+                  data.soft_bodies.front().aero_model == PMXAerodynamicModel::FaceOneSided,
+            "material or physics wire value changed");
+        constexpr std::uint8_t unknown_type = 255;
+        data.materials.front().sphere_mode = static_cast<PMXSphereMode>(unknown_type);
+        check(PMXModelLoader::validate(data).is_err(), "unknown sphere mode accepted");
+        data = parsed.unwrap();
+        data.rigid_bodies.front().shape = static_cast<PMXRigidBodyShape>(unknown_type);
+        check(PMXModelLoader::validate(data).is_err(), "unknown rigid body shape accepted");
+        data = parsed.unwrap();
+        data.rigid_bodies.front().mode = static_cast<PMXRigidBodyMode>(unknown_type);
+        check(PMXModelLoader::validate(data).is_err(), "unknown rigid body mode accepted");
+        data = parsed.unwrap();
+        data.soft_bodies.front().shape = static_cast<PMXSoftBodyShape>(unknown_type);
+        check(PMXModelLoader::validate(data).is_err(), "unknown soft body shape accepted");
+        constexpr std::array invalid_aero_models{-1, 5};
+        for (const auto value : invalid_aero_models) {
+            data = parsed.unwrap();
+            data.soft_bodies.front().aero_model = static_cast<PMXAerodynamicModel>(value);
+            check(PMXModelLoader::validate(data).is_err(), "unknown aerodynamic model accepted");
+        }
+    }
+
     void parser_tests() {
         for (const auto width : std::array<std::uint8_t, 3>{1, 2, 4}) {
             const auto full = full_fixture(width);
@@ -492,6 +524,7 @@ int main() {
     utf8_surrogate_tests();
     empty_model_tests();
     deformation_and_morph_enum_tests();
+    material_and_physics_enum_tests();
     parser_tests();
     pmx_conversion_tests();
     pmx_runtime_support_tests();

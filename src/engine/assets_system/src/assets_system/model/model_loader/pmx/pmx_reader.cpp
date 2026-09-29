@@ -31,11 +31,7 @@ namespace enishi::assets_system {
         constexpr std::uint8_t PMX_MAX_MORPH_PANEL{4};
         constexpr std::uint8_t PMX_SHARED_TOON{1};
         constexpr std::uint8_t PMX_MAX_SHARED_TOON_INDEX{9};
-        constexpr std::uint8_t PMX_MAX_SPHERE_MODE{3};
         constexpr std::uint8_t PMX_MAX_RIGID_BODY_GROUP{15};
-        constexpr std::uint8_t PMX_MAX_RIGID_BODY_SHAPE{2};
-        constexpr std::uint8_t PMX_MAX_RIGID_BODY_MODE{2};
-        constexpr std::uint8_t PMX_MAX_SOFT_BODY_SHAPE{1};
         constexpr std::int32_t PMX_MINIMUM_VALID_VALUE{};
         constexpr std::uint32_t UTF8_SINGLE_BYTE_LIMIT{0x80};
         constexpr std::uint32_t UTF8_TWO_BYTE_LIMIT{0x800};
@@ -292,7 +288,7 @@ namespace enishi::assets_system {
             material.texture = this->index(data.index_sizes[1]);
             material.sphere_texture = this->index(data.index_sizes[1]);
             this->fields(material.sphere_mode, material.shared_toon);
-            this->require(material.sphere_mode < PMX_MAX_SPHERE_MODE + 1 &&
+            this->require(!(material.sphere_mode > PMXSphereMode::SubTexture) &&
                               material.shared_toon < PMX_SHARED_TOON + 1,
                 "invalid texture mode");
             if (material.shared_toon == PMX_SHARED_TOON) {
@@ -445,8 +441,8 @@ namespace enishi::assets_system {
                 body.friction,
                 body.mode);
             this->require(body.group < PMX_MAX_RIGID_BODY_GROUP + 1 &&
-                              body.shape < PMX_MAX_RIGID_BODY_SHAPE + 1 &&
-                              body.mode < PMX_MAX_RIGID_BODY_MODE + 1,
+                              !(body.shape > PMXRigidBodyShape::Capsule) &&
+                              !(body.mode > PMXRigidBodyMode::DynamicAdjustBone),
                 "invalid rigid body settings");
         });
     }
@@ -457,8 +453,9 @@ namespace enishi::assets_system {
             this->text(joint.name, data.encoding);
             this->text(joint.english_name, data.encoding);
             this->read(joint.type);
-            const std::uint8_t max_joint_type = data.version == PMX_VERSION_2_1 ? 5 : 0;
-            this->require(joint.type < max_joint_type + 1, "invalid joint type");
+            const auto max_joint_type =
+                data.version == PMX_VERSION_2_1 ? PMXJointType::Hinge : PMXJointType::SpringSixDof;
+            this->require(!(joint.type > max_joint_type), "invalid joint type");
             joint.body_a = this->index(data.index_sizes[5]);
             joint.body_b = this->index(data.index_sizes[5]);
             this->fields(joint.position,
@@ -491,10 +488,11 @@ namespace enishi::assets_system {
                 body.cluster,
                 body.iterations,
                 body.stiffness);
-            this->require(body.shape < PMX_MAX_SOFT_BODY_SHAPE + 1 &&
+            this->require(!(body.shape > PMXSoftBodyShape::Rope) &&
                               body.group < PMX_MAX_RIGID_BODY_GROUP + 1 &&
                               body.link_distance > -1 && body.cluster_count > -1 &&
-                              body.aero_model > -1 && body.aero_model < 5,
+                              !(body.aero_model < PMXAerodynamicModel::Point) &&
+                              !(body.aero_model > PMXAerodynamicModel::FaceOneSided),
                 "invalid soft body settings");
             this->records(body.anchors, 3, [&](PMXSoftBodyAnchor& anchor) {
                 anchor.body = this->index(data.index_sizes[5]);

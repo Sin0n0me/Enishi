@@ -24,4 +24,45 @@ namespace enishi::assets_system {
         Flip = 9,
         Impulse = 10,
     };
+
+    enum class PMXSphereMode : std::uint8_t {
+        Disabled = 0,
+        Multiply = 1,
+        Add = 2,
+        SubTexture = 3,
+    };
+
+    enum class PMXRigidBodyShape : std::uint8_t {
+        Sphere = 0,
+        Box = 1,
+        Capsule = 2,
+    };
+
+    enum class PMXRigidBodyMode : std::uint8_t {
+        Kinematic = 0,
+        Dynamic = 1,
+        DynamicAdjustBone = 2,
+    };
+
+    enum class PMXJointType : std::uint8_t {
+        SpringSixDof = 0,
+        SixDof = 1,
+        PointToPoint = 2,
+        ConeTwist = 3,
+        Slider = 4,
+        Hinge = 5,
+    };
+
+    enum class PMXSoftBodyShape : std::uint8_t {
+        TriangleMesh = 0,
+        Rope = 1,
+    };
+
+    enum class PMXAerodynamicModel : std::int32_t {
+        Point = 0,
+        VertexTwoSided = 1,
+        VertexOneSided = 2,
+        FaceTwoSided = 3,
+        FaceOneSided = 4,
+    };
 } // namespace enishi::assets_system

@@ -35,7 +35,7 @@ namespace enishi::assets_system {
         float shininess{};
         float edge_size{};
         std::uint8_t flags{};
-        std::uint8_t sphere_mode{};
+        PMXSphereMode sphere_mode{PMXSphereMode::Disabled};
         std::uint8_t shared_toon{};
         std::int32_t texture{-1};
         std::int32_t sphere_texture{-1};
@@ -116,8 +116,8 @@ namespace enishi::assets_system {
         std::string english_name;
         std::int32_t bone{-1};
         std::uint8_t group{};
-        std::uint8_t shape{};
-        std::uint8_t mode{};
+        PMXRigidBodyShape shape{PMXRigidBodyShape::Sphere};
+        PMXRigidBodyMode mode{PMXRigidBodyMode::Kinematic};
         std::uint16_t non_collision_mask{};
         PMXVec3 size{};
         PMXVec3 position{};
@@ -132,7 +132,7 @@ namespace enishi::assets_system {
     struct PMXJoint {
         std::string name;
         std::string english_name;
-        std::uint8_t type{};
+        PMXJointType type{PMXJointType::SpringSixDof};
         std::int32_t body_a{-1};
         std::int32_t body_b{-1};
         PMXVec3 position{};
@@ -154,13 +154,13 @@ namespace enishi::assets_system {
     struct PMXSoftBody {
         std::string name;
         std::string english_name;
-        std::uint8_t shape{};
+        PMXSoftBodyShape shape{PMXSoftBodyShape::TriangleMesh};
         std::uint8_t group{};
         std::uint8_t flags{};
         std::int32_t material{-1};
         std::int32_t link_distance{};
         std::int32_t cluster_count{};
-        std::int32_t aero_model{};
+        PMXAerodynamicModel aero_model{PMXAerodynamicModel::Point};
         std::uint16_t non_collision_mask{};
         float mass{};
         float margin{};

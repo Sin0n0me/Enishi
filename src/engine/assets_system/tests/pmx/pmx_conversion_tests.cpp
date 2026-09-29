@@ -90,23 +90,22 @@ namespace {
         material.diffuse = {0.2f, 0.4f, 0.6f, 1};
         material.texture = 0;
         material.sphere_texture = 0;
-        material.sphere_mode = 2;
+        material.sphere_mode = PMXSphereMode::Add;
         material.flags = 0x1F;
         data.materials.push_back(material);
         PMXRigidBody body;
         body.name = "body";
         body.bone = 0;
-        body.mode = 1;
-        body.shape = 2;
+        body.mode = PMXRigidBodyMode::Dynamic;
+        body.shape = PMXRigidBodyShape::Capsule;
         body.size = {2, 3, 4};
         body.mass = 5;
         body.position = {7, 8, 9};
         body.non_collision_mask = 0x0003;
         data.rigid_bodies.push_back(body);
         {
-            constexpr std::uint8_t spring_six_dof = 0;
             PMXJoint joint;
-            joint.type = spring_six_dof;
+            joint.type = PMXJointType::SpringSixDof;
             joint.body_a = 0;
             joint.body_b = 0;
             joint.translation_min = {-1, -2, -3};
@@ -197,7 +196,7 @@ void pmx_conversion_error_tests() {
     data.materials[0].sphere_texture = -1;
     check(PMXToModelData::to_model_data("model.pmx", data, nullptr).is_ok(),
         "untextured model conversion");
-    data.joints[0].type = 255;
+    data.joints[0].type = static_cast<PMXJointType>(255);
     check(PMXToModelData::to_model_data("model.pmx", data, nullptr).is_err(),
         "invalid direct conversion input");
 }

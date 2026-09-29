@@ -19,7 +19,6 @@ namespace {
     }
 
     component::ModelComponent impulse_model() {
-        constexpr std::uint8_t DYNAMIC_BODY = 1;
         assets_system::PMXData data;
         data.version = 2.1f;
         data.bones.emplace_back().position = {0, 10, 0};
@@ -27,7 +26,7 @@ namespace {
         data.vertices.front().weights[0] = 1;
         auto& body = data.rigid_bodies.emplace_back();
         body.bone = 0;
-        body.mode = DYNAMIC_BODY;
+        body.mode = assets_system::PMXRigidBodyMode::Dynamic;
         body.mass = 1;
         body.size = {0.1f, 0, 0};
         body.position = {0, 10, 0};

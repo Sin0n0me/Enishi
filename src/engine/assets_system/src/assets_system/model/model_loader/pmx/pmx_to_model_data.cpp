@@ -30,20 +30,6 @@ namespace enishi::assets_system {
         constexpr std::uint8_t MATERIAL_FLAG_VERTEX_COLOR{0x20};
         constexpr std::uint8_t MATERIAL_FLAG_POINT_TOPOLOGY{0x40};
         constexpr std::uint8_t MATERIAL_FLAG_LINE_TOPOLOGY{0x80};
-        constexpr std::uint8_t SPHERE_MODE_DISABLED{};
-        constexpr std::uint8_t SPHERE_MODE_MULTIPLY{1};
-        constexpr std::uint8_t SPHERE_MODE_ADD{2};
-        constexpr std::uint8_t SPHERE_MODE_SUB_TEXTURE{3};
-        constexpr std::uint8_t RIGID_BODY_MODE_KINEMATIC{};
-        constexpr std::uint8_t RIGID_BODY_MODE_DYNAMIC{1};
-        constexpr std::uint8_t RIGID_BODY_SHAPE_SPHERE{};
-        constexpr std::uint8_t RIGID_BODY_SHAPE_BOX{1};
-        constexpr std::uint8_t JOINT_TYPE_SPRING_SIX_DOF{};
-        constexpr std::uint8_t JOINT_TYPE_WITH_CONSTRAINTS_END{2};
-        constexpr std::uint8_t JOINT_TYPE_CONE_TWIST{3};
-        constexpr std::uint8_t JOINT_TYPE_SLIDER{4};
-        constexpr std::uint8_t JOINT_TYPE_HINGE{5};
-        constexpr std::uint8_t SOFT_BODY_SHAPE_TRIANGLE_MESH{};
         constexpr std::uint8_t SOFT_BODY_FLAG_BENDING{1};
         constexpr std::uint8_t SOFT_BODY_FLAG_CLUSTER{2};
         constexpr std::uint8_t SOFT_BODY_FLAG_RANDOMIZE{4};
@@ -310,26 +296,27 @@ namespace enishi::assets_system {
                 dst.variants = {types::Diffuse{vector(src.diffuse)},
                     types::Specular{vector(src.specular), src.shininess},
                     types::Ambient{vector(src.ambient)},
-                    glm::vec1(src.sphere_mode == SPHERE_MODE_MULTIPLY ? 1.0f : 0.0f),
-                    glm::vec1(src.sphere_mode == SPHERE_MODE_ADD ? 1.0f : 0.0f),
+                    glm::vec1(src.sphere_mode == PMXSphereMode::Multiply ? 1.0f : 0.0f),
+                    glm::vec1(src.sphere_mode == PMXSphereMode::Add ? 1.0f : 0.0f),
                     glm::vec1((src.flags & MATERIAL_FLAG_DRAW_EDGE) != 0 ? 1.0f : 0.0f)};
                 if (src.texture > NO_PMX_INDEX) {
                     dst.textures.push_back({texture_path(data.textures[src.texture]),
                         types::ModelTexture::MODEL_TEXTURE_NAME,
                         types::ModelTexture::MODEL_SAMPLER_NAME});
                 }
-                if (src.sphere_texture > NO_PMX_INDEX && src.sphere_mode != SPHERE_MODE_DISABLED) {
+                if (src.sphere_texture > NO_PMX_INDEX &&
+                    src.sphere_mode != PMXSphereMode::Disabled) {
                     types::MaterialTexture texture{texture_path(data.textures[src.sphere_texture]),
                         types::ModelTexture::SPHERE_TEXTURE_NAME,
                         types::ModelTexture::SPHERE_SAMPLER_NAME};
-                    texture.blend = src.sphere_mode == SPHERE_MODE_ADD
+                    texture.blend = src.sphere_mode == PMXSphereMode::Add
                                         ? types::MaterialTexture::Blend::Add
                                         : types::MaterialTexture::Blend::Multiply;
                     texture.coordinates =
-                        src.sphere_mode == SPHERE_MODE_SUB_TEXTURE
+                        src.sphere_mode == PMXSphereMode::SubTexture
                             ? types::MaterialTexture::Coordinates::UV
                             : types::MaterialTexture::Coordinates::NormalProjection;
-                    texture.uv_channel = src.sphere_mode == SPHERE_MODE_SUB_TEXTURE ? 1 : 0;
+                    texture.uv_channel = src.sphere_mode == PMXSphereMode::SubTexture ? 1 : 0;
                     dst.textures.push_back(std::move(texture));
                 }
                 if (src.toon_texture > NO_PMX_INDEX) {
@@ -352,16 +339,16 @@ namespace enishi::assets_system {
                 dst.relate_bone_index = static_cast<std::uint32_t>(src.bone);
                 dst.group_index = src.group;
                 dst.group_mask = static_cast<std::uint16_t>(~src.non_collision_mask);
-                if (src.mode == RIGID_BODY_MODE_KINEMATIC) {
+                if (src.mode == PMXRigidBodyMode::Kinematic) {
                     dst.kind = types::RigidBodyKind::Kinematic;
-                } else if (src.mode == RIGID_BODY_MODE_DYNAMIC) {
+                } else if (src.mode == PMXRigidBodyMode::Dynamic) {
                     dst.kind = types::RigidBodyKind::Dynamic;
                 } else {
                     dst.kind = types::RigidBodyKind::DynamicAdjustBone;
                 }
-                if (src.shape == RIGID_BODY_SHAPE_SPHERE) {
+                if (src.shape == PMXRigidBodyShape::Sphere) {
                     dst.shape = types::RBShapeSphere{src.size[0]};
-                } else if (src.shape == RIGID_BODY_SHAPE_BOX) {
+                } else if (src.shape == PMXRigidBodyShape::Box) {
                     dst.shape = types::RBShapeBox{src.size[0], src.size[1], src.size[2]};
                 } else {
                     dst.shape = types::RBShapeCapsule{src.size[0], src.size[1]};
@@ -371,7 +358,7 @@ namespace enishi::assets_system {
                     dst.position -= vector(data.bones[src.bone].position);
                 }
                 dst.rotation = vector(src.rotation);
-                dst.mass = src.mode == RIGID_BODY_MODE_KINEMATIC ? 0 : src.mass;
+                dst.mass = src.mode == PMXRigidBodyMode::Kinematic ? 0 : src.mass;
                 dst.linear_damping = src.linear_damping;
                 dst.angular_damping = src.angular_damping;
                 dst.restitution = src.restitution;
@@ -388,41 +375,41 @@ namespace enishi::assets_system {
             for (const auto& src : data.joints) {
                 types::PhysicsJoint dst{};
                 dst.name = src.name;
-                dst.kind = kinds[src.type];
+                dst.kind = kinds[static_cast<std::size_t>(src.type)];
                 dst.rigid_body_a = static_cast<std::uint32_t>(src.body_a);
                 dst.rigid_body_b = static_cast<std::uint32_t>(src.body_b);
                 dst.position = vector(src.position);
                 dst.rotation = vector(src.rotation);
-                if (src.type < JOINT_TYPE_WITH_CONSTRAINTS_END) {
+                if (src.type == PMXJointType::SpringSixDof || src.type == PMXJointType::SixDof) {
                     dst.constrain_position_min = vector(src.translation_min);
                     dst.constrain_position_max = vector(src.translation_max);
                     dst.constrain_rotation_min = vector(src.rotation_min);
                     dst.constrain_rotation_max = vector(src.rotation_max);
                 }
-                if (src.type == JOINT_TYPE_SPRING_SIX_DOF) {
+                if (src.type == PMXJointType::SpringSixDof) {
                     dst.spring_position = vector(src.translation_spring);
                     dst.spring_rotation = vector(src.rotation_spring);
                 }
-                if (src.type == JOINT_TYPE_CONE_TWIST || src.type == JOINT_TYPE_HINGE) {
+                if (src.type == PMXJointType::ConeTwist || src.type == PMXJointType::Hinge) {
                     dst.softness = src.translation_spring[0];
                     dst.bias = src.translation_spring[1];
                     dst.relaxation = src.translation_spring[2];
                 }
-                if (src.type == JOINT_TYPE_CONE_TWIST) {
+                if (src.type == PMXJointType::ConeTwist) {
                     dst.angular_span = vector(src.rotation_min);
                     dst.damping = src.translation_min[0];
                     dst.fix_threshold = src.translation_max[0];
                     dst.angular_motor = {src.translation_min[2] != 0, 0, src.translation_max[2]};
                     dst.motor_target_rotation = vector(src.rotation_spring);
                 }
-                if (src.type == JOINT_TYPE_SLIDER) {
+                if (src.type == PMXJointType::Slider) {
                     dst.constrain_position_min.x = src.translation_min[0];
                     dst.constrain_position_max.x = src.translation_max[0];
                     dst.linear_motor = {src.translation_spring[0] != 0,
                         src.translation_spring[1],
                         src.translation_spring[2]};
                 }
-                if (src.type == JOINT_TYPE_SLIDER || src.type == JOINT_TYPE_HINGE) {
+                if (src.type == PMXJointType::Slider || src.type == PMXJointType::Hinge) {
                     dst.constrain_rotation_min.x = src.rotation_min[0];
                     dst.constrain_rotation_max.x = src.rotation_max[0];
                     dst.angular_motor = {src.rotation_spring[0] != 0,
@@ -445,7 +432,7 @@ namespace enishi::assets_system {
             for (const auto& src : data.soft_bodies) {
                 types::SoftBody dst;
                 dst.name = src.name;
-                dst.shape = src.shape == SOFT_BODY_SHAPE_TRIANGLE_MESH
+                dst.shape = src.shape == PMXSoftBodyShape::TriangleMesh
                                 ? types::SoftBodyShape::TriangleMesh
                                 : types::SoftBodyShape::Rope;
                 dst.material = static_cast<std::uint32_t>(src.material);
@@ -458,7 +445,7 @@ namespace enishi::assets_system {
                 dst.cluster_count = src.cluster_count;
                 dst.mass = src.mass;
                 dst.collision_margin = src.margin;
-                dst.aerodynamic_model = aero_models[src.aero_model];
+                dst.aerodynamic_model = aero_models[static_cast<std::size_t>(src.aero_model)];
                 dst.settings = {src.config[0],
                     src.config[1],
                     src.config[2],

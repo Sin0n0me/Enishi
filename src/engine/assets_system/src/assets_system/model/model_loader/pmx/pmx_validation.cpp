@@ -8,20 +8,13 @@ namespace enishi::assets_system {
         constexpr float PMX_VERSION_2_1{2.1f};
         constexpr std::uint8_t MAX_ADDITIONAL_UV_COUNT{4};
         constexpr std::size_t TRIANGLE_VERTEX_COUNT{3};
-        constexpr std::uint8_t MAX_SPHERE_MODE{3};
         constexpr std::uint8_t MAX_SHARED_TOON_MODE{1};
         constexpr std::size_t SHARED_TOON_TEXTURE_COUNT{10};
         constexpr std::uint16_t BONE_FLAG_TAIL_IS_BONE{0x0001};
         constexpr std::uint16_t BONE_FLAG_INHERIT{0x0300};
         constexpr std::uint16_t BONE_FLAG_IK{0x0020};
         constexpr std::size_t AXIS_COUNT{3};
-        constexpr std::uint8_t MAX_RIGID_BODY_SHAPE{2};
-        constexpr std::uint8_t MAX_RIGID_BODY_MODE{2};
         constexpr std::uint8_t MAX_RIGID_BODY_GROUP{15};
-        constexpr std::uint8_t MAX_SOFT_BODY_SHAPE{1};
-        constexpr std::int32_t MAX_AERODYNAMIC_MODEL{4};
-        constexpr std::uint8_t MAX_PMX_2_0_JOINT_TYPE{};
-        constexpr std::uint8_t MAX_PMX_2_1_JOINT_TYPE{5};
 
         enum class VisitState : std::uint8_t {
             Unvisited,
@@ -115,7 +108,7 @@ namespace enishi::assets_system {
         }
         std::size_t total_indices{};
         for (const auto& material : data.materials) {
-            if (material.sphere_mode > MAX_SPHERE_MODE ||
+            if (material.sphere_mode > PMXSphereMode::SubTexture ||
                 material.shared_toon > MAX_SHARED_TOON_MODE || material.index_count < 0 ||
                 material.index_count % TRIANGLE_VERTEX_COUNT != 0 ||
                 static_cast<std::size_t>(material.index_count) >
@@ -209,24 +202,25 @@ namespace enishi::assets_system {
             }
         }
         for (const auto& body : data.rigid_bodies) {
-            if (body.shape > MAX_RIGID_BODY_SHAPE || body.mode > MAX_RIGID_BODY_MODE ||
+            if (body.shape > PMXRigidBodyShape::Capsule ||
+                body.mode > PMXRigidBodyMode::DynamicAdjustBone ||
                 body.group > MAX_RIGID_BODY_GROUP ||
                 !reference(body.bone, data.bones.size(), true)) {
                 return invalid("rigid body bone out of range");
             }
         }
         for (const auto& joint : data.joints) {
-            if (joint.type > (data.version == PMX_VERSION_2_1 ? MAX_PMX_2_1_JOINT_TYPE
-                                                              : MAX_PMX_2_0_JOINT_TYPE) ||
+            if (joint.type > (data.version == PMX_VERSION_2_1 ? PMXJointType::Hinge
+                                                              : PMXJointType::SpringSixDof) ||
                 !reference(joint.body_a, data.rigid_bodies.size(), true) ||
                 !reference(joint.body_b, data.rigid_bodies.size(), true)) {
                 return invalid("joint body out of range");
             }
         }
         for (const auto& body : data.soft_bodies) {
-            if (data.version != PMX_VERSION_2_1 || body.shape > MAX_SOFT_BODY_SHAPE ||
-                body.group > MAX_RIGID_BODY_GROUP || body.aero_model < 0 ||
-                body.aero_model > MAX_AERODYNAMIC_MODEL ||
+            if (data.version != PMX_VERSION_2_1 || body.shape > PMXSoftBodyShape::Rope ||
+                body.group > MAX_RIGID_BODY_GROUP || body.aero_model < PMXAerodynamicModel::Point ||
+                body.aero_model > PMXAerodynamicModel::FaceOneSided ||
                 !reference(body.material, data.materials.size())) {
                 return invalid("soft body material out of range");
             }
