@@ -15,9 +15,6 @@
 namespace enishi::assets_system {
     namespace {
         constexpr std::int32_t NO_PMX_INDEX{-1};
-        constexpr std::uint8_t PMX_DEFORM_BDEF4{2};
-        constexpr std::uint8_t PMX_DEFORM_SDEF{3};
-        constexpr std::uint8_t PMX_DEFORM_QDEF{4};
         constexpr std::uint16_t BONE_FLAG_INHERIT_ROTATION{0x0100};
         constexpr std::uint16_t BONE_FLAG_INHERIT_TRANSLATION{0x0200};
         constexpr std::uint16_t BONE_FLAG_LOCAL_TRANSFORM{0x0080};
@@ -25,12 +22,6 @@ namespace enishi::assets_system {
         constexpr std::uint16_t BONE_FLAG_LOCAL_COORDINATE{0x0800};
         constexpr std::uint16_t BONE_FLAG_AFTER_PHYSICS{0x1000};
         constexpr std::uint16_t BONE_FLAG_IK{0x0020};
-        constexpr std::uint8_t MORPH_TYPE_GROUP{};
-        constexpr std::uint8_t MORPH_TYPE_VERTEX{1};
-        constexpr std::uint8_t MORPH_TYPE_BONE{2};
-        constexpr std::uint8_t MORPH_TYPE_MATERIAL{8};
-        constexpr std::uint8_t MORPH_TYPE_FLIP{9};
-        constexpr std::uint8_t MORPH_TYPE_IMPULSE{10};
         constexpr std::uint8_t MATERIAL_FLAG_DRAW_BOTH_SIDES{0x01};
         constexpr std::uint8_t MATERIAL_FLAG_GROUND_SHADOW{0x02};
         constexpr std::uint8_t MATERIAL_FLAG_CAST_SHADOW{0x04};
@@ -88,8 +79,8 @@ namespace enishi::assets_system {
         void make_vertices(types::ModelData& model, const PMXData& data) {
             const bool wide_skinning =
                 std::ranges::any_of(data.vertices, [](const PMXVertex& vertex) {
-                    return vertex.deform_type == PMX_DEFORM_BDEF4 ||
-                           vertex.deform_type == PMX_DEFORM_QDEF ||
+                    return vertex.deform_type == PMXDeformType::BDEF4 ||
+                           vertex.deform_type == PMXDeformType::QDEF ||
                            std::ranges::any_of(vertex.bones, [](std::int32_t index) {
                                return index > std::numeric_limits<std::uint16_t>::max() - 1;
                            });
@@ -98,7 +89,7 @@ namespace enishi::assets_system {
             model.skinning_methods.reserve(data.vertices.size());
             model.additional_uv_channels.resize(data.additional_uv_count);
             const bool spherical = std::ranges::any_of(data.vertices,
-                [](const auto& vertex) { return vertex.deform_type == PMX_DEFORM_SDEF; });
+                [](const auto& vertex) { return vertex.deform_type == PMXDeformType::SDEF; });
             if (spherical) {
                 model.spherical_blends.reserve(data.vertices.size());
             }
@@ -107,7 +98,8 @@ namespace enishi::assets_system {
                     types::Vertex{vector(v.position), vector(v.normal), {v.uv[0], v.uv[1]}}};
                 if (wide_skinning) {
                     auto weights = vector(v.weights);
-                    if (v.deform_type == PMX_DEFORM_BDEF4 || v.deform_type == PMX_DEFORM_QDEF) {
+                    if (v.deform_type == PMXDeformType::BDEF4 ||
+                        v.deform_type == PMXDeformType::QDEF) {
                         weights /= weights.x + weights.y + weights.z + weights.w;
                     }
                     vertex.emplace_back(
@@ -124,15 +116,15 @@ namespace enishi::assets_system {
                 vertex.emplace_back(types::EdgeFlag{v.edge_scale});
                 model.vertices.push_back(std::move(vertex));
                 auto method = types::SkinningMethod::LinearBlend;
-                if (v.deform_type == PMX_DEFORM_QDEF) {
+                if (v.deform_type == PMXDeformType::QDEF) {
                     method = types::SkinningMethod::DualQuaternion;
-                } else if (v.deform_type == PMX_DEFORM_SDEF) {
+                } else if (v.deform_type == PMXDeformType::SDEF) {
                     method = types::SkinningMethod::SphericalBlend;
                 }
                 model.skinning_methods.push_back(method);
                 if (spherical) {
                     types::SphericalBlend blend;
-                    if (v.deform_type == PMX_DEFORM_SDEF) {
+                    if (v.deform_type == PMXDeformType::SDEF) {
                         constexpr float correction_scale = 0.5f;
                         blend.center = vector(v.sdef_center);
                         const auto radius0 = vector(v.sdef_radius0);
@@ -225,28 +217,28 @@ namespace enishi::assets_system {
                 const auto& src = data.morphs[i];
                 types::MorphTarget target;
                 target.name = src.name;
-                target.weight_mode = src.type == MORPH_TYPE_FLIP
+                target.weight_mode = src.type == PMXMorphType::Flip
                                          ? types::MorphWeightMode::DiscreteSelection
                                          : types::MorphWeightMode::Continuous;
                 for (const auto& o : src.offsets) {
                     const auto index = static_cast<std::uint32_t>(o.index);
                     switch (src.type) {
-                        case MORPH_TYPE_GROUP:
-                        case MORPH_TYPE_FLIP:
+                        case PMXMorphType::Group:
+                        case PMXMorphType::Flip:
                             target.offsets.emplace_back(types::MorphWeightOffset{index, o.weight});
                             break;
-                        case MORPH_TYPE_VERTEX:
+                        case PMXMorphType::Vertex:
                             target.offsets.emplace_back(
                                 types::VertexMorphOffset{index, vector(o.translation)});
                             vertices.vertices[i].push_back({index, vector(o.translation)});
                             break;
-                        case MORPH_TYPE_BONE:
+                        case PMXMorphType::Bone:
                             target.offsets.emplace_back(types::BoneMorphOffset{index,
                                 vector(o.translation),
                                 glm::quat(
                                     o.rotation[3], o.rotation[0], o.rotation[1], o.rotation[2])});
                             break;
-                        case MORPH_TYPE_MATERIAL: {
+                        case PMXMorphType::Material: {
                             types::MaterialMorphOffset material{index,
                                 o.operation == 0 ? types::MorphOperation::Multiply
                                                  : types::MorphOperation::Add,
@@ -265,7 +257,7 @@ namespace enishi::assets_system {
                             target.offsets.emplace_back(std::move(material));
                             break;
                         }
-                        case MORPH_TYPE_IMPULSE:
+                        case PMXMorphType::Impulse:
                             target.offsets.emplace_back(types::ImpulseMorphOffset{index,
                                 o.operation != 0,
                                 vector(o.translation),
@@ -273,8 +265,10 @@ namespace enishi::assets_system {
                                 o.translation == PMXVec3{} && o.torque == PMXVec3{}});
                             break;
                         default:
-                            target.offsets.emplace_back(types::UVMorphOffset{
-                                index, static_cast<std::uint32_t>(src.type - 3), vector(o.uv)});
+                            target.offsets.emplace_back(types::UVMorphOffset{index,
+                                static_cast<std::uint32_t>(src.type) -
+                                    static_cast<std::uint32_t>(PMXMorphType::UV),
+                                vector(o.uv)});
                             break;
                     }
                 }

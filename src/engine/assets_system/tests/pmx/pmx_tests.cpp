@@ -339,6 +339,34 @@ namespace {
             "empty direct conversion must not produce drawable model data");
     }
 
+    void deformation_and_morph_enum_tests() {
+        auto parsed = PMXModelLoader::parse(fixture(2.1f, 1).data);
+        check(parsed.is_ok(), "enum decoding fixture rejected");
+        auto data = parsed.unwrap();
+        constexpr std::array methods{PMXDeformType::BDEF1,
+            PMXDeformType::BDEF2,
+            PMXDeformType::BDEF4,
+            PMXDeformType::SDEF,
+            PMXDeformType::QDEF};
+        for (std::size_t i = 0; i < methods.size(); ++i) {
+            check(data.vertices[i].deform_type == methods[i], "deformation wire value changed");
+        }
+        data.vertices.front().deform_type = static_cast<PMXDeformType>(255);
+        check(PMXModelLoader::validate(data).is_err(), "unknown deformation accepted");
+        data = parsed.unwrap();
+        data.version = 2.0f;
+        check(PMXModelLoader::validate(data).is_err(), "QDEF accepted in PMX 2.0");
+
+        parsed = PMXModelLoader::parse(full_fixture(1).data);
+        check(parsed.is_ok(), "morph enum decoding fixture rejected");
+        data = parsed.unwrap();
+        check(data.morphs.front().type == PMXMorphType::Group &&
+                  data.morphs.back().type == PMXMorphType::Impulse,
+            "morph wire value changed");
+        data.morphs.front().type = static_cast<PMXMorphType>(255);
+        check(PMXModelLoader::validate(data).is_err(), "unknown morph type accepted");
+    }
+
     void parser_tests() {
         for (const auto width : std::array<std::uint8_t, 3>{1, 2, 4}) {
             const auto full = full_fixture(width);
@@ -463,6 +491,7 @@ void pmx_deformation_tests();
 int main() {
     utf8_surrogate_tests();
     empty_model_tests();
+    deformation_and_morph_enum_tests();
     parser_tests();
     pmx_conversion_tests();
     pmx_runtime_support_tests();

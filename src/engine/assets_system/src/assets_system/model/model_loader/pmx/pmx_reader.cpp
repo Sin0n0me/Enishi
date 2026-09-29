@@ -28,16 +28,6 @@ namespace enishi::assets_system {
         constexpr std::uint16_t BONE_FLAG_LOCAL_COORDINATE{0x0800};
         constexpr std::uint16_t BONE_FLAG_EXTERNAL_PARENT{0x2000};
         constexpr std::uint16_t BONE_FLAG_IK{0x0020};
-        constexpr std::uint8_t PMX_DEFORM_BDEF1{};
-        constexpr std::uint8_t PMX_DEFORM_BDEF2{1};
-        constexpr std::uint8_t PMX_DEFORM_SDEF{3};
-        constexpr std::uint8_t PMX_DEFORM_QDEF{4};
-        constexpr std::uint8_t PMX_MORPH_GROUP{};
-        constexpr std::uint8_t PMX_MORPH_VERTEX{1};
-        constexpr std::uint8_t PMX_MORPH_BONE{2};
-        constexpr std::uint8_t PMX_MORPH_MATERIAL{8};
-        constexpr std::uint8_t PMX_MORPH_FLIP{9};
-        constexpr std::uint8_t PMX_MORPH_IMPULSE{10};
         constexpr std::uint8_t PMX_MAX_MORPH_PANEL{4};
         constexpr std::uint8_t PMX_SHARED_TOON{1};
         constexpr std::uint8_t PMX_MAX_SHARED_TOON_INDEX{9};
@@ -242,15 +232,15 @@ namespace enishi::assets_system {
             }
             this->read(vertex.deform_type);
             const auto max_deform =
-                data.version == PMX_VERSION_2_1 ? PMX_DEFORM_QDEF : PMX_DEFORM_SDEF;
-            if (!this->require(vertex.deform_type < max_deform + 1, "invalid deformation type")) {
+                data.version == PMX_VERSION_2_1 ? PMXDeformType::QDEF : PMXDeformType::SDEF;
+            if (!this->require(!(vertex.deform_type > max_deform), "invalid deformation type")) {
                 return;
             }
             int bone_count{4};
-            if (vertex.deform_type == PMX_DEFORM_BDEF1) {
+            if (vertex.deform_type == PMXDeformType::BDEF1) {
                 bone_count = 1;
-            } else if (vertex.deform_type == PMX_DEFORM_BDEF2 ||
-                       vertex.deform_type == PMX_DEFORM_SDEF) {
+            } else if (vertex.deform_type == PMXDeformType::BDEF2 ||
+                       vertex.deform_type == PMXDeformType::SDEF) {
                 bone_count = 2;
             }
             for (int i = 0; i < bone_count; ++i) {
@@ -264,7 +254,7 @@ namespace enishi::assets_system {
             } else {
                 this->read(vertex.weights);
             }
-            if (vertex.deform_type == PMX_DEFORM_SDEF) {
+            if (vertex.deform_type == PMXDeformType::SDEF) {
                 this->fields(vertex.sdef_center, vertex.sdef_radius0, vertex.sdef_radius1);
             }
             this->read(vertex.edge_scale);
@@ -367,35 +357,35 @@ namespace enishi::assets_system {
             this->text(morph.english_name, data.encoding);
             this->fields(morph.panel, morph.type);
             const auto max_type =
-                data.version == PMX_VERSION_2_1 ? PMX_MORPH_IMPULSE : PMX_MORPH_FLIP;
-            if (!this->require(morph.panel < PMX_MAX_MORPH_PANEL + 1 && morph.type < max_type + 1,
+                data.version == PMX_VERSION_2_1 ? PMXMorphType::Impulse : PMXMorphType::Flip;
+            if (!this->require(morph.panel < PMX_MAX_MORPH_PANEL + 1 && !(morph.type > max_type),
                     "invalid morph type or panel")) {
                 return;
             }
             this->records(morph.offsets, 5, [&](PMXMorphOffset& offset) {
                 std::size_t index_kind{};
-                if (morph.type == PMX_MORPH_GROUP || morph.type == PMX_MORPH_FLIP) {
+                if (morph.type == PMXMorphType::Group || morph.type == PMXMorphType::Flip) {
                     index_kind = 4;
-                } else if (morph.type == PMX_MORPH_BONE) {
+                } else if (morph.type == PMXMorphType::Bone) {
                     index_kind = 3;
-                } else if (morph.type == PMX_MORPH_MATERIAL) {
+                } else if (morph.type == PMXMorphType::Material) {
                     index_kind = 2;
-                } else if (morph.type == PMX_MORPH_IMPULSE) {
+                } else if (morph.type == PMXMorphType::Impulse) {
                     index_kind = 5;
                 }
                 offset.index = this->index(data.index_sizes[index_kind]);
                 switch (morph.type) {
-                    case PMX_MORPH_GROUP:
-                    case PMX_MORPH_FLIP:
+                    case PMXMorphType::Group:
+                    case PMXMorphType::Flip:
                         this->read(offset.weight);
                         break;
-                    case PMX_MORPH_VERTEX:
+                    case PMXMorphType::Vertex:
                         this->read(offset.translation);
                         break;
-                    case PMX_MORPH_BONE:
+                    case PMXMorphType::Bone:
                         this->fields(offset.translation, offset.rotation);
                         break;
-                    case PMX_MORPH_MATERIAL:
+                    case PMXMorphType::Material:
                         this->fields(offset.operation,
                             offset.diffuse,
                             offset.specular,
@@ -408,7 +398,7 @@ namespace enishi::assets_system {
                             offset.toon);
                         this->require(offset.operation < 2, "invalid material morph operation");
                         break;
-                    case PMX_MORPH_IMPULSE:
+                    case PMXMorphType::Impulse:
                         this->fields(offset.operation, offset.translation, offset.torque);
                         this->require(offset.operation < 2, "invalid impulse coordinate space");
                         break;

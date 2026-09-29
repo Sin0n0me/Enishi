@@ -1,4 +1,5 @@
 #pragma once
+#include "pmx_enums.h"
 #include <array>
 #include <cstdint>
 #include <string>
@@ -14,7 +15,7 @@ namespace enishi::assets_system {
         PMXVec3 normal{};
         PMXVec2 uv{};
         std::vector<PMXVec4> additional_uvs;
-        std::uint8_t deform_type{};
+        PMXDeformType deform_type{PMXDeformType::BDEF1};
         std::array<std::int32_t, 4> bones{-1, -1, -1, -1};
         PMXVec4 weights{};
         PMXVec3 sdef_center{};
@@ -94,7 +95,7 @@ namespace enishi::assets_system {
         std::string name;
         std::string english_name;
         std::uint8_t panel{};
-        std::uint8_t type{};
+        PMXMorphType type{PMXMorphType::Group};
         std::vector<PMXMorphOffset> offsets;
     };
 

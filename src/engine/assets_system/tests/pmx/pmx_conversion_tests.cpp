@@ -6,7 +6,6 @@ using namespace enishi;
 using namespace enishi::assets_system;
 
 namespace {
-    constexpr std::uint8_t BDEF2 = 1;
     void check(bool condition, const char* message) {
         if (!condition) {
             std::cerr << message << '\n';
@@ -24,14 +23,14 @@ namespace {
         std::exit(1);
     }
 
-    std::int32_t morph_offset_index(std::uint8_t kind) {
-        if (kind == 0) {
+    std::int32_t morph_offset_index(PMXMorphType kind) {
+        if (kind == PMXMorphType::Group) {
             return 1;
         }
-        if (kind == 9) {
+        if (kind == PMXMorphType::Flip) {
             return 9;
         }
-        if (kind == 8) {
+        if (kind == PMXMorphType::Material) {
             return -1;
         }
         return 0;
@@ -67,7 +66,7 @@ namespace {
         data.additional_uv_count = 0;
         data.vertices.resize(3);
         for (auto& vertex : data.vertices) {
-            vertex.deform_type = BDEF2;
+            vertex.deform_type = PMXDeformType::BDEF2;
             vertex.bones = {0, 1, -1, -1};
             vertex.weights = {0.25f, 0.75f, 0, 0};
             vertex.edge_scale = 0.5f;
@@ -119,10 +118,10 @@ namespace {
             data.joints.push_back(joint);
         }
         {
-            constexpr std::uint8_t vertex_morph = 1;
+            constexpr auto vertex_morph = PMXMorphType::Vertex;
             PMXMorph morph;
             morph.type = vertex_morph;
-            morph.name = std::to_string(vertex_morph);
+            morph.name = std::to_string(static_cast<std::uint8_t>(vertex_morph));
             PMXMorphOffset offset;
             offset.index = morph_offset_index(vertex_morph);
             offset.weight = 0.7f;

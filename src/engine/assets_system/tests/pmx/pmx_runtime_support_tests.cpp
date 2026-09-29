@@ -11,20 +11,7 @@ namespace {
     constexpr std::int32_t NO_BONE = -1;
     constexpr std::int32_t ROOT_BONE = 0;
     constexpr std::int32_t ATTACHED_BODY = 1;
-    constexpr std::uint8_t BDEF4 = 2;
-    constexpr std::uint8_t SDEF = 3;
-    constexpr std::uint8_t QDEF = 4;
     constexpr std::uint8_t ONE_ADDITIONAL_UV = 1;
-    constexpr std::uint8_t GROUP_MORPH = 0;
-    constexpr std::uint8_t BONE_MORPH = 2;
-    constexpr std::uint8_t UV_MORPH = 3;
-    constexpr std::uint8_t FIRST_ADDITIONAL_UV_MORPH = 4;
-    constexpr std::uint8_t SECOND_ADDITIONAL_UV_MORPH = 5;
-    constexpr std::uint8_t THIRD_ADDITIONAL_UV_MORPH = 6;
-    constexpr std::uint8_t FOURTH_ADDITIONAL_UV_MORPH = 7;
-    constexpr std::uint8_t MATERIAL_MORPH = 8;
-    constexpr std::uint8_t FLIP_MORPH = 9;
-    constexpr std::uint8_t IMPULSE_MORPH = 10;
     constexpr std::uint16_t BONE_IK = 0x0020;
     constexpr std::uint16_t INHERIT_ROTATION = 0x0100;
     constexpr std::uint16_t INHERIT_TRANSLATION = 0x0200;
@@ -71,7 +58,7 @@ namespace {
     }
 
     void rendering_support_tests() {
-        for (const auto deform : {BDEF4, SDEF, QDEF}) {
+        for (const auto deform : {PMXDeformType::BDEF4, PMXDeformType::SDEF, PMXDeformType::QDEF}) {
             auto data = supported_model();
             data.vertices.front().deform_type = deform;
             check(PMXToModelData::to_model_data("supported.pmx", data, nullptr).is_ok(),
@@ -113,11 +100,10 @@ namespace {
         constexpr std::int32_t last_shader_bone = 511;
         constexpr std::int32_t first_unsupported_bone = 512;
         constexpr std::int32_t first_wide_bone = 65535;
-        constexpr std::uint8_t bdef2 = 1;
         constexpr std::size_t skinning_attribute = 1;
         auto data = supported_model();
         data.bones.resize(shader_bone_capacity);
-        data.vertices.front().deform_type = bdef2;
+        data.vertices.front().deform_type = PMXDeformType::BDEF2;
         data.vertices.front().bones[1] = last_shader_bone;
         const auto converted = PMXToModelData::to_model_data("boundary.pmx", data, nullptr);
         check(converted.is_ok() && std::get<types::Skinning>(
@@ -154,16 +140,16 @@ namespace {
         bone.ik_links.push_back({ROOT_BONE, LIMIT_ENABLED});
         check(PMXToModelData::to_model_data("limited-ik.pmx", data, nullptr).is_ok(),
             "per-link IK limits are supported");
-        for (const auto type : {GROUP_MORPH,
-                 IMPULSE_MORPH,
-                 MATERIAL_MORPH,
-                 FLIP_MORPH,
-                 BONE_MORPH,
-                 UV_MORPH,
-                 FIRST_ADDITIONAL_UV_MORPH,
-                 SECOND_ADDITIONAL_UV_MORPH,
-                 THIRD_ADDITIONAL_UV_MORPH,
-                 FOURTH_ADDITIONAL_UV_MORPH}) {
+        for (const auto type : {PMXMorphType::Group,
+                 PMXMorphType::Impulse,
+                 PMXMorphType::Material,
+                 PMXMorphType::Flip,
+                 PMXMorphType::Bone,
+                 PMXMorphType::UV,
+                 PMXMorphType::AdditionalUV1,
+                 PMXMorphType::AdditionalUV2,
+                 PMXMorphType::AdditionalUV3,
+                 PMXMorphType::AdditionalUV4}) {
             data = supported_model();
             data.morphs.emplace_back().type = type;
             check(PMXToModelData::to_model_data("weight-morph.pmx", data, nullptr).is_ok(),

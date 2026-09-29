@@ -2,8 +2,6 @@
 
 namespace enishi::assets_system {
     namespace {
-        constexpr std::uint8_t DEFORM_BDEF4 = 2;
-        constexpr std::uint8_t DEFORM_QDEF = 4;
         constexpr std::uint8_t MATERIAL_VERTEX_COLOR = 0x20;
         constexpr std::uint8_t MATERIAL_POINTS = 0x40;
         constexpr std::uint8_t MATERIAL_LINES = 0x80;
@@ -30,10 +28,10 @@ namespace enishi::assets_system {
                 return unsupported("models with more than 512 bones");
             }
             for (const auto& vertex : data.vertices) {
-                const auto influence_count =
-                    vertex.deform_type == DEFORM_BDEF4 || vertex.deform_type == DEFORM_QDEF
-                        ? FOUR_INFLUENCE_COUNT
-                        : LEGACY_INFLUENCE_COUNT;
+                const auto influence_count = vertex.deform_type == PMXDeformType::BDEF4 ||
+                                                     vertex.deform_type == PMXDeformType::QDEF
+                                                 ? FOUR_INFLUENCE_COUNT
+                                                 : LEGACY_INFLUENCE_COUNT;
                 for (std::size_t influence = 0; influence < influence_count; ++influence) {
                     if (vertex.bones[influence] == NO_BONE && vertex.weights[influence] != 0.0f) {
                         return unsupported("weighted influences without bones");

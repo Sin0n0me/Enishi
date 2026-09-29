@@ -19,7 +19,6 @@ namespace {
     }
 
     component::ModelComponent impulse_model() {
-        constexpr std::uint8_t IMPULSE_MORPH = 10;
         constexpr std::uint8_t DYNAMIC_BODY = 1;
         assets_system::PMXData data;
         data.version = 2.1f;
@@ -34,7 +33,7 @@ namespace {
         body.position = {0, 10, 0};
         data.morphs.resize(2);
         for (auto& morph : data.morphs) {
-            morph.type = IMPULSE_MORPH;
+            morph.type = assets_system::PMXMorphType::Impulse;
             morph.offsets.emplace_back().index = 0;
         }
         data.morphs[0].offsets.front().translation = {0, 6, 0};

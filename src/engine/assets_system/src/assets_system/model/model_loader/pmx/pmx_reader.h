@@ -33,7 +33,11 @@ namespace enishi::assets_system {
                     !(sizeof(T) > this->bytes.size() - this->position), "unexpected end of file")) {
                 return;
             }
-            if constexpr (std::is_integral_v<T>) {
+            if constexpr (std::is_enum_v<T>) {
+                std::underlying_type_t<T> raw{};
+                this->read(raw);
+                value = static_cast<T>(raw);
+            } else if constexpr (std::is_integral_v<T>) {
                 std::make_unsigned_t<T> bits{};
                 for (std::size_t i = 0; i < sizeof(T); ++i) {
                     bits |= static_cast<std::make_unsigned_t<T>>(this->bytes[this->position++])

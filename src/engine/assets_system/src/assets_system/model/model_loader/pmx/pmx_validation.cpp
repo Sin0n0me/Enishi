@@ -7,9 +7,6 @@ namespace enishi::assets_system {
         constexpr float PMX_VERSION_2_0{2.0f};
         constexpr float PMX_VERSION_2_1{2.1f};
         constexpr std::uint8_t MAX_ADDITIONAL_UV_COUNT{4};
-        constexpr std::uint8_t PMX_DEFORM_BDEF4{2};
-        constexpr std::uint8_t PMX_DEFORM_SDEF{3};
-        constexpr std::uint8_t PMX_DEFORM_QDEF{4};
         constexpr std::size_t TRIANGLE_VERTEX_COUNT{3};
         constexpr std::uint8_t MAX_SPHERE_MODE{3};
         constexpr std::uint8_t MAX_SHARED_TOON_MODE{1};
@@ -18,11 +15,6 @@ namespace enishi::assets_system {
         constexpr std::uint16_t BONE_FLAG_INHERIT{0x0300};
         constexpr std::uint16_t BONE_FLAG_IK{0x0020};
         constexpr std::size_t AXIS_COUNT{3};
-        constexpr std::uint8_t MORPH_TYPE_GROUP{};
-        constexpr std::uint8_t MORPH_TYPE_BONE{2};
-        constexpr std::uint8_t MORPH_TYPE_MATERIAL{8};
-        constexpr std::uint8_t MORPH_TYPE_FLIP{9};
-        constexpr std::uint8_t MORPH_TYPE_IMPULSE{10};
         constexpr std::uint8_t MAX_RIGID_BODY_SHAPE{2};
         constexpr std::uint8_t MAX_RIGID_BODY_MODE{2};
         constexpr std::uint8_t MAX_RIGID_BODY_GROUP{15};
@@ -85,7 +77,7 @@ namespace enishi::assets_system {
         }
         for (const auto& vertex : data.vertices) {
             if (vertex.deform_type >
-                    (data.version == PMX_VERSION_2_1 ? PMX_DEFORM_QDEF : PMX_DEFORM_SDEF) ||
+                    (data.version == PMX_VERSION_2_1 ? PMXDeformType::QDEF : PMXDeformType::SDEF) ||
                 vertex.additional_uvs.size() != data.additional_uv_count) {
                 return invalid("invalid vertex deformation or UV count");
             }
@@ -95,14 +87,15 @@ namespace enishi::assets_system {
                     return invalid("invalid vertex bone or weight");
                 }
             }
-            if (vertex.deform_type == PMX_DEFORM_BDEF4 || vertex.deform_type == PMX_DEFORM_QDEF) {
+            if (vertex.deform_type == PMXDeformType::BDEF4 ||
+                vertex.deform_type == PMXDeformType::QDEF) {
                 const auto total =
                     vertex.weights[0] + vertex.weights[1] + vertex.weights[2] + vertex.weights[3];
                 if (!std::isfinite(total) || !(total > 0.0f)) {
                     return invalid("four-influence skinning requires a positive finite weight sum");
                 }
             }
-            if (vertex.deform_type == PMX_DEFORM_SDEF) {
+            if (vertex.deform_type == PMXDeformType::SDEF) {
                 for (std::size_t axis = 0; axis < AXIS_COUNT; ++axis) {
                     if (!std::isfinite(vertex.sdef_center[axis]) ||
                         !std::isfinite(vertex.sdef_radius0[axis]) ||
@@ -180,26 +173,26 @@ namespace enishi::assets_system {
         std::vector<std::vector<std::size_t>> morph_edges(data.morphs.size());
         for (std::size_t i = 0; i < data.morphs.size(); ++i) {
             const auto& morph = data.morphs[i];
-            if (morph.type >
-                (data.version == PMX_VERSION_2_1 ? MORPH_TYPE_IMPULSE : MORPH_TYPE_MATERIAL)) {
+            if (morph.type > (data.version == PMX_VERSION_2_1 ? PMXMorphType::Impulse
+                                                              : PMXMorphType::Material)) {
                 return invalid("invalid morph type");
             }
             for (const auto& offset : morph.offsets) {
                 std::size_t count = data.vertices.size();
-                if (morph.type == MORPH_TYPE_GROUP || morph.type == MORPH_TYPE_FLIP) {
+                if (morph.type == PMXMorphType::Group || morph.type == PMXMorphType::Flip) {
                     count = data.morphs.size();
-                } else if (morph.type == MORPH_TYPE_BONE) {
+                } else if (morph.type == PMXMorphType::Bone) {
                     count = data.bones.size();
-                } else if (morph.type == MORPH_TYPE_MATERIAL) {
+                } else if (morph.type == PMXMorphType::Material) {
                     count = data.materials.size();
-                } else if (morph.type == MORPH_TYPE_IMPULSE) {
+                } else if (morph.type == PMXMorphType::Impulse) {
                     count = data.rigid_bodies.size();
                 }
-                if (!reference(offset.index, count, morph.type == MORPH_TYPE_MATERIAL)) {
+                if (!reference(offset.index, count, morph.type == PMXMorphType::Material)) {
                     return invalid("morph reference out of range");
                 }
                 // Discrete selections are evaluated in source order and may refer to themselves.
-                if (morph.type == MORPH_TYPE_GROUP) {
+                if (morph.type == PMXMorphType::Group) {
                     morph_edges[i].push_back(offset.index);
                 }
             }

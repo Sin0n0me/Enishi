@@ -27,8 +27,7 @@ void bone_morph_tests() {
     data.bones[1].parent = 0;
     data.bones[1].position = {1, 0, 0};
     data.morphs.resize(2);
-    constexpr std::uint8_t bone_morph = 2;
-    data.morphs[0].type = bone_morph;
+    data.morphs[0].type = assets_system::PMXMorphType::Bone;
     auto& offset = data.morphs[0].offsets.emplace_back();
     offset.index = 0;
     offset.translation = {0, 1, 0};
