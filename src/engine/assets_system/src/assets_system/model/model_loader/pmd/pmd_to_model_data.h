@@ -2,7 +2,6 @@
 #include "../../../errors/errors.h"
 #include "../../../texture/texture_loader.h"
 #include "../../bone/bone_resolver.h"
-#include "../../morph/morph_resolver.h"
 #include "pmd_data.h"
 #include <cstdint>
 #include <engine_types/assets/model/model_data.h>
@@ -33,9 +32,6 @@ namespace enishi::assets_system {
 
         [[nodiscard]] static types::AddonIKs make_iks(
             const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver);
-
-        [[nodiscard]] static std::tuple<types::AddonMorphs, MorphResolver> make_morphs(
-            const std::vector<PMDMorph>& morphs);
 
         [[nodiscard]] static types::AddonPhysicsJoints make_joints(
             const std::vector<PMDPhysicsJoint>& joints);

@@ -33,9 +33,9 @@ namespace enishi::renderer {
         [[nodiscard]] static foundation::VoidResult<RendererError> to_uniforms_from_addon(
             const types::ModelData& model_data, Uniforms& uniforms);
         [[nodiscard]] static foundation::VoidResult<RendererError> to_uniforms_from_material(
-            const types::ModelData& model_data, Uniforms& uniforms, const MeshConfig& config);
+            const types::Material& material, Uniforms& uniforms, const MeshConfig& config);
         [[nodiscard]] static foundation::Result<std::vector<types::MeshMaterial>, RendererError>
-        to_mesh_material(const types::ModelData& model_data);
+        to_mesh_material(const types::ModelData& model_data, const MeshConfig& config);
         [[nodiscard]] static foundation::Result<types::MeshMaterial, RendererError>
         make_mesh_material_from_empty_material(const types::ModelData& model_data);
         [[nodiscard]] static foundation::Result<types::DrawBinding, RendererError> to_draw_binding(

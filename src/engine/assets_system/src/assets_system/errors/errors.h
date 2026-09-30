@@ -27,6 +27,7 @@ namespace enishi::assets_system {
         OutOfMemory,        // メモリ不足
         AccessDenied,       // 権限エラー
         InitError,
+        UnsupportedFeature, // The file is valid, but the runtime cannot execute this feature.
     };
 
     template <typename T> using IOResult = foundation::Result<T, IOError>;

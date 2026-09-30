@@ -12,7 +12,8 @@ namespace enishi::model_controller {
         const types::AssetHandle model_handle,
         const std::vector<types::RenderHandle>& shader_reflections) noexcept {
         // 読み込み中であれば内部で待機し、完了したデータを返す(asset_systemの実装依存)
-        const auto opt_model_data = this->asset_system->get_asset<types::AssetModelData>(model_handle);
+        const auto opt_model_data =
+            this->asset_system->get_asset<types::AssetModelData>(model_handle);
         if (opt_model_data.is_none()) {
             return foundation::Error(BuildError::AssetNotReady);
         }

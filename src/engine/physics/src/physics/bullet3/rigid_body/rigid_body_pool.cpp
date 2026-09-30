@@ -37,7 +37,7 @@ namespace enishi::physics::bullet3 {
 
     foundation::Option<RigidBodyPool::RigidBody&> RigidBodyPool::link_rigid_body(
         const types::HandleId handle, RigidBody&& rigid_body) noexcept {
-        if (this->handle_mapper.contains(handle)) {
+        if (!this->handle_mapper.contains(handle)) {
             return {};
         }
 

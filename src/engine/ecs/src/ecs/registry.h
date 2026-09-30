@@ -12,16 +12,11 @@
 
 namespace enishi::ecs {
     namespace {
-        using ComponentId = std::size_t;
-
-        ComponentId next_component_id(void) {
-            static ComponentId id = 0;
-            return id++;
-        }
+        // Producers and systems live in different translation units; IDs must agree.
+        using ComponentId = std::type_index;
 
         template <typename T> ComponentId get_component_id(void) {
-            static const ComponentId id = next_component_id();
-            return id;
+            return std::type_index(typeid(T));
         }
     } // namespace
 

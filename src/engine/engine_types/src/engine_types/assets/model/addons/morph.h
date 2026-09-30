@@ -5,9 +5,9 @@
 #include <vector>
 
 namespace enishi::types {
-    using MorphIndex = std::uint16_t;
+    using MorphIndex = std::uint32_t;
 
-    constexpr MorphIndex INVALID_MORPH_INDEX = UINT16_MAX;
+    constexpr MorphIndex INVALID_MORPH_INDEX = UINT32_MAX;
 
     struct MorphVertex {
         std::uint64_t index; // ベースの配列インデックス

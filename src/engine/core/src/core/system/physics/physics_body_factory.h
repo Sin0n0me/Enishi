@@ -14,8 +14,10 @@ namespace enishi::core {
         PhysicsBodyFactory(void) = delete;
 
         // 1モデル分の剛体/ジョイントをまとめて生成, worldへ登録する
-        // 失敗した剛体/ジョイントは警告を出して読み飛ばし, 可能な限り生成を続ける
-        static void build(sub_system::IPhysicsWorld& world,
+        // Stop on failure to preserve rigid-body indices used by joints and morphs.
+        [[nodiscard]] static foundation::Result<std::vector<types::PhysicsHandle>,
+            sub_system::PhysicsError>
+        build(sub_system::IPhysicsWorld& world,
             const component::PhysicsBodiesComponent& bodies,
             const std::shared_ptr<skinning_system::PhysicsBonesCache>& physics_cache,
             std::shared_ptr<sub_system::IBoneUpdater> updater) noexcept;

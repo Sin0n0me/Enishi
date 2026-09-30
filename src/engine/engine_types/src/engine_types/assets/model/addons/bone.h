@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <limits>
+#include <string>
 #include <vector>
 
 namespace enishi::types {
@@ -14,7 +16,7 @@ namespace enishi::types {
 
     using BoneIndex = std::size_t;
 
-    constexpr BoneIndex INVALID_BONE_INDEX = UINT16_MAX;
+    constexpr BoneIndex INVALID_BONE_INDEX = std::numeric_limits<BoneIndex>::max();
 
     struct BindBone {
         glm::mat4 local;          // ローカル
@@ -42,6 +44,7 @@ namespace enishi::types {
     struct ModelBone {
         BindBone bind_bone;
         BoneNode bone_node;
+        std::string name;
     };
 
     struct BoneTransform {

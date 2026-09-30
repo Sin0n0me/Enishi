@@ -463,12 +463,12 @@ namespace enishi::renderer::directx {
             if (argument->instance_count > 1) {
                 context->DrawIndexedInstanced(argument->index_count,
                     argument->instance_count,
-                    argument->vertex_offset,
                     argument->first_index,
+                    argument->vertex_offset,
                     argument->first_instance);
             } else {
                 context->DrawIndexed(
-                    argument->index_count, argument->vertex_offset, argument->first_index);
+                    argument->index_count, argument->first_index, argument->vertex_offset);
             }
         }
 

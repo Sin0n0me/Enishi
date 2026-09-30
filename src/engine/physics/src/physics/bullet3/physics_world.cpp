@@ -26,6 +26,28 @@ namespace enishi::physics::bullet3 {
             this->collision_config.get());
     }
 
+    PhysicsWorld::~PhysicsWorld(void) {
+        // Bullet borrows the pooled objects; detach them before their owners are destroyed.
+        while (this->world->getNumConstraints() > 0) {
+            this->world->removeConstraint(
+                this->world->getConstraint(this->world->getNumConstraints() - 1));
+        }
+        while (this->world->getNumCollisionObjects() > 0) {
+            this->world->removeCollisionObject(
+                this->world->getCollisionObjectArray()[this->world->getNumCollisionObjects() - 1]);
+        }
+    }
+
+    foundation::Option<types::PhysicsHandle> PhysicsWorld::resolve_object(
+        const types::PhysicsHandle& handle) const noexcept {
+        const auto mapped = this->handle_mapper->get(handle);
+        if (handle.type != types::PhysicsHandleType::PhysicsObject || mapped.is_none()) {
+            return {};
+        }
+        return types::PhysicsHandle(
+            mapped.unwrap().resource, types::PhysicsHandleType::PhysicsObject);
+    }
+
     foundation::VoidResult<sub_system::PhysicsError> enishi::physics::bullet3::PhysicsWorld::init(
         void) {
         auto& info = this->world->getSolverInfo();
@@ -76,6 +98,10 @@ namespace enishi::physics::bullet3 {
         }
 
         const auto fixed_step_time = this->config->get_fixed_step_time();
+        for (auto& body :
+            this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies()) {
+            body->sync_animation();
+        }
         const auto max_step = this->config->get_max_step_count();
 
         this->world->stepSimulation(
@@ -100,7 +126,12 @@ namespace enishi::physics::bullet3 {
         std::shared_ptr<sub_system::IPhysicsBoneViewList> view_list,
         std::shared_ptr<sub_system::IBoneUpdater> updater,
         std::shared_ptr<sub_system::IPhysicsBoneView> physics_bone_view) noexcept {
-        auto&& [kinematic_motion_state, active_motion_state] =
+        const auto object = this->resolve_object(object_handle);
+        if (object.is_none()) {
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Physics object is missing");
+        }
+        auto&& [active_motion_state, kinematic_motion_state] =
             PhysicsNativeResourceMaker::make_motion_state(rigid_body_description, true);
         const auto kinematic_motion_state_shared =
             std::shared_ptr<IMMDMotionState>(std::move(kinematic_motion_state));
@@ -147,7 +178,7 @@ namespace enishi::physics::bullet3 {
         const auto [rigid_body_handle, native_rigid_body] =
             rigid_body_view->emplace_native_rigid_body(std::move(rigid_body_result).unwrap_mut());
         auto opt_rigid_body = rigid_body_view->link_rigid_body(rigid_body_handle,
-            std::make_unique<BulletRigidBody>(this->resource_pool,
+            std::make_unique<BulletRigidBody>(*this->resource_pool,
                 PhysicsBoneViews{
                     .views = view_list,
                     .updater = updater,
@@ -176,15 +207,23 @@ namespace enishi::physics::bullet3 {
         this->world->addRigidBody(native_rigid_body.get(), group, mask);
 
         // オブジェクトとリンク
-        this->object_manager->link_handle(object_handle, handle);
+        auto linked = this->object_manager->link_handle(object.unwrap(), handle);
+        if (linked.is_err()) {
+            return linked.propagation(sub_system::PhysicsError::MakeError);
+        }
 
         return handle;
     }
 
     foundation::Result<types::PhysicsHandle, sub_system::PhysicsError> PhysicsWorld::add_joint(
         const types::PhysicsHandle& object_handle, const types::PhysicsJoint& joint) noexcept {
+        const auto object = this->resolve_object(object_handle);
+        if (object.is_none()) {
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Physics object is missing");
+        }
         const auto opt_rigid_body_handles =
-            this->object_manager->get_handles(object_handle, types::PhysicsHandleType::RigidBody);
+            this->object_manager->get_handles(object.unwrap(), types::PhysicsHandleType::RigidBody);
         if (opt_rigid_body_handles.is_none()) {
             return foundation::Error(sub_system::PhysicsError::MakeError);
         }
@@ -237,7 +276,10 @@ namespace enishi::physics::bullet3 {
             });
 
         // オブジェクトとリンク
-        this->object_manager->link_handle(object_handle, handle);
+        auto linked = this->object_manager->link_handle(object.unwrap(), handle);
+        if (linked.is_err()) {
+            return linked.propagation(sub_system::PhysicsError::MakeError);
+        }
 
         return handle;
     }
@@ -275,6 +317,9 @@ namespace enishi::physics::bullet3 {
     }
 
     void PhysicsWorld::apply_physics(void) {
+        if (!this->config->can_update()) {
+            return;
+        }
         const auto rigid_bodies =
             this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
         for (auto& rb : rigid_bodies) {

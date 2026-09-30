@@ -10,8 +10,13 @@ namespace enishi::animation {
     //
     class FrameConverter {
       public:
-        static AnimationClipData make_clip_data(
-            const assets_system::IBoneResolver* resolver, const assets_system::VMDData& data);
+        static AnimationClipData make_clip_data(const assets_system::IBoneResolver* resolver,
+            const assets_system::VMDData& data,
+            const assets_system::IMorphResolver* morph_resolver = nullptr);
+        [[nodiscard]] static foundation::Result<AnimationClipData, AnimationError>
+        convert_clip_data(const assets_system::IBoneResolver* bones,
+            const assets_system::IMorphResolver* morphs,
+            const assets_system::VMDData& data);
 
       private:
         static foundation::VoidResult<AnimationError> write_bone_track(
@@ -27,6 +32,6 @@ namespace enishi::animation {
         static foundation::VoidResult<AnimationError> write_ik_track(
             std::vector<IKTrack>& ik_tracks,
             const std::vector<assets_system::VMDIKKeyFrame>& ik_key_frames,
-            const assets_system::IMorphResolver* resolver);
+            const assets_system::IBoneResolver* resolver);
     };
 } // namespace enishi::animation

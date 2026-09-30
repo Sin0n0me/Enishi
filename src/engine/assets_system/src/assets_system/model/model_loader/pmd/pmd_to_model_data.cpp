@@ -1,4 +1,6 @@
 #include "pmd_to_model_data.h"
+#include "pmd_morph_converter.h"
+#include <algorithm>
 #include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/log/logger.h>
@@ -32,7 +34,10 @@ namespace enishi::assets_system {
         const auto parent_path = path.parent_path();
 
         auto [bones, bone_resolver] = PMDToModelData::make_bone(data.bones);
-        auto [morphs, morph_resolver] = PMDToModelData::make_morphs(data.morphs);
+        auto morphs = convert_pmd_morphs(data.morphs, data.vertices.size());
+        if (morphs.is_err()) {
+            return morphs.propagation(AssetError::InvalidAssetData);
+        }
         auto materials =
             PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
         auto textures = PMDToModelData::make_textures(materials, texture_loader);
@@ -45,7 +50,8 @@ namespace enishi::assets_system {
             .addons =
                 {
                     std::move(bones),
-                    std::move(morphs),
+                    std::move(morphs.unwrap_mut().legacy),
+                    std::move(morphs.unwrap_mut().targets),
                     PMDToModelData::make_iks(data.iks, &bone_resolver),
                     PMDToModelData::make_rigid_bodies(data.rigid_bodies),
                     PMDToModelData::make_joints(data.physics_joints),
@@ -68,12 +74,14 @@ namespace enishi::assets_system {
 
             // 名前の変換
             // 変換できない場合は仕方ないのでそのまま保持
-            const std::string sjis_name(src_bone.name, sizeof(src_bone.name));
+            const std::string sjis_name(std::begin(src_bone.name),
+                std::find(std::begin(src_bone.name), std::end(src_bone.name), '\0'));
             const auto utf8_name = foundation::sjis_to_utf8(sjis_name);
             if (utf8_name.is_err()) {
                 foundation::Logger::warning("utf8に変換できない文字が含まれています");
             }
             constructor.bone_names.push_back(utf8_name.unwrap_or(sjis_name));
+            model_bones[i].name = constructor.bone_names.back();
 
             // ローカル行列作成
             const glm::vec3 position = {
@@ -82,16 +90,19 @@ namespace enishi::assets_system {
                 src_bone.position[2],
             };
             const glm::mat4 translate = glm::translate(glm::mat4(1.0f), position);
+            dst_bone.global = translate;
             const auto parent_index = src_bone.parent_index;
             if (parent_index == MMD_NONE_PARENT) {
                 dst_bone.local = translate;
             } else {
-                const auto& parent = model_bones[parent_index].bind_bone;
-                dst_bone.local = translate - parent.local;
+                const auto& parent = bones[parent_index];
+                const glm::vec3 parent_position{
+                    parent.position[0], parent.position[1], parent.position[2]};
+                dst_bone.local = glm::translate(glm::mat4(1.0f), position - parent_position);
             }
         }
 
-        // 親を参照するので一度ローカル行列を全て作成してからグローバル作成
+        // PMD positions are model-space, so forward parent references need no evaluation ordering.
         for (size_t bone_index = 0; bone_index < bone_size; ++bone_index) {
             const auto& src_bone = bones[bone_index];
             auto& dst_bone = model_bones[bone_index].bind_bone;
@@ -103,10 +114,8 @@ namespace enishi::assets_system {
                 dst_bone.global = dst_bone.local;
                 bone_node.parent = types::INVALID_BONE_INDEX;
             } else {
-                auto& parent = model_bones[parent_index].bind_bone;
-                dst_bone.global = parent.global * dst_bone.local;
                 bone_node.parent = parent_index;
-                bone_node.children.emplace_back(bone_index);
+                model_bones[parent_index].bone_node.children.emplace_back(bone_index);
             }
 
             // 逆変換
@@ -216,50 +225,6 @@ namespace enishi::assets_system {
         }
 
         return ik_vec;
-    }
-
-    std::tuple<types::AddonMorphs, MorphResolver> PMDToModelData::make_morphs(
-        const std::vector<PMDMorph>& morphs) {
-        types::AddonMorphs model_morphs;
-        MorphNameMapConstructor constructor;
-        const auto size = morphs.size();
-        const auto transform = [](const PMDMorphVertex& v) {
-            return types::MorphVertex{
-                .index = v.index,
-                .offset =
-                    glm::vec3{
-                        v.position[0],
-                        v.position[1],
-                        v.position[2],
-                    },
-            };
-        };
-
-        // ベースの作成
-        model_morphs.base_vertices =
-            morphs[0].vertices | std::views::transform(transform) | std::ranges::to<std::vector>();
-
-        // indexが0はベースの頂点群なので開始は1
-        for (std::size_t i = 1; i < size; ++i) {
-            const auto& morph = morphs[i];
-
-            // 名前の変換
-            // 変換できない場合は仕方ないのでそのまま保持
-            const std::string sjis_name(morph.name, sizeof(morph.name));
-            const auto utf8_name = foundation::sjis_to_utf8(sjis_name);
-            if (utf8_name.is_err()) {
-                foundation::Logger::warning("utf8に変換できない文字が含まれています");
-            }
-            constructor.morph_names.push_back(utf8_name.unwrap_or(sjis_name));
-
-            // モーフで扱う頂点を共通の型に変換
-            const auto vertices =
-                morph.vertices | std::views::transform(transform) | std::ranges::to<std::vector>();
-
-            model_morphs.vertices.emplace_back(vertices);
-        }
-
-        return {model_morphs, MorphResolver(constructor)};
     }
 
     types::AddonPhysicsJoints PMDToModelData::make_joints(
@@ -424,6 +389,8 @@ namespace enishi::assets_system {
                 pmd_material.edge_flag != 0 ? 1.0f : 0.0f,
             });
 
+            material.outline_color = glm::vec4(0, 0, 0, 1);
+            material.outline_width = 1.0f;
             materials.emplace_back(material);
         }
 

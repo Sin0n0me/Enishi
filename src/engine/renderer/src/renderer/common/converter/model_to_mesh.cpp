@@ -1,13 +1,41 @@
 #include "model_to_mesh.h"
+#include "skinned_vertices.h"
+#include <algorithm>
+#include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
+#include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/str/string_builder.h>
 
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
 namespace enishi::renderer {
+    namespace {
+        constexpr std::uint8_t OPAQUE_WHITE = 255;
+        constexpr std::uint8_t BLACK = 0;
+
+        std::shared_ptr<types::TextureData> make_solid_texture(std::uint8_t color) {
+            constexpr std::uint32_t SINGLE_PIXEL = 1;
+            constexpr std::uint32_t RGBA_BYTES = 4;
+            auto texture = std::make_shared<types::TextureData>();
+            texture->format = types::TextureFormat::RGBA8_UNORM;
+            texture->is_cubemap = false;
+            texture->width = SINGLE_PIXEL;
+            texture->height = SINGLE_PIXEL;
+            texture->depth = SINGLE_PIXEL;
+            texture->array_size = SINGLE_PIXEL;
+            auto& mip = texture->mips.emplace_back();
+            mip.width = SINGLE_PIXEL;
+            mip.height = SINGLE_PIXEL;
+            mip.row_pitch = RGBA_BYTES;
+            mip.slice_pitch = RGBA_BYTES;
+            mip.pixels = {color, color, color, OPAQUE_WHITE};
+            return texture;
+        }
+    } // namespace
+
     template <typename T>
         requires std::is_trivially_copyable_v<T>
     void append_bytes(std::vector<std::byte>& buffer, const T& value) {
@@ -31,7 +59,7 @@ namespace enishi::renderer {
         if (uniforms.is_err()) {
             return std::move(uniforms).unwrap_err();
         }
-        auto&& materials = ModelToMesh::to_mesh_material(model_data);
+        auto&& materials = ModelToMesh::to_mesh_material(model_data, config);
         if (materials.is_err()) {
             return std::move(materials).unwrap_err();
         }
@@ -47,6 +75,21 @@ namespace enishi::renderer {
     foundation::Result<types::OwnedRenderData, RendererError> ModelToMesh::to_vertices(
         const types::ModelData& model_data) {
         std::vector<std::byte> vertices;
+
+        if (model_data.vertices.empty()) {
+            return foundation::Error(RendererError::ConvertError, "Model has no vertices");
+        }
+        const auto& attributes = model_data.vertices.front();
+        if (std::ranges::any_of(attributes, [](const auto& attribute) {
+                return std::holds_alternative<types::Skinning>(attribute) ||
+                       std::holds_alternative<types::Skinning4>(attribute);
+            })) {
+            auto converted = make_skinned_vertices(model_data);
+            if (converted.is_err()) {
+                return std::move(converted).unwrap_err();
+            }
+            return types::OwnedRenderData{converted.unwrap()};
+        }
 
         const auto append_vertex = [&vertices](const std::vector<types::VertexVariant>& vertex) {
             for (const auto& variant : vertex) {
@@ -132,11 +175,6 @@ namespace enishi::renderer {
         if (addon_result.is_err()) {
             return std::move(addon_result).unwrap_err();
         }
-        auto&& material_result =
-            ModelToMesh::to_uniforms_from_material(model_data, uniforms, config);
-        if (material_result.is_err()) {
-            return std::move(material_result).unwrap_err();
-        }
 
         return uniforms;
     }
@@ -204,36 +242,41 @@ namespace enishi::renderer {
     }
 
     foundation::VoidResult<RendererError> ModelToMesh::to_uniforms_from_material(
-        const types::ModelData& model_data, Uniforms& uniforms, const MeshConfig& config) {
+        const types::Material& material, Uniforms& uniforms, const MeshConfig& config) {
+        if (config.uniform_separator == 0) {
+            return foundation::Error(
+                RendererError::ConvertError, "Uniform alignment must be positive");
+        }
         std::vector<std::byte> uniform;
-        for (const auto& material : model_data.materials) {
+        if (material.name == types::UniformMaterial::UNIFORM_NAME) {
+            append_bytes(uniform, types::make_uniform_material(material));
+        } else {
             for (const auto& variant : material.variants) {
                 std::visit([&](const auto& data) { append_bytes(uniform, data); }, variant);
             }
-
-            // 指定のByte区切りにする
-            // 基本16ByteでDirectX12なら256バイト区切り
-            const auto stride = uniform.size();
-            const auto padding = config.uniform_separator - stride % config.uniform_separator;
-            const auto buffer_size = stride + padding;
-            if (padding != 0) {
-                uniform.resize(buffer_size);
-            }
-
-            uniforms.emplace(material.name,
-                types::OwnedRenderData{
-                    std::move(uniform),
-                    static_cast<std::uint32_t>(buffer_size),
-                });
-
-            uniform.reserve(buffer_size);
         }
+
+        // 指定のByte区切りにする
+        // 基本16ByteでDirectX12なら256バイト区切り
+        const auto stride = uniform.size();
+        const auto padding = (config.uniform_separator - stride % config.uniform_separator) %
+                             config.uniform_separator;
+        const auto buffer_size = stride + padding;
+        if (padding != 0) {
+            uniform.resize(buffer_size);
+        }
+
+        uniforms.emplace(material.name,
+            types::OwnedRenderData{
+                std::move(uniform),
+                static_cast<std::uint32_t>(buffer_size),
+            });
 
         return {};
     }
 
     foundation::Result<std::vector<types::MeshMaterial>, RendererError>
-    ModelToMesh::to_mesh_material(const types::ModelData& model_data) {
+    ModelToMesh::to_mesh_material(const types::ModelData& model_data, const MeshConfig& config) {
         std::vector<types::MeshMaterial> mesh_materials;
 
         if (model_data.materials.empty()) {
@@ -260,9 +303,16 @@ namespace enishi::renderer {
                 return std::move(textures).unwrap_err();
             }
 
+            Uniforms uniforms;
+            auto material_uniforms =
+                ModelToMesh::to_uniforms_from_material(material, uniforms, config);
+            if (material_uniforms.is_err()) {
+                return std::move(material_uniforms).unwrap_err();
+            }
             mesh_materials.emplace_back(types::MeshMaterial{
                 .draw_binding = std::move(draw_binding).unwrap_mut(),
                 .textures = std::move(textures).unwrap_mut(),
+                .uniforms = std::make_unique<Uniforms>(std::move(uniforms)),
             });
         }
 
@@ -319,8 +369,9 @@ namespace enishi::renderer {
             .parameter = types::DrawIndexedParameter{
                 .index_count = material.count,
                 .instance_count = material.instance_count,
-                .first_index = static_cast<std::int32_t>(material.first_offset),
-                .vertex_offset = offset,
+                // Material ranges partition the index buffer; indices remain model-relative.
+                .first_index = static_cast<std::int32_t>(offset),
+                .vertex_offset = 0,
                 .first_instance = material.first_instance_offset,
             }};
     }
@@ -353,6 +404,28 @@ namespace enishi::renderer {
             }
         }
 
+        if (material.name == types::UniformMaterial::UNIFORM_NAME) {
+            const auto bind_default =
+                [&](const char* texture_name, const char* sampler_name, std::uint8_t color) {
+                    if (!bind_texture_map.contains(texture_name)) {
+                        auto texture = make_solid_texture(color);
+                        bind_texture_map.emplace(texture_name, texture);
+                        bind_texture_map.try_emplace(sampler_name, std::move(texture));
+                    }
+                };
+            // Model shaders sample every slot. Neutral defaults also prevent a material
+            // without a texture from inheriting the preceding draw's texture binding.
+            bind_default(types::ModelTexture::MODEL_TEXTURE_NAME,
+                types::ModelTexture::MODEL_SAMPLER_NAME,
+                OPAQUE_WHITE);
+            bind_default(types::ModelTexture::TOON_TEXTURE_NAME,
+                types::ModelTexture::TOON_SAMPLER_NAME,
+                OPAQUE_WHITE);
+            const auto uniform = types::make_uniform_material(material);
+            bind_default(types::ModelTexture::SPHERE_TEXTURE_NAME,
+                types::ModelTexture::SPHERE_SAMPLER_NAME,
+                uniform.sphere_add.x != 0.0f ? BLACK : OPAQUE_WHITE);
+        }
         return bind_texture_map;
     }
 } // namespace enishi::renderer

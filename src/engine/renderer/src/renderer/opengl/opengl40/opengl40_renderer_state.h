@@ -35,6 +35,8 @@ namespace enishi::renderer::opengl {
         std::unordered_map<std::string, std::uint32_t> sampler_bindings;
         std::vector<std::shared_ptr<OpenGLUniformUpdater>> uniform_updaters;
         std::unordered_map<types::RenderHandle, std::vector<types::HandleId>> mesh_uniform_buffers;
+        std::unordered_map<types::RenderHandle, std::vector<std::vector<types::HandleId>>>
+            material_uniform_buffers;
         std::vector<std::uint32_t> buffers;
         std::vector<std::uint32_t> textures;
         std::vector<std::uint32_t> vertex_arrays;

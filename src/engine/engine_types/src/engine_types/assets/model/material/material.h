@@ -60,6 +60,23 @@ namespace enishi::types {
         std::filesystem::path path;
         std::string texture_target_name;
         std::string sampler_target_name;
+        enum class Blend {
+            Multiply,
+            Add,
+        };
+        enum class Coordinates {
+            UV,
+            NormalProjection,
+        };
+        Blend blend{Blend::Multiply};
+        Coordinates coordinates{Coordinates::UV};
+        std::uint32_t uv_channel{};
+    };
+
+    enum class MaterialTopology {
+        Triangles,
+        Lines,
+        Points,
     };
 
     struct Material {
@@ -70,5 +87,14 @@ namespace enishi::types {
         std::uint32_t first_instance_offset;
         std::uint32_t count; // 頂点 or インデックス
         std::uint32_t instance_count;
+        std::string display_name;
+        bool double_sided{};
+        bool cast_ground_shadow{};
+        bool cast_shadow{};
+        bool receive_shadow{};
+        glm::vec4 outline_color{};
+        float outline_width{};
+        MaterialTopology topology{MaterialTopology::Triangles};
+        bool vertex_color{};
     };
 } // namespace enishi::types

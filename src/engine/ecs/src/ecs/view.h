@@ -15,7 +15,7 @@ namespace enishi::ecs {
             const auto entities_size = entities.size();
 
             for (; this->current_id < entities_size; ++this->current_id) {
-                if (!this->has_all(entities[this->current_id])) {
+                if (this->has_all(entities[this->current_id])) {
                     break;
                 }
             }
@@ -45,7 +45,8 @@ namespace enishi::ecs {
                 return this->idx != other.idx;
             }
             Iterator& operator++(void) {
-                ++this->idx;
+                this->view.skip_invalid(this->idx + 1);
+                this->idx = this->view.current_id;
                 return *this;
             }
 

@@ -15,6 +15,7 @@ namespace enishi::types {
         using BindTextureMap = MeshResourceMap<std::shared_ptr<types::TextureData>>;
         types::DrawBinding draw_binding;
         BindTextureMap textures;
+        std::unique_ptr<MeshResourceMap<types::OwnedRenderData>> uniforms;
     };
 
     struct MeshData {

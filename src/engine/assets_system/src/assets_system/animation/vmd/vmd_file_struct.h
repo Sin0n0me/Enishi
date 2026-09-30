@@ -53,7 +53,9 @@ namespace enishi::assets_system {
         std::uint8_t flag; // IKのon/off, 0:OFF, 1:ON
     };
 
-    // 可変要素を含む
+#pragma pack(pop)
+
+    // Variable-length records are read field by field; their vectors must retain native alignment.
     struct VMDIKKeyFrame {
         std::uint32_t frame;
         std::uint8_t show_flag; //
@@ -61,5 +63,4 @@ namespace enishi::assets_system {
         std::vector<VMDIKInfo> ik_infos;
     };
 
-#pragma pack(pop)
 } // namespace enishi::assets_system
