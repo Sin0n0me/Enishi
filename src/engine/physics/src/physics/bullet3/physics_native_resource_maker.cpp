@@ -15,7 +15,7 @@ namespace enishi::physics::bullet3 {
             });
         }
         if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            return std::make_unique<btCapsuleShape>(shape->height, shape->radius);
+            return std::make_unique<btCapsuleShape>(shape->radius, shape->height);
         }
         if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
             return std::make_unique<btSphereShape>(shape->radius);
