@@ -344,8 +344,9 @@ namespace enishi::renderer {
             .parameter = types::DrawIndexedParameter{
                 .index_count = material.count,
                 .instance_count = material.instance_count,
-                .first_index = static_cast<std::int32_t>(material.first_offset),
-                .vertex_offset = offset,
+                // Material ranges partition the index buffer; indices remain model-relative.
+                .first_index = static_cast<std::int32_t>(offset),
+                .vertex_offset = 0,
                 .first_instance = material.first_instance_offset,
             }};
     }
