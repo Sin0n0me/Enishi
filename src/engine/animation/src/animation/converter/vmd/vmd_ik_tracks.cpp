@@ -8,6 +8,9 @@ namespace enishi::animation {
         std::vector<IKTrack>& tracks,
         const std::vector<assets_system::VMDIKKeyFrame>& source,
         const assets_system::IBoneResolver* resolver) {
+        if (resolver == nullptr) {
+            return foundation::Error(AnimationError::FailedConvert, "Bone resolver is missing");
+        }
         auto frames = source;
         std::stable_sort(frames.begin(), frames.end(), [](const auto& a, const auto& b) {
             return a.frame < b.frame;
