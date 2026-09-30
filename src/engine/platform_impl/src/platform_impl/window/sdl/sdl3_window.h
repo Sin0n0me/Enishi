@@ -57,5 +57,8 @@ namespace enishi::platform_impl {
         void close(void) override;
         bool should_close(void) const override;
         void poll_events(void) override;
+
+      private:
+        bool apply_shape_window(void);
     };
 } // namespace enishi::platform_impl

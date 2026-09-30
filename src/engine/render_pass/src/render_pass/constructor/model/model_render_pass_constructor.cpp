@@ -23,14 +23,35 @@ namespace enishi::render_pass {
         const platform::IWindow* window,
         const platform::IShaderDataProvider* shader_data_provider,
         std::span<platform::IRenderPass* const> dependency_render_passes) {
+        types::RenderHandle render_target;
+        for (auto& pass : dependency_render_passes) {
+            if (pass->get_name() == BackgroundRenderPassConstructor::RENDER_PASS_NAME) {
+                render_target = pass->get_render_target();
+            }
+        }
+
         return PipelineDescriptionConstructer{renderer, window}
             .add_topology(types::PrimitiveTopology::TriangleList)
             ->add_shaders(shader_data_provider, this->get_paths())
-            ->add_swap_chain_render_target_view(types::ImageFormat::BGRA8_UNORM)
+            ->add_render_target_view(render_target)
             ->add_depth_stencil_view(types::ImageFormat::D24_UNORM_S8_UINT)
             ->add_rasterizer_state(types::RasterizerStateDescription{
                 .cull_mode = types::CullMode::None,
                 .front_face = types::FrontFace::CounterClockwise,
+            })
+            ->add_depth_stencil_state(types::DepthStencilStateDescription{
+                .depth =
+                    types::DepthState{
+                        .enabled = true,
+                        .write_enabled = true,
+                        .compare_operator = types::CompareOperator::LessEqual,
+                    },
+                .stencil =
+                    types::StencilState{
+                        .enabled = false,
+                        .front = types::StencilFaceState{},
+                        .back = types::StencilFaceState{},
+                    },
             })
             ->build_render_pass(this);
     }

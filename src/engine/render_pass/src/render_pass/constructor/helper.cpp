@@ -4,7 +4,7 @@
 #include <foundation/str/string_builder.h>
 
 namespace enishi::render_pass {
-    constexpr glm::vec4 CLEAR_COLOR = glm::vec4{0.25f, 0.25f, 0.25f, 0.25f};
+    constexpr glm::vec4 CLEAR_COLOR = glm::vec4{0.0f, 0.0f, 0.0f, 0.0f};
 
     ShaderKindToData make_shader_map_presorted(
         const std::vector<platform::ShaderDataEntry>& entries) {

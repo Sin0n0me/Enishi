@@ -155,7 +155,7 @@ namespace enishi {
         auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
         auto result_renderer = initializer.init(std::move(context.unwrap_mut()));
 #else
-        auto initializer = renderer::directx::D3D11RenderInitializer{};
+        auto initializer = renderer::directx::D3D11RenderInitializer{true};
         auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
 #endif
         if (result_renderer.is_err()) {
@@ -190,9 +190,9 @@ namespace enishi {
         // レンダーパスの作成
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ModelRenderPassConstructor>());
-        /*
         this->orchestra->add_constructor(
             std::make_shared<render_pass::BackgroundRenderPassConstructor>());
+        /*
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
         */
@@ -206,7 +206,7 @@ namespace enishi {
         // レンダーパスのセット
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
-            // render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
+            render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
             //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
         });
         render_system->set_render_passes(this->orchestra->get_passes());

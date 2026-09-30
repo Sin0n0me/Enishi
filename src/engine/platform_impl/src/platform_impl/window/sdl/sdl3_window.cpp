@@ -64,7 +64,8 @@ namespace enishi::platform_impl {
                 size.width,
                 size.height,
                 //  SDL_WINDOW_ALWAYS_ON_TOP |
-                SDL_WINDOW_BORDERLESS | SDL3Window::get_flag_from_graphics_api(graphics_api)));
+                SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
+                    SDL3Window::get_flag_from_graphics_api(graphics_api)));
         }())
         , is_closing(false)
         , size()
@@ -91,6 +92,10 @@ namespace enishi::platform_impl {
 
         // ヒットテストのコールバックを登録
         if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, nullptr)) {
+            return foundation::Error(platform::WindowError::InitError);
+        }
+
+        if (!this->apply_shape_window()) {
             return foundation::Error(platform::WindowError::InitError);
         }
 
@@ -316,5 +321,54 @@ namespace enishi::platform_impl {
         io.AddKeyEvent(ImGuiKey::ImGuiKey_LeftShift, (mod & SDL_KMOD_SHIFT) != 0);
         io.AddKeyEvent(ImGuiKey::ImGuiMod_Alt, (mod & SDL_KMOD_ALT) != 0);
         */
+    }
+
+    // 透過用設定
+    bool enishi::platform_impl::SDL3Window::apply_shape_window(void) {
+        const auto opt_size = this->get_size();
+        if (opt_size.is_none()) {
+            return false;
+        }
+        auto&& window_size = opt_size.unwrap();
+
+        return true;
+
+        SDL_Surface* shape =
+            SDL_CreateSurface(window_size.width, window_size.height, SDL_PIXELFORMAT_RGBA32);
+
+        if (shape == nullptr) {
+            SDL_Log("SDL_CreateSurface failed: %s", SDL_GetError());
+            return false;
+        }
+
+        // ウィンドウ全体を完全透明にする
+        const Uint32 transparentColor = SDL_MapSurfaceRGBA(shape, 0, 0, 0, 30);
+
+        if (!SDL_FillSurfaceRect(shape, nullptr, transparentColor)) {
+            foundation::Logger::error(
+                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            SDL_DestroySurface(shape);
+            return false;
+        }
+
+        // この領域だけクリック可能にする
+        const SDL_Rect interactiveRect{100, 100, 300, 300};
+        const Uint32 opaqueColor = SDL_MapSurfaceRGBA(shape, 255, 255, 255, 0);
+
+        if (!SDL_FillSurfaceRect(shape, &interactiveRect, opaqueColor)) {
+            foundation::Logger::error(
+                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            SDL_DestroySurface(shape);
+            return false;
+        }
+
+        const bool result = SDL_SetWindowShape(this->window.get(), shape);
+        if (!result) {
+            foundation::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
+        }
+
+        SDL_DestroySurface(shape);
+
+        return true;
     }
 } // namespace enishi::platform_impl
