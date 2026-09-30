@@ -1,6 +1,7 @@
 #include "model_to_mesh.h"
 #include "skinned_vertices.h"
 #include <algorithm>
+#include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
@@ -11,6 +12,30 @@
 #include <glm/ext/matrix_transform.hpp>
 
 namespace enishi::renderer {
+    namespace {
+        constexpr std::uint8_t OPAQUE_WHITE = 255;
+        constexpr std::uint8_t BLACK = 0;
+
+        std::shared_ptr<types::TextureData> make_solid_texture(std::uint8_t color) {
+            constexpr std::uint32_t SINGLE_PIXEL = 1;
+            constexpr std::uint32_t RGBA_BYTES = 4;
+            auto texture = std::make_shared<types::TextureData>();
+            texture->format = types::TextureFormat::RGBA8_UNORM;
+            texture->is_cubemap = false;
+            texture->width = SINGLE_PIXEL;
+            texture->height = SINGLE_PIXEL;
+            texture->depth = SINGLE_PIXEL;
+            texture->array_size = SINGLE_PIXEL;
+            auto& mip = texture->mips.emplace_back();
+            mip.width = SINGLE_PIXEL;
+            mip.height = SINGLE_PIXEL;
+            mip.row_pitch = RGBA_BYTES;
+            mip.slice_pitch = RGBA_BYTES;
+            mip.pixels = {color, color, color, OPAQUE_WHITE};
+            return texture;
+        }
+    } // namespace
+
     template <typename T>
         requires std::is_trivially_copyable_v<T>
     void append_bytes(std::vector<std::byte>& buffer, const T& value) {
@@ -379,6 +404,28 @@ namespace enishi::renderer {
             }
         }
 
+        if (material.name == types::UniformMaterial::UNIFORM_NAME) {
+            const auto bind_default =
+                [&](const char* texture_name, const char* sampler_name, std::uint8_t color) {
+                    if (!bind_texture_map.contains(texture_name)) {
+                        auto texture = make_solid_texture(color);
+                        bind_texture_map.emplace(texture_name, texture);
+                        bind_texture_map.try_emplace(sampler_name, std::move(texture));
+                    }
+                };
+            // Model shaders sample every slot. Neutral defaults also prevent a material
+            // without a texture from inheriting the preceding draw's texture binding.
+            bind_default(types::ModelTexture::MODEL_TEXTURE_NAME,
+                types::ModelTexture::MODEL_SAMPLER_NAME,
+                OPAQUE_WHITE);
+            bind_default(types::ModelTexture::TOON_TEXTURE_NAME,
+                types::ModelTexture::TOON_SAMPLER_NAME,
+                OPAQUE_WHITE);
+            const auto uniform = types::make_uniform_material(material);
+            bind_default(types::ModelTexture::SPHERE_TEXTURE_NAME,
+                types::ModelTexture::SPHERE_SAMPLER_NAME,
+                uniform.sphere_add.x != 0.0f ? BLACK : OPAQUE_WHITE);
+        }
         return bind_texture_map;
     }
 } // namespace enishi::renderer
