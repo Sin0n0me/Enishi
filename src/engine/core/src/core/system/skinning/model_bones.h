@@ -31,6 +31,7 @@ namespace enishi::core {
         std::vector<types::BoneConstraint> constraints;
         std::vector<BoneMorphDelta> morph_delta;
         std::vector<bool> physics_driven;
+        std::vector<bool> physics_rotation_only;
         bool pending_after_physics{};
 
         ModelBones(void) = default;

@@ -31,11 +31,14 @@ namespace enishi::core {
             }
 
             bones.physics_driven.resize(model.bone_node.size(), false);
+            bones.physics_rotation_only.resize(model.bone_node.size(), false);
             if (physics_bodies.is_some()) {
                 for (const auto& body : physics_bodies.unwrap().rigid_bodies) {
                     if (body.relate_bone_index < bones.physics_driven.size() &&
                         body.kind != types::RigidBodyKind::Kinematic) {
                         bones.physics_driven[body.relate_bone_index] = true;
+                        bones.physics_rotation_only[body.relate_bone_index] =
+                            body.kind == types::RigidBodyKind::DynamicAdjustBone;
                     }
                 }
             }
@@ -62,11 +65,19 @@ namespace enishi::core {
         const auto update =
             [&](auto&& self, types::BoneIndex index, const glm::mat4& parent) -> void {
             auto* view = bones.ik_cache->at(index);
-            const auto global = bones.physics_driven[index]
-                                    ? bones.physics_cache->at(index)->get_physics_global()
-                                    : bones.external_transforms[index] * parent *
-                                          bones.ik_base_local[index] *
-                                          glm::mat4_cast(view->get_ik_rotation());
+            auto global = bones.physics_driven[index]
+                              ? bones.physics_cache->at(index)->get_physics_global()
+                              : bones.external_transforms[index] * parent *
+                                    bones.ik_base_local[index] *
+                                    glm::mat4_cast(view->get_ik_rotation());
+            if (bones.physics_driven[index] && bones.physics_rotation_only[index]) {
+                // Keep the animated local translation attached to the simulated parent:
+                // p_global = external * parent_global * local * (0, 0, 0, 1).
+                // The rotation still comes from the rigid body with its offset removed.
+                constexpr glm::length_t TRANSLATION_COLUMN = 3;
+                global[TRANSLATION_COLUMN] = (bones.external_transforms[index] * parent *
+                                              bones.ik_base_local[index])[TRANSLATION_COLUMN];
+            }
             view->set_ik_global_transform(global);
             for (const auto child : nodes[index].children) {
                 self(self, child, global);
