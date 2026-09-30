@@ -1,4 +1,6 @@
 #pragma once
+#include <core/system/animation/bone_morph.h>
+#include <engine_types/assets/model/addons/bone_constraints.h>
 #include <memory>
 #include <skinning_system/cache/animation_bone_cache.h>
 #include <skinning_system/cache/bind_bone_cache.h>
@@ -23,6 +25,14 @@ namespace enishi::core {
         std::unique_ptr<skinning_system::AnimationBonesUpdater> animation_updater;
         std::shared_ptr<skinning_system::PhysicsBonesUpdater> physics_updater;
         std::unique_ptr<skinning_system::IKBonesUpdater> ik_updater;
+        std::vector<glm::mat4> ik_base_local;
+        std::vector<glm::mat4> external_transforms;
+        std::vector<types::BoneIndex> evaluation_order;
+        std::vector<types::BoneConstraint> constraints;
+        std::vector<BoneMorphDelta> morph_delta;
+        std::vector<bool> physics_driven;
+        std::vector<bool> physics_rotation_only;
+        bool pending_after_physics{};
 
         ModelBones(void) = default;
 

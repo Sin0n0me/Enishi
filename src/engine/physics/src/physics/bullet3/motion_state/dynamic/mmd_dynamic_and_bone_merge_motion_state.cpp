@@ -28,6 +28,7 @@ namespace enishi::physics::bullet3 {
 
     void MMDDynamicAndBoneMergeMotionState::reset(sub_system::IPhysicsBoneView* const
             physics_bone) { // mmdの世界からbulletの世界に変換しオフセット適用
+        this->global = physics_bone->get_physics_global();
         const auto offset_matrix = this->global * this->offset;
         this->transform = BulletConverter::matrix_to_transform(inverse_z(offset_matrix));
     }
@@ -51,10 +52,10 @@ namespace enishi::physics::bullet3 {
             inverse_z(BulletConverter::transform_to_matrix(this->transform)) * this->inverse_offset;
 
         // Position
-        const auto position_index = 0;
-        global[position_index] = physics_bone->get_physics_global()[position_index];
+        constexpr glm::length_t TRANSLATION_COLUMN = 3;
+        global[TRANSLATION_COLUMN] = physics_bone->get_physics_global()[TRANSLATION_COLUMN];
 
         physics_bone->set_physics_global(std::move(global));
-        bone_updater->update_children_global(this->index);
+        // Rebuild descendants after all bodies have supplied their global transforms.
     }
 } // namespace enishi::physics::bullet3

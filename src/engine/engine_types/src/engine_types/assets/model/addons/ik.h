@@ -23,12 +23,19 @@ namespace enishi::types {
 
     using IkLimit = std::variant<IKLimitAngle, IKLimitAxis>;
 
+    struct IKLinkLimit {
+        bool enabled{};
+        glm::vec3 lower{}; // Local Euler angles in radians, aligned with CCDIK::chain.
+        glm::vec3 upper{};
+    };
+
     struct CCDIK {
         std::uint32_t iterations;
         BoneIndex target;
         BoneIndex ik_bone;
         std::vector<BoneIndex> chain;
         IkLimit limit;
+        std::vector<IKLinkLimit> link_limits;
     };
 
     using IkMethod = std::variant<CCDIK>;

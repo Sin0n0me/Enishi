@@ -32,6 +32,9 @@ namespace enishi::animation {
             const std::uint32_t next_index =
                 static_cast<std::uint32_t>(it - keyframes.times.begin());
             const std::uint32_t prev_index = next_index - 1;
+            if (keyframes.times[next_index] == time) {
+                return keyframes.values[next_index];
+            }
 
             const float prev_time = keyframes.times[prev_index];
             const float next_time = keyframes.times[next_index];

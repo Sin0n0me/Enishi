@@ -6,9 +6,9 @@
 
 namespace enishi::component {
     struct AnimationBuffer {
-        glm::vec3 position;
-        glm::vec3 scale;
-        glm::quat rotation;
+        glm::vec3 position{};
+        glm::vec3 scale{1.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
     };
 
     using BufferIndex = std::uint32_t;
@@ -20,6 +20,7 @@ namespace enishi::component {
     struct AnimationComponent {
         std::vector<AnimationBuffer> animation;
         std::vector<glm::mat4> global;
-        float elapsed_time; // 経過時間
+        float elapsed_time{}; // 経過時間
+        std::vector<AnimationBuffer> bind_pose;
     };
 } // namespace enishi::component

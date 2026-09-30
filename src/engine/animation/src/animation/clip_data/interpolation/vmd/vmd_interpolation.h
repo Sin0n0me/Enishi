@@ -10,13 +10,13 @@ namespace enishi::animation {
         template <typename T>
         [[nodiscard]] static T sample_vmd_bezier(
             const Keyframes<T>& keyframes, const std::uint32_t prev_index, const float u) {
-            const auto& bezier = std::get<VMDAnimationBezier>(keyframes.interpolation[prev_index]);
-            if constexpr (std::is_same_v<T, glm::vec3>) {
-                return VMDInterpolation::lerp(bezier,
-                    keyframes.values[prev_index],
-                    keyframes.values[prev_index + 1],
-                    u);
+            if constexpr (std::is_same_v<T, float>) {
+                return LinearInterpolation::lerp(
+                    keyframes.values[prev_index], keyframes.values[prev_index + 1], u);
             } else {
+                // VMD stores the curve for an interval on its destination key.
+                const auto& bezier =
+                    std::get<VMDAnimationBezier>(keyframes.interpolation[prev_index + 1]);
                 return VMDInterpolation::lerp(bezier,
                     keyframes.values[prev_index],
                     keyframes.values[prev_index + 1],

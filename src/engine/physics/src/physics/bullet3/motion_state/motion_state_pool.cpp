@@ -33,7 +33,7 @@ namespace enishi::physics::bullet3 {
 
     foundation::Option<MotionStatePool::MotionState&> MotionStatePool::link_motion_state(
         const types::HandleId handle, MotionState&& motion_state) noexcept {
-        if (this->handle_mapper.contains(handle)) {
+        if (!this->handle_mapper.contains(handle)) {
             return {};
         }
 

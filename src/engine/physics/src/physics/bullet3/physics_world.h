@@ -25,6 +25,7 @@ namespace enishi::physics::bullet3 {
 
       public:
         explicit PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config);
+        ~PhysicsWorld(void) override;
 
         foundation::VoidResult<sub_system::PhysicsError> init(void) override;
 
@@ -45,8 +46,14 @@ namespace enishi::physics::bullet3 {
 
         void reset_physics(sub_system::IBoneUpdater* const updater) override;
         void apply_physics(void) override;
+        foundation::Result<void, sub_system::PhysicsError> apply_impulse(
+            const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) override;
 
         sub_system::IPhysicsWorldConfigWriter* get_config_writer(void) noexcept override;
         const sub_system::IPhysicsWorldConfigReader* get_config_reader(void) const noexcept override;
+
+      private:
+        foundation::Option<types::PhysicsHandle> resolve_object(
+            const types::PhysicsHandle& handle) const noexcept;
     };
 } // namespace enishi::physics::bullet3

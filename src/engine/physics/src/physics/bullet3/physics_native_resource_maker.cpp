@@ -15,7 +15,7 @@ namespace enishi::physics::bullet3 {
             });
         }
         if (auto shape = std::get_if<types::RBShapeCapsule>(&rb.shape)) {
-            return std::make_unique<btCapsuleShape>(shape->height, shape->radius);
+            return std::make_unique<btCapsuleShape>(shape->radius, shape->height);
         }
         if (auto shape = std::get_if<types::RBShapeSphere>(&rb.shape)) {
             return std::make_unique<btSphereShape>(shape->radius);
@@ -32,6 +32,7 @@ namespace enishi::physics::bullet3 {
         MotionState kinematic_motion_state;
         switch (rigid_body.kind) {
             case types::RigidBodyKind::Kinematic: {
+                active_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
                 kinematic_motion_state = std::make_unique<MMDKinematicMotionState>(offset);
             } break;
             case types::RigidBodyKind::Dynamic: {
@@ -94,7 +95,9 @@ namespace enishi::physics::bullet3 {
         btRigidBody* const rigid_body_a,
         btRigidBody* const rigid_body_b) {
         btMatrix3x3 rotate_matrix;
-        rotate_matrix.setEulerZYX(joint.rotation.x, joint.rotation.y, joint.rotation.z);
+        // Z reflection H = diag(1, 1, -1) gives R_bullet = H * R * H:
+        // Euler angles (x, y, z) become (-x, -y, z).
+        rotate_matrix.setEulerZYX(-joint.rotation.x, -joint.rotation.y, joint.rotation.z);
 
         btTransform transform;
         transform.setIdentity();
@@ -120,18 +123,20 @@ namespace enishi::physics::bullet3 {
 
     foundation::VoidResult<PhysicsError> PhysicsNativeResourceMaker::set_joint(
         btGeneric6DofSpringConstraint* const constraint, const types::PhysicsJoint& joint) {
+        // Under Z reflection, translation becomes (x, y, -z) and rotation
+        // becomes (-x, -y, z). Negated intervals map [min, max] to [-max, -min].
         constraint->setLinearLowerLimit(btVector3(joint.constrain_position_min[0],
             joint.constrain_position_min[1],
-            joint.constrain_position_min[2]));
+            -joint.constrain_position_max[2]));
         constraint->setLinearUpperLimit(btVector3(joint.constrain_position_max[0],
             joint.constrain_position_max[1],
-            joint.constrain_position_max[2]));
+            -joint.constrain_position_min[2]));
 
-        constraint->setAngularLowerLimit(btVector3(joint.constrain_rotation_min[0],
-            joint.constrain_rotation_min[1],
+        constraint->setAngularLowerLimit(btVector3(-joint.constrain_rotation_max[0],
+            -joint.constrain_rotation_max[1],
             joint.constrain_rotation_min[2]));
-        constraint->setAngularUpperLimit(btVector3(joint.constrain_rotation_max[0],
-            joint.constrain_rotation_max[1],
+        constraint->setAngularUpperLimit(btVector3(-joint.constrain_rotation_min[0],
+            -joint.constrain_rotation_min[1],
             joint.constrain_rotation_max[2]));
 
         if (joint.spring_position[0] != 0) {
@@ -144,7 +149,8 @@ namespace enishi::physics::bullet3 {
         }
         if (joint.spring_position[2] != 0) {
             constraint->enableSpring(2, true);
-            constraint->setStiffness(2, -joint.spring_position[2]); // Bulletに合わせる
+            // F = -k*x remains F' = -k*x' after reflection; k keeps its sign.
+            constraint->setStiffness(2, joint.spring_position[2]);
         }
         if (joint.spring_rotation[0] != 0) {
             constraint->enableSpring(3, true);

@@ -1,11 +1,16 @@
 #include "skinning_system.h"
+#include "bone_inheritance.h"
 #include "bone_view_factory.h"
 #include <component/animation_component.h>
 #include <component/ik_component.h>
+#include <component/morph_component.h>
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/physics/physics_body_factory.h>
+#include <foundation/log/logger.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
+#include <numeric>
 #include <utility>
 
 namespace enishi::core {
@@ -33,6 +38,28 @@ namespace enishi::core {
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
+            bones.pending_after_physics = false;
+            for (std::size_t index = 0; index < bones.external_transforms.size(); ++index) {
+                bones.external_transforms[index] = glm::mat4(1);
+                const auto slot = bones.constraints[index].external_transform_slot;
+                if (slot.has_value()) {
+                    const auto found = model.external_transforms.find(*slot);
+                    if (found != model.external_transforms.end()) {
+                        bones.external_transforms[index] = found->second;
+                    }
+                }
+            }
+            bones.morph_delta.clear();
+            const auto morph = this->registry->get<component::MorphComponent>(entity);
+            if (morph.is_some()) {
+                auto deltas = evaluate_bone_morphs(
+                    model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
+                if (deltas.is_err()) {
+                    foundation::Logger::warning(deltas.unwrap_err().get_message());
+                    continue;
+                }
+                bones.morph_delta = std::move(deltas).unwrap();
+            }
 
             // モデルごとに順序を変えられるようにする。指定が無ければ既定順序を使う
             const std::span<const types::SkinningCommand> order =
@@ -46,6 +73,10 @@ namespace enishi::core {
 
             // Skinning行列の確定は順序に関わらず、全ステップの後に必ず行う
             this->write_skinning_matrices(animation, model, skinning);
+            bones.pending_after_physics = true;
+        }
+        if (this->physics_engine == nullptr) {
+            this->update_after_physics();
         }
     }
 
@@ -79,38 +110,30 @@ namespace enishi::core {
 
         // IKComponentを持たないモデルもある
         if (ik.is_some()) {
+            bones->ik_base_local.resize(model.bone_node.size());
+            bones->external_transforms.resize(model.bone_node.size(), glm::mat4(1));
+            bones->constraints.resize(model.bone_node.size());
+            for (const auto& constraint : model.bone_constraints.constraints) {
+                if (constraint.bone < bones->constraints.size()) {
+                    bones->constraints[constraint.bone] = constraint;
+                }
+            }
+            bones->evaluation_order = model.evaluation_order;
+            if (bones->evaluation_order.empty()) {
+                bones->evaluation_order.resize(model.bone_node.size());
+                std::iota(bones->evaluation_order.begin(),
+                    bones->evaluation_order.end(),
+                    types::BoneIndex{});
+            }
             bones->ik_cache = std::make_unique<skinning_system::IKBoneCache>(
                 model.bone_node, BoneViewFactory::make_ik_view(ik.unwrap_mut()));
-            bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(
-                *bones->ik_cache, *bones->bind_cache);
+            bones->ik_updater = std::make_unique<skinning_system::IKBonesUpdater>(*bones->ik_cache,
+                *bones->bind_cache,
+                bones->ik_base_local,
+                bones->external_transforms);
         }
 
-        // PhysicsComponentを持たないモデルもある
-        if (physics.is_some()) {
-            auto views = BoneViewFactory::to_shared_views(
-                BoneViewFactory::make_physics_view(physics.unwrap_mut()));
-
-            bones->physics_cache = std::make_shared<skinning_system::PhysicsBonesCache>(
-                model.bone_node, std::move(views));
-            bones->physics_updater =
-                std::make_shared<skinning_system::PhysicsBonesUpdater>(*bones->physics_cache);
-
-            // 剛体を生成する前に、物理用ボーンを現在のアニメーション姿勢で初期化する。
-            // これにより Bullet 側の初期剛体座標がモデルのボーン座標と一致する。
-            const auto bone_count = bones->physics_cache->size();
-            for (types::BoneIndex i = 0; i < bone_count; ++i) {
-                bones->physics_cache->at(i)->set_physics_global(
-                    bones->animation_cache->at(i)->get_animation_global_transform());
-            }
-            bones->physics_updater->update_global_form_roots();
-
-            if (physics_bodies.is_some()) {
-                PhysicsBodyFactory::build(*this->physics_engine->get_world(),
-                    physics_bodies.unwrap_mut(),
-                    bones->physics_cache,
-                    bones->physics_updater);
-            }
-        }
+        this->build_physics(*bones, model, physics, physics_bodies);
 
         auto& ref = *bones;
         this->model_bones.emplace(entity, std::move(bones));
@@ -119,14 +142,57 @@ namespace enishi::core {
 
     void SkinningSystem::solve_ik(
         ModelBones& bones, foundation::Option<component::IKComponent&> opt_ik) const noexcept {
-        if (bones.ik_cache || bones.ik_updater || opt_ik.is_none()) {
+        if (bones.ik_cache == nullptr || bones.ik_updater == nullptr || opt_ik.is_none()) {
+            return;
+        }
+
+        // Start each frame from animation, not the previous frame's IK correction.
+        for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
+            bones.ik_base_local[index] =
+                bones.animation_cache->at(index)->get_animation_local_transform();
+            if (index < bones.morph_delta.size()) {
+                const auto* pose = bones.animation_cache->at(index);
+                const auto& delta = bones.morph_delta[index];
+                bones.ik_base_local[index] =
+                    glm::translate(
+                        glm::mat4(1), pose->get_animation_translation() + delta.translation) *
+                    glm::mat4_cast(pose->get_animation_rotation() * delta.rotation) *
+                    glm::scale(glm::mat4(1), pose->get_animation_scale());
+            }
+            bones.ik_cache->at(index)->set_ik_rotation(glm::quat(1, 0, 0, 0));
+        }
+        bones.ik_updater->update_global_form_roots();
+        this->evaluate_bone_phase(bones, opt_ik, false);
+    }
+
+    void SkinningSystem::evaluate_bone_phase(ModelBones& bones,
+        foundation::Option<component::IKComponent&> opt_ik,
+        bool after_physics) const noexcept {
+        if (bones.ik_cache == nullptr || opt_ik.is_none()) {
             return;
         }
         const auto& ik = opt_ik.unwrap();
-
-        for (const auto& [bone_index, ik_index] : ik.ik_map) {
-            ik::IKSolver::apply_ik(
-                ik.iks[ik_index], bones.ik_cache.get(), bones.ik_updater.get(), bone_index);
+        for (const auto bone_index : bones.evaluation_order) {
+            if (bones.constraints[bone_index].after_physics != after_physics) {
+                continue;
+            }
+            apply_bone_inheritance(bones, bone_index);
+            if (ik.disabled_bones.contains(bone_index)) {
+                continue;
+            }
+            const auto found = ik.ik_map.find(bone_index);
+            if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
+                continue;
+            }
+            ik::IKSolver::apply_ik(ik.iks[found->second],
+                bones.ik_cache.get(),
+                bones.ik_updater.get(),
+                bone_index,
+                bones.ik_base_local);
+        }
+        for (types::BoneIndex index = 0; index < bones.ik_cache->size(); ++index) {
+            bones.animation_cache->at(index)->set_animation_global_transform(
+                bones.ik_cache->at(index)->get_ik_global_transform());
         }
     }
 
@@ -143,25 +209,19 @@ namespace enishi::core {
                 break;
 
             case types::SkinningCommand::PhysicsSimulate:
-                if (bones.physics_cache && bones.animation_cache) {
-                    const auto bone_count = bones.physics_cache->size();
-                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
-                        auto* const physics_view = bones.physics_cache->at(i);
-                        auto* const animation_view = bones.animation_cache->at(i);
-                        animation_view->set_animation_global_transform(
-                            physics_view->get_physics_global());
-                    }
-                }
+                this->import_physics_pose(bones);
                 break;
 
             case types::SkinningCommand::WriteBackPhysicsSimulate:
-                if (bones.physics_cache && bones.animation_cache) {
+                if (bones.physics_cache != nullptr && bones.animation_cache != nullptr) {
                     const auto bone_count = bones.physics_cache->size();
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         auto* const animation_view = bones.animation_cache->at(i);
                         auto* const physics_view = bones.physics_cache->at(i);
                         physics_view->set_physics_global(
                             animation_view->get_animation_global_transform());
+                    }
+                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         bones.physics_updater->update_local(i);
                     }
                 }

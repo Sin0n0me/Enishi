@@ -3,10 +3,14 @@
 #include <glm/gtc/quaternion.hpp>
 
 namespace enishi::skinning_system {
-    IKBonesUpdater::IKBonesUpdater(
-        IKBoneCache& ik_view, const sub_system::IBindBoneViewList& bind_view) noexcept
+    IKBonesUpdater::IKBonesUpdater(IKBoneCache& ik_view,
+        const sub_system::IBindBoneViewList& bind_view,
+        std::span<const glm::mat4> animation_local,
+        std::span<const glm::mat4> external_transforms) noexcept
         : ik_view(&ik_view)
-        , bind_view(&bind_view) {
+        , bind_view(&bind_view)
+        , animation_local(animation_local)
+        , external_transforms(external_transforms) {
     }
 
     std::span<const types::BoneNode> IKBonesUpdater::bone_nodes(void) const noexcept {
@@ -18,31 +22,31 @@ namespace enishi::skinning_system {
     }
 
     void IKBonesUpdater::update_global(const types::BoneIndex index) noexcept {
-        if (this->bone_nodes().size() <= index) {
+        if (!(index < this->bone_nodes().size())) {
             return;
         }
         auto* const view = this->ik_view->at(index);
-        const auto& bind = this->bind_view->at(index);
-
-        // pivotはバインドポーズのローカル位置(不変)を使う
-        const auto bind_local_translation = glm::vec3(bind->get_bind_local()[3]);
-        const auto local = glm::translate(glm::mat4(1.0f), bind_local_translation) *
-                           glm::mat4_cast(view->get_ik_rotation());
+        const auto base = this->animation_local.empty()
+                              ? this->bind_view->at(index)->get_bind_local()
+                              : this->animation_local[index];
+        const auto local = base * glm::mat4_cast(view->get_ik_rotation());
+        const auto external =
+            this->external_transforms.empty() ? glm::mat4(1) : this->external_transforms[index];
 
         const auto& bone_node = this->bone_nodes()[index];
         if (bone_node.has_parent()) {
             auto* const parent_view = this->ik_view->at(bone_node.parent);
             const auto parent_global = parent_view->get_ik_global_transform();
-            view->set_ik_global_transform(parent_global * local);
+            view->set_ik_global_transform(external * parent_global * local);
         } else {
-            view->set_ik_global_transform(local);
+            view->set_ik_global_transform(external * local);
         }
 
         this->update_children_global(index);
     }
 
     void IKBonesUpdater::update_children_global(const types::BoneIndex index) noexcept {
-        if (this->bone_nodes().size() + 1 < index) {
+        if (!(index < this->bone_nodes().size())) {
             return;
         }
         for (const auto& child : this->bone_nodes()[index].children) {

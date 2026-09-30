@@ -1,8 +1,9 @@
 #pragma once
 #include "model_controller.h"
+#include "model_component_builder.h"
+#include <algorithm>
 #include <foundation/log/logger.h>
 #include <foundation/path/path_utility.h>
-#include <algorithm>
 #include <regex>
 #include <variant>
 
@@ -59,9 +60,10 @@ namespace enishi::model_controller {
         const auto& model_handle = load_result.unwrap();
 
         // 描画データへの変換はModelRenderDataBuilderの責務
-        auto build_result = this->builder->build(model_handle, shader_reflections);
+        auto build_result = this->builder->build(model_handle, shader_reflections)
+                                .add_message("描画データの作成に失敗しました");
         if (build_result.is_err()) {
-            return foundation::Error(ControlError::BuildFailed, "描画データの作成に失敗しました");
+            return build_result.propagation(ControlError::BuildFailed);
         }
 
         const auto model_data = this->asset_system->get_asset<types::AssetModelData>(model_handle);
@@ -69,25 +71,7 @@ namespace enishi::model_controller {
             return foundation::Error(ControlError::LoadFailed);
         }
 
-        auto model_component = component::ModelComponent{
-            .render_handle = build_result.unwrap(),
-        };
-        for (const auto& addon : model_data.unwrap()->addons) {
-            const auto* const bones = std::get_if<types::AddonBones>(&addon);
-            if (!bones) {
-                continue;
-            }
-
-            model_component.bone_node.reserve(bones->size());
-            model_component.bind_bone.reserve(bones->size());
-            for (const auto& bone : *bones) {
-                model_component.bone_node.emplace_back(bone.bone_node);
-                model_component.bind_bone.emplace_back(bone.bind_bone);
-            }
-            break;
-        }
-
-        return model_component;
+        return make_model_component(*model_data.unwrap(), build_result.unwrap());
     }
 
     void make_wall(void) {

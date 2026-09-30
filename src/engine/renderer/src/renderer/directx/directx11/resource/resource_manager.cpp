@@ -9,6 +9,8 @@
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <ranges>
+#include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/vertex_buffer_updater.h>
 
 namespace enishi::renderer::directx {
     ResourceManager::ResourceManager(std::shared_ptr<ID3D11Context> context)
@@ -78,11 +80,23 @@ namespace enishi::renderer::directx {
         const auto& reflection = opt_refection.unwrap();
         const auto input_layouts = reflection->get_shader_input_reflection()
                                        ->get_input_layouts(); // 保持しなければ名前が消える
-        const auto input_elements = input_layouts |
-                                    std::views::transform([](const types::ShaderInputLayout& info) {
-                                        return D3D11Converter::to_input_element_description(info);
-                                    }) |
-                                    std::ranges::to<std::vector>();
+        auto input_elements = input_layouts |
+                              std::views::transform([](const types::ShaderInputLayout& info) {
+                                  return D3D11Converter::to_input_element_description(info);
+                              }) |
+                              std::ranges::to<std::vector>();
+
+        // Reflection may omit unused model attributes in edge and shadow passes.
+        // Their byte offsets still refer to the same complete vertex buffer.
+        if (std::ranges::any_of(
+                input_layouts, [](const auto& input) { return input.name == "BONEWEIGHTS"; })) {
+            for (auto& element : input_elements) {
+                const auto offset = skinned_vertex_offset(element.SemanticName);
+                if (offset.has_value()) {
+                    element.AlignedByteOffset = *offset;
+                }
+            }
+        }
 
         const auto [resource_handle, input_layout] =
             this->native_resource->get_native_input_layout_accessor()->make_native_input_layout();
@@ -116,6 +130,33 @@ namespace enishi::renderer::directx {
                 return std::move(result);
             }
             mesh.mesh_handles.emplace_back(result.unwrap());
+            const auto mapped = this->handle_mapper->get(result.unwrap()).unwrap();
+            const auto native = this->native_resource->get_native_buffer_accessor()
+                                    ->get_native_buffer(mapped.resource)
+                                    .unwrap();
+            const auto context = this->context->get_context();
+            const auto [position_handle, position_buffer] =
+                this->native_resource->get_buffer_accessor()->make_buffer();
+            position_buffer = std::make_shared<VertexBufferUpdater>(std::move(mesh_data.vertices),
+                [context, native](const types::RenderData& vertices) {
+                    constexpr UINT SUBRESOURCE = 0;
+                    constexpr UINT MAP_FLAGS = 0;
+                    D3D11_MAPPED_SUBRESOURCE mapped_data{};
+                    const auto result = context->Map(native.Get(),
+                        SUBRESOURCE,
+                        D3D11_MAP_WRITE_DISCARD,
+                        MAP_FLAGS,
+                        &mapped_data);
+                    if (FAILED(result)) {
+                        foundation::Logger::error("Failed to map morph vertex buffer");
+                        return;
+                    }
+                    std::memcpy(mapped_data.pData, vertices.raw_data(), vertices.byte_width());
+                    context->Unmap(native.Get(), SUBRESOURCE);
+                });
+            mesh.positions = types::MeshHandles::PositionStream{
+                position_handle, offsetof(SkinnedVertex, position)};
+            mesh.uvs = skinned_uv_streams(position_handle);
         }
 
         // インデックスバッファ作成
@@ -141,7 +182,9 @@ namespace enishi::renderer::directx {
         // 定数バッファやサンプラーなどのバインド位置を取得
         auto&& result = this->resolve_mesh_binding(std::move(mesh_data),
                                 this->get_shader_reflections(shader_reflections),
-                                std::move(mapped_index_buffer))
+                                std::move(mapped_index_buffer),
+                                mesh.uniform_buffers,
+                                mesh.material_uniform_buffers)
                             .add_message("バインド情報の取得に失敗しました");
         if (result.is_err()) {
             return result.propagation(platform::RenderError::MakeError);
@@ -815,11 +858,14 @@ namespace enishi::renderer::directx {
     foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
     ResourceManager::resolve_mesh_binding(types::MeshData&& mesh_data,
         std::vector<platform::IShaderAccessor::ShaderReflection>&& shader_reflections,
-        types::HandleId&& mapped_index_buffer) {
+        types::HandleId&& mapped_index_buffer,
+        types::MeshHandles::UniformBuffers& named_uniforms,
+        std::vector<types::MeshHandles::UniformBuffers>& material_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
 
         auto&& result_uniforms =
-            this->resolve_uniforms(std::move(mesh_data.uniforms), shader_reflections)
+            this->resolve_uniforms(
+                    std::move(mesh_data.uniforms), shader_reflections, named_uniforms)
                 .add_message("Unifromバッファのバインド情報の解決に失敗しました");
         if (result_uniforms.is_err()) {
             return result_uniforms;
@@ -828,6 +874,15 @@ namespace enishi::renderer::directx {
 
         // サンプラーとテクスチャの作成
         for (auto& material : mesh_data.materials) {
+            auto& named = material_uniforms.emplace_back();
+            if (material.uniforms != nullptr) {
+                auto resolved = this->resolve_uniforms(
+                    std::move(*material.uniforms), shader_reflections, named);
+                if (resolved.is_err()) {
+                    return resolved;
+                }
+                mesh_handles.append_range(std::move(resolved).unwrap_mut());
+            }
             auto&& result_textures =
                 this->resolve_texture(material, shader_reflections)
                     .add_message("テクスチャのバインド情報の解決に失敗しました");
@@ -852,8 +907,10 @@ namespace enishi::renderer::directx {
 
     foundation::Result<std::vector<types::RenderHandle>, platform::RenderError>
     ResourceManager::resolve_uniforms(types::MeshData::UniformMap&& uniforms,
-        const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections) {
+        const std::vector<platform::IShaderAccessor::ShaderReflection>& shader_reflections,
+        types::MeshHandles::UniformBuffers& named_uniforms) {
         std::vector<types::RenderHandle> mesh_handles;
+        std::vector<std::string> resolved_names;
 
         // 定数バッファの作成
         for (const auto& shader_reflection : shader_reflections) {
@@ -864,21 +921,36 @@ namespace enishi::renderer::directx {
                 const auto opt_input_resource = input_reflection->resolve_input_resource(name);
 
                 if (opt_input_resource.is_some()) {
+                    const auto bytes = owned_render_data.get_render_data();
+                    types::OwnedRenderData stage_data{
+                        std::vector<std::byte>(bytes.bytes.begin(), bytes.bytes.end()),
+                        bytes.stride};
                     auto&& result = this->resolve_uniform(
-                        opt_input_resource.unwrap(), shader_kind, std::move(owned_render_data));
+                        opt_input_resource.unwrap(), shader_kind, std::move(stage_data));
                     if (result.is_err()) {
                         return std::move(result).unwrap_err();
                     }
 
                     mesh_handles.emplace_back(result.unwrap());
 
-                    iter = uniforms.erase(iter);
+                    const auto mapped = this->handle_mapper->get(result.unwrap());
+                    if (mapped.is_none()) {
+                        return foundation::Error(
+                            platform::RenderError::MakeError, "Uniform buffer handle is missing");
+                    }
+                    named_uniforms[name].push_back(mapped.unwrap().configurable);
+
+                    resolved_names.push_back(name);
+                    ++iter;
                 } else {
                     iter++;
                 }
             }
         }
 
+        for (const auto& name : resolved_names) {
+            uniforms.erase(name);
+        }
         if (!uniforms.empty()) {
             foundation::StringBuilder strings;
             strings.push_back("解決できないデータが見つかりました");

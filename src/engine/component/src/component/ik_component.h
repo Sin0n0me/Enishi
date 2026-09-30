@@ -3,6 +3,7 @@
 #include <engine_types/assets/model/addons/ik.h>
 #include <glm/glm.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace enishi::component {
@@ -11,5 +12,6 @@ namespace enishi::component {
         std::vector<types::IK> iks;      // 配列インデックス = IkIndex
         std::vector<glm::quat> rotation; // 配列インデックス = BoneIndex
         std::vector<glm::mat4> globals;  // 配列インデックス = BoneIndex
+        std::unordered_set<types::BoneIndex> disabled_bones;
     };
 } // namespace enishi::component

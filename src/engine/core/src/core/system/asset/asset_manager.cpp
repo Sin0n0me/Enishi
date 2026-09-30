@@ -152,6 +152,7 @@ namespace enishi::core {
                     this->set_asset_state(handle, types::AssetState::Loaded);
                     return result;
                 }
+                foundation::Logger::warning(result.unwrap_err().get_message());
             }
 
             return foundation::Result<types::AssetData, assets_system::AssetError>(

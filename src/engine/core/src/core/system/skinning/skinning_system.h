@@ -23,10 +23,9 @@ namespace enishi::core {
      */
     class SkinningSystem final : public ISystem {
       private:
-        static constexpr std::array<types::SkinningCommand, 4> DEFAULT_ORDER = {
+        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
             types::SkinningCommand::Animation,
             types::SkinningCommand::IK,
-            types::SkinningCommand::PhysicsSimulate,
             types::SkinningCommand::WriteBackPhysicsSimulate,
         };
 
@@ -47,6 +46,7 @@ namespace enishi::core {
         bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
+        void update_after_physics(void);
         void post_update(void) override;
         void render(void) const override;
 
@@ -60,6 +60,14 @@ namespace enishi::core {
 
         void solve_ik(
             ModelBones& bones, foundation::Option<component::IKComponent&> opt_ik) const noexcept;
+        void evaluate_bone_phase(ModelBones& bones,
+            foundation::Option<component::IKComponent&> ik,
+            bool after_physics) const noexcept;
+        void import_physics_pose(ModelBones& bones) const noexcept;
+        void build_physics(ModelBones& bones,
+            const component::ModelComponent& model,
+            foundation::Option<component::PhysicsComponent&> physics,
+            foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const;
 
         void execute_command(const types::SkinningCommand command,
             ModelBones& bones,

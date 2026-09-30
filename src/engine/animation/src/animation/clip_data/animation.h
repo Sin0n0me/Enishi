@@ -11,7 +11,8 @@ namespace enishi::animation {
         std::vector<BoneTrack> bone_tracks;
         std::vector<MorphTrack> morph_tracks;
         std::vector<IKTrack> ik_tracks;
-        float duration; // 秒
-        bool is_looping;
+        float duration{}; // 秒
+        bool is_looping{};
+        bool relative_to_bind_pose{};
     };
 } // namespace enishi::animation
