@@ -7,14 +7,57 @@
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 #include <foundation/str/to_utf8.h>
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <ranges>
 
 namespace enishi::assets_system {
+    namespace {
+        constexpr std::uint16_t NO_PMD_BONE = 0xFFFF;
+
+        foundation::Result<void, AssetError> validate_runtime_references(const PMDData& data) {
+            for (const auto& bone : data.bones) {
+                if (bone.parent_index != NO_PMD_BONE && !(bone.parent_index < data.bones.size())) {
+                    return foundation::Error(
+                        AssetError::InvalidAssetData, "PMD bone references a missing parent");
+                }
+            }
+            for (const auto& ik : data.iks) {
+                if (!(ik.ik_bone < data.bones.size()) || !(ik.target_bone < data.bones.size()) ||
+                    std::ranges::any_of(
+                        ik.chain, [&data](auto index) { return !(index < data.bones.size()); })) {
+                    return foundation::Error(
+                        AssetError::InvalidAssetData, "PMD IK references a missing bone");
+                }
+            }
+            for (const auto& body : data.rigid_bodies) {
+                if (body.relate_bone_index == NO_PMD_BONE) {
+                    return foundation::Error(AssetError::UnsupportedFeature,
+                        "PMD runtime does not support rigid bodies without a related bone");
+                }
+                if (!(body.relate_bone_index < data.bones.size())) {
+                    return foundation::Error(
+                        AssetError::InvalidAssetData, "PMD rigid body references a missing bone");
+                }
+            }
+            for (const auto& joint : data.physics_joints) {
+                if (!(joint.rigid_body_a < data.rigid_bodies.size()) ||
+                    !(joint.rigid_body_b < data.rigid_bodies.size())) {
+                    return foundation::Error(
+                        AssetError::InvalidAssetData, "PMD joint references a missing rigid body");
+                }
+            }
+            return {};
+        }
+    } // namespace
+
     foundation::Result<types::AssetModelData, AssetError> PMDToModelData::to_model_data(
         const std::filesystem::path& path,
         const PMDData& data,
         TextureLoader* const texture_loader) {
+        const auto validation = validate_runtime_references(data);
+        if (validation.is_err()) {
+            return validation.unwrap_err();
+        }
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
         auto&& utf8_name = foundation::sjis_to_utf8(sjis_name);
@@ -188,99 +231,91 @@ namespace enishi::assets_system {
 
     types::AddonIKs PMDToModelData::make_iks(
         const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver) {
-        const auto ik_size = iks.size();
-        std::vector<types::IK> ik_vec(ik_size);
-
+        types::AddonIKs converted;
+        converted.reserve(iks.size());
         for (const auto& ik : iks) {
-            auto&& ccdik = types::CCDIK{
-                .iterations = ik.iterations,
-                .target = ik.target_bone,
-                .ik_bone = ik.ik_bone,
-                .chain = ik.chain | std::views::transform([](const std::uint16_t x) {
-                    return static_cast<decltype(types::CCDIK::chain)::value_type>(x);
-                }) | std::ranges::to<std::vector<std::size_t>>(),
-                .limit = types::IKLimitAngle{},
-            };
-            types::IK convert_ik{};
-
-            const auto bone_name = bone_resolver->resolve_name(ik.ik_bone);
-            const auto condition = [](const foundation::UTF8& name) -> foundation::Option<bool> {
-                if (name.contains("膝") || name.contains("ひざ")) {
-                    return true; // has_value()がtrueになるなら何を返してもいい
+            types::CCDIK ccdik{};
+            ccdik.iterations = ik.iterations;
+            ccdik.target = ik.target_bone;
+            ccdik.ik_bone = ik.ik_bone;
+            ccdik.chain.assign(ik.chain.begin(), ik.chain.end());
+            ccdik.limit = types::IKLimitAngle{ik.limit};
+            for (const auto index : ik.chain) {
+                types::IKLinkLimit limit{};
+                const auto name = bone_resolver->resolve_name(index);
+                if (name.is_some() &&
+                    (name.unwrap().contains("膝") || name.unwrap().contains("ひざ"))) {
+                    limit.enabled = true;
+                    limit.lower = glm::vec3(-glm::pi<float>(), 0.0f, 0.0f);
+                    limit.upper = glm::vec3(0.0f);
                 }
-                return {};
-            };
-            const bool is_limited_bone = bone_name.and_then(condition).is_some();
-
-            if (is_limited_bone) {
-                ccdik.limit = types::IKLimitAxis{
-                    .axis = PMDToModelData::MMD_KNEE_AXIS,
-                    .limit = ik.limit,
-                };
-            } else {
-                ccdik.limit = types::IKLimitAngle{.limit = ik.limit};
+                ccdik.link_limits.push_back(limit);
             }
-
-            ik_vec.emplace_back(convert_ik);
+            converted.push_back(types::IK{std::move(ccdik)});
         }
-
-        return ik_vec;
+        return converted;
     }
 
     types::AddonPhysicsJoints PMDToModelData::make_joints(
         const std::vector<PMDPhysicsJoint>& joints) {
-        const auto size = joints.size();
-        auto model_joints = std::vector<types::PhysicsJoint>(size);
-
+        types::AddonPhysicsJoints converted;
+        converted.reserve(joints.size());
         for (const auto& joint : joints) {
-            joint;
-
-            types::PhysicsJoint{};
+            types::PhysicsJoint dst{};
+            const std::string name(
+                joint.name, std::find(std::begin(joint.name), std::end(joint.name), '\0'));
+            dst.name = foundation::sjis_to_utf8(name).unwrap_or(name);
+            dst.rigid_body_a = joint.rigid_body_a;
+            dst.rigid_body_b = joint.rigid_body_b;
+            dst.position = glm::vec3(joint.position[0], joint.position[1], joint.position[2]);
+            dst.rotation = glm::vec3(joint.rotation[0], joint.rotation[1], joint.rotation[2]);
+            dst.constrain_position_min = glm::vec3(joint.constrain_position_min[0],
+                joint.constrain_position_min[1],
+                joint.constrain_position_min[2]);
+            dst.constrain_position_max = glm::vec3(joint.constrain_position_max[0],
+                joint.constrain_position_max[1],
+                joint.constrain_position_max[2]);
+            dst.constrain_rotation_min = glm::vec3(joint.constrain_rotation_min[0],
+                joint.constrain_rotation_min[1],
+                joint.constrain_rotation_min[2]);
+            dst.constrain_rotation_max = glm::vec3(joint.constrain_rotation_max[0],
+                joint.constrain_rotation_max[1],
+                joint.constrain_rotation_max[2]);
+            dst.spring_position = glm::vec3(
+                joint.spring_position[0], joint.spring_position[1], joint.spring_position[2]);
+            dst.spring_rotation = glm::vec3(
+                joint.spring_rotation[0], joint.spring_rotation[1], joint.spring_rotation[2]);
+            converted.push_back(std::move(dst));
         }
-
-        return model_joints;
+        return converted;
     }
 
     types::AddonRigidBodies PMDToModelData::make_rigid_bodies(
         const std::vector<PMDRigidBody>& rigid_bodies) {
-        const auto size = rigid_bodies.size();
-        auto model_rigid_bodies = types::AddonRigidBodies(size);
-
-        for (const auto& rigid_body : rigid_bodies) {
-            const auto offset = PMDToModelData::make_offset_from_pmd(rigid_body);
-            const auto shape = PMDToModelData::make_shape_from_pmd(rigid_body);
-            const auto rigid_body_type = PMDToModelData::make_rigid_body_type_from_pmd(rigid_body);
-            const bool is_kinematic = rigid_body_type == types::RigidBodyKind::Kinematic;
-            const float mass = is_kinematic ? 0.0f : rigid_body.mass;
-
-            const auto rb = types::PhysicsRigidBody{
-                .group_mask = rigid_body.group_target,
-                .group_index = rigid_body.group_index,
-                .kind = rigid_body_type,
-                .shape = shape,
-                //.offset = offset,
-                .position =
-                    glm::vec3{
-                        rigid_body.position[0],
-                        rigid_body.position[1],
-                        rigid_body.position[2],
-                    },
-                .rotation =
-                    glm::vec3{
-                        rigid_body.rotation[0],
-                        rigid_body.rotation[1],
-                        rigid_body.rotation[2],
-                    },
-                .mass = mass,
-                .linear_damping = rigid_body.linear_damping,
-                .angular_damping = rigid_body.angular_damping,
-                .restitution = rigid_body.restitution,
-                .friction = rigid_body.friction,
-            };
-            model_rigid_bodies.emplace_back(rb);
+        types::AddonRigidBodies converted;
+        converted.reserve(rigid_bodies.size());
+        for (const auto& body : rigid_bodies) {
+            const auto kind = PMDToModelData::make_rigid_body_type_from_pmd(body);
+            const std::string name(
+                body.name, std::find(std::begin(body.name), std::end(body.name), '\0'));
+            converted.push_back(types::PhysicsRigidBody{
+                .name = foundation::sjis_to_utf8(name).unwrap_or(name),
+                .relate_bone_index = body.relate_bone_index,
+                // Collision mask = bitwise complement of PMD's non-collision mask.
+                .group_mask = static_cast<std::uint16_t>(~body.group_target),
+                .group_index = body.group_index,
+                .kind = kind,
+                .shape = PMDToModelData::make_shape_from_pmd(body),
+                .position = glm::vec3(body.position[0], body.position[1], body.position[2]),
+                .rotation = glm::vec3(body.rotation[0], body.rotation[1], body.rotation[2]),
+                .mass = kind == types::RigidBodyKind::Kinematic ? 0.0f : body.mass,
+                .linear_damping = body.linear_damping,
+                .angular_damping = body.angular_damping,
+                .restitution = body.restitution,
+                .friction = body.friction,
+            });
         }
-
-        return model_rigid_bodies;
+        return converted;
     }
 
     std::vector<types::Material> PMDToModelData::make_materials(
