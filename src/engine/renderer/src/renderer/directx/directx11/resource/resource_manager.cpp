@@ -211,7 +211,8 @@ namespace enishi::renderer::directx {
                 break;
         }
 
-        return foundation::Error(platform::RenderError::MakeError);
+        return foundation::Error(
+            platform::RenderError::MakeError, "D3D11 shader creation requires DXBC bytecode");
     }
 
     foundation::Result<types::RenderHandle, platform::RenderError> ResourceManager::make_texture(
@@ -795,7 +796,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateVertexShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -809,7 +812,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreatePixelShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -823,7 +828,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateComputeShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -837,7 +844,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateHullShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -845,7 +854,8 @@ namespace enishi::renderer::directx {
                 resource_handle = resource;
             } break;
             default:
-                return foundation::Error(platform::RenderError::MakeError);
+                return foundation::Error(
+                    platform::RenderError::MakeError, "Unsupported D3D11 shader stage");
         }
 
         return this->handle_mapper->make(types::RenderHandleType::Shader,
@@ -991,14 +1001,16 @@ namespace enishi::renderer::directx {
         // バインド情報の更新
         auto opt_binding = this->resource_binder->get_buffer_binding(index.binding);
         if (opt_binding.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Uniform buffer binding is missing");
         }
         auto& binding = opt_binding.unwrap_mut();
         if (auto param = std::get_if<types::UniformBufferParameter>(&binding.parameter)) {
             param->target_shader = shader_kind;
             param->target = input_resource.binding;
         } else {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(platform::RenderError::MakeError,
+                "Buffer binding does not contain uniform buffer parameters");
         }
 
         // 名前に対応したUniformBufferのUpderterの作成
