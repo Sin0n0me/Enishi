@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <engine_types/assets/model/model_data.h>
 #include <glad/gl.h>
+#include <limits>
 #include <renderer/common/converter/model_to_mesh.h>
 #include <renderer/common/converter/skinned_vertices.h>
 #include <renderer/common/vertex_buffer_updater.h>
@@ -48,6 +49,22 @@ namespace enishi::renderer::opengl {
     constexpr std::uint32_t UNSUPPORTED_FIRST_INSTANCE = 0;
     constexpr std::uint8_t EMPTY_COLOR_WRITE_MASK = 0;
     constexpr std::uint32_t GL_TEXTURE_MAX_ANISOTROPY_EXT_VALUE = 0x84FE;
+
+    namespace {
+        platform::RenderResult<void> check_gl_errors(const char* operation) {
+            auto code = glGetError();
+            if (code == GL_NO_ERROR) {
+                return {};
+            }
+            auto error = foundation::Error(platform::RenderError::MakeError,
+                std::format("OpenGL operation failed: {}", operation));
+            do {
+                error.add_message(std::format("OpenGL error {:#x}", code));
+                code = glGetError();
+            } while (code != GL_NO_ERROR);
+            return error;
+        }
+    } // namespace
 
     OpenGL40RendererState::OpenGL40RendererState(void)
         : topology(GL_TRIANGLES)
@@ -205,11 +222,14 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_sampler(
         const types::SamplerStateDescription& state) {
+        auto pending = check_gl_errors("before sampler creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
         if (state.anisotropy != types::AnisotropyLevel::None && !helpers::supports_anisotropy()) {
             return foundation::Error(platform::RenderError::MakeError,
                 "OpenGL texture anisotropy requires GL_EXT_texture_filter_anisotropic");
         }
-        const auto handle = this->make_handle(types::RenderHandleType::State);
         GLuint sampler = NO_GL_OBJECT;
         glGenSamplers(RESOURCE_COUNT, &sampler);
         glSamplerParameteri(sampler,
@@ -231,6 +251,12 @@ namespace enishi::renderer::opengl {
             glSamplerParameterf(
                 sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT_VALUE, static_cast<float>(state.anisotropy));
         }
+        auto result = check_gl_errors("sampler creation and configuration");
+        if (result.is_err()) {
+            glDeleteSamplers(RESOURCE_COUNT, &sampler);
+            return std::move(result).take_err();
+        }
+        const auto handle = this->make_handle(types::RenderHandleType::State);
         this->state->samplers.emplace(handle, state);
         this->state->sampler_objects.emplace(handle, sampler);
         this->state->gl_samplers.emplace_back(sampler);
@@ -256,6 +282,10 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_image(
         const types::ImageDescription& description) {
+        auto pending = check_gl_errors("before image creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
         if (description.size.x < MINIMUM_IMAGE_DIMENSION ||
             description.size.y < MINIMUM_IMAGE_DIMENSION ||
             description.mip_levels == NO_GL_OBJECT ||
@@ -269,9 +299,9 @@ namespace enishi::renderer::opengl {
             return foundation::Error(platform::RenderError::MakeError,
                 "OpenGL 4.0 image creation does not support compressed formats");
         }
-        const auto handle = this->make_handle(types::RenderHandleType::Image);
-        this->state->images.emplace(handle, description);
         if (description.contains(types::ImageUsage::BackBuffer)) {
+            const auto handle = this->make_handle(types::RenderHandleType::Image);
+            this->state->images.emplace(handle, description);
             this->state->back_buffer_images.emplace(handle);
 
             this->state->objects.emplace(handle, NO_GL_OBJECT);
@@ -302,6 +332,13 @@ namespace enishi::renderer::opengl {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(
             GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(description.mip_levels - 1));
+        auto result = check_gl_errors("image allocation");
+        if (result.is_err()) {
+            glDeleteTextures(RESOURCE_COUNT, &texture);
+            return std::move(result).take_err();
+        }
+        const auto handle = this->make_handle(types::RenderHandleType::Image);
+        this->state->images.emplace(handle, description);
         this->state->textures.emplace_back(texture);
         this->state->objects.emplace(handle, texture);
         return handle;
@@ -312,9 +349,15 @@ namespace enishi::renderer::opengl {
         if (!this->state->objects.contains(image)) {
             return foundation::Error(platform::RenderError::MakeError, "Image handle is invalid");
         }
+        const auto image_description = this->state->images.find(image);
+        if (image.type != types::RenderHandleType::Image ||
+            image_description == this->state->images.end()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "Render target view requires an image description");
+        }
         const auto handle = this->make_handle(types::RenderHandleType::View);
         this->state->objects.emplace(handle, this->state->objects.at(image));
-        this->state->images.emplace(handle, this->state->images.at(image));
+        this->state->images.emplace(handle, image_description->second);
         if (this->state->back_buffer_images.contains(image)) {
             this->state->back_buffer_images.emplace(handle);
         }
@@ -363,11 +406,30 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::make_buffer(
         const types::RenderData& data, const std::uint32_t target) {
+        auto pending = check_gl_errors("before buffer creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
+        if (data.byte_width() >
+            static_cast<std::size_t>((std::numeric_limits<GLsizeiptr>::max)())) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "OpenGL buffer size exceeds GLsizeiptr range");
+        }
         GLuint object = NO_GL_OBJECT;
         glGenBuffers(RESOURCE_COUNT, &object);
-        glBindBuffer(target, object);
-        glBufferData(
-            target, static_cast<GLsizeiptr>(data.byte_width()), data.raw_data(), GL_DYNAMIC_DRAW);
+        // Element-array binding requires a VAO in a core context; upload before VAO creation.
+        const auto upload_target =
+            target == GL_ELEMENT_ARRAY_BUFFER ? GL_COPY_WRITE_BUFFER : target;
+        glBindBuffer(upload_target, object);
+        glBufferData(upload_target,
+            static_cast<GLsizeiptr>(data.byte_width()),
+            data.raw_data(),
+            GL_DYNAMIC_DRAW);
+        auto result = check_gl_errors("buffer allocation");
+        if (result.is_err()) {
+            glDeleteBuffers(RESOURCE_COUNT, &object);
+            return std::move(result).take_err();
+        }
         this->state->buffers.emplace_back(object);
         const auto handle = this->make_handle(types::RenderHandleType::Buffer);
         this->state->objects.emplace(handle, object);
@@ -376,6 +438,10 @@ namespace enishi::renderer::opengl {
 
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_mesh(
         const types::ModelData& model, const std::vector<types::RenderHandle>& shader_reflections) {
+        auto pending = check_gl_errors("before mesh creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
         auto mesh = ModelToMesh::to_mesh_data(model);
         if (mesh.is_err()) {
             return mesh.propagation(platform::RenderError::MakeError);
@@ -437,6 +503,11 @@ namespace enishi::renderer::opengl {
                             "Uniform buffer binding was not created for the shader resource");
                     }
                     glBindBufferBase(GL_UNIFORM_BUFFER, binding->second, buffer);
+                    auto result = check_gl_errors("uniform buffer allocation and binding");
+                    if (result.is_err()) {
+                        glDeleteBuffers(RESOURCE_COUNT, &buffer);
+                        return std::move(result).take_err().add_message(resource.name);
+                    }
                     this->state->buffers.emplace_back(buffer);
                     auto updater = std::make_shared<OpenGLUniformUpdater>(
                         std::move(uniform->second), buffer, binding->second);
@@ -471,7 +542,6 @@ namespace enishi::renderer::opengl {
         }
         GLuint vao = NO_GL_OBJECT;
         glGenVertexArrays(RESOURCE_COUNT, &vao);
-        this->state->vertex_arrays.emplace_back(vao);
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, this->state->objects.at(vertex.unwrap()));
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->state->objects.at(index.unwrap()));
@@ -531,6 +601,12 @@ namespace enishi::renderer::opengl {
             bind_anchor(BLEND_ANCHOR0_ATTRIBUTE, offsetof(SkinnedVertex, anchor0));
             bind_anchor(BLEND_ANCHOR1_ATTRIBUTE, offsetof(SkinnedVertex, anchor1));
         }
+        auto layout_result = check_gl_errors("mesh vertex array configuration");
+        if (layout_result.is_err()) {
+            glDeleteVertexArrays(RESOURCE_COUNT, &vao);
+            return std::move(layout_result).take_err();
+        }
+        this->state->vertex_arrays.emplace_back(vao);
         const auto handle = this->make_handle(types::RenderHandleType::Mesh);
         auto [mesh_resource, mesh_handles] = this->resource_accessor->make_mesh_handles();
         mesh_handles.uniform_buffers = std::move(named_uniforms);
@@ -613,6 +689,10 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_texture(
         const types::TextureData& texture) {
+        auto pending = check_gl_errors("before texture creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
         if (texture.is_cubemap || texture.depth > SINGLE_IMAGE_LAYER ||
             texture.array_size != SINGLE_IMAGE_LAYER || texture.mips.empty() ||
             types::TextureData::is_compressed(texture.format)) {
@@ -647,6 +727,11 @@ namespace enishi::renderer::opengl {
             static_cast<GLint>(texture.mips.size() - MIPMAP_COUNT_THRESHOLD));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        auto result = check_gl_errors("texture allocation and upload");
+        if (result.is_err()) {
+            glDeleteTextures(RESOURCE_COUNT, &object);
+            return std::move(result).take_err();
+        }
         this->state->textures.emplace_back(object);
         const auto handle = this->make_handle(types::RenderHandleType::Image);
         this->state->objects.emplace(handle, object);
@@ -654,6 +739,10 @@ namespace enishi::renderer::opengl {
     }
     platform::RenderResult<types::RenderHandle> OpenGL40Renderer::create_shader(
         const types::ShaderKind kind, const types::ShaderData& data) {
+        auto pending = check_gl_errors("before shader creation");
+        if (pending.is_err()) {
+            return std::move(pending).take_err();
+        }
         if (data.binary_type != types::ShaderBinaryType::SourceFileGLSL) {
             return foundation::Error(
                 platform::RenderError::MakeError, "OpenGL 4.0 shaders must be GLSL source");
@@ -668,7 +757,19 @@ namespace enishi::renderer::opengl {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported GLSL shader stage");
         }
+        if (data.code.size() > static_cast<std::size_t>((std::numeric_limits<GLint>::max)())) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "GLSL source length exceeds GLint range");
+        }
         const auto shader = glCreateShader(stage);
+        if (shader == NO_GL_OBJECT) {
+            auto result = check_gl_errors("shader object creation");
+            if (result.is_err()) {
+                return std::move(result).take_err();
+            }
+            return foundation::Error(
+                platform::RenderError::MakeError, "glCreateShader returned no shader object");
+        }
         const auto source = reinterpret_cast<const GLchar*>(data.code.data());
         const auto length = static_cast<GLint>(data.code.size());
         glShaderSource(shader, SHADER_SOURCE_COUNT, &source, &length);
@@ -676,10 +777,28 @@ namespace enishi::renderer::opengl {
         GLint compiled = GL_FALSE;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
         if (compiled != GL_TRUE) {
+            GLint log_length = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+            std::string log;
+            if (log_length > 0) {
+                log.resize(static_cast<std::size_t>(log_length));
+                GLsizei written = 0;
+                glGetShaderInfoLog(shader, log_length, &written, log.data());
+                log.resize(static_cast<std::size_t>(written));
+            }
+            auto error = foundation::Error(platform::RenderError::MakeError,
+                std::format("GLSL shader compilation failed (stage {:#x}): {}", stage, log));
+            auto result = check_gl_errors("shader compilation");
+            if (result.is_err()) {
+                error.add_message(result.unwrap_err().get_message());
+            }
             glDeleteShader(shader);
-
-            return foundation::Error(
-                platform::RenderError::MakeError, "GLSL shader compilation failed");
+            return error;
+        }
+        auto result = check_gl_errors("shader compilation");
+        if (result.is_err()) {
+            glDeleteShader(shader);
+            return std::move(result).take_err();
         }
         const auto handle = this->make_handle(types::RenderHandleType::Shader);
         this->state->shaders.emplace_back(shader);
