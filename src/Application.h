@@ -19,6 +19,7 @@ namespace enishi {
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
+        std::string ui_text;
 
       public:
         bool init(void);
@@ -30,5 +31,8 @@ namespace enishi {
             std::shared_ptr<platform::IWindow> root_window,
             std::shared_ptr<platform::IAssetSystem> asset_system);
         bool init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine);
+        bool init_ui(std::shared_ptr<platform::IWindow> window,
+            const std::shared_ptr<core::RenderSystem>& render_system);
+        void update_ui(sub_system::IUI& ui);
     };
 } // namespace enishi

@@ -51,9 +51,27 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
+target_sources(${PROJECT_NAME} PRIVATE
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
+)
+if(USE_OPENGL40)
+    target_sources(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+else()
+    target_sources(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp)
+    target_link_libraries(${PROJECT_NAME} PRIVATE d3d11 d3dcompiler)
+endif()
+target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
 enishi_configure_library(${PROJECT_NAME}
-    INCLUDE_DIRECTORIES src ${UI_DEPENDENT_LIBS} ${UI_DEPENDENT_LIBS}/imgui
-    DEPENDENCIES platform engine_types foundation
+    INCLUDE_DIRECTORIES src
+    PUBLIC_DEPENDENCIES platform sub_system engine_types foundation
+    DEPENDENCIES SDL3::SDL3
 )
 
 # MSVCコンパイラのホットリロードを有効に

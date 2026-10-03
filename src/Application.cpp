@@ -4,6 +4,7 @@
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
+#include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
@@ -220,7 +221,66 @@ namespace enishi {
         this->system_scheduler.register_system<core::ModelRenderSystem>(
             95, this->registry, asset_system, renderer, model_render_pass.unwrap());
 
+        if (!this->init_ui(root_window, render_system)) {
+            return {};
+        }
+
         return renderer;
+    }
+
+    bool Application::init_ui(std::shared_ptr<platform::IWindow> window,
+        const std::shared_ptr<core::RenderSystem>& render_system) {
+        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(window);
+        if (sdl_window == nullptr) {
+            foundation::Logger::error("UI requires an SDL3 window");
+            return false;
+        }
+        const auto native_window = sdl_window->get_window_handle();
+        if (native_window.is_none()) {
+            foundation::Logger::error("UI window handle is unavailable");
+            return false;
+        }
+        const auto renderer = render_system->get_renderer();
+        const auto ui = std::make_shared<ui::UI>(window, renderer);
+#if defined(USE_OPENGL40)
+        const auto result = ui->init_opengl(native_window.unwrap(), SDL_GL_GetCurrentContext());
+#else
+        const auto d3d_renderer =
+            std::dynamic_pointer_cast<renderer::directx::D3D11Renderer>(renderer);
+        if (d3d_renderer == nullptr) {
+            foundation::Logger::error("UI requires a D3D11 renderer");
+            return false;
+        }
+        const auto context = d3d_renderer->get_native_context();
+        const auto result = ui->init_directx(
+            native_window.unwrap(), context->get_device().Get(), context->get_context().Get());
+#endif
+        if (result.is_err()) {
+            foundation::Logger::error(result.unwrap_err().get_message());
+            return false;
+        }
+        sdl_window->set_ui(ui, [weak_ui = std::weak_ptr<ui::UI>(ui)](const SDL_Event& event) {
+            if (const auto active_ui = weak_ui.lock(); active_ui != nullptr) {
+                active_ui->process_event(event);
+            }
+        });
+        constexpr core::Priority UI_PRIORITY = 99;
+        this->system_scheduler.register_system<core::UISystem>(
+            UI_PRIORITY, ui, [this](sub_system::IUI& ui) { this->update_ui(ui); });
+        render_system->set_ui(ui);
+        return true;
+    }
+
+    void Application::update_ui(sub_system::IUI& ui) {
+        if (ui.begin_window("Text input")) {
+            ui.input_text("Text", this->ui_text);
+            ui.text("Current value:");
+            ui.text(this->ui_text);
+            if (ui.button("Clear")) {
+                this->ui_text.clear();
+            }
+        }
+        ui.end_window();
     }
 
     bool Application::init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {

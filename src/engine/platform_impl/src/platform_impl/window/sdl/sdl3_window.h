@@ -5,8 +5,10 @@
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
+#include <functional>
 #include <memory>
 #include <platform/window/interface_window.h>
+#include <sub_system/ui/interface_ui.h>
 
 namespace enishi::platform_impl {
     struct SDLWindowDeleter {
@@ -23,6 +25,8 @@ namespace enishi::platform_impl {
         types::WindowSize size;
         types::WindowPosition position;
         bool is_closing;
+        std::weak_ptr<sub_system::IUI> ui;
+        std::function<void(const SDL_Event&)> ui_event_handler;
 
         static SDL_WindowFlags get_flag_from_graphics_api(const types::GraphicsAPI graphics_api);
         static foundation::Option<platform::NativeWindowHandle> get_native_handle(
@@ -39,6 +43,8 @@ namespace enishi::platform_impl {
         ~SDL3Window(void) noexcept;
 
         foundation::Option<SDL_Window*> get_window_handle(void) const;
+        void set_ui(std::weak_ptr<sub_system::IUI> ui,
+            std::function<void(const SDL_Event&)> event_handler);
 
         foundation::VoidResult<platform::WindowError> init(void) noexcept override;
         foundation::Option<const platform::IInput*> get_input(void) const noexcept override;
@@ -59,6 +65,8 @@ namespace enishi::platform_impl {
         void poll_events(void) override;
 
       private:
+        static SDL_HitTestResult SDLCALL hit_test_callback(
+            SDL_Window* window, const SDL_Point* point, void* data);
         bool apply_shape_window(void);
     };
 } // namespace enishi::platform_impl

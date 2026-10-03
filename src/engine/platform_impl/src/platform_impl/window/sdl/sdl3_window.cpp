@@ -36,8 +36,20 @@ namespace enishi::platform_impl {
         };
     } // namespace
 
-    SDL_HitTestResult SDLCALL hit_test_callback(SDL_Window* win, const SDL_Point* pt, void* data) {
+    SDL_HitTestResult SDLCALL SDL3Window::hit_test_callback(
+        SDL_Window* win, const SDL_Point* pt, void* data) {
+        const auto* window = static_cast<const SDL3Window*>(data);
+        const auto ui = window->ui.lock();
+        if (ui != nullptr && ui->wants_capture_mouse()) {
+            return SDL_HITTEST_NORMAL;
+        }
         return SDL_HITTEST_DRAGGABLE;
+    }
+
+    void SDL3Window::set_ui(
+        std::weak_ptr<sub_system::IUI> ui, std::function<void(const SDL_Event&)> event_handler) {
+        this->ui = std::move(ui);
+        this->ui_event_handler = std::move(event_handler);
     }
 
     void SDLWindowDeleter::operator()(SDL_Window* const ptr) const {
@@ -95,7 +107,7 @@ namespace enishi::platform_impl {
         }
 
         // ヒットテストのコールバックを登録
-        if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, nullptr)) {
+        if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, this)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL_SetWindowHitTest failed: {}", SDL_GetError()));
         }
@@ -284,23 +296,30 @@ namespace enishi::platform_impl {
     void SDL3Window::poll_events(void) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            /*
-            if (ImGui_ImplSDL3_ProcessEvent(&event)) {
-                continue;
-            };
-            */
+            if (this->ui_event_handler != nullptr) {
+                this->ui_event_handler(event);
+            }
+            const auto ui = this->ui.lock();
+            const bool capture_keyboard = ui != nullptr && ui->wants_capture_keyboard();
+            const bool capture_mouse = ui != nullptr && ui->wants_capture_mouse();
 
             switch (event.type) {
                 case SDL_EventType::SDL_EVENT_QUIT:
                     this->is_closing = true;
                     break;
                 case SDL_EventType::SDL_EVENT_KEY_DOWN:
+                    if (capture_keyboard) {
+                        break;
+                    }
                     this->input.on_key_down(SDL3Input::convert_key_code(event.key.key));
                     break;
                 case SDL_EventType::SDL_EVENT_KEY_UP:
                     this->input.on_key_up(SDL3Input::convert_key_code(event.key.key));
                     break;
                 case SDL_EventType::SDL_EVENT_MOUSE_BUTTON_DOWN:
+                    if (capture_mouse) {
+                        break;
+                    }
                     this->input.on_mouse_button_down(
                         SDL3Input::convert_mouse_button(event.button.button));
                     break;
@@ -309,6 +328,9 @@ namespace enishi::platform_impl {
                         SDL3Input::convert_mouse_button(event.button.button));
                     break;
                 case SDL_EventType::SDL_EVENT_MOUSE_MOTION:
+                    if (capture_mouse) {
+                        break;
+                    }
                     this->input.on_mouse_move(types::to_screen(
                         types::ClientMousePosition{
                             .x = static_cast<std::int32_t>(event.motion.x),
