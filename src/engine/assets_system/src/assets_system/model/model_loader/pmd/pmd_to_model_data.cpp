@@ -54,9 +54,9 @@ namespace enishi::assets_system {
         const std::filesystem::path& path,
         const PMDData& data,
         TextureLoader* const texture_loader) {
-        const auto validation = validate_runtime_references(data);
+        auto validation = validate_runtime_references(data);
         if (validation.is_err()) {
-            return validation.unwrap_err();
+            return std::move(validation).take_err();
         }
         const std::string sjis_name(
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
