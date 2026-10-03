@@ -22,12 +22,15 @@ namespace enishi::core {
         const component::ModelComponent& model, const std::filesystem::path& path) {
         auto data = assets_system::VMDLoader::load(path);
         if (data.is_err()) {
-            return data.propagation(animation::AnimationError::FailedConvert);
+            return data.propagation(animation::AnimationError::FailedConvert)
+                .add_message(std::format("Failed to load model motion: {}", path.string()));
         }
         auto clip = bind_model_motion(model, *data.unwrap());
-        if (clip.is_ok()) {
-            clip.unwrap_mut().name = path.stem().string();
+        if (clip.is_err()) {
+            return std::move(clip).take_err().add_message(
+                std::format("Failed to bind model motion: {}", path.string()));
         }
+        clip.unwrap_mut().name = path.stem().string();
         return clip;
     }
 } // namespace enishi::core
