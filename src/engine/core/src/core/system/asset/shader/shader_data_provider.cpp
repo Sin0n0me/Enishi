@@ -25,6 +25,12 @@ namespace enishi::core {
         std::vector<platform::ShaderDataEntry> entries;
         for (const auto& [kind, path] : paths) {
             const auto shader_paths = make_paths(path);
+            if (shader_paths.empty()) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    std::format("No shader asset matches {} under {}",
+                        path.string(),
+                        SHADER_PATH.string()));
+            }
             for (const auto& shader_path : shader_paths) {
                 const auto asset_handle = this->asset_system->load_asset(shader_path)
                                               .add_message("シェーダーの読み込みに失敗しました");
