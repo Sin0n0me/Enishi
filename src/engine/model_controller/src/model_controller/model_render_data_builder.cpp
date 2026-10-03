@@ -15,7 +15,8 @@ namespace enishi::model_controller {
         const auto opt_model_data =
             this->asset_system->get_asset<types::AssetModelData>(model_handle);
         if (opt_model_data.is_none()) {
-            return foundation::Error(BuildError::AssetNotReady);
+            return foundation::Error(BuildError::AssetNotReady,
+                "Model asset is missing, failed to load, or has an incompatible type");
         }
         const auto& model_data = opt_model_data.unwrap();
 
@@ -25,8 +26,8 @@ namespace enishi::model_controller {
 
         auto mesh_handle = this->renderer->create_mesh(*model_data, shader_reflections);
         if (mesh_handle.is_err()) {
-            foundation::Logger::warning(mesh_handle.unwrap_err().get_message());
-            return foundation::Error(BuildError::CreateMeshFailed);
+            return mesh_handle.propagation(BuildError::CreateMeshFailed)
+                .add_message("Failed to create the model mesh");
         }
 
         return mesh_handle.unwrap();
