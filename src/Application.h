@@ -10,7 +10,6 @@
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
 #include <render_pass/render_pass_orchestra.h>
-#include <ui/ui.h>
 
 namespace enishi {
     class Application {

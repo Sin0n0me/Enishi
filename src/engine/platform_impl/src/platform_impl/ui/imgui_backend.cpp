@@ -1,0 +1,106 @@
+#include "imgui_backend.h"
+#include <backends/imgui_impl_sdl3.h>
+#include <imgui.h>
+#include <utility>
+#if defined(USE_OPENGL40)
+#include <backends/imgui_impl_opengl3.h>
+#else
+#include <backends/imgui_impl_dx11.h>
+#include <renderer/directx/directx11/d3d11_renderer.h>
+#endif
+
+namespace enishi::platform_impl {
+    ImGuiBackend::ImGuiBackend(
+        std::shared_ptr<SDL3Window> window, std::shared_ptr<platform::IRenderer> renderer)
+        : window(std::move(window))
+        , renderer(std::move(renderer)) {
+    }
+
+    foundation::VoidResult<sub_system::UIError> ImGuiBackend::init(void) {
+        this->context = ImGui::GetCurrentContext();
+        if (this->context == nullptr || this->window == nullptr || this->renderer == nullptr) {
+            return foundation::Error(sub_system::UIError::InitializationFailed,
+                "UI requires a context, window and renderer");
+        }
+        const auto native_window = this->window->get_window_handle();
+        if (native_window.is_none()) {
+            return foundation::Error(
+                sub_system::UIError::InitializationFailed, "UI window handle is unavailable");
+        }
+#if defined(USE_OPENGL40)
+        const auto gl_context = SDL_GL_GetCurrentContext();
+        if (gl_context == nullptr) {
+            return foundation::Error(
+                sub_system::UIError::InitializationFailed, "UI requires a current OpenGL context");
+        }
+        this->platform_initialized =
+            ImGui_ImplSDL3_InitForOpenGL(native_window.unwrap(), gl_context);
+        if (this->platform_initialized) {
+            this->renderer_initialized = ImGui_ImplOpenGL3_Init("#version 400 core");
+        }
+#else
+        const auto d3d_renderer =
+            std::dynamic_pointer_cast<renderer::directx::D3D11Renderer>(this->renderer);
+        if (d3d_renderer == nullptr) {
+            return foundation::Error(
+                sub_system::UIError::InitializationFailed, "UI requires a D3D11 renderer");
+        }
+        const auto native_context = d3d_renderer->get_native_context();
+        this->platform_initialized = ImGui_ImplSDL3_InitForD3D(native_window.unwrap());
+        if (this->platform_initialized) {
+            this->renderer_initialized = ImGui_ImplDX11_Init(
+                native_context->get_device().Get(), native_context->get_context().Get());
+        }
+#endif
+        if (!this->renderer_initialized) {
+            this->shutdown();
+            return foundation::Error(sub_system::UIError::InitializationFailed,
+                "ImGui platform/renderer backend initialization failed");
+        }
+        return {};
+    }
+
+    void ImGuiBackend::shutdown(void) noexcept {
+        if (this->context == nullptr) {
+            return;
+        }
+        ImGui::SetCurrentContext(this->context);
+        if (this->renderer_initialized) {
+#if defined(USE_OPENGL40)
+            ImGui_ImplOpenGL3_Shutdown();
+#else
+            ImGui_ImplDX11_Shutdown();
+#endif
+        }
+        if (this->platform_initialized) {
+            ImGui_ImplSDL3_Shutdown();
+        }
+        this->renderer_initialized = false;
+        this->platform_initialized = false;
+        this->context = nullptr;
+    }
+
+    void ImGuiBackend::begin_frame(void) {
+#if defined(USE_OPENGL40)
+        ImGui_ImplOpenGL3_NewFrame();
+#else
+        ImGui_ImplDX11_NewFrame();
+#endif
+        ImGui_ImplSDL3_NewFrame();
+    }
+
+    void ImGuiBackend::render(void) {
+#if defined(USE_OPENGL40)
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#else
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+#endif
+    }
+
+    void ImGuiBackend::process_event(const SDL_Event& event) {
+        if (this->platform_initialized) {
+            ImGui::SetCurrentContext(this->context);
+            ImGui_ImplSDL3_ProcessEvent(&event);
+        }
+    }
+} // namespace enishi::platform_impl
