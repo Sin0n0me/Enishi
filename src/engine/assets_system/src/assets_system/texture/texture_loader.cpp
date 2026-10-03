@@ -23,8 +23,11 @@ namespace enishi::assets_system {
             stbi_load(path.string<char>().c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
         if (pixels == nullptr) {
-            return foundation::Error(
-                AssetError::IOError, std::format("stbi_load: {}", stbi_failure_reason()));
+            const char* const reason = stbi_failure_reason();
+            return foundation::Error(AssetError::IOError,
+                std::format("Failed to load texture {}: {}",
+                    path.string(),
+                    reason != nullptr ? reason : "Unknown image decoding error"));
         };
 
         const types::TextureFormat format =

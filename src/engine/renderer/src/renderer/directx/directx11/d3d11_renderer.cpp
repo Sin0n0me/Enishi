@@ -29,7 +29,8 @@ namespace enishi::renderer::directx {
     D3D11Renderer::create_vertex_layout(const types::VertexLayout& layout,
         const types::RenderHandle& vertex_shader,
         const types::RenderHandle& pixel_shader) {
-        return std::unique_ptr<platform::IPipelineLayout>{};
+        return foundation::Error(platform::RenderError::MakeError,
+            "D3D11 vertex layout creation from a layout description is not implemented");
     }
 
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_shader_reflection(
@@ -121,7 +122,8 @@ namespace enishi::renderer::directx {
         const auto& handle = result.unwrap();
         const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Render target view handle mapping is missing");
         }
         const auto& index = opt_index.unwrap();
         auto opt_rtv = this->resource_manager->get_resource_accessor()
@@ -146,14 +148,16 @@ namespace enishi::renderer::directx {
         const auto& handle = result.unwrap();
         const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Depth stencil view handle mapping is missing");
         }
         const auto& index = opt_index.unwrap();
         auto opt_rtv = this->resource_manager->get_resource_accessor()
                            ->get_view_accessor()
                            ->get_depth_stencil_view(index.configurable);
         if (opt_rtv.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Depth stencil view resource is missing");
         }
 
         return opt_rtv.unwrap();
@@ -170,14 +174,16 @@ namespace enishi::renderer::directx {
         const auto& handle = result.unwrap();
         const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Shader resource view handle mapping is missing");
         }
         const auto& index = opt_index.unwrap();
         auto opt_rtv = this->resource_manager->get_resource_accessor()
                            ->get_view_accessor()
                            ->get_shader_resource_view(index.configurable);
         if (opt_rtv.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Shader resource view is missing");
         }
 
         return opt_rtv.unwrap();
@@ -194,14 +200,16 @@ namespace enishi::renderer::directx {
         const auto& handle = result.unwrap();
         const auto opt_index = this->resource_manager->get_render_handle_mapper()->get(handle);
         if (opt_index.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(platform::RenderError::MakeError,
+                "Unordered access view handle mapping is missing");
         }
         const auto& index = opt_index.unwrap();
         auto opt_rtv = this->resource_manager->get_resource_accessor()
                            ->get_view_accessor()
                            ->get_unordered_access_view(index.configurable);
         if (opt_rtv.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Unordered access view resource is missing");
         }
 
         return opt_rtv.unwrap();

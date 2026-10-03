@@ -21,7 +21,8 @@ namespace enishi::physics::bullet3 {
             return std::make_unique<btSphereShape>(shape->radius);
         }
 
-        return std::unique_ptr<btCollisionShape>();
+        return foundation::Error(
+            PhysicsError::RigidBodyError, "Unsupported rigid body collision shape");
     }
 
     std::tuple<PhysicsNativeResourceMaker::MotionState, PhysicsNativeResourceMaker::MotionState>
@@ -60,6 +61,14 @@ namespace enishi::physics::bullet3 {
         btCollisionShape* const shape,
         IMMDMotionState* const active_motion_state,
         IMMDMotionState* const kinematic_motion_state) {
+        if (shape == nullptr) {
+            return foundation::Error(
+                PhysicsError::RigidBodyError, "Rigid body collision shape is missing");
+        }
+        if (active_motion_state == nullptr || kinematic_motion_state == nullptr) {
+            return foundation::Error(PhysicsError::MotionStateError,
+                "Rigid body motion state is missing or its kind is unsupported");
+        }
         const bool is_kinematic = rigid_body.kind == types::RigidBodyKind::Kinematic;
         const btScalar mass = is_kinematic ? 0.0f : rigid_body.mass;
         btVector3 local_inertia(0, 0, 0);
@@ -94,6 +103,14 @@ namespace enishi::physics::bullet3 {
     PhysicsNativeResourceMaker::make_joint(const types::PhysicsJoint& joint,
         btRigidBody* const rigid_body_a,
         btRigidBody* const rigid_body_b) {
+        if (rigid_body_a == nullptr || rigid_body_b == nullptr) {
+            return foundation::Error(
+                PhysicsError::RigidBodyError, "Cannot create a joint without both rigid bodies");
+        }
+        if (rigid_body_a == rigid_body_b) {
+            return foundation::Error(PhysicsError::RigidBodyError,
+                "Cannot create a joint connecting a rigid body to itself");
+        }
         btMatrix3x3 rotate_matrix;
         // Z reflection H = diag(1, 1, -1) gives R_bullet = H * R * H:
         // Euler angles (x, y, z) become (-x, -y, z).
@@ -123,6 +140,10 @@ namespace enishi::physics::bullet3 {
 
     foundation::VoidResult<PhysicsError> PhysicsNativeResourceMaker::set_joint(
         btGeneric6DofSpringConstraint* const constraint, const types::PhysicsJoint& joint) {
+        if (constraint == nullptr) {
+            return foundation::Error(
+                PhysicsError::ObjectError, "Cannot configure a null joint constraint");
+        }
         // Under Z reflection, translation becomes (x, y, -z) and rotation
         // becomes (-x, -y, z). Negated intervals map [min, max] to [-max, -min].
         constraint->setLinearLowerLimit(btVector3(joint.constrain_position_min[0],

@@ -15,8 +15,8 @@ namespace enishi::renderer::directx {
                 shader_data.code.size(),
                 IID_PPV_ARGS(this->reflector.ReleaseAndGetAddressOf()));
             if (FAILED(hr)) {
-                return foundation::Error(
-                    platform::RenderError::MakeError, "読み込みに失敗しました");
+                return foundation::Error(platform::RenderError::MakeError, "読み込みに失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         }
 
@@ -25,7 +25,8 @@ namespace enishi::renderer::directx {
             const auto hr = this->reflector->GetDesc(&shader_desc);
             if (FAILED(hr)) {
                 return foundation::Error(
-                    platform::RenderError::MakeError, "Descriptionの取得に失敗しました");
+                    platform::RenderError::MakeError, "Descriptionの取得に失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         }
 
@@ -33,7 +34,8 @@ namespace enishi::renderer::directx {
         for (std::uint32_t i = 0; i < shader_desc.InputParameters; ++i) {
             const auto result_parameter_desc = this->load_parameter_desc(i);
             if (result_parameter_desc.is_err()) {
-                foundation::Logger::error(result_parameter_desc.unwrap_err().get_message());
+                return result_parameter_desc.propagation(platform::RenderError::MakeError)
+                    .add_message(std::format("Failed to reflect shader input parameter {}", i));
             }
         }
 
@@ -41,7 +43,8 @@ namespace enishi::renderer::directx {
         for (std::uint32_t i = 0; i < shader_desc.BoundResources; ++i) {
             const auto result_binding_desc = this->load_binding_desc(i);
             if (result_binding_desc.is_err()) {
-                foundation::Logger::error(result_binding_desc.unwrap_err().get_message());
+                return result_binding_desc.propagation(platform::RenderError::MakeError)
+                    .add_message(std::format("Failed to reflect shader resource binding {}", i));
             }
         }
 
@@ -88,7 +91,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = this->reflector->GetResourceBindingDesc(index, &bind_desc);
         if (FAILED(hr)) {
             return foundation::Error(
-                RendererError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました");
+                RendererError::ShaderReflectionError, "ResourceBindingDescの取得に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto type = [&bind_desc]() {
@@ -164,7 +168,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = this->reflector->GetInputParameterDesc(index, &param_desc);
         if (FAILED(hr)) {
             return foundation::Error(
-                RendererError::ShaderReflectionError, "InputParameterDescの取得に失敗しました");
+                RendererError::ShaderReflectionError, "InputParameterDescの取得に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // マスクからフォーマットを判定 (R, G, B, A のどれが使われているか)

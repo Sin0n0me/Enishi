@@ -89,13 +89,16 @@ namespace enishi::renderer::directx {
 
         if (FAILED(result_device)) {
             return foundation::Error(
-                RendererError::DeviceError, "D3D11デバイスの作成に失敗しました");
+                RendererError::DeviceError, "D3D11デバイスの作成に失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_device)));
         }
 
         const HRESULT result_dxgi_device = this->device.As(&this->dxgi_device);
         if (FAILED(result_dxgi_device)) {
-            return foundation::Error(
-                RendererError::DeviceError, "DXGIデバイスの取得に失敗しました");
+            return foundation::Error(RendererError::DeviceError, "DXGIデバイスの取得に失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_dxgi_device)));
         }
 
         return {};
@@ -108,7 +111,8 @@ namespace enishi::renderer::directx {
 
         if (FAILED(result)) {
             return foundation::Error(
-                RendererError::DeviceError, "DirectCompositionデバイスの作成に失敗しました");
+                RendererError::DeviceError, "DirectCompositionデバイスの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result)));
         }
 
         return {};
@@ -119,8 +123,9 @@ namespace enishi::renderer::directx {
             __uuidof(decltype(this->dxgi_factory)::InterfaceType),
             reinterpret_cast<void**>(this->dxgi_factory.GetAddressOf()));
         if (FAILED(result_factory)) {
-            return foundation::Error(
-                RendererError::FactoryError, "DXGIFactoryの作成に失敗しました");
+            return foundation::Error(RendererError::FactoryError, "DXGIFactoryの作成に失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_factory)));
         }
 
         return {};
@@ -134,7 +139,8 @@ namespace enishi::renderer::directx {
             this->dcomp_surface.GetAddressOf());
         if (FAILED(result)) {
             return foundation::Error(
-                RendererError::SurfaceError, "Surface(Composition)の作成に失敗しました");
+                RendererError::SurfaceError, "Surface(Composition)の作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result)));
         }
 
         return {};
@@ -157,7 +163,9 @@ namespace enishi::renderer::directx {
 
         if (FAILED(result_swap_chain)) {
             return foundation::Error(
-                RendererError::SwapchainError, "SwapChain(Composition)の作成に失敗しました");
+                RendererError::SwapchainError, "SwapChain(Composition)の作成に失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_swap_chain)));
         }
 
         return {};
@@ -193,7 +201,8 @@ namespace enishi::renderer::directx {
 
         if (FAILED(result)) {
             return foundation::Error(
-                RendererError::SwapchainError, "SwapChain(HWND)の作成に失敗しました");
+                RendererError::SwapchainError, "SwapChain(HWND)の作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result)));
         }
 
         return {};
@@ -206,7 +215,8 @@ namespace enishi::renderer::directx {
 
         if (FAILED(hr)) {
             return foundation::Error(
-                RendererError::ViewError, "Target(Composition)の作成に失敗しました");
+                RendererError::ViewError, "Target(Composition)の作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         return {};
@@ -216,7 +226,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = this->dcomp_device->CreateVisual(this->dcomp_visual.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                RendererError::VisualError, "Visual(Composition)の作成に失敗しました");
+                RendererError::VisualError, "Visual(Composition)の作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         return {};
@@ -227,19 +238,25 @@ namespace enishi::renderer::directx {
             this->dcomp_visual->SetContent(this->dxgi_swap_chain.Get());
         if (FAILED(result_set_context)) {
             return foundation::Error(
-                RendererError::SwapchainError, "SwapChain(Composition)のセットに失敗しました");
+                RendererError::SwapchainError, "SwapChain(Composition)のセットに失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_set_context)));
         }
 
         const HRESULT result_set_root = this->dcomp_target->SetRoot(this->dcomp_visual.Get());
         if (FAILED(result_set_root)) {
             return foundation::Error(
-                RendererError::VisualError, "Visual(Composition)のセットに失敗しました");
+                RendererError::VisualError, "Visual(Composition)のセットに失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_set_root)));
         }
 
         // 合成エンジンに完了を通知
         const HRESULT result_commit = this->dcomp_device->Commit();
         if (FAILED(result_commit)) {
-            return foundation::Error(RendererError::DeviceError, "Commitに失敗しました");
+            return foundation::Error(RendererError::DeviceError, "Commitに失敗しました")
+                .add_message(
+                    std::format("HRESULT {:#x}", static_cast<std::uint32_t>(result_commit)));
         }
 
         return {};
@@ -253,7 +270,8 @@ namespace enishi::renderer::directx {
 
         const HRESULT hr = device->CreateQuery(&description, this->query.GetAddressOf());
         if (FAILED(hr)) {
-            return foundation::Error(RendererError::DeviceError, "Query作成に失敗しました");
+            return foundation::Error(RendererError::DeviceError, "Query作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         return {};

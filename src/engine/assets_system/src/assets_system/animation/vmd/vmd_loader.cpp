@@ -196,7 +196,8 @@ namespace enishi::assets_system {
 
         auto&& result = loader.load_vmd(binary_reader, vmd_data.get());
         if (result.is_err()) {
-            return std::move(result).take_err();
+            return std::move(result).take_err().add_message(
+                std::format("Failed to parse VMD animation: {}", path.string()));
         }
 
         return vmd_data;

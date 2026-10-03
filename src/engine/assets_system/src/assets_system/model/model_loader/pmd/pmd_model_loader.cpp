@@ -511,7 +511,8 @@ namespace enishi::assets_system {
         std::unique_ptr<PMDData> pmd_data = std::make_unique<PMDData>();
         auto result = this->load_pmd(binary_reader, pmd_data.get());
         if (result.is_err()) {
-            return reader.propagation(AssetError::IOError);
+            return result.propagation(AssetError::IOError)
+                .add_message(std::format("Failed to parse PMD model: {}", path.string()));
         }
 
         return ModelVariant{std::move(pmd_data)};

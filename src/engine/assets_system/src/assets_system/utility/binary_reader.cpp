@@ -41,19 +41,27 @@ namespace enishi::assets_system {
     IOResult<std::size_t> BinaryReader::remaining_bytes(void) {
         detail::StreamPosGuard position(this->file);
         if (position.is_invalid()) {
-            return foundation::Error(IOError::InvalidStreamPosition);
+            return foundation::Error(
+                IOError::InvalidStreamPosition, "Cannot determine the current stream position");
         }
         this->file.seekg(0, std::ios::end);
         const auto end = this->file.tellg();
         if (end < position.get_position()) {
-            return foundation::Error(IOError::InvalidStreamPosition);
+            return foundation::Error(IOError::InvalidStreamPosition,
+                "Cannot determine remaining bytes: end position precedes current position");
         }
         return static_cast<std::size_t>(end - position.get_position());
     }
 
     IOResult<void> BinaryReader::read(void* data, const std::streamsize size) {
         if (!bool(this->file)) {
-            return foundation::Error(IOError::ReadFailed);
+            return foundation::Error(
+                IOError::ReadFailed, "Cannot read from a stream in a failed state");
+        }
+
+        if (size < 0 || (size > 0 && data == nullptr)) {
+            return foundation::Error(IOError::InvalidData,
+                "Read requires a nonnegative size and a destination for nonempty data");
         }
 
         this->file.read(reinterpret_cast<char*>(data), size);
@@ -90,7 +98,8 @@ namespace enishi::assets_system {
         this->file.seekg(0, std::ios::end);
         const std::streamsize size = this->file.tellg();
         if (size < 0) {
-            return foundation::Error(IOError::InvalidStreamPosition);
+            return foundation::Error(
+                IOError::InvalidStreamPosition, "Cannot determine the file size");
         }
         this->file.seekg(0, std::ios::beg);
 

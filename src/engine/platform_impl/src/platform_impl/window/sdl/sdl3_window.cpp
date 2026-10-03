@@ -80,23 +80,29 @@ namespace enishi::platform_impl {
 
     foundation::VoidResult<platform::WindowError> SDL3Window::init(void) noexcept {
         // TODO: ルートウィンドウの時だけ
+        if (this->window == nullptr) {
+            return foundation::Error(platform::WindowError::FailedMakeWindow,
+                std::format("SDL_CreateWindow failed: {}", SDL_GetError()));
+        }
         if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
-            foundation::Logger::error(SDL_GetError());
-            return foundation::Error(platform::WindowError::InitError);
+            return foundation::Error(platform::WindowError::InitError,
+                std::format("SDL video initialization failed: {}", SDL_GetError()));
         }
 
         if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
-            foundation::Logger::error(SDL_GetError());
-            return foundation::Error(platform::WindowError::InitError);
+            return foundation::Error(platform::WindowError::InitError,
+                std::format("SDL event initialization failed: {}", SDL_GetError()));
         }
 
         // ヒットテストのコールバックを登録
         if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, nullptr)) {
-            return foundation::Error(platform::WindowError::InitError);
+            return foundation::Error(platform::WindowError::InitError,
+                std::format("SDL_SetWindowHitTest failed: {}", SDL_GetError()));
         }
 
         if (!this->apply_shape_window()) {
-            return foundation::Error(platform::WindowError::InitError);
+            return foundation::Error(platform::WindowError::InitError,
+                std::format("Failed to apply the window shape: {}", SDL_GetError()));
         }
 
         return {};
@@ -210,8 +216,8 @@ namespace enishi::platform_impl {
         }
         const auto context = SDL_GL_CreateContext(this->window.get());
         if (!context) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "Failed to create the OpenGL context");
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("SDL_GL_CreateContext failed: {}", SDL_GetError()));
         }
         return std::make_shared<SDLOpenGLContext>(this->window.get(), context);
     }
@@ -228,7 +234,8 @@ namespace enishi::platform_impl {
     foundation::VoidResult<platform::WindowError> SDL3Window::set_position(
         const types::WindowPosition& position) noexcept {
         if (!SDL_SetWindowPosition(this->window.get(), position.x, position.y)) {
-            return foundation::Error(platform::WindowError::FailedSetWinodwPosition);
+            return foundation::Error(platform::WindowError::FailedSetWinodwPosition,
+                std::format("SDL_SetWindowPosition failed: {}", SDL_GetError()));
         }
 
         return {};
@@ -246,7 +253,8 @@ namespace enishi::platform_impl {
     foundation::VoidResult<platform::WindowError> SDL3Window::set_size(
         const types::WindowSize& size) noexcept {
         if (!SDL_SetWindowSize(this->window.get(), size.width, size.height)) {
-            return foundation::Error(platform::WindowError::FailedSetWinodwSize);
+            return foundation::Error(platform::WindowError::FailedSetWinodwSize,
+                std::format("SDL_SetWindowSize failed: {}", SDL_GetError()));
         }
 
         return {};
@@ -254,6 +262,10 @@ namespace enishi::platform_impl {
 
     foundation::VoidResult<platform::WindowError> SDL3Window::set_title(
         const std::string& title) noexcept {
+        if (!SDL_SetWindowTitle(this->window.get(), title.c_str())) {
+            return foundation::Error(platform::WindowError::FailedSetWinodwTitle,
+                std::format("SDL_SetWindowTitle failed: {}", SDL_GetError()));
+        }
         return {};
     }
 

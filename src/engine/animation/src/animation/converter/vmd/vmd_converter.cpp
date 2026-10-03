@@ -26,18 +26,21 @@ namespace enishi::animation {
         auto result =
             FrameConverter::write_bone_track(clip.bone_tracks, data.bone_key_frames, bones);
         if (result.is_err()) {
-            return result.propagation(AnimationError::FailedConvert);
+            return result.propagation(AnimationError::FailedConvert)
+                .add_message("Failed to convert VMD bone tracks");
         }
         if (morphs != nullptr) {
             result =
                 FrameConverter::write_morph_track(clip.morph_tracks, data.morph_key_frames, morphs);
             if (result.is_err()) {
-                return result.propagation(AnimationError::FailedConvert);
+                return result.propagation(AnimationError::FailedConvert)
+                    .add_message("Failed to convert VMD morph tracks");
             }
         }
         result = FrameConverter::write_ik_track(clip.ik_tracks, data.iks, bones);
         if (result.is_err()) {
-            return result.propagation(AnimationError::FailedConvert);
+            return result.propagation(AnimationError::FailedConvert)
+                .add_message("Failed to convert VMD IK tracks");
         }
         for (const auto& track : clip.bone_tracks) {
             clip.duration = std::max(clip.duration, track.positions.times.back());
@@ -68,7 +71,9 @@ namespace enishi::animation {
                 std::find(std::begin(frame.bone_name), std::end(frame.bone_name), '\0'));
             const auto utf8 = foundation::sjis_to_utf8(name);
             if (utf8.is_err()) {
-                return utf8.propagation(AnimationError::FailedConvert);
+                return utf8.propagation(AnimationError::FailedConvert)
+                    .add_message(
+                        std::format("Failed to decode VMD bone name at frame {}", frame.frame));
             }
             const auto index = resolver->resolve_index(utf8.unwrap());
             if (index.is_none()) {

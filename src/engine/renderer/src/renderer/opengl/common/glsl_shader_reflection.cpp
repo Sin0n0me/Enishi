@@ -1,6 +1,8 @@
 #include "glsl_shader_reflection.h"
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
+#include <limits>
 #include <regex>
 
 namespace enishi::renderer::opengl {
@@ -16,6 +18,19 @@ namespace enishi::renderer::opengl {
     constexpr std::uint32_t UNIFORM_BINDING_INCREMENT = 1;
     constexpr std::uint32_t DEFAULT_DESCRIPTOR_SET = 0;
     constexpr std::size_t SHADER_TYPE_PREFIX_OFFSET = 0;
+
+    namespace {
+        foundation::Result<std::uint32_t, platform::RenderError> parse_layout_index(
+            const std::string& text) {
+            std::uint32_t value = 0;
+            const auto result = std::from_chars(text.data(), text.data() + text.size(), value);
+            if (result.ec != std::errc{} || result.ptr != text.data() + text.size()) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    std::format("GLSL layout index is outside the uint32 range: {}", text));
+            }
+            return value;
+        }
+    } // namespace
 
     GLSLShaderReflection::GLSLShaderReflection(void) noexcept
         : kind(types::ShaderKind::Unknown)
@@ -77,10 +92,14 @@ namespace enishi::renderer::opengl {
             R"(layout\s*\(\s*location\s*=\s*(\d+)\s*\)\s*in\s+([[:alnum:]_]+)\s+([[:alnum:]_]+))");
         for (std::sregex_iterator it(source.begin(), source.end(), input_pattern), end; it != end;
              ++it) {
+            auto location = parse_layout_index((*it)[INPUT_LOCATION_CAPTURE].str());
+            if (location.is_err()) {
+                return std::move(location).take_err().add_message(
+                    "Failed to reflect GLSL input location");
+            }
             this->input.add_layout({.name = (*it)[SHADER_NAME_CAPTURE].str(),
                 .value_type = types::ShaderInputValueType::Float,
-                .location =
-                    static_cast<std::uint32_t>(std::stoul((*it)[INPUT_LOCATION_CAPTURE].str())),
+                .location = location.unwrap(),
                 .array_size = DEFAULT_ARRAY_SIZE,
                 .component = DEFAULT_COMPONENT,
                 .component_count = DEFAULT_COMPONENT_COUNT});
@@ -93,10 +112,20 @@ namespace enishi::renderer::opengl {
             const auto type = (*it)[SHADER_TYPE_CAPTURE].str();
             const auto declared_name = (*it)[SHADER_NAME_CAPTURE].str();
             const auto name = declared_name.empty() ? type : declared_name;
-            const auto binding =
-                (*it)[UNIFORM_BINDING_CAPTURE].matched
-                    ? static_cast<std::uint32_t>(std::stoul((*it)[UNIFORM_BINDING_CAPTURE].str()))
-                    : next_uniform_binding++;
+            auto binding = next_uniform_binding;
+            if ((*it)[UNIFORM_BINDING_CAPTURE].matched) {
+                auto parsed = parse_layout_index((*it)[UNIFORM_BINDING_CAPTURE].str());
+                if (parsed.is_err()) {
+                    return std::move(parsed).take_err().add_message(
+                        std::format("Failed to reflect GLSL uniform binding: {}", name));
+                }
+                binding = parsed.unwrap();
+            }
+            if (binding == (std::numeric_limits<std::uint32_t>::max)()) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    std::format(
+                        "GLSL uniform binding leaves no representable next binding: {}", name));
+            }
             next_uniform_binding =
                 std::max(next_uniform_binding, binding + UNIFORM_BINDING_INCREMENT);
             this->input.add_resource({.name = name,

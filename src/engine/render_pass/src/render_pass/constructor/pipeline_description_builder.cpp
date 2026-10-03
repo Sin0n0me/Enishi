@@ -22,12 +22,14 @@ namespace enishi::render_pass {
         const auto result_shader_entries = shader_data_provider->get(shader_paths);
         if (result_shader_entries.is_err()) {
             this->has_error = true;
+            this->errors.push_back(result_shader_entries.unwrap_err().get_message());
             return this;
         }
         auto&& shader_entries = make_shader_map_presorted(result_shader_entries.unwrap());
         const auto result_shader = make_shaders(this->renderer, std::move(shader_entries));
         if (result_shader.is_err()) {
             this->has_error = true;
+            this->errors.push_back(result_shader.unwrap_err().get_message());
             return this;
         }
         auto&& shaders = result_shader.unwrap();
@@ -49,6 +51,7 @@ namespace enishi::render_pass {
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_render_target_view(
         const types::RenderHandle handle) noexcept {
         if (!handle.is_valid()) {
+            this->has_error = true;
             this->errors.push_back("Add render target view: 無効なハンドルです");
             return this;
         }
@@ -62,6 +65,7 @@ namespace enishi::render_pass {
         const types::ImageFormat format) noexcept {
         const auto opt_window_size = window->get_size();
         if (opt_window_size.is_none()) {
+            this->has_error = true;
             this->errors.push_back("ウィンドウサイズを取得できませんでした");
             return this;
         }
@@ -85,6 +89,7 @@ namespace enishi::render_pass {
         const types::ImageFormat format) noexcept {
         const auto opt_window_size = window->get_size();
         if (opt_window_size.is_none()) {
+            this->has_error = true;
             this->errors.push_back("ウィンドウサイズを取得できませんでした");
             return this;
         }
@@ -95,6 +100,7 @@ namespace enishi::render_pass {
                 format,
                 this->renderer);
         if (view.is_err()) {
+            this->has_error = true;
             this->errors.push_back(view.unwrap_err().get_message());
             return this;
         }
@@ -107,17 +113,20 @@ namespace enishi::render_pass {
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_depth_stencil_view(
         const types::RenderHandle handle) noexcept {
         if (!handle.is_valid()) {
+            this->has_error = true;
             this->errors.push_back("Add depth stencil view: 無効なハンドルです");
             return this;
         }
 
         this->description.depth_stencil_view = handle;
+        return this;
     }
 
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_depth_stencil_view(
         const types::ImageFormat format) noexcept {
         const auto opt_window_size = window->get_size();
         if (opt_window_size.is_none()) {
+            this->has_error = true;
             this->errors.push_back("ウィンドウサイズを取得できませんでした");
             return this;
         }
@@ -139,6 +148,7 @@ namespace enishi::render_pass {
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_rasterizer_state(
         const types::RenderHandle handle) noexcept {
         if (!handle.is_valid()) {
+            this->has_error = true;
             this->errors.push_back("Add rasterizer state: 無効なハンドルです");
             return this;
         }

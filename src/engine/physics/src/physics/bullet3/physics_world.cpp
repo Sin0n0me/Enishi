@@ -66,6 +66,8 @@ namespace enishi::physics::bullet3 {
         auto opt = motion_state_view->link_motion_state(
             motion_state_index, std::move(ground_motion_state));
         if (opt.is_none()) {
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Failed to link the ground motion state");
         }
 
         auto [shape_index, shape] =
@@ -166,7 +168,8 @@ namespace enishi::physics::bullet3 {
             motion_accessor->link_motion_state(active_motion_state_handle,
                 std::shared_ptr<sub_system::IMotionState>(active_motion_state_shared));
         if (opt_kinematic_motion_state.is_none() || opt_active_motion_state.is_none()) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Failed to link rigid body motion states");
         }
 
         // 形状の作成
@@ -190,7 +193,8 @@ namespace enishi::physics::bullet3 {
                 rigid_body_description.kind,
                 rigid_body_description.relate_bone_index));
         if (opt_rigid_body.is_none()) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Failed to link the native rigid body");
         }
         auto& rigid_body = opt_rigid_body.unwrap_mut();
         rigid_body->set_active(true);
@@ -225,7 +229,8 @@ namespace enishi::physics::bullet3 {
         const auto opt_rigid_body_handles =
             this->object_manager->get_handles(object.unwrap(), types::PhysicsHandleType::RigidBody);
         if (opt_rigid_body_handles.is_none()) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError,
+                "Cannot create joint: rigid body handles are missing");
         }
         const auto rigid_body_handles = opt_rigid_body_handles.unwrap();
         const size_t size = rigid_body_handles.size();
@@ -233,10 +238,12 @@ namespace enishi::physics::bullet3 {
         const size_t index_rigid_body_b = joint.rigid_body_b;
         // 0 index
         if (index_rigid_body_a == index_rigid_body_b) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(sub_system::PhysicsError::MakeError,
+                "Cannot create a joint connecting a rigid body to itself");
         }
         if (size < (index_rigid_body_a + 1) || size < (index_rigid_body_b + 1)) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Joint rigid body index is out of range");
         }
 
         // Jointのインデックスに対応した剛体の取得
@@ -245,7 +252,8 @@ namespace enishi::physics::bullet3 {
         const auto opt_mapped_rigid_body_b =
             this->handle_mapper->get(rigid_body_handles[index_rigid_body_b]);
         if (opt_mapped_rigid_body_a.is_none() || opt_mapped_rigid_body_b.is_none()) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Joint rigid body handle mapping is missing");
         }
         const auto& mapped_rigid_body_a = opt_mapped_rigid_body_a.unwrap();
         const auto& mapped_rigid_body_b = opt_mapped_rigid_body_b.unwrap();
@@ -253,13 +261,18 @@ namespace enishi::physics::bullet3 {
         const auto accessor = this->resource_pool->get_native_rigid_body_accessor();
         const auto opt_rigid_body_a = accessor->get_native_rigid_body(mapped_rigid_body_a.resource);
         const auto opt_rigid_body_b = accessor->get_native_rigid_body(mapped_rigid_body_b.resource);
+        if (opt_rigid_body_a.is_none() || opt_rigid_body_b.is_none()) {
+            return foundation::Error(
+                sub_system::PhysicsError::MakeError, "Joint native rigid body is missing");
+        }
         const auto& rigid_body_a = opt_rigid_body_a.unwrap();
         const auto& rigid_body_b = opt_rigid_body_b.unwrap();
 
         auto result_joint =
             PhysicsNativeResourceMaker::make_joint(joint, rigid_body_a.get(), rigid_body_b.get());
         if (result_joint.is_err()) {
-            return foundation::Error(sub_system::PhysicsError::MakeError);
+            return result_joint.propagation(sub_system::PhysicsError::MakeError)
+                .add_message("Failed to create the native joint");
         }
         auto& native_joint = result_joint.unwrap_mut();
 

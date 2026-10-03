@@ -8,6 +8,7 @@
 #include "view/unordered_access_view.h"
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
+#include <limits>
 #include <ranges>
 #include <renderer/common/converter/skinned_vertices.h>
 #include <renderer/common/vertex_buffer_updater.h>
@@ -108,7 +109,8 @@ namespace enishi::renderer::directx {
             input_layout.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "InputLayoutの作成に失敗しました");
+                platform::RenderError::MakeError, "InputLayoutの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         return this->handle_mapper->make(types::RenderHandleType::VertexLayout,
@@ -211,7 +213,8 @@ namespace enishi::renderer::directx {
                 break;
         }
 
-        return foundation::Error(platform::RenderError::MakeError);
+        return foundation::Error(
+            platform::RenderError::MakeError, "D3D11 shader creation requires DXBC bytecode");
     }
 
     foundation::Result<types::RenderHandle, platform::RenderError> ResourceManager::make_texture(
@@ -226,8 +229,9 @@ namespace enishi::renderer::directx {
             types::ImageViewDescription::make_shader_resource_view_description(
                 types::ImageFormat::D24_UNORM_S8_UINT));
         if (reuslt_srv.is_err()) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースビューの作成に失敗しました");
+            return std::move(reuslt_srv)
+                .take_err()
+                .add_message("シェーダーリソースビューの作成に失敗しました");
         }
 
         return reuslt_srv;
@@ -260,7 +264,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateTexture2D(&desc, &subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "テクスチャの作成に失敗しました");
+                platform::RenderError::MakeError, "テクスチャの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_image_binding();
@@ -274,6 +279,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_vertex_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 vertex buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -290,7 +300,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -309,6 +320,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_index_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 index buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -325,7 +341,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -342,6 +359,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_uniform_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 uniform buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -360,7 +382,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -389,14 +412,16 @@ namespace enishi::renderer::directx {
             const HRESULT hr = swap_chain->GetBuffer(0, IID_PPV_ARGS(texture.GetAddressOf()));
             if (FAILED(hr)) {
                 return foundation::Error(
-                    platform::RenderError::MakeError, "バックバッファの取得に失敗しました");
+                    platform::RenderError::MakeError, "バックバッファの取得に失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         } else {
             const auto device = this->context->get_device();
             const HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.GetAddressOf());
             if (FAILED(hr)) {
                 return foundation::Error(
-                    platform::RenderError::MakeError, "イメージの作成に失敗しました");
+                    platform::RenderError::MakeError, "イメージの作成に失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         }
 
@@ -411,15 +436,23 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError> ResourceManager::make_image(
         const types::TextureData& texture_data) {
+        constexpr std::size_t SUPPORTED_MIP_COUNT = 1;
+        constexpr std::uint32_t SUPPORTED_LAYER_COUNT = 1;
+        if (texture_data.mips.size() != SUPPORTED_MIP_COUNT || texture_data.is_cubemap ||
+            texture_data.array_size != SUPPORTED_LAYER_COUNT ||
+            texture_data.depth > SUPPORTED_LAYER_COUNT) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "D3D11 texture upload supports one mip level and one 2D image layer");
+        }
+        const auto& source = texture_data.mips.front();
+        if (source.pixels.empty() || source.slice_pitch > source.pixels.size()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "D3D11 texture pixel data is missing or shorter than its slice pitch");
+        }
         // 先に作成
         const auto buffer_accessor = this->native_resource->get_native_texture_accessor();
         const auto [resource_handle, texture] = buffer_accessor->make_native_texture_2d();
         const auto desc = D3D11Converter::to_texture2d_desc(texture_data);
-
-        if (texture_data.mips.empty()) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "イメージの作成に失敗しました");
-        }
 
         // 初期データの作成
         const auto mip_index = 0;
@@ -435,7 +468,8 @@ namespace enishi::renderer::directx {
             device->CreateTexture2D(&desc, &init_subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "イメージの作成に失敗しました");
+                platform::RenderError::MakeError, "イメージの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_image_binding();
@@ -456,7 +490,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBlendState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "ブレンドステートの作成に失敗しました");
+                platform::RenderError::MakeError, "ブレンドステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -478,7 +513,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateSamplerState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "サンプラーステートの作成に失敗しました");
+                platform::RenderError::MakeError, "サンプラーステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -501,7 +537,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateRasterizerState(&desc, rasterizer.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "ラスタライザの作成に失敗しました");
+                platform::RenderError::MakeError, "ラスタライザの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -524,7 +561,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateDepthStencilState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "深度ステンシルステートの作成に失敗しました");
+                platform::RenderError::MakeError, "深度ステンシルステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -610,7 +648,8 @@ namespace enishi::renderer::directx {
             device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました");
+                platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -657,7 +696,8 @@ namespace enishi::renderer::directx {
             device->CreateDepthStencilView(texture.Get(), nullptr, dsv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "深度ステンシルの作成に失敗しました");
+                platform::RenderError::MakeError, "深度ステンシルの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -704,7 +744,8 @@ namespace enishi::renderer::directx {
             device->CreateShaderResourceView(texture.Get(), nullptr, srv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました");
+                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -751,7 +792,8 @@ namespace enishi::renderer::directx {
             device->CreateUnorderedAccessView(texture.Get(), nullptr, uav.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました");
+                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -795,7 +837,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateVertexShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -809,7 +853,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreatePixelShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -823,7 +869,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateComputeShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -837,7 +885,9 @@ namespace enishi::renderer::directx {
                     nullptr,
                     shader.GetAddressOf());
                 if (FAILED(hr)) {
-                    return foundation::Error(platform::RenderError::MakeError);
+                    return foundation::Error(platform::RenderError::MakeError,
+                        std::format("CreateHullShader failed: HRESULT {:#x}",
+                            static_cast<std::uint32_t>(hr)));
                 }
                 const auto [binding, _] = this->resource_binder->make_shader_binding();
 
@@ -845,7 +895,8 @@ namespace enishi::renderer::directx {
                 resource_handle = resource;
             } break;
             default:
-                return foundation::Error(platform::RenderError::MakeError);
+                return foundation::Error(
+                    platform::RenderError::MakeError, "Unsupported D3D11 shader stage");
         }
 
         return this->handle_mapper->make(types::RenderHandleType::Shader,
@@ -991,14 +1042,16 @@ namespace enishi::renderer::directx {
         // バインド情報の更新
         auto opt_binding = this->resource_binder->get_buffer_binding(index.binding);
         if (opt_binding.is_none()) {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(
+                platform::RenderError::MakeError, "Uniform buffer binding is missing");
         }
         auto& binding = opt_binding.unwrap_mut();
         if (auto param = std::get_if<types::UniformBufferParameter>(&binding.parameter)) {
             param->target_shader = shader_kind;
             param->target = input_resource.binding;
         } else {
-            return foundation::Error(platform::RenderError::MakeError);
+            return foundation::Error(platform::RenderError::MakeError,
+                "Buffer binding does not contain uniform buffer parameters");
         }
 
         // 名前に対応したUniformBufferのUpderterの作成

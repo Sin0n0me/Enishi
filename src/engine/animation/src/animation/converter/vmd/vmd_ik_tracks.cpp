@@ -22,7 +22,9 @@ namespace enishi::animation {
                     std::find(std::begin(info.name), std::end(info.name), '\0'));
                 const auto decoded = foundation::sjis_to_utf8(name);
                 if (decoded.is_err()) {
-                    return decoded.propagation(AnimationError::FailedConvert);
+                    return decoded.propagation(AnimationError::FailedConvert)
+                        .add_message(
+                            std::format("Failed to decode VMD IK name at frame {}", frame.frame));
                 }
                 const auto index = resolver->resolve_index(decoded.unwrap());
                 if (index.is_none()) {
