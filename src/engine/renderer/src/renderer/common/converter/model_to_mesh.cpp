@@ -80,6 +80,9 @@ namespace enishi::renderer {
             return foundation::Error(RendererError::ConvertError, "Model has no vertices");
         }
         const auto& attributes = model_data.vertices.front();
+        if (attributes.empty()) {
+            return foundation::Error(RendererError::ConvertError, "Model vertex has no attributes");
+        }
         if (std::ranges::any_of(attributes, [](const auto& attribute) {
                 return std::holds_alternative<types::Skinning>(attribute) ||
                        std::holds_alternative<types::Skinning4>(attribute);
@@ -89,6 +92,21 @@ namespace enishi::renderer {
                 return std::move(converted).unwrap_err();
             }
             return types::OwnedRenderData{converted.unwrap()};
+        }
+
+        for (std::size_t index = 0; index < model_data.vertices.size(); ++index) {
+            const auto& vertex = model_data.vertices[index];
+            if (vertex.size() != attributes.size() ||
+                !std::equal(vertex.begin(),
+                    vertex.end(),
+                    attributes.begin(),
+                    [](const auto& value, const auto& expected) {
+                        return value.index() == expected.index();
+                    })) {
+                return foundation::Error(RendererError::ConvertError,
+                    std::format(
+                        "Vertex {} has a different attribute layout from the first vertex", index));
+            }
         }
 
         const auto append_vertex = [&vertices](const std::vector<types::VertexVariant>& vertex) {
@@ -387,6 +405,11 @@ namespace enishi::renderer {
                 return foundation::Error(RendererError::ConvertError,
                     std::format("テクスチャデータが見つかりませんでした. path: {}",
                         texture.path.string<char>()));
+            }
+
+            if (iter->second == nullptr) {
+                return foundation::Error(RendererError::ConvertError,
+                    std::format("Texture data is null: {}", texture.path.string()));
             }
 
             // https://cpprefjp.github.io/reference/unordered_map/unordered_map/emplace.html
