@@ -1,0 +1,84 @@
+name: Windows CMake
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    strategy:
+      matrix:
+        config: [Release, Debug]
+        backend: [directx, opengl]
+        #platform: [x86, x64]
+        platform: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.txt
+
+      - name: Install Python dependencies
+        run: python -m pip install --requirement .github/requirements-ci.txt
+          
+      - name: Setup Developer Command
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.platform }}
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/${{ matrix.backend }}/visualstudio/_deps
+            build/${{ matrix.backend }}/visualstudio/libs
+          key: ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
+
+      - name: Restore vcpkg dependencies
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ runner.os }}-vcpkg-${{ matrix.platform }}-${{ hashFiles('**/CMakeLists.txt', '.github/workflows/cmake.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-${{ matrix.platform }}-
+
+      - name: Install ICU
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
+        run: |
+          if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
+          vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
+        shell: cmd
+
+      - name: Save vcpkg dependencies
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            vcpkg_installed
+            vcpkg_binary_cache
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+
+      - name: Build
+        env:
+          VCPKG_INSTALLED_DIR: ${{ github.workspace }}\vcpkg_installed
+        run: |
+          set "PYTHON_EXECUTABLE=%pythonLocation%\python.exe"
+          set "PATH=%pythonLocation%;%PATH%"
+          "%PYTHON_EXECUTABLE%" -c "import jinja2"
+          build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} visualstudio
+        shell: cmd

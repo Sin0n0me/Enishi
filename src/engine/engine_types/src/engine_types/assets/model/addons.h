@@ -1,0 +1,29 @@
+#pragma once
+#include "addons/bone.h"
+#include "addons/bone_constraints.h"
+#include "addons/ik.h"
+#include "addons/morph.h"
+#include "addons/morph_target.h"
+#include "addons/physics_joint.h"
+#include "addons/rigid_body.h"
+#include "addons/soft_body.h"
+#include <variant>
+#include <vector>
+
+// モデルに対して変化を加える場合はこの型を使用
+namespace enishi::types {
+    using AddonBones = std::vector<ModelBone>;
+    using AddonIKs = std::vector<IK>;
+    using AddonRigidBodies = std::vector<PhysicsRigidBody>;
+    using AddonPhysicsJoints = std::vector<PhysicsJoint>;
+
+    using ModelAddon = std::variant<std::monostate,
+        AddonBones,
+        AddonIKs,
+        AddonMorphs,
+        AddonRigidBodies,
+        AddonPhysicsJoints,
+        AddonMorphTargets,
+        AddonBoneConstraints,
+        AddonSoftBodies>;
+} // namespace enishi::types

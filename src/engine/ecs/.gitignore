@@ -1,0 +1,9 @@
+
+.cache/
+CMakeFiles/
+build/
+out/
+
+CMakeCache.txt
+compile_commands.json
+
