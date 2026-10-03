@@ -48,7 +48,8 @@ namespace enishi::render_pass {
 
         auto&& dependency_result = foundation::resolve_dependencies(dependencies);
         if (dependency_result.is_err()) {
-            return dependency_result.propagation(ConstructError::Construct);
+            return dependency_result.propagation(ConstructError::Construct)
+                .add_message("Failed to resolve render pass constructor dependencies");
         }
 
         std::unordered_map<foundation::DependencyNode, std::shared_ptr<platform::IRenderPass>>
@@ -73,10 +74,15 @@ namespace enishi::render_pass {
                 this->shader_data_provider.get(),
                 dependency_render_passes);
             if (result.is_err()) {
-                return result.propagation(ConstructError::Construct);
+                return result.propagation(ConstructError::Construct)
+                    .add_message(std::format("Failed to construct render pass: {}", pass_name));
             }
 
             auto&& render_pass = result.unwrap_mut();
+            if (render_pass == nullptr) {
+                return foundation::Error(ConstructError::Construct,
+                    std::format("Constructor returned a null render pass: {}", pass_name));
+            }
             node_to_render_pass.emplace(constructor->get_node(), render_pass);
             this->name_to_pass.emplace(pass_name, RenderPassInfo{.render_pass = render_pass});
         }
@@ -163,13 +169,15 @@ namespace enishi::render_pass {
 
         const auto opt_mapped_mesh_handle = mapper->get(mesh_handle);
         if (opt_mapped_mesh_handle.is_none()) {
-            return foundation::Error(ConstructError::Construct);
+            return foundation::Error(
+                ConstructError::Construct, "Cannot resolve mesh: render handle mapping is missing");
         }
         const auto& mapped_mesh_handle = opt_mapped_mesh_handle.unwrap();
         const auto opt_mesh_handles =
             view->get_mesh_accessor()->get_mesh_handle(mapped_mesh_handle.resource);
         if (opt_mesh_handles.is_none()) {
-            return foundation::Error(ConstructError::Construct);
+            return foundation::Error(
+                ConstructError::Construct, "Cannot resolve mesh: mesh resource is missing");
         }
 
         render_pass->add_mesh(mesh_handle);
@@ -179,7 +187,8 @@ namespace enishi::render_pass {
         for (const auto& handle : mesh.mesh_handles) {
             const auto opt_buffer_handle = mapper->get(handle);
             if (opt_buffer_handle.is_none()) {
-                return foundation::Error(ConstructError::Construct);
+                return foundation::Error(ConstructError::Construct,
+                    "Cannot resolve mesh buffer: handle mapping is missing");
             }
             const auto& buffer_handle = opt_buffer_handle.unwrap();
 
@@ -192,5 +201,6 @@ namespace enishi::render_pass {
             // レンダーパスに追加
             render_pass->add_updater(opt_buffer_interface.unwrap());
         }
+        return {};
     }
 } // namespace enishi::render_pass
