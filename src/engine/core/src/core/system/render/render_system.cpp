@@ -20,6 +20,10 @@ namespace enishi::core {
         this->render_passes = std::move(render_passes);
     }
 
+    void RenderSystem::set_ui(std::shared_ptr<sub_system::IUI> ui) {
+        this->ui = std::move(ui);
+    }
+
     bool enishi::core::RenderSystem::should_close(void) {
         return false;
     }
@@ -57,6 +61,9 @@ namespace enishi::core {
 
     void enishi::core::RenderSystem::render(void) const {
         this->submit_render_graph();
+        if (this->ui != nullptr) {
+            this->ui->render();
+        }
         this->present();
     }
 
