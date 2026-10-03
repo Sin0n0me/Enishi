@@ -147,6 +147,8 @@ namespace enishi::core {
             this->set_asset_state(handle, types::AssetState::Loading);
 
             // 1つの拡張子が複数ローダーに対応している場合, 最初に正常に読み込めた結果を採用する
+            auto failure = foundation::Error(assets_system::AssetError::NotFound,
+                std::format("All asset loaders failed for {}", path.string()));
             for (const auto& loader : candidates) {
                 auto result = loader->load(path);
                 if (result.is_ok()) {
@@ -154,12 +156,11 @@ namespace enishi::core {
                     this->set_asset_state(handle, types::AssetState::Loaded);
                     return result;
                 }
-                foundation::Logger::warning(result.unwrap_err().get_message());
+                failure.add_message(result.unwrap_err().get_message());
             }
 
             return foundation::Result<types::AssetData, assets_system::AssetError>(
-                foundation::Error(assets_system::AssetError::NotFound,
-                    std::format("読み込みに失敗しました. target: {}", path.string<char>())));
+                std::move(failure));
         };
 
         // 実際のIOスレッド管理・完了結果の受け渡しはスケジューラの責務
