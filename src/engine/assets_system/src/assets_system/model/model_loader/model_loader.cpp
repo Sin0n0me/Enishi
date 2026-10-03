@@ -35,7 +35,8 @@ namespace enishi::assets_system {
 
         auto&& load_data = iter->second->load(path);
         if (load_data.is_err()) {
-            return std::move(load_data).take_err();
+            return std::move(load_data).take_err().add_message(
+                std::format("Failed to load model: {}", path.string()));
         }
         auto&& model_data = load_data.unwrap_mut();
 
@@ -56,13 +57,15 @@ namespace enishi::assets_system {
             auto converted =
                 PMXToModelData::to_model_data(path, **pmx_data, this->texture_loader.get());
             if (converted.is_err()) {
-                return std::move(converted).take_err();
+                return std::move(converted).take_err().add_message(
+                    std::format("Failed to convert PMX model: {}", path.string()));
             }
             return types::AssetData{std::move(converted).unwrap_mut()};
         }
 
         // 仮
-        return foundation::Error(AssetError::NotFound);
+        return foundation::Error(AssetError::InvalidAssetData,
+            std::format("Model loader returned an unsupported data type: {}", path.string()));
     }
 
     std::vector<foundation::UTF8> ModelLoader::get_supported_extension(void) const noexcept {
