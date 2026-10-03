@@ -8,6 +8,7 @@
 #include "view/unordered_access_view.h"
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
+#include <limits>
 #include <ranges>
 #include <renderer/common/converter/skinned_vertices.h>
 #include <renderer/common/vertex_buffer_updater.h>
@@ -228,8 +229,9 @@ namespace enishi::renderer::directx {
             types::ImageViewDescription::make_shader_resource_view_description(
                 types::ImageFormat::D24_UNORM_S8_UINT));
         if (reuslt_srv.is_err()) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースビューの作成に失敗しました");
+            return std::move(reuslt_srv)
+                .take_err()
+                .add_message("シェーダーリソースビューの作成に失敗しました");
         }
 
         return reuslt_srv;
@@ -277,6 +279,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_vertex_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 vertex buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -313,6 +320,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_index_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 index buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DEFAULT,
@@ -347,6 +359,11 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError>
     ResourceManager::make_uniform_buffer(const types::RenderData& data) {
+        if (data.byte_width() == 0 || data.byte_width() > (std::numeric_limits<UINT>::max)()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                std::format("D3D11 uniform buffer size is outside the nonzero UINT range: {}",
+                    data.byte_width()));
+        }
         const D3D11_BUFFER_DESC desc{
             .ByteWidth = static_cast<UINT>(data.byte_width()),
             .Usage = D3D11_USAGE_DYNAMIC,
@@ -419,15 +436,23 @@ namespace enishi::renderer::directx {
 
     foundation::Result<types::RenderHandle, platform::RenderError> ResourceManager::make_image(
         const types::TextureData& texture_data) {
+        constexpr std::size_t SUPPORTED_MIP_COUNT = 1;
+        constexpr std::uint32_t SUPPORTED_LAYER_COUNT = 1;
+        if (texture_data.mips.size() != SUPPORTED_MIP_COUNT || texture_data.is_cubemap ||
+            texture_data.array_size != SUPPORTED_LAYER_COUNT ||
+            texture_data.depth > SUPPORTED_LAYER_COUNT) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "D3D11 texture upload supports one mip level and one 2D image layer");
+        }
+        const auto& source = texture_data.mips.front();
+        if (source.pixels.empty() || source.slice_pitch > source.pixels.size()) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "D3D11 texture pixel data is missing or shorter than its slice pitch");
+        }
         // 先に作成
         const auto buffer_accessor = this->native_resource->get_native_texture_accessor();
         const auto [resource_handle, texture] = buffer_accessor->make_native_texture_2d();
         const auto desc = D3D11Converter::to_texture2d_desc(texture_data);
-
-        if (texture_data.mips.empty()) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "イメージの作成に失敗しました");
-        }
 
         // 初期データの作成
         const auto mip_index = 0;
