@@ -265,22 +265,9 @@ namespace enishi {
             }
         });
         constexpr core::Priority UI_PRIORITY = 99;
-        this->system_scheduler.register_system<core::UISystem>(
-            UI_PRIORITY, ui, [this](sub_system::IUI& ui) { this->update_ui(ui); });
+        this->system_scheduler.register_system<core::UISystem>(UI_PRIORITY, ui, nullptr);
         render_system->set_ui(ui);
         return true;
-    }
-
-    void Application::update_ui(sub_system::IUI& ui) {
-        if (ui.begin_window("Text input")) {
-            ui.input_text("Text", this->ui_text);
-            ui.text("Current value:");
-            ui.text(this->ui_text);
-            if (ui.button("Clear")) {
-                this->ui_text.clear();
-            }
-        }
-        ui.end_window();
     }
 
     bool Application::init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
