@@ -55,7 +55,8 @@ namespace enishi::model_controller {
 
         auto load_result = this->asset_system->load_asset(path);
         if (load_result.is_err()) {
-            return load_result.propagation(ControlError::LoadFailed);
+            return load_result.propagation(ControlError::LoadFailed)
+                .add_message(std::format("Failed to load model: {} ({})", name, path.string()));
         }
         const auto& model_handle = load_result.unwrap();
 
@@ -68,7 +69,9 @@ namespace enishi::model_controller {
 
         const auto model_data = this->asset_system->get_asset<types::AssetModelData>(model_handle);
         if (model_data.is_none()) {
-            return foundation::Error(ControlError::LoadFailed);
+            return foundation::Error(ControlError::LoadFailed,
+                std::format(
+                    "Model data is unavailable after mesh creation: {} ({})", name, path.string()));
         }
 
         return make_model_component(*model_data.unwrap(), build_result.unwrap());
