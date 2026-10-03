@@ -49,7 +49,8 @@ namespace enishi::render_pass {
         }
         auto& render_target_view = result.unwrap();
         if (!bool(render_target_view)) {
-            return foundation::Error(ConstructError::Construct);
+            return foundation::Error(
+                ConstructError::Construct, "Renderer returned a null render target view");
         }
 
         render_target_view->set_clear_color(CLEAR_COLOR);
@@ -77,7 +78,8 @@ namespace enishi::render_pass {
         }
         auto& render_target_view = result.unwrap();
         if (!bool(render_target_view)) {
-            return foundation::Error(ConstructError::Construct);
+            return foundation::Error(
+                ConstructError::Construct, "Renderer returned a null depth stencil view");
         }
 
         return render_target_view->get_handle();
@@ -152,7 +154,8 @@ namespace enishi::render_pass {
         // シェーダーの作成
         const auto shader = renderer->create_shader(kind, shader_data);
         if (shader.is_err()) {
-            return foundation::Error(ConstructError::Construct);
+            return shader.propagation(ConstructError::Construct)
+                .add_message("Failed to create render pass shader");
         }
 
         // シェーダーリフレクションの作成(こちらは最悪失敗してもよい)
