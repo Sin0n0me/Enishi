@@ -44,7 +44,8 @@ namespace enishi::core {
         }
 
         if (!path.has_extension()) {
-            return foundation::Error(platform::AssetError::NotFound);
+            return foundation::Error(platform::AssetError::NotFound,
+                std::format("Asset path has no extension: {}", path.string()));
         }
 
         // 拡張子に応じたアセットローダー候補を探す
@@ -58,7 +59,8 @@ namespace enishi::core {
 
         const auto& candidates = asset_iter->second;
         if (candidates.empty()) {
-            return foundation::Error(platform::AssetError::NotFound);
+            return foundation::Error(platform::AssetError::NotFound,
+                std::format("No asset loader candidates: {}", path.string()));
         }
 
         // ハンドルはIOの完了を待たずにこの場で発行する
