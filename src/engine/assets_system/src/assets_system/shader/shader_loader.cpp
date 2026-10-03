@@ -24,12 +24,14 @@ namespace enishi::assets_system {
         auto& binary_reader = reader.unwrap_mut();
 
         if (!path.has_extension()) {
-            return foundation::Error(AssetError::NotFound);
+            return foundation::Error(AssetError::NotFound,
+                std::format("Shader path has no extension: {}", path.string()));
         }
 
         const auto iter = this->supported_extension.find(path.extension().string<char>().c_str());
         if (iter == this->supported_extension.end()) {
-            return foundation::Error(AssetError::NotFound);
+            return foundation::Error(AssetError::NotFound,
+                std::format("Unsupported shader extension: {}", path.string()));
         }
 
         switch (iter->second) {
@@ -54,7 +56,8 @@ namespace enishi::assets_system {
                 break;
         }
 
-        return foundation::Error(AssetError::NotFound);
+        return foundation::Error(AssetError::NotFound,
+            std::format("Shader format loading is not implemented: {}", path.string()));
     }
 
     std::vector<foundation::UTF8> ShaderLoader::get_supported_extension(void) const noexcept {
@@ -74,8 +77,10 @@ namespace enishi::assets_system {
             return result.propagation(AssetError::IOError);
         }
 
-        if (reader.read_magic_number(SPIR_V_HEADER).is_err()) {
-            return foundation::Error(AssetError::InvalidAssetData);
+        auto header = reader.read_magic_number(SPIR_V_HEADER);
+        if (header.is_err()) {
+            return header.propagation(AssetError::InvalidAssetData)
+                .add_message("Invalid SPIR-V shader header");
         }
 
         return std::make_shared<types::ShaderData>(types::ShaderData{
@@ -91,8 +96,10 @@ namespace enishi::assets_system {
             return result.propagation(AssetError::IOError);
         }
 
-        if (reader.read_magic_number_from_str(DXBC_HEADER).is_err()) {
-            return foundation::Error(AssetError::InvalidAssetData);
+        auto header = reader.read_magic_number_from_str(DXBC_HEADER);
+        if (header.is_err()) {
+            return header.propagation(AssetError::InvalidAssetData)
+                .add_message("Invalid DXBC shader header");
         }
 
         return std::make_shared<types::ShaderData>(types::ShaderData{
