@@ -108,7 +108,8 @@ namespace enishi::renderer::directx {
             input_layout.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "InputLayoutの作成に失敗しました");
+                platform::RenderError::MakeError, "InputLayoutの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         return this->handle_mapper->make(types::RenderHandleType::VertexLayout,
@@ -261,7 +262,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateTexture2D(&desc, &subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "テクスチャの作成に失敗しました");
+                platform::RenderError::MakeError, "テクスチャの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_image_binding();
@@ -291,7 +293,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -326,7 +329,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if FAILED (hr) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -361,7 +365,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBuffer(&desc, &init_data, buffer.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "バッファの作成に失敗しました");
+                platform::RenderError::MakeError, "バッファの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_buffer_binding();
@@ -390,14 +395,16 @@ namespace enishi::renderer::directx {
             const HRESULT hr = swap_chain->GetBuffer(0, IID_PPV_ARGS(texture.GetAddressOf()));
             if (FAILED(hr)) {
                 return foundation::Error(
-                    platform::RenderError::MakeError, "バックバッファの取得に失敗しました");
+                    platform::RenderError::MakeError, "バックバッファの取得に失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         } else {
             const auto device = this->context->get_device();
             const HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.GetAddressOf());
             if (FAILED(hr)) {
                 return foundation::Error(
-                    platform::RenderError::MakeError, "イメージの作成に失敗しました");
+                    platform::RenderError::MakeError, "イメージの作成に失敗しました")
+                    .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
             }
         }
 
@@ -436,7 +443,8 @@ namespace enishi::renderer::directx {
             device->CreateTexture2D(&desc, &init_subresource, texture.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "イメージの作成に失敗しました");
+                platform::RenderError::MakeError, "イメージの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_image_binding();
@@ -457,7 +465,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateBlendState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "ブレンドステートの作成に失敗しました");
+                platform::RenderError::MakeError, "ブレンドステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -479,7 +488,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateSamplerState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "サンプラーステートの作成に失敗しました");
+                platform::RenderError::MakeError, "サンプラーステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -502,7 +512,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateRasterizerState(&desc, rasterizer.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "ラスタライザの作成に失敗しました");
+                platform::RenderError::MakeError, "ラスタライザの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -525,7 +536,8 @@ namespace enishi::renderer::directx {
         const HRESULT hr = device->CreateDepthStencilState(&desc, state.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "深度ステンシルステートの作成に失敗しました");
+                platform::RenderError::MakeError, "深度ステンシルステートの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         const auto [binding_index, binding] = this->resource_binder->make_state_binding();
@@ -611,7 +623,8 @@ namespace enishi::renderer::directx {
             device->CreateRenderTargetView(texture.Get(), nullptr, rtv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました");
+                platform::RenderError::MakeError, "レンダーターゲットの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -658,7 +671,8 @@ namespace enishi::renderer::directx {
             device->CreateDepthStencilView(texture.Get(), nullptr, dsv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "深度ステンシルの作成に失敗しました");
+                platform::RenderError::MakeError, "深度ステンシルの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -705,7 +719,8 @@ namespace enishi::renderer::directx {
             device->CreateShaderResourceView(texture.Get(), nullptr, srv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました");
+                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
@@ -752,7 +767,8 @@ namespace enishi::renderer::directx {
             device->CreateUnorderedAccessView(texture.Get(), nullptr, uav.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
-                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました");
+                platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました")
+                .add_message(std::format("HRESULT {:#x}", static_cast<std::uint32_t>(hr)));
         }
 
         // バインド時のパラメータ用
