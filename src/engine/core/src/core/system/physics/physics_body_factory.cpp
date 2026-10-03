@@ -9,6 +9,10 @@ namespace enishi::core {
         if (bodies.rigid_bodies.empty()) {
             return std::vector<types::PhysicsHandle>{};
         }
+        if (physics_cache == nullptr || updater == nullptr) {
+            return foundation::Error(sub_system::PhysicsError::MakeError,
+                "Physics body construction requires a bone cache and updater");
+        }
         for (const auto& body : bodies.rigid_bodies) {
             if (!(body.relate_bone_index < physics_cache->size())) {
                 return foundation::Error(
@@ -26,7 +30,9 @@ namespace enishi::core {
 
         auto object_result = world.add_object();
         if (object_result.is_err()) {
-            return std::move(object_result).unwrap_err();
+            return std::move(object_result)
+                .unwrap_err()
+                .add_message("Failed to create the model physics object");
         }
         const auto& object_handle = object_result.unwrap();
         std::vector<types::PhysicsHandle> handles;
@@ -43,7 +49,8 @@ namespace enishi::core {
             auto result = world.add_rigid_body(
                 object_handle, rigid_body, physics_cache, updater, opt_view.unwrap());
             if (result.is_err()) {
-                return std::move(result).unwrap_err();
+                return std::move(result).unwrap_err().add_message(
+                    std::format("Failed to create model rigid body {}", handles.size()));
             }
             handles.push_back(result.unwrap());
         }
@@ -51,7 +58,10 @@ namespace enishi::core {
         for (const auto& joint : bodies.joints) {
             auto result = world.add_joint(object_handle, joint);
             if (result.is_err()) {
-                return std::move(result).unwrap_err();
+                return std::move(result).unwrap_err().add_message(
+                    std::format("Failed to create joint between rigid bodies {} and {}",
+                        joint.rigid_body_a,
+                        joint.rigid_body_b));
             }
         }
         return handles;
