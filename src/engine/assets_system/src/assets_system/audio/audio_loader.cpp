@@ -59,7 +59,7 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::InitError,
                 std::format("Failed to initialize audio decoder for {}: miniaudio result {}",
                     path.string(),
-                    init_result));
+                    static_cast<std::int32_t>(init_result)));
         }
 
         decoder_guard.mark_initialized();
@@ -73,7 +73,7 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::InvalidAssetData,
                 std::format("Failed to get audio length for {}: miniaudio result {}",
                     path.string(),
-                    length_result));
+                    static_cast<std::int32_t>(length_result)));
         }
 
         const ma_uint32 channels = decoder_guard.get()->outputChannels;
@@ -105,8 +105,9 @@ namespace enishi::assets_system {
 
         if (read_result != MA_SUCCESS && read_result != MA_AT_END) {
             return foundation::Error(AssetError::InvalidAssetData,
-                std::format(
-                    "Failed to decode audio {}: miniaudio result {}", path.string(), read_result));
+                std::format("Failed to decode audio {}: miniaudio result {}",
+                    path.string(),
+                    static_cast<std::int32_t>(read_result)));
         }
 
         if (frames_read != frame_count) {
