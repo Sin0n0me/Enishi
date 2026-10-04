@@ -8,6 +8,14 @@ struct ImGuiContext;
 
 namespace enishi::platform_impl {
     class ImGuiBackend final : public sub_system::IUIBackend {
+      private:
+        // Backend shutdown runs before the UI destroys its context.
+        ImGuiContext* context = nullptr;
+        std::shared_ptr<SDL3Window> window;
+        std::shared_ptr<platform::IRenderer> renderer;
+        bool platform_initialized = false;
+        bool renderer_initialized = false;
+
       public:
         explicit ImGuiBackend(
             std::shared_ptr<SDL3Window> window, std::shared_ptr<platform::IRenderer> renderer);
@@ -16,13 +24,5 @@ namespace enishi::platform_impl {
         void begin_frame(void) override;
         void render(void) override;
         void process_event(const SDL_Event& event);
-
-      private:
-        // Backend shutdown runs before the UI destroys its context.
-        ImGuiContext* context = nullptr;
-        std::shared_ptr<SDL3Window> window;
-        std::shared_ptr<platform::IRenderer> renderer;
-        bool platform_initialized = false;
-        bool renderer_initialized = false;
     };
 } // namespace enishi::platform_impl

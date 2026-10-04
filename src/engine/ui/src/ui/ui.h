@@ -12,6 +12,12 @@ namespace enishi::ui {
     };
 
     class UI final : public sub_system::IUI {
+      private:
+        std::shared_ptr<sub_system::IUIBackend> backend;
+        std::unique_ptr<ImGuiContext, ImGuiContextDeleter> context;
+        bool initialized = false;
+        bool frame_ready = false;
+
       public:
         explicit UI(std::shared_ptr<sub_system::IUIBackend> backend);
         ~UI(void) noexcept override;
@@ -28,10 +34,6 @@ namespace enishi::ui {
         bool wants_capture_keyboard(void) const override;
 
       private:
-        std::shared_ptr<sub_system::IUIBackend> backend;
-        std::unique_ptr<ImGuiContext, ImGuiContextDeleter> context;
-        bool initialized = false;
-        bool frame_ready = false;
         void shutdown(void) noexcept;
     };
 } // namespace enishi::ui
