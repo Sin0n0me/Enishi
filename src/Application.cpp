@@ -265,7 +265,8 @@ namespace enishi {
         }
         const auto ui = result.unwrap();
         constexpr core::Priority UI_PRIORITY = 99;
-        const auto selection = std::make_shared<core::SelectionUI>(std::move(models));
+        const auto selection =
+            std::make_shared<core::SelectionUI>(std::move(models), this->click_settings);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,
