@@ -11,6 +11,7 @@ namespace enishi::core {
         std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<collider::Collider> collider;
         std::unordered_set<types::CollisionModelId> registered;
+        void update_bounds(void);
 
       public:
         ModelCollisionSystem(

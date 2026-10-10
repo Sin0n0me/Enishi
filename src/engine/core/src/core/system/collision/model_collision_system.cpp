@@ -9,7 +9,7 @@ namespace enishi::core {
         , collider(std::move(collider)) {
     }
 
-    void ModelCollisionSystem::update(const types::DeltaTime& delta_time) {
+    void ModelCollisionSystem::update_bounds(void) {
         std::unordered_set<types::CollisionModelId> visible;
         for (auto [entity, model, animation] :
             this->registry->view<component::ModelComponent, component::AnimationComponent>()) {
@@ -55,7 +55,11 @@ namespace enishi::core {
     }
     void ModelCollisionSystem::pre_update(void) {
     }
+    void ModelCollisionSystem::update(const types::DeltaTime& delta_time) {
+    }
     void ModelCollisionSystem::post_update(void) {
+        // Include visibility changes from the UI and the final pose submitted for this frame.
+        this->update_bounds();
     }
     void ModelCollisionSystem::render(void) const {
     }

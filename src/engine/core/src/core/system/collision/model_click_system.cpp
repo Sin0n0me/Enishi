@@ -23,15 +23,26 @@ namespace enishi::core {
             size.unwrap(), cursor, types::make_default_model_camera()));
     }
 
-    void ModelClickSystem::update(const types::DeltaTime& delta_time) {
+    void ModelClickSystem::pre_update(void) {
+        this->pending_click.reset();
         const auto input = this->window->get_input();
         const auto position = this->window->get_position();
         if (input.is_none() || position.is_none() ||
             !input.unwrap()->is_mouse_button_pressed(types::MouseButton::Left)) {
             return;
         }
-        const auto cursor = input.unwrap()->get_client_mouse_position(position.unwrap());
-        const types::ModelClick event{cursor, this->pick(cursor)};
+        const auto cursor =
+            input.unwrap()->get_mouse_press_position(types::MouseButton::Left, position.unwrap());
+        // Pick the displayed pose before animation and physics advance to the next frame.
+        this->pending_click = types::ModelClick{cursor, this->pick(cursor)};
+    }
+
+    void ModelClickSystem::update(const types::DeltaTime& delta_time) {
+        if (!this->pending_click.has_value()) {
+            return;
+        }
+        const auto event = *this->pending_click;
+        this->pending_click.reset();
         // Snapshot listeners so registration from a callback does not invalidate iteration.
         const auto listeners = this->handlers;
         for (const auto& handler : listeners) {
@@ -41,8 +52,6 @@ namespace enishi::core {
 
     bool ModelClickSystem::should_close(void) {
         return false;
-    }
-    void ModelClickSystem::pre_update(void) {
     }
     void ModelClickSystem::post_update(void) {
     }

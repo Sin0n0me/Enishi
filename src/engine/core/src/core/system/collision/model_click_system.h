@@ -10,6 +10,7 @@ namespace enishi::core {
         std::shared_ptr<collider::Collider> collider;
         std::shared_ptr<platform::IWindow> window;
         std::vector<std::shared_ptr<sub_system::IModelClickHandler>> handlers;
+        std::optional<types::ModelClick> pending_click;
 
       public:
         ModelClickSystem(std::shared_ptr<collider::Collider> collider,

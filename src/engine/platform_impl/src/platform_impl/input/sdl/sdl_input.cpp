@@ -35,6 +35,15 @@ namespace enishi::platform_impl {
         return types::to_client(this->mouse_position, position);
     }
 
+    types::ClientMousePosition SDL3Input::get_mouse_press_position(
+        types::MouseButton button, const types::WindowPosition& position) const noexcept {
+        const auto index = static_cast<std::size_t>(button);
+        if (!(index < this->mouse_press_positions.size())) {
+            return {};
+        }
+        return types::to_client(this->mouse_press_positions[index], position);
+    }
+
     types::MouseWheel SDL3Input::get_mouse_wheel(void) const noexcept {
         return types::MouseWheel();
     }
@@ -85,6 +94,9 @@ namespace enishi::platform_impl {
             return;
         }
         this->mouse_pressed[index] = this->mouse_pressed[index] || !this->mouse_down[index];
+        if (!this->mouse_down[index]) {
+            this->mouse_press_positions[index] = this->mouse_position;
+        }
         this->mouse_down[index] = true;
     }
 
