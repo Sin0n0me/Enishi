@@ -38,19 +38,8 @@ namespace enishi::platform_impl {
 
     SDL_HitTestResult SDLCALL SDL3Window::hit_test_callback(
         SDL_Window* win, const SDL_Point* pt, void* data) {
-        const auto* window = static_cast<const SDL3Window*>(data);
-        if (window->model_press.has_value()) {
-            return SDL_HITTEST_NORMAL;
-        }
-        const auto ui = window->ui.lock();
-        if (ui != nullptr && ui->wants_capture_mouse()) {
-            return SDL_HITTEST_NORMAL;
-        }
-        if (window->interactive_hit_test != nullptr &&
-            window->interactive_hit_test(types::ClientMousePosition{pt->x, pt->y})) {
-            return SDL_HITTEST_NORMAL;
-        }
-        return SDL_HITTEST_DRAGGABLE;
+        // Native dragging bypasses mouse events; only handle_model_pointer may start a drag.
+        return SDL_HITTEST_NORMAL;
     }
 
     void SDL3Window::set_interactive_hit_test(
