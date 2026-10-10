@@ -23,12 +23,12 @@ namespace enishi::model_controller {
         ModelController(std::shared_ptr<platform::IAssetSystem> asset_system,
             std::shared_ptr<ModelRenderDataBuilder> builder) noexcept;
 
-        // search_path以下からモデルアセットを探し、名前で選択できるよう一覧化する
+        // 同名ファイルも選択できるよう、正規化したUTF-8パスをモデルIDとして使用する。
         void find_model(const std::filesystem::path& search_path) noexcept;
 
         [[nodiscard]] std::vector<foundation::UTF8> get_model_list(void) const noexcept;
 
-        // 指定した名前のモデルへ切り替える
+        // 指定したモデルIDの描画データを作成する。
         // shader_reflectionsは描画データ作成に必要なため、呼び出し元(render_pass側)から受け取る
         [[nodiscard]] foundation::Result<component::ModelComponent, ControlError> make_model(
             const foundation::UTF8& name,
