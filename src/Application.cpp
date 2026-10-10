@@ -92,7 +92,8 @@ namespace enishi {
             foundation::Logger::warning(motion_rules.unwrap_err().get_message());
         } else {
             clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
-                this->registry, animation_system, std::move(motion_rules).unwrap()));
+                this->registry, animation_system, std::move(motion_rules).unwrap(),
+                physics_engine->get_shared_world()));
         }
         root_window->set_interactive_hit_test(
             [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {

@@ -1,9 +1,53 @@
 #include "model_event_motion_config.h"
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 
 namespace enishi::core {
+    namespace {
+        bool read_action(std::istringstream& fields,
+            const std::filesystem::path& directory,
+            ModelEventMotionRule& rule) {
+            std::string action;
+            if (!(fields >> std::quoted(action)) || action.empty()) {
+                return false;
+            }
+            if (action == "none") {
+                rule.action = ModelEventAction::None;
+                rule.enabled = true;
+                return true;
+            }
+            std::string mode;
+            if (action == "impulse") {
+                rule.action = ModelEventAction::Impulse;
+                for (auto& value : rule.impulse) {
+                    if (!(fields >> value) || !std::isfinite(value)) {
+                        return false;
+                    }
+                }
+                if (!(fields >> mode) || (mode != "on" && mode != "off")) {
+                    return false;
+                }
+                rule.enabled = mode == "on";
+                return true;
+            }
+            // Preserve existing rows whose fourth field is a motion path.
+            if (action == "motion" && (!(fields >> std::quoted(action)) || action.empty())) {
+                return false;
+            }
+            if (!(fields >> mode) || (mode != "off" && mode != "once" && mode != "loop")) {
+                return false;
+            }
+            rule.motion =
+                (directory / std::filesystem::path(std::u8string(action.begin(), action.end())))
+                    .lexically_normal();
+            rule.enabled = mode != "off";
+            rule.looping = mode == "loop";
+            return true;
+        }
+    } // namespace
+
     foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
     load_model_event_motions(const std::filesystem::path& path) {
         std::ifstream stream(path);
@@ -26,12 +70,10 @@ namespace enishi::core {
                 continue;
             }
             ModelEventMotionRule rule;
-            std::string motion;
-            std::string mode;
             if (!(fields >> std::quoted(rule.model) >> std::quoted(rule.event) >>
-                    std::quoted(rule.bone) >> std::quoted(motion) >> mode) ||
-                rule.model.empty() || rule.event.empty() || rule.bone.empty() || motion.empty() ||
-                (mode != "off" && mode != "once" && mode != "loop")) {
+                    std::quoted(rule.bone)) ||
+                rule.model.empty() || rule.event.empty() || rule.bone.empty() ||
+                !read_action(fields, path.parent_path(), rule)) {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Invalid motion rule at line " + std::to_string(line_number));
             }
@@ -40,11 +82,6 @@ namespace enishi::core {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Unexpected motion rule field at line " + std::to_string(line_number));
             }
-            const auto relative =
-                std::filesystem::path(std::u8string(motion.begin(), motion.end()));
-            rule.motion = (path.parent_path() / relative).lexically_normal();
-            rule.enabled = mode != "off";
-            rule.looping = mode == "loop";
             rules.push_back(std::move(rule));
         }
         if (stream.bad()) {
