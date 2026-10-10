@@ -33,7 +33,7 @@ namespace enishi::core {
         if (!apply_click_mode || this->settings->mode != ModelClickMode::Push || !hit.has_value()) {
             return hit;
         }
-        if (hit->model > std::numeric_limits<types::HandleId::HandleType>::max()) {
+        if (hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
             return std::nullopt;
         }
         const types::HandleId entity(static_cast<types::HandleId::HandleType>(hit->model));

@@ -86,7 +86,7 @@ namespace enishi::core {
 
     void ModelEventMotionHandler::on_model_click(const types::ModelClick& event) {
         if (!event.hit.has_value() ||
-            event.hit->model > std::numeric_limits<types::HandleId::HandleType>::max()) {
+            event.hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
             return;
         }
         const types::HandleId entity(static_cast<types::HandleId::HandleType>(event.hit->model));
