@@ -78,6 +78,30 @@ endif()
 # 以降は触らなくて良い
 #
 
+FetchContent_Declare(
+    UI
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ui
+)
+FetchContent_MakeAvailable(UI)
+
+FetchContent_Declare(
+    RENDERER
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../renderer
+)
+FetchContent_MakeAvailable(RENDERER)
+
+FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_SOURCE_DIR)
+target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui)
+if(USE_OPENGL40)
+    target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+else()
+    target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_dx11.cpp)
+    target_link_libraries(${PROJECT_NAME} PRIVATE d3d11 d3dcompiler)
+endif()
+
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
     LINK_DEPENDENCIES ${DEPENDENCIES}

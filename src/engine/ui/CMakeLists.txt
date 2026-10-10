@@ -50,10 +50,22 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
+enishi_add_library(enishi_imgui
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+)
+enishi_configure_library(enishi_imgui
+    INCLUDE_DIRECTORIES ${imgui_SOURCE_DIR}
+)
+
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 enishi_configure_library(${PROJECT_NAME}
-    INCLUDE_DIRECTORIES src ${UI_DEPENDENT_LIBS} ${UI_DEPENDENT_LIBS}/imgui
-    DEPENDENCIES platform engine_types foundation
+    INCLUDE_DIRECTORIES src
+    PUBLIC_DEPENDENCIES sub_system engine_types foundation
+    DEPENDENCIES enishi_imgui
 )
 
 # MSVCコンパイラのホットリロードを有効に

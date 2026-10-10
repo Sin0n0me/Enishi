@@ -16,6 +16,10 @@ namespace enishi::renderer::directx {
         return this->updater_pool.get();
     }
 
+    std::shared_ptr<ID3D11Context> D3D11Renderer::get_native_context(void) const {
+        return this->d3d11;
+    }
+
     platform::RenderResult<types::RenderHandle> D3D11Renderer::create_viewport(
         const types::ViewportRect& config) {
         const auto result = this->resource_manager->make_viewport(config);

@@ -20,6 +20,7 @@ namespace enishi::renderer::directx {
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
 
         [[nodiscard]] platform::IUpdaterAccessor* get_updater_accessor(void) noexcept;
+        [[nodiscard]] std::shared_ptr<ID3D11Context> get_native_context(void) const;
 
       public:
         platform::RenderResult<types::RenderHandle> create_viewport(

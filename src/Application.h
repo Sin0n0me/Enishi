@@ -10,7 +10,6 @@
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
 #include <render_pass/render_pass_orchestra.h>
-#include <ui/ui.h>
 
 namespace enishi {
     class Application {
@@ -30,5 +29,7 @@ namespace enishi {
             std::shared_ptr<platform::IWindow> root_window,
             std::shared_ptr<platform::IAssetSystem> asset_system);
         bool init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine);
+        bool init_ui(std::shared_ptr<platform::IWindow> window,
+            const std::shared_ptr<core::RenderSystem>& render_system);
     };
 } // namespace enishi

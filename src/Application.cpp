@@ -4,9 +4,11 @@
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
+#include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <platform_impl/physics/physics_config.h>
+#include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
@@ -220,7 +222,25 @@ namespace enishi {
         this->system_scheduler.register_system<core::ModelRenderSystem>(
             95, this->registry, asset_system, renderer, model_render_pass.unwrap());
 
+        if (!this->init_ui(root_window, render_system)) {
+            return {};
+        }
+
         return renderer;
+    }
+
+    bool Application::init_ui(std::shared_ptr<platform::IWindow> window,
+        const std::shared_ptr<core::RenderSystem>& render_system) {
+        const auto result = platform_impl::create_ui(window, render_system->get_renderer());
+        if (result.is_err()) {
+            foundation::Logger::error(result.unwrap_err().get_message());
+            return false;
+        }
+        const auto ui = result.unwrap();
+        constexpr core::Priority UI_PRIORITY = 99;
+        this->system_scheduler.register_system<core::UISystem>(UI_PRIORITY, ui, nullptr);
+        render_system->set_ui(ui);
+        return true;
     }
 
     bool Application::init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
