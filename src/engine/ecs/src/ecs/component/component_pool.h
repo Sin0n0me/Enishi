@@ -70,7 +70,7 @@ namespace enishi::ecs {
 
         // コンポーネントを削除(swap-and-pop で穴を作らない)
         void remove(const EntityID id) override {
-            if (this->has(id)) {
+            if (!this->has(id)) {
                 return;
             }
 
