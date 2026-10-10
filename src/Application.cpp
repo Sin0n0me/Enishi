@@ -1,5 +1,6 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
+#include <core/system/animation/model_event_motion_handler.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/collision/model_collision_system.h>
 #include <core/system/collision/model_click_system.h>
@@ -86,6 +87,13 @@ namespace enishi {
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
             CLICK_PRIORITY, collider, root_window);
+        auto motion_rules = core::load_model_event_motions("config/model_event_motions.cfg");
+        if (motion_rules.is_err()) {
+            foundation::Logger::warning(motion_rules.unwrap_err().get_message());
+        } else {
+            clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
+                this->registry, animation_system, std::move(motion_rules).unwrap()));
+        }
         root_window->set_interactive_hit_test(
             [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
                 const auto system = weak.lock();
