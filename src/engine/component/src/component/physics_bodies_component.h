@@ -13,5 +13,7 @@ namespace enishi::component {
         // Requested visibility and the last state successfully applied to the physics world.
         bool enabled = true;
         bool simulation_enabled = true;
+        // Consume after the new animation/IK pose is written, before stepping physics.
+        bool pose_reset_requested = false;
     };
 } // namespace enishi::component

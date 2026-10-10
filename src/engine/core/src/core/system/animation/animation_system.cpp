@@ -1,5 +1,6 @@
 #include "animation_system.h"
 #include "clip_sampler.h"
+#include <component/physics_bodies_component.h>
 
 namespace enishi::core {
     AnimationSystem::AnimationSystem(const std::shared_ptr<ecs::Registry> registry)
@@ -9,6 +10,10 @@ namespace enishi::core {
     void AnimationSystem::set_controller(
         const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
         if (controller != nullptr) {
+            auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
+            if (bodies.is_some()) {
+                bodies.unwrap_mut().pose_reset_requested = true;
+            }
             this->controllers.insert_or_assign(entity, std::move(controller));
             return;
         }
@@ -50,6 +55,12 @@ namespace enishi::core {
             const auto* clip = controller->get_active_clip();
             if (clip == nullptr) {
                 continue;
+            }
+            if (controller->get_time() < animation.elapsed_time) {
+                auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
+                if (bodies.is_some()) {
+                    bodies.unwrap_mut().pose_reset_requested = true;
+                }
             }
             auto morph = this->registry->get<component::MorphComponent>(entity);
             auto ik = this->registry->get<component::IKComponent>(entity);
