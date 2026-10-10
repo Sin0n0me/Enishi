@@ -35,6 +35,9 @@ namespace enishi::core {
             auto opt_physics = this->registry->get<component::PhysicsComponent>(entity);
             auto opt_physics_bodies =
                 this->registry->get<component::PhysicsBodiesComponent>(entity);
+            if (opt_physics_bodies.is_some() && !opt_physics_bodies.unwrap().enabled) {
+                continue;
+            }
 
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);

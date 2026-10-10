@@ -23,11 +23,30 @@ namespace enishi::core {
 
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
         auto* world = this->physics_engine->get_world();
+        for (auto [entity, bodies] : this->registry->view<component::PhysicsBodiesComponent>()) {
+            if (bodies.enabled == bodies.simulation_enabled) {
+                continue;
+            }
+            bool succeeded = true;
+            for (const auto& handle : bodies.handles) {
+                const auto result = world->set_body_enabled(handle, bodies.enabled);
+                if (result.is_err()) {
+                    foundation::Logger::warning(result.unwrap_err().get_message());
+                    succeeded = false;
+                }
+            }
+            if (succeeded) {
+                bodies.simulation_enabled = bodies.enabled;
+            }
+        }
         if (world->get_config_reader()->can_update()) {
             for (auto [entity, model, morph, bodies] :
                 this->registry->view<component::ModelComponent,
                     component::MorphComponent,
                     component::PhysicsBodiesComponent>()) {
+                if (!bodies.enabled) {
+                    continue;
+                }
                 const auto result = apply_impulse_morphs(*world, model, morph, bodies);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());

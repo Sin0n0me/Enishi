@@ -29,6 +29,8 @@ namespace enishi::sub_system {
         virtual void reset_physics(IBoneUpdater* const updater) = 0;
 
         virtual void apply_physics(void) = 0;
+        [[nodiscard]] virtual foundation::Result<void, PhysicsError> set_body_enabled(
+            const types::PhysicsHandle& handle, bool enabled) = 0;
         [[nodiscard]] virtual foundation::Result<void, PhysicsError> apply_impulse(
             const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) = 0;
 

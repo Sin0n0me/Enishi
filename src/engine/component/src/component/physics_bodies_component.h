@@ -10,5 +10,8 @@ namespace enishi::component {
         std::vector<types::PhysicsRigidBody> rigid_bodies;
         std::vector<types::PhysicsJoint> joints;
         std::vector<types::PhysicsHandle> handles;
+        // Requested visibility and the last state successfully applied to the physics world.
+        bool enabled = true;
+        bool simulation_enabled = true;
     };
 } // namespace enishi::component

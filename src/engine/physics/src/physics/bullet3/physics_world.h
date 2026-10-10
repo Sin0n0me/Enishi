@@ -8,6 +8,8 @@
 #include <memory>
 #include <sub_system/physics/interface_physics_world.h>
 #include <sub_system/physics/interface_physics_world_config_writer.h>
+#include <unordered_map>
+#include <utility>
 
 namespace enishi::physics::bullet3 {
     class PhysicsWorld : public sub_system::IPhysicsWorld {
@@ -22,6 +24,7 @@ namespace enishi::physics::bullet3 {
         std::unique_ptr<PhysicsObjectManager> object_manager;
         std::shared_ptr<PhysicsResourcePool> resource_pool;
         std::unique_ptr<PhysicsHandleMapper> handle_mapper;
+        std::unordered_map<types::PhysicsHandle, std::pair<int, int>> disabled_body_filters;
 
       public:
         explicit PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config);
@@ -46,6 +49,8 @@ namespace enishi::physics::bullet3 {
 
         void reset_physics(sub_system::IBoneUpdater* const updater) override;
         void apply_physics(void) override;
+        foundation::Result<void, sub_system::PhysicsError> set_body_enabled(
+            const types::PhysicsHandle& handle, bool enabled) override;
         foundation::Result<void, sub_system::PhysicsError> apply_impulse(
             const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) override;
 
