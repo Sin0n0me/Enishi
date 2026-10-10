@@ -1,4 +1,5 @@
 #include "imgui_backend.h"
+#include "ui_font.h"
 #include <backends/imgui_impl_sdl3.h>
 #include <imgui.h>
 #include <utility>
@@ -57,6 +58,7 @@ namespace enishi::platform_impl {
             return foundation::Error(sub_system::UIError::InitializationFailed,
                 "ImGui platform/renderer backend initialization failed");
         }
+        load_ui_font();
         return {};
     }
 
