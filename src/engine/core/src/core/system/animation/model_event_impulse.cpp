@@ -51,7 +51,9 @@ namespace enishi::core {
             applied = true;
         }
         if (event.kind == "click") {
-            this->click_settings->last_result = applied ? "Impulse submitted" : "No matching body";
+            this->click_settings->last_result =
+                applied ? "Bullet impulse applied (velocity change recorded in log)"
+                        : "No matching body";
             if (kinematic) {
                 this->click_settings->last_result +=
                     "; Kinematic hit: animation-driven, no physical impulse";
