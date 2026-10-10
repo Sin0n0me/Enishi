@@ -53,6 +53,9 @@ namespace enishi::core {
             return;
         }
         ui.text("クリック状態");
+        ui.text("Clicks: " + std::to_string(this->click_settings->click_count));
+        ui.text(this->click_settings->last_target);
+        ui.text(this->click_settings->last_result);
         const auto draw_mode = [this, &ui](const char* label, ModelClickMode mode) {
             ui.begin_disabled(this->click_settings->mode == mode);
             if (ui.button(label)) {

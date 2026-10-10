@@ -13,6 +13,9 @@ namespace enishi::core {
         const auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
         if (bodies.is_none() || !bodies.unwrap().enabled || !bodies.unwrap().simulation_enabled ||
             !this->physics->get_config_reader()->can_update()) {
+            if (event.kind == "click") {
+                this->click_settings->last_result = "Physics disabled or bodies unavailable";
+            }
             return false;
         }
         const auto& state = bodies.unwrap();
@@ -20,12 +23,20 @@ namespace enishi::core {
         impulse.world_velocity = {rule.impulse[0], rule.impulse[1], rule.impulse[2]};
         impulse.world_position = event.position;
         bool applied = false;
+        bool kinematic = false;
+        bool zero_mass = false;
         for (std::size_t index = 0; index < state.rigid_bodies.size(); ++index) {
             const auto& body = state.rigid_bodies[index];
             if (body.relate_bone_index != *event.bone ||
-                (body.kind != types::RigidBodyKind::Dynamic &&
-                    body.kind != types::RigidBodyKind::DynamicAdjustBone) ||
-                !(body.mass > 0.0f)) {
+                (event.kind == "click" && !this->click_settings->accepts_push(body.kind))) {
+                continue;
+            }
+            if (body.kind == types::RigidBodyKind::Kinematic) {
+                kinematic = true;
+                continue;
+            }
+            if (!(body.mass > 0.0f)) {
+                zero_mass = true;
                 continue;
             }
             if (!(index < state.handles.size())) {
@@ -38,6 +49,16 @@ namespace enishi::core {
                     .add_message("Cannot apply impulse to clicked bone");
             }
             applied = true;
+        }
+        if (event.kind == "click") {
+            this->click_settings->last_result = applied ? "Impulse submitted" : "No matching body";
+            if (kinematic) {
+                this->click_settings->last_result +=
+                    "; Kinematic hit: animation-driven, no physical impulse";
+            }
+            if (zero_mass) {
+                this->click_settings->last_result += "; zero-mass body cannot move from an impulse";
+            }
         }
         return applied;
     }

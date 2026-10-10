@@ -6,6 +6,40 @@
 
 namespace enishi::core {
     namespace {
+        bool read_push_states(std::istringstream& fields, ModelClickSettings& settings) {
+            settings.push_states.clear();
+            std::string state;
+            bool exclusive = false;
+            bool any = false;
+            while (fields >> state) {
+                if (state.starts_with('#')) {
+                    break;
+                }
+                if (exclusive) {
+                    return false;
+                }
+                if (state == "all" || state == "none") {
+                    if (any) {
+                        return false;
+                    }
+                    exclusive = true;
+                    if (state == "all") {
+                        settings.push_states = ModelClickSettings{}.push_states;
+                    }
+                } else if (state == "Kinematic") {
+                    settings.push_states.push_back(types::RigidBodyKind::Kinematic);
+                } else if (state == "Dynamic") {
+                    settings.push_states.push_back(types::RigidBodyKind::Dynamic);
+                } else if (state == "DynamicAdjustBone") {
+                    settings.push_states.push_back(types::RigidBodyKind::DynamicAdjustBone);
+                } else {
+                    return false;
+                }
+                any = true;
+            }
+            return any;
+        }
+
         bool read_action(std::istringstream& fields,
             const std::filesystem::path& directory,
             ModelEventMotionRule& rule) {
@@ -49,7 +83,8 @@ namespace enishi::core {
     } // namespace
 
     foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
-    load_model_event_motions(const std::filesystem::path& path) {
+    load_model_event_motions(const std::filesystem::path& path, ModelClickSettings* settings) {
+        ModelClickSettings parsed_settings;
         std::ifstream stream(path);
         if (!stream.is_open()) {
             return foundation::Error(MotionConfigError::ReadFailed,
@@ -69,6 +104,17 @@ namespace enishi::core {
             if (fields.eof() || fields.peek() == '#') {
                 continue;
             }
+            std::string directive;
+            fields >> directive;
+            if (directive == "push_states") {
+                if (!read_push_states(fields, parsed_settings)) {
+                    return foundation::Error(MotionConfigError::InvalidRule,
+                        "Invalid push_states at line " + std::to_string(line_number));
+                }
+                continue;
+            }
+            fields.clear();
+            fields.seekg(0);
             ModelEventMotionRule rule;
             if (!(fields >> std::quoted(rule.model) >> std::quoted(rule.event) >>
                     std::quoted(rule.bone)) ||
@@ -87,6 +133,9 @@ namespace enishi::core {
         if (stream.bad()) {
             return foundation::Error(MotionConfigError::ReadFailed,
                 "Cannot read model event motion configuration: " + path.string());
+        }
+        if (settings != nullptr) {
+            settings->push_states = std::move(parsed_settings.push_states);
         }
         return rules;
     }

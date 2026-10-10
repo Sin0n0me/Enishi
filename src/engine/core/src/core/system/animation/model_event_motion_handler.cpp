@@ -1,4 +1,5 @@
 #include "model_event_motion_handler.h"
+#include <component/physics_bodies_component.h>
 #include <foundation/log/logger.h>
 #include <limits>
 
@@ -85,15 +86,51 @@ namespace enishi::core {
     }
 
     void ModelEventMotionHandler::on_model_click(const types::ModelClick& event) {
+        if (this->click_settings == nullptr) {
+            return;
+        }
+        ++this->click_settings->click_count;
+        this->click_settings->last_target = "No eligible bone hit";
+        this->click_settings->last_result = "No action";
         if (!event.hit.has_value() ||
             event.hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
             return;
         }
         const types::HandleId entity(static_cast<types::HandleId::HandleType>(event.hit->model));
+        const auto model = this->registry->get<component::ModelComponent>(entity);
+        this->click_settings->last_target = "Bone " + std::to_string(event.hit->bone);
+        if (model.is_some() && event.hit->bone < model.unwrap().bone_names.size()) {
+            this->click_settings->last_target += ": " + model.unwrap().bone_names[event.hit->bone];
+        }
+        const auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
+        if (bodies.is_some()) {
+            for (const auto& body : bodies.unwrap().rigid_bodies) {
+                if (body.relate_bone_index != event.hit->bone) {
+                    continue;
+                }
+                switch (body.kind) {
+                    case types::RigidBodyKind::Kinematic:
+                        this->click_settings->last_target += " [Kinematic]";
+                        break;
+                    case types::RigidBodyKind::Dynamic:
+                        this->click_settings->last_target += " [Dynamic]";
+                        break;
+                    case types::RigidBodyKind::DynamicAdjustBone:
+                        this->click_settings->last_target += " [DynamicAdjustBone]";
+                        break;
+                }
+            }
+        }
+        this->click_settings->last_result = "No enabled matching action (or mode None)";
         const auto result =
             this->trigger(entity, ModelMotionEvent{"click", event.hit->bone, event.hit->position});
         if (result.is_err()) {
+            this->click_settings->last_result = result.unwrap_err().get_message();
             foundation::Logger::warning(result.unwrap_err().get_message());
+        } else if (result.unwrap() && this->click_settings->mode == ModelClickMode::Touch) {
+            this->click_settings->last_result = "Motion started";
         }
+        foundation::Logger::info(
+            this->click_settings->last_target + ": " + this->click_settings->last_result);
     }
 } // namespace enishi::core

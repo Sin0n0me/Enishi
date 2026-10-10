@@ -41,19 +41,17 @@ namespace enishi::core {
         if (bodies.is_none() || !bodies.unwrap().enabled || !bodies.unwrap().simulation_enabled) {
             return std::nullopt;
         }
-        std::unordered_set<types::BoneIndex> dynamic_bones;
+        std::unordered_set<types::BoneIndex> selected_bones;
         for (const auto& body : bodies.unwrap().rigid_bodies) {
-            if ((body.kind == types::RigidBodyKind::Dynamic ||
-                    body.kind == types::RigidBodyKind::DynamicAdjustBone) &&
-                body.mass > 0.0f) {
-                dynamic_bones.insert(body.relate_bone_index);
+            if (this->settings->accepts_push(body.kind)) {
+                selected_bones.insert(body.relate_bone_index);
             }
         }
-        // Vertex-group OBBs overlap: a kinematic head/body box must not mask hair/clothing.
+        // Only configured states participate, including zero-mass bodies for click diagnostics.
         // Keep the nearest model so the push cannot pass through to another character.
         return this->collider->raycast(
             ray, [&](types::CollisionModelId model, types::BoneIndex bone) {
-                return model == hit->model && dynamic_bones.contains(bone);
+                return model == hit->model && selected_bones.contains(bone);
             });
     }
 
