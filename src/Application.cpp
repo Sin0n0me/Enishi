@@ -1,6 +1,7 @@
 #include "application.h"
 #include <core/system/animation/animation_system.h>
 #include <core/system/asset/asset_system.h>
+#include <core/system/collision/model_collision_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
@@ -69,6 +70,10 @@ namespace enishi {
 
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
             90, this->registry, physics_engine, skinning_system);
+        constexpr core::Priority COLLISION_PRIORITY = 96;
+        auto collider = std::make_shared<collider::Collider>();
+        this->system_scheduler.register_system<core::ModelCollisionSystem>(
+            COLLISION_PRIORITY, this->registry, collider);
 
         // ウィンドウの初期化
         const auto root_window = this->init_window();

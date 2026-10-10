@@ -87,6 +87,8 @@ namespace enishi::core {
             if (!loaded->second.visible) {
                 this->model_render_pass->add_mesh(loaded->second.mesh);
                 loaded->second.visible = true;
+                this->registry->get<component::ModelComponent>(loaded->second.entity)
+                    .unwrap_mut().visible = true;
                 auto bodies =
                     this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
                 if (bodies.is_some()) {
@@ -136,6 +138,8 @@ namespace enishi::core {
         }
         this->model_render_pass->remove_mesh(loaded->second.mesh);
         loaded->second.visible = false;
+        this->registry->get<component::ModelComponent>(loaded->second.entity)
+            .unwrap_mut().visible = false;
         auto bodies =
             this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
         if (bodies.is_some()) {
