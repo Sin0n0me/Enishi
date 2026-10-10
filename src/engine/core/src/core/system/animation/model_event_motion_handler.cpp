@@ -6,10 +6,14 @@ namespace enishi::core {
     ModelEventMotionHandler::ModelEventMotionHandler(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<AnimationSystem> animation,
         std::vector<ModelEventMotionRule> rules,
+        std::shared_ptr<ModelClickSettings> click_settings,
+        std::shared_ptr<ModelClickSettings> click_settings,
         std::shared_ptr<sub_system::IPhysicsWorld> physics)
         : registry(std::move(registry))
         , animation(std::move(animation))
         , rules(std::move(rules))
+        , click_settings(std::move(click_settings))
+        , click_settings(std::move(click_settings))
         , physics(std::move(physics)) {
     }
 
@@ -17,6 +21,22 @@ namespace enishi::core {
         const component::ModelComponent& model, const ModelMotionEvent& event) const {
         const ModelEventMotionRule* selected = nullptr;
         for (const auto& rule : this->rules) {
+            // Filter before choosing specificity so a motion cannot hide a push rule.
+            if (event.kind == "click" && rule.action != ModelEventAction::None &&
+                ((this->click_settings->mode == ModelClickMode::Touch &&
+                     rule.action != ModelEventAction::Motion) ||
+                    (this->click_settings->mode == ModelClickMode::Push &&
+                        rule.action != ModelEventAction::Impulse))) {
+                continue;
+            }
+            // Filter before choosing specificity so a motion cannot hide a push rule.
+            if (event.kind == "click" && rule.action != ModelEventAction::None &&
+                ((this->click_settings->mode == ModelClickMode::Touch &&
+                     rule.action != ModelEventAction::Motion) ||
+                    (this->click_settings->mode == ModelClickMode::Push &&
+                        rule.action != ModelEventAction::Impulse))) {
+                continue;
+            }
             if (!rule.enabled || rule.event != event.kind ||
                 (rule.model != "*" && model.name.find(rule.model) == std::string::npos &&
                     model.source_path.find(rule.model) == std::string::npos)) {
@@ -39,6 +59,14 @@ namespace enishi::core {
 
     foundation::Result<bool, ModelEventError> ModelEventMotionHandler::trigger(
         types::HandleId entity, const ModelMotionEvent& event) {
+        if (event.kind == "click" && (this->click_settings == nullptr ||
+                                         this->click_settings->mode == ModelClickMode::None)) {
+            return false;
+        }
+        if (event.kind == "click" && (this->click_settings == nullptr ||
+                                         this->click_settings->mode == ModelClickMode::None)) {
+            return false;
+        }
         const auto model = this->registry->get<component::ModelComponent>(entity);
         if (model.is_none() || !model.unwrap().visible) {
             return false;

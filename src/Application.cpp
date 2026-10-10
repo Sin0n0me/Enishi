@@ -59,6 +59,7 @@ namespace enishi {
 
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
+        this->click_settings = std::make_shared<core::ModelClickSettings>();
 
         // システムの追加
         auto asset_system = this->system_scheduler.register_system<core::AssetSystem>(50);
@@ -93,7 +94,7 @@ namespace enishi {
         } else {
             clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
                 this->registry, animation_system, std::move(motion_rules).unwrap(),
-                physics_engine->get_shared_world()));
+                this->click_settings, physics_engine->get_shared_world()));
         }
         root_window->set_interactive_hit_test(
             [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
