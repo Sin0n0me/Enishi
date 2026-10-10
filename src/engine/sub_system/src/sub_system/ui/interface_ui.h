@@ -17,6 +17,16 @@ namespace enishi::sub_system {
         [[nodiscard]] virtual bool button(const char* label) = 0;
         // The caller owns the UTF-8 value, which is updated when edited.
         virtual bool input_text(const char* label, std::string& value) = 0;
+        // End only popups for which begin_context_popup returned true.
+        [[nodiscard]] virtual bool begin_context_popup(const char* id) = 0;
+        virtual void end_popup(void) = 0;
+        [[nodiscard]] virtual bool is_window_appearing(void) const = 0;
+        virtual void same_line(void) = 0;
+        virtual void begin_disabled(bool disabled) = 0;
+        virtual void end_disabled(void) = 0;
+        virtual void push_id(const char* id) = 0;
+        virtual void pop_id(void) = 0;
+        virtual void tooltip(std::string_view value) = 0;
         [[nodiscard]] virtual bool wants_capture_mouse(void) const = 0;
         [[nodiscard]] virtual bool wants_capture_keyboard(void) const = 0;
     };

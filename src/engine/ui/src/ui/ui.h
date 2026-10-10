@@ -30,6 +30,15 @@ namespace enishi::ui {
         void text(std::string_view value) override;
         bool button(const char* label) override;
         bool input_text(const char* label, std::string& value) override;
+        bool begin_context_popup(const char* id) override;
+        void end_popup(void) override;
+        bool is_window_appearing(void) const override;
+        void same_line(void) override;
+        void begin_disabled(bool disabled) override;
+        void end_disabled(void) override;
+        void push_id(const char* id) override;
+        void pop_id(void) override;
+        void tooltip(std::string_view value) override;
         bool wants_capture_mouse(void) const override;
         bool wants_capture_keyboard(void) const override;
 
