@@ -34,10 +34,11 @@ namespace enishi::assets_system {
             const std::vector<PMDIK>& iks, const IBoneResolver* bone_resolver);
 
         [[nodiscard]] static types::AddonPhysicsJoints make_joints(
-            const std::vector<PMDPhysicsJoint>& joints);
+            const std::vector<PMDPhysicsJoint>& joints,
+            const std::vector<std::uint32_t>& rigid_body_indices);
 
-        [[nodiscard]] static types::AddonRigidBodies make_rigid_bodies(
-            const std::vector<PMDRigidBody>& rigid_bodies);
+        [[nodiscard]] static std::tuple<types::AddonRigidBodies, std::vector<std::uint32_t>>
+        make_rigid_bodies(const std::vector<PMDRigidBody>& rigid_bodies);
 
         [[nodiscard]] static std::vector<types::Material> make_materials(
             const std::filesystem::path& path,
