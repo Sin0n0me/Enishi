@@ -1,6 +1,7 @@
 #pragma once
 #include "../entity/entity.h"
 #include "../errors/errors.h"
+#include <deque>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
 #include <vector>
@@ -20,7 +21,8 @@ namespace enishi::ecs {
 
         std::vector<std::uint32_t> sparse; // EntityID -> dense添字
         std::vector<EntityID> dense;       // 有効なEntityIDの列
-        std::vector<T> components;         // denseと同じ並びのコンポーネント列
+        // ボーンキャッシュが参照する要素を、コンポーネント追加時に移動させない。
+        std::deque<T> components; // denseと同じ並びのコンポーネント列
 
       public:
         // コンポーネントを追加
@@ -70,7 +72,7 @@ namespace enishi::ecs {
 
         // コンポーネントを削除(swap-and-pop で穴を作らない)
         void remove(const EntityID id) override {
-            if (this->has(id)) {
+            if (!this->has(id)) {
                 return;
             }
 
@@ -109,7 +111,7 @@ namespace enishi::ecs {
         }
 
         // イテレーション用
-        std::vector<T>& get_components(void) noexcept {
+        std::deque<T>& get_components(void) noexcept {
             return this->components;
         }
 

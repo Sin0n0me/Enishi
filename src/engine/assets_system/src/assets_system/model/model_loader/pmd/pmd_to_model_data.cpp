@@ -3,16 +3,20 @@
 #include <algorithm>
 #include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
+#include <format>
 #include <foundation/log/logger.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 #include <foundation/str/to_utf8.h>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <limits>
 
 namespace enishi::assets_system {
     namespace {
         constexpr std::uint16_t NO_PMD_BONE = 0xFFFF;
+        constexpr std::uint32_t INVALID_RIGID_BODY_INDEX =
+            std::numeric_limits<std::uint32_t>::max();
 
         foundation::Result<void, AssetError> validate_runtime_references(const PMDData& data) {
             for (const auto& bone : data.bones) {
@@ -30,11 +34,8 @@ namespace enishi::assets_system {
                 }
             }
             for (const auto& body : data.rigid_bodies) {
-                if (body.relate_bone_index == NO_PMD_BONE) {
-                    return foundation::Error(AssetError::UnsupportedFeature,
-                        "PMD runtime does not support rigid bodies without a related bone");
-                }
-                if (!(body.relate_bone_index < data.bones.size())) {
+                if (body.relate_bone_index != NO_PMD_BONE &&
+                    !(body.relate_bone_index < data.bones.size())) {
                     return foundation::Error(
                         AssetError::InvalidAssetData, "PMD rigid body references a missing bone");
                 }
@@ -84,6 +85,9 @@ namespace enishi::assets_system {
         auto materials =
             PMDToModelData::make_materials(parent_path, data.materials, data.toon_textures);
         auto textures = PMDToModelData::make_textures(materials, texture_loader);
+        auto [rigid_bodies, rigid_body_indices] =
+            PMDToModelData::make_rigid_bodies(data.rigid_bodies);
+        auto joints = PMDToModelData::make_joints(data.physics_joints, rigid_body_indices);
 
         return std::make_shared<types::ModelData>(types::ModelData{
             .name = utf8_name.unwrap_or(sjis_name),
@@ -96,8 +100,8 @@ namespace enishi::assets_system {
                     std::move(morphs.unwrap_mut().legacy),
                     std::move(morphs.unwrap_mut().targets),
                     PMDToModelData::make_iks(data.iks, &bone_resolver),
-                    PMDToModelData::make_rigid_bodies(data.rigid_bodies),
-                    PMDToModelData::make_joints(data.physics_joints),
+                    std::move(rigid_bodies),
+                    std::move(joints),
                 },
             .materials = std::move(materials),
             .textures = std::move(textures),
@@ -257,7 +261,8 @@ namespace enishi::assets_system {
     }
 
     types::AddonPhysicsJoints PMDToModelData::make_joints(
-        const std::vector<PMDPhysicsJoint>& joints) {
+        const std::vector<PMDPhysicsJoint>& joints,
+        const std::vector<std::uint32_t>& rigid_body_indices) {
         types::AddonPhysicsJoints converted;
         converted.reserve(joints.size());
         for (const auto& joint : joints) {
@@ -265,8 +270,15 @@ namespace enishi::assets_system {
             const std::string name(
                 joint.name, std::find(std::begin(joint.name), std::end(joint.name), '\0'));
             dst.name = foundation::sjis_to_utf8(name).unwrap_or(name);
-            dst.rigid_body_a = joint.rigid_body_a;
-            dst.rigid_body_b = joint.rigid_body_b;
+            dst.rigid_body_a = rigid_body_indices[joint.rigid_body_a];
+            dst.rigid_body_b = rigid_body_indices[joint.rigid_body_b];
+            if (dst.rigid_body_a == INVALID_RIGID_BODY_INDEX ||
+                dst.rigid_body_b == INVALID_RIGID_BODY_INDEX) {
+                foundation::Logger::warning(std::format(
+                    "Skipping PMD joint '{}' referencing a rigid body without a related bone",
+                    dst.name));
+                continue;
+            }
             dst.position = glm::vec3(joint.position[0], joint.position[1], joint.position[2]);
             dst.rotation = glm::vec3(joint.rotation[0], joint.rotation[1], joint.rotation[2]);
             dst.constrain_position_min = glm::vec3(joint.constrain_position_min[0],
@@ -290,14 +302,25 @@ namespace enishi::assets_system {
         return converted;
     }
 
-    types::AddonRigidBodies PMDToModelData::make_rigid_bodies(
-        const std::vector<PMDRigidBody>& rigid_bodies) {
+    std::tuple<types::AddonRigidBodies, std::vector<std::uint32_t>>
+    PMDToModelData::make_rigid_bodies(const std::vector<PMDRigidBody>& rigid_bodies) {
         types::AddonRigidBodies converted;
         converted.reserve(rigid_bodies.size());
+        std::vector<std::uint32_t> indices;
+        indices.reserve(rigid_bodies.size());
         for (const auto& body : rigid_bodies) {
             const auto kind = PMDToModelData::make_rigid_body_type_from_pmd(body);
             const std::string name(
                 body.name, std::find(std::begin(body.name), std::end(body.name), '\0'));
+            if (body.relate_bone_index == NO_PMD_BONE) {
+                foundation::Logger::warning(
+                    std::format("Skipping PMD rigid body '{}' without a related bone",
+                        foundation::sjis_to_utf8(name).unwrap_or(name)));
+                indices.push_back(INVALID_RIGID_BODY_INDEX);
+                continue;
+            }
+            // ジョイントは除外前の剛体番号を参照するため、変換後の番号との対応を保持する。
+            indices.push_back(static_cast<std::uint32_t>(converted.size()));
             converted.push_back(types::PhysicsRigidBody{
                 .name = foundation::sjis_to_utf8(name).unwrap_or(name),
                 .relate_bone_index = body.relate_bone_index,
@@ -315,7 +338,7 @@ namespace enishi::assets_system {
                 .friction = body.friction,
             });
         }
-        return converted;
+        return {std::move(converted), std::move(indices)};
     }
 
     std::vector<types::Material> PMDToModelData::make_materials(

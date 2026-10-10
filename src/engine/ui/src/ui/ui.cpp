@@ -103,6 +103,54 @@ namespace enishi::ui {
         return ImGui::InputText(label, &value);
     }
 
+    bool UI::begin_context_popup(const char* id) {
+        ImGui::SetCurrentContext(this->context.get());
+        return ImGui::BeginPopupContextVoid(id, ImGuiPopupFlags_MouseButtonRight);
+    }
+
+    void UI::end_popup(void) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::EndPopup();
+    }
+
+    bool UI::is_window_appearing(void) const {
+        ImGui::SetCurrentContext(this->context.get());
+        return ImGui::IsWindowAppearing();
+    }
+
+    void UI::same_line(void) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::SameLine();
+    }
+
+    void UI::begin_disabled(bool disabled) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::BeginDisabled(disabled);
+    }
+
+    void UI::end_disabled(void) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::EndDisabled();
+    }
+
+    void UI::push_id(const char* id) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::PushID(id);
+    }
+
+    void UI::pop_id(void) {
+        ImGui::SetCurrentContext(this->context.get());
+        ImGui::PopID();
+    }
+
+    void UI::tooltip(std::string_view value) {
+        ImGui::SetCurrentContext(this->context.get());
+        if (ImGui::IsItemHovered() && ImGui::BeginTooltip()) {
+            this->text(value);
+            ImGui::EndTooltip();
+        }
+    }
+
     bool UI::wants_capture_mouse(void) const {
         if (!this->initialized) {
             return false;

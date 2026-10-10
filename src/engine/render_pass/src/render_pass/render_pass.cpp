@@ -1,4 +1,5 @@
 #include "render_pass.h"
+#include <algorithm>
 
 namespace enishi::render_pass {
     std::span<const types::DrawCommand> RenderPass::get_commands(void) const noexcept {
@@ -93,6 +94,27 @@ namespace enishi::render_pass {
     }
     void RenderPass::add_mesh(const types::RenderHandle& mesh) noexcept {
         this->add_command(mesh);
+    }
+
+    void RenderPass::remove_mesh(const types::RenderHandle& mesh) noexcept {
+        if (mesh.type != types::RenderHandleType::Mesh) {
+            return;
+        }
+        for (std::size_t index = this->commands.size(); index > 0;) {
+            --index;
+            if (this->commands[index].handle != mesh) {
+                continue;
+            }
+            std::erase_if(this->mesh_name_to_index,
+                [index](const auto& entry) { return entry.second == index; });
+            for (auto& [name, command_index] : this->mesh_name_to_index) {
+                if (command_index > index) {
+                    // 削除位置より後のインデックス: new_index = old_index - 1。
+                    --command_index;
+                }
+            }
+            this->commands.erase(this->commands.begin() + index);
+        }
     }
     foundation::DependencyNode RenderPass::get_node(void) const noexcept {
         return this->node;

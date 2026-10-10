@@ -15,6 +15,7 @@ namespace enishi::model_controller {
     }
 
     void ModelController::find_model(const std::filesystem::path& search_path) noexcept {
+        this->model_list.clear();
         const auto model_paths =
             this->asset_system->find_assets(search_path, types::AssetKind::Model);
         const auto pattern_str = std::format(
@@ -29,7 +30,9 @@ namespace enishi::model_controller {
         }
 
         for (const auto& asset_path : asset_paths) {
-            this->model_list[asset_path.stem().string<char>()] = asset_path;
+            const auto path = asset_path.lexically_normal();
+            const auto utf8 = path.generic_u8string();
+            this->model_list[foundation::UTF8(utf8.begin(), utf8.end())] = path;
         }
     }
 

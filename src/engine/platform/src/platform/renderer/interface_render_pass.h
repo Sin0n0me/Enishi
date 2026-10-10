@@ -33,6 +33,8 @@ namespace enishi::platform {
 
         virtual void add_mesh(const types::RenderHandle& mesh) noexcept = 0;
 
+        virtual void remove_mesh(const types::RenderHandle& mesh) noexcept = 0;
+
         virtual void add_updater(std::shared_ptr<IResourceUpdater> updater) noexcept = 0;
 
         virtual void update(void) = 0;
