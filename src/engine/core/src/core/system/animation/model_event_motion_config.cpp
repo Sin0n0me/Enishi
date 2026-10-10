@@ -70,7 +70,9 @@ namespace enishi::core {
             if (action == "motion" && (!(fields >> std::quoted(action)) || action.empty())) {
                 return false;
             }
-            if (!(fields >> mode) || (mode != "off" && mode != "once" && mode != "loop")) {
+            // Match impulse's on/off spelling; on plays a motion once.
+            if (!(fields >> mode) ||
+                (mode != "off" && mode != "on" && mode != "once" && mode != "loop")) {
                 return false;
             }
             rule.motion =
