@@ -7,6 +7,7 @@
 #include <foundation/result/result.h>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <platform/window/interface_window.h>
 #include <sub_system/ui/interface_ui.h>
 
@@ -25,6 +26,9 @@ namespace enishi::platform_impl {
         types::WindowSize size;
         types::WindowPosition position;
         bool is_closing;
+        std::optional<types::ScreenMousePosition> model_press;
+        types::WindowPosition drag_origin{};
+        bool model_dragging = false;
         std::weak_ptr<sub_system::IUI> ui;
         std::function<void(const SDL_Event&)> ui_event_handler;
         std::function<bool(types::ClientMousePosition)> interactive_hit_test;
@@ -71,5 +75,8 @@ namespace enishi::platform_impl {
         static SDL_HitTestResult SDLCALL hit_test_callback(
             SDL_Window* window, const SDL_Point* point, void* data);
         bool apply_shape_window(void);
+        bool handle_model_pointer(const SDL_Event& event, bool capture_mouse);
+        void update_model_drag(void);
+        void cancel_model_drag(void);
     };
 } // namespace enishi::platform_impl

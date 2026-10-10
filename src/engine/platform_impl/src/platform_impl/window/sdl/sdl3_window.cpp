@@ -39,6 +39,9 @@ namespace enishi::platform_impl {
     SDL_HitTestResult SDLCALL SDL3Window::hit_test_callback(
         SDL_Window* win, const SDL_Point* pt, void* data) {
         const auto* window = static_cast<const SDL3Window*>(data);
+        if (window->model_press.has_value()) {
+            return SDL_HITTEST_NORMAL;
+        }
         const auto ui = window->ui.lock();
         if (ui != nullptr && ui->wants_capture_mouse()) {
             return SDL_HITTEST_NORMAL;
@@ -317,6 +320,9 @@ namespace enishi::platform_impl {
             const bool capture_keyboard = ui != nullptr && ui->wants_capture_keyboard();
             const bool capture_mouse = ui != nullptr && ui->wants_capture_mouse();
 
+            if (this->handle_model_pointer(event, capture_mouse)) {
+                continue;
+            }
             switch (event.type) {
                 case SDL_EventType::SDL_EVENT_QUIT:
                     this->is_closing = true;
