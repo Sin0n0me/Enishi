@@ -20,14 +20,12 @@ namespace enishi::core {
         std::shared_ptr<AnimationSystem> animation;
         std::vector<ModelEventMotionRule> rules;
         std::shared_ptr<ModelClickSettings> click_settings;
-        std::shared_ptr<ModelClickSettings> click_settings;
         std::shared_ptr<sub_system::IPhysicsWorld> physics;
 
       public:
         ModelEventMotionHandler(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<AnimationSystem> animation,
             std::vector<ModelEventMotionRule> rules,
-            std::shared_ptr<ModelClickSettings> click_settings,
             std::shared_ptr<ModelClickSettings> click_settings,
             std::shared_ptr<sub_system::IPhysicsWorld> physics = nullptr);
         void on_model_click(const types::ModelClick& event) override;
