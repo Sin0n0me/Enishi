@@ -85,12 +85,12 @@ namespace enishi::core {
             this->registry->destroy(entity);
             return inserted.propagation(sub_system::ModelSelectionError::RegistrationFailed);
         }
-        const auto pose_result = initialize_model_pose(*this->registry, entity, inserted.unwrap());
+        const auto pose_result = initialize_model_pose(*this->registry, entity, inserted.unwrap_mut());
         if (pose_result.is_err()) {
             this->registry->destroy(entity);
             return pose_result.propagation(sub_system::ModelSelectionError::RegistrationFailed);
         }
-        const auto mesh = inserted.unwrap().render_handle;
+        const auto mesh = inserted.unwrap_mut().render_handle;
         this->loaded_models.emplace(id, LoadedModel{entity, mesh, true});
         this->model_render_pass->add_mesh(mesh);
         return {};
