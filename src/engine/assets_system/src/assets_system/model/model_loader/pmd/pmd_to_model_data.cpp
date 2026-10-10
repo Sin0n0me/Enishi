@@ -324,8 +324,8 @@ namespace enishi::assets_system {
             converted.push_back(types::PhysicsRigidBody{
                 .name = foundation::sjis_to_utf8(name).unwrap_or(name),
                 .relate_bone_index = body.relate_bone_index,
-                // Collision mask = bitwise complement of PMD's non-collision mask.
-                .group_mask = static_cast<std::uint16_t>(~body.group_target),
+                // Preserve the enabled collision groups when passing the mask to Bullet.
+                .group_mask = body.group_target,
                 .group_index = body.group_index,
                 .kind = kind,
                 .shape = PMDToModelData::make_shape_from_pmd(body),
