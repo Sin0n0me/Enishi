@@ -294,6 +294,11 @@ namespace enishi::platform_impl {
     }
 
     void SDL3Window::poll_events(void) {
+        this->input.begin_frame();
+        const auto position = this->get_position();
+        if (position.is_some()) {
+            this->position = position.unwrap();
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (this->ui_event_handler != nullptr) {
@@ -320,6 +325,10 @@ namespace enishi::platform_impl {
                     if (capture_mouse) {
                         break;
                     }
+                    this->input.on_mouse_move(types::to_screen(
+                        types::ClientMousePosition{static_cast<std::int32_t>(event.button.x),
+                            static_cast<std::int32_t>(event.button.y)},
+                        this->position));
                     this->input.on_mouse_button_down(
                         SDL3Input::convert_mouse_button(event.button.button));
                     break;
@@ -343,6 +352,17 @@ namespace enishi::platform_impl {
                     break;
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_GAINED:
                     // SDL_StartTextInput();
+                    break;
+                case SDL_EventType::SDL_EVENT_WINDOW_MOVED:
+                    this->position = {event.window.data1, event.window.data2};
+                    break;
+                case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
+                    for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
+                         button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
+                         ++button) {
+                        this->input.on_mouse_button_up(static_cast<types::MouseButton>(button));
+                    }
+                    this->input.begin_frame();
                     break;
                 default:
                     break;

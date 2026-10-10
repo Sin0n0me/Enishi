@@ -39,13 +39,16 @@ namespace enishi::platform_impl {
         return types::MouseWheel();
     }
     bool SDL3Input::is_mouse_button_down(const types::MouseButton button) const noexcept {
-        return false;
+        const auto index = static_cast<std::size_t>(button);
+        return index < this->mouse_down.size() && this->mouse_down[index];
     }
     bool SDL3Input::is_mouse_button_pressed(const types::MouseButton button) const noexcept {
-        return false;
+        const auto index = static_cast<std::size_t>(button);
+        return index < this->mouse_pressed.size() && this->mouse_pressed[index];
     }
     bool SDL3Input::is_mouse_button_released(const types::MouseButton button) const noexcept {
-        return false;
+        const auto index = static_cast<std::size_t>(button);
+        return index < this->mouse_released.size() && this->mouse_released[index];
     }
 
     bool SDL3Input::can_process_event(void) const noexcept {
@@ -73,15 +76,30 @@ namespace enishi::platform_impl {
     }
 
     void SDL3Input::on_mouse_move(const types::ScreenMousePosition position) {
+        this->mouse_position = position;
     }
 
     void SDL3Input::on_mouse_button_down(const types::MouseButton button) {
+        const auto index = static_cast<std::size_t>(button);
+        if (button == types::MouseButton::None || !(index < this->mouse_down.size())) {
+            return;
+        }
+        this->mouse_pressed[index] = this->mouse_pressed[index] || !this->mouse_down[index];
+        this->mouse_down[index] = true;
     }
 
     void SDL3Input::on_mouse_button_up(const types::MouseButton button) {
+        const auto index = static_cast<std::size_t>(button);
+        if (button == types::MouseButton::None || !(index < this->mouse_down.size())) {
+            return;
+        }
+        this->mouse_released[index] = this->mouse_released[index] || this->mouse_down[index];
+        this->mouse_down[index] = false;
     }
 
     void SDL3Input::begin_frame(void) {
+        this->mouse_pressed.fill(false);
+        this->mouse_released.fill(false);
     }
 
     void SDL3Input::end_frame(void) {
