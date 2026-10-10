@@ -3,6 +3,7 @@
 #include <engine_types/collider/ray.h>
 #include <engine_types/collider/model_click.h>
 #include <foundation/option/option.h>
+#include <functional>
 #include <memory>
 #include <sub_system/collision/interface_collision_handler.h>
 #include <unordered_map>
@@ -54,6 +55,8 @@ namespace enishi::collider {
             const types::CollisionModelId second_model,
             const types::OBB& second);
         [[nodiscard]] static bool hit_model(const types::Ray& ray, const types::OBB& obb);
-        [[nodiscard]] std::optional<types::ModelHit> raycast(const types::Ray& ray) const;
+        [[nodiscard]] std::optional<types::ModelHit> raycast(const types::Ray& ray,
+            const std::function<bool(types::CollisionModelId, types::BoneIndex)>& accepts = {})
+            const;
     };
 } // namespace enishi::collider

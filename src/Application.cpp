@@ -87,7 +87,7 @@ namespace enishi {
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, collider, root_window);
+            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings);
         auto motion_rules = core::load_model_event_motions("config/model_event_motions.cfg");
         if (motion_rules.is_err()) {
             foundation::Logger::warning(motion_rules.unwrap_err().get_message());

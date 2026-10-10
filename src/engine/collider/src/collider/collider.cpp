@@ -345,7 +345,8 @@ namespace enishi::collider {
             static_cast<float>(depth)};
     }
 
-    std::optional<types::ModelHit> Collider::raycast(const types::Ray& ray) const {
+    std::optional<types::ModelHit> Collider::raycast(const types::Ray& ray,
+        const std::function<bool(types::CollisionModelId, types::BoneIndex)>& accepts) const {
         if (!finite(ray.origin) || !finite(ray.direction) ||
             !(glm::dot(glm::dvec3(ray.direction), glm::dvec3(ray.direction)) > 0.0)) {
             return std::nullopt;
@@ -355,6 +356,9 @@ namespace enishi::collider {
         double distance = std::numeric_limits<double>::max();
         for (const auto& [model, bounds] : this->models) {
             for (const auto& [bone, obb] : bounds.world_obbs) {
+                if (accepts != nullptr && !accepts(model, bone)) {
+                    continue;
+                }
                 double lower = 0.0;
                 double upper = distance;
                 if (!clip(glm::dvec3(ray.origin), direction, obb, 0.0, lower, upper)) {
