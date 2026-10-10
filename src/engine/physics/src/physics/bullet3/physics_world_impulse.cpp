@@ -9,7 +9,8 @@ namespace enishi::physics::bullet3 {
             return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
         };
         if (!finite(impulse.world_velocity) || !finite(impulse.world_torque) ||
-            !finite(impulse.local_velocity) || !finite(impulse.local_torque)) {
+            !finite(impulse.local_velocity) || !finite(impulse.local_torque) ||
+            (impulse.world_position.has_value() && !finite(*impulse.world_position))) {
             return foundation::Error(
                 sub_system::PhysicsError::MakeError, "Non-finite rigid body impulse");
         }

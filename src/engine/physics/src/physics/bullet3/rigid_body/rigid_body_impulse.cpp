@@ -23,8 +23,15 @@ namespace enishi::physics::bullet3 {
             body.clearForces();
         }
         const auto& basis = body.getWorldTransform().getBasis();
-        body.applyCentralImpulse(
-            linear_vector(impulse.world_velocity) + basis * linear_vector(impulse.local_velocity));
+        const auto linear_impulse =
+            linear_vector(impulse.world_velocity) + basis * linear_vector(impulse.local_velocity);
+        if (impulse.world_position.has_value()) {
+            // r = hit - center of mass; Bullet applies delta-v = J/m and delta-L = r cross J.
+            const auto offset = linear_vector(*impulse.world_position) - body.getCenterOfMassPosition();
+            body.applyImpulse(linear_impulse, offset);
+        } else {
+            body.applyCentralImpulse(linear_impulse);
+        }
         body.applyTorqueImpulse(
             angular_vector(impulse.world_torque) + basis * angular_vector(impulse.local_torque));
         body.activate(true);
