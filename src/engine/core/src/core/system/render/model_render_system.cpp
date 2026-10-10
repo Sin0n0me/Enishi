@@ -38,36 +38,71 @@ namespace enishi::core {
             return;
         }
 
-        // TODO: モデル選択UIを実装するまで、名前順の先頭モデルを自動描画する。
-        const auto shader_reflections = this->model_render_pass->get_shader_reflections();
-        const auto shader_reflection_list =
-            std::vector<types::RenderHandle>{shader_reflections.begin(), shader_reflections.end()};
         for (const auto& model_name : model_names) {
-            auto result = this->model_controller->make_model(model_name, shader_reflection_list);
-            if (result.is_err()) {
-                foundation::Logger::error(result.unwrap_err().get_message());
-                continue;
+            const auto result = this->show_model(model_name);
+            if (result.is_ok()) {
+                break;
             }
-
-            const auto entity = this->registry->create();
-            auto& model_component = result.unwrap_mut();
-            auto insert_result = this->registry->insert(entity, std::move(model_component));
-            if (insert_result.is_err()) {
-                foundation::Logger::error(insert_result.unwrap_err().get_message());
-                this->registry->destroy(entity);
-                continue;
-            }
-
-            const auto pose_result =
-                initialize_model_pose(*this->registry, entity, insert_result.unwrap_mut());
-            if (pose_result.is_err()) {
-                foundation::Logger::error(pose_result.unwrap_err().get_message());
-                this->registry->destroy(entity);
-                continue;
-            }
-            this->model_render_pass->add_mesh(insert_result.unwrap_mut().render_handle);
-            break;
+            foundation::Logger::error(result.unwrap_err().get_message());
         }
+    }
+
+    std::vector<sub_system::ModelEntry> ModelRenderSystem::get_models(void) const {
+        std::vector<sub_system::ModelEntry> entries;
+        for (const auto& id : this->model_controller->get_model_list()) {
+            const auto path = std::filesystem::path(std::u8string(id.begin(), id.end()));
+            const auto filename = path.filename().u8string();
+            const auto loaded = this->loaded_models.find(id);
+            entries.push_back(sub_system::ModelEntry{
+                .id = id,
+                .filename = std::string(filename.begin(), filename.end()),
+                .visible = loaded != this->loaded_models.end() && loaded->second.visible,
+            });
+        }
+        return entries;
+    }
+
+    foundation::VoidResult<sub_system::ModelSelectionError> ModelRenderSystem::show_model(
+        const std::string& id) {
+        const auto loaded = this->loaded_models.find(id);
+        if (loaded != this->loaded_models.end()) {
+            if (!loaded->second.visible) {
+                this->model_render_pass->add_mesh(loaded->second.mesh);
+                loaded->second.visible = true;
+            }
+            return {};
+        }
+        const auto reflections = this->model_render_pass->get_shader_reflections();
+        const auto reflection_list =
+            std::vector<types::RenderHandle>{reflections.begin(), reflections.end()};
+        auto result = this->model_controller->make_model(id, reflection_list);
+        if (result.is_err()) {
+            return result.propagation(sub_system::ModelSelectionError::LoadFailed);
+        }
+        const auto entity = this->registry->create();
+        auto inserted = this->registry->insert(entity, std::move(result.unwrap_mut()));
+        if (inserted.is_err()) {
+            this->registry->destroy(entity);
+            return inserted.propagation(sub_system::ModelSelectionError::RegistrationFailed);
+        }
+        const auto pose_result = initialize_model_pose(*this->registry, entity, inserted.unwrap());
+        if (pose_result.is_err()) {
+            this->registry->destroy(entity);
+            return pose_result.propagation(sub_system::ModelSelectionError::RegistrationFailed);
+        }
+        const auto mesh = inserted.unwrap().render_handle;
+        this->loaded_models.emplace(id, LoadedModel{entity, mesh, true});
+        this->model_render_pass->add_mesh(mesh);
+        return {};
+    }
+
+    void ModelRenderSystem::hide_model(const std::string& id) {
+        const auto loaded = this->loaded_models.find(id);
+        if (loaded == this->loaded_models.end() || !loaded->second.visible) {
+            return;
+        }
+        this->model_render_pass->remove_mesh(loaded->second.mesh);
+        loaded->second.visible = false;
     }
 
     void ModelRenderSystem::update(const types::DeltaTime& delta_time) {

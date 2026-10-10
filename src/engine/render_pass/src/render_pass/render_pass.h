@@ -38,6 +38,7 @@ namespace enishi::render_pass {
 
         void add_updater(std::shared_ptr<platform::IResourceUpdater> updater) noexcept override;
         void add_mesh(const types::RenderHandle& mesh) noexcept override;
+        void remove_mesh(const types::RenderHandle& mesh) noexcept override;
         foundation::DependencyNode get_node(void) const noexcept override;
         foundation::DependencyBounds get_dependencies(void) const noexcept override;
 
