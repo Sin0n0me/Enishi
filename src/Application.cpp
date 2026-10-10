@@ -2,6 +2,7 @@
 #include <core/system/animation/animation_system.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/collision/model_collision_system.h>
+#include <core/system/collision/model_click_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
@@ -81,6 +82,15 @@ namespace enishi {
             return false;
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
+
+        constexpr core::Priority CLICK_PRIORITY = 97;
+        const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
+            CLICK_PRIORITY, collider, root_window);
+        root_window->set_interactive_hit_test(
+            [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
+                const auto system = weak.lock();
+                return system != nullptr && system->pick(cursor).has_value();
+            });
 
         // レンダラーの初期化
         const auto shared_asset_system = asset_system->get_asset_system();

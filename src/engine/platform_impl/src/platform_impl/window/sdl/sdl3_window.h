@@ -27,6 +27,7 @@ namespace enishi::platform_impl {
         bool is_closing;
         std::weak_ptr<sub_system::IUI> ui;
         std::function<void(const SDL_Event&)> ui_event_handler;
+        std::function<bool(types::ClientMousePosition)> interactive_hit_test;
 
         static SDL_WindowFlags get_flag_from_graphics_api(const types::GraphicsAPI graphics_api);
         static foundation::Option<platform::NativeWindowHandle> get_native_handle(
@@ -63,6 +64,8 @@ namespace enishi::platform_impl {
         void close(void) override;
         bool should_close(void) const override;
         void poll_events(void) override;
+        void set_interactive_hit_test(
+            std::function<bool(types::ClientMousePosition)> hit_test) override;
 
       private:
         static SDL_HitTestResult SDLCALL hit_test_callback(

@@ -43,7 +43,16 @@ namespace enishi::platform_impl {
         if (ui != nullptr && ui->wants_capture_mouse()) {
             return SDL_HITTEST_NORMAL;
         }
+        if (window->interactive_hit_test != nullptr &&
+            window->interactive_hit_test(types::ClientMousePosition{pt->x, pt->y})) {
+            return SDL_HITTEST_NORMAL;
+        }
         return SDL_HITTEST_DRAGGABLE;
+    }
+
+    void SDL3Window::set_interactive_hit_test(
+        std::function<bool(types::ClientMousePosition)> hit_test) {
+        this->interactive_hit_test = std::move(hit_test);
     }
 
     void SDL3Window::set_ui(

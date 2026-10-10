@@ -5,6 +5,7 @@ find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(material_tests material_tests.cpp
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/model_to_mesh.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/camera.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/str/string_builder.cpp")
 target_sources(material_tests PRIVATE

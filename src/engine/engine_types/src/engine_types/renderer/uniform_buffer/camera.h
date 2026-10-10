@@ -9,4 +9,5 @@ namespace enishi::types {
         glm::mat4 projection;
         glm::mat4 mvp;
     };
+    [[nodiscard]] UniformCamera make_default_model_camera(void);
 } // namespace enishi::types
