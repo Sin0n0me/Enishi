@@ -4,6 +4,7 @@
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
+#include <core/system/ui/selection_ui.h>
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
@@ -219,10 +220,10 @@ namespace enishi {
             foundation::Logger::error("モデル用レンダーパスが見つかりません");
             return {};
         }
-        this->system_scheduler.register_system<core::ModelRenderSystem>(
+        const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(
             95, this->registry, asset_system, renderer, model_render_pass.unwrap());
 
-        if (!this->init_ui(root_window, render_system)) {
+        if (!this->init_ui(root_window, render_system, models)) {
             return {};
         }
 
@@ -230,7 +231,8 @@ namespace enishi {
     }
 
     bool Application::init_ui(std::shared_ptr<platform::IWindow> window,
-        const std::shared_ptr<core::RenderSystem>& render_system) {
+        const std::shared_ptr<core::RenderSystem>& render_system,
+        std::shared_ptr<sub_system::IModelSelection> models) {
         const auto result = platform_impl::create_ui(window, render_system->get_renderer());
         if (result.is_err()) {
             foundation::Logger::error(result.unwrap_err().get_message());
@@ -238,7 +240,9 @@ namespace enishi {
         }
         const auto ui = result.unwrap();
         constexpr core::Priority UI_PRIORITY = 99;
-        this->system_scheduler.register_system<core::UISystem>(UI_PRIORITY, ui, nullptr);
+        const auto selection = std::make_shared<core::SelectionUI>(std::move(models));
+        this->system_scheduler.register_system<core::UISystem>(
+            UI_PRIORITY, ui, [selection](sub_system::IUI& ui) { selection->update(ui); });
         render_system->set_ui(ui);
         return true;
     }
