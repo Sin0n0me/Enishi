@@ -1,4 +1,5 @@
 #include "model_render_system.h"
+#include "last_model_cache.h"
 #include <core/system/skinning/model_pose_initializer.h>
 #include <filesystem>
 #include <foundation/log/logger.h>
@@ -8,7 +9,8 @@
 namespace enishi::core {
     namespace {
         const std::filesystem::path MODEL_SEARCH_PATH = "./assets/models";
-    }
+        const std::filesystem::path LAST_MODEL_CACHE_PATH = "./cache/last_model.txt";
+    } // namespace
 
     ModelRenderSystem::ModelRenderSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<platform::IAssetSystem> asset_system,
@@ -38,7 +40,22 @@ namespace enishi::core {
             return;
         }
 
+        std::string cached_id;
+        const auto cached = load_last_model(LAST_MODEL_CACHE_PATH);
+        if (cached.is_err()) {
+            foundation::Logger::warning(cached.unwrap_err().get_message());
+        } else if (cached.unwrap().is_some()) {
+            cached_id = cached.unwrap().unwrap();
+            const auto restored = this->show_model(cached_id);
+            if (restored.is_ok()) {
+                return;
+            }
+            foundation::Logger::warning(restored.unwrap_err().get_message());
+        }
         for (const auto& model_name : model_names) {
+            if (model_name == cached_id) {
+                continue;
+            }
             const auto result = this->show_model(model_name);
             if (result.is_ok()) {
                 break;
@@ -70,6 +87,7 @@ namespace enishi::core {
                 this->model_render_pass->add_mesh(loaded->second.mesh);
                 loaded->second.visible = true;
             }
+            this->remember_model(id);
             return {};
         }
         const auto reflections = this->model_render_pass->get_shader_reflections();
@@ -85,7 +103,8 @@ namespace enishi::core {
             this->registry->destroy(entity);
             return inserted.propagation(sub_system::ModelSelectionError::RegistrationFailed);
         }
-        const auto pose_result = initialize_model_pose(*this->registry, entity, inserted.unwrap_mut());
+        const auto pose_result =
+            initialize_model_pose(*this->registry, entity, inserted.unwrap_mut());
         if (pose_result.is_err()) {
             this->registry->destroy(entity);
             return pose_result.propagation(sub_system::ModelSelectionError::RegistrationFailed);
@@ -93,7 +112,15 @@ namespace enishi::core {
         const auto mesh = inserted.unwrap_mut().render_handle;
         this->loaded_models.emplace(id, LoadedModel{entity, mesh, true});
         this->model_render_pass->add_mesh(mesh);
+        this->remember_model(id);
         return {};
+    }
+
+    void ModelRenderSystem::remember_model(const std::string& id) const {
+        const auto result = save_last_model(LAST_MODEL_CACHE_PATH, id);
+        if (result.is_err()) {
+            foundation::Logger::warning(result.unwrap_err().get_message());
+        }
     }
 
     void ModelRenderSystem::hide_model(const std::string& id) {

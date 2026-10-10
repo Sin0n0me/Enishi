@@ -28,5 +28,6 @@ lib/
 
 _*.py
 log.txt
+/cache/last_model.txt
 
 

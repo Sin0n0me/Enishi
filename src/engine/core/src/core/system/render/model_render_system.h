@@ -42,5 +42,8 @@ namespace enishi::core {
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;
         void render(void) const override;
+
+      private:
+        void remember_model(const std::string& id) const;
     };
 } // namespace enishi::core
