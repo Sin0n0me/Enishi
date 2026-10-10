@@ -8,13 +8,17 @@ namespace enishi::core {
     class UISystem final : public ISystem {
       public:
         using Content = std::function<void(sub_system::IUI&)>;
+        using CloseCondition = std::function<bool(void)>;
 
       private:
         std::shared_ptr<sub_system::IUI> ui;
         Content content;
+        CloseCondition close_condition;
 
       public:
-        explicit UISystem(std::shared_ptr<sub_system::IUI> ui, Content content);
+        explicit UISystem(std::shared_ptr<sub_system::IUI> ui,
+            Content content,
+            CloseCondition close_condition = {});
         bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;

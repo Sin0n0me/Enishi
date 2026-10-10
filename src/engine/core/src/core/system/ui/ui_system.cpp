@@ -2,13 +2,15 @@
 #include <utility>
 
 namespace enishi::core {
-    UISystem::UISystem(std::shared_ptr<sub_system::IUI> ui, Content content)
+    UISystem::UISystem(
+        std::shared_ptr<sub_system::IUI> ui, Content content, CloseCondition close_condition)
         : ui(std::move(ui))
-        , content(std::move(content)) {
+        , content(std::move(content))
+        , close_condition(std::move(close_condition)) {
     }
 
     bool UISystem::should_close(void) {
-        return false;
+        return this->close_condition != nullptr && this->close_condition();
     }
 
     void UISystem::pre_update(void) {

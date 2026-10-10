@@ -7,6 +7,10 @@ namespace enishi::core {
         : models(std::move(models)) {
     }
 
+    bool SelectionUI::should_close(void) const {
+        return this->exit_requested;
+    }
+
     void SelectionUI::update(sub_system::IUI& ui) {
         if (!ui.begin_context_popup("selection")) {
             return;
@@ -29,6 +33,9 @@ namespace enishi::core {
     void SelectionUI::draw_actions(sub_system::IUI& ui) {
         if (ui.button("モデルの切り替え")) {
             this->page = Page::Models;
+        }
+        if (ui.button("終了")) {
+            this->exit_requested = true;
         }
     }
 

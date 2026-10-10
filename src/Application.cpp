@@ -242,7 +242,10 @@ namespace enishi {
         constexpr core::Priority UI_PRIORITY = 99;
         const auto selection = std::make_shared<core::SelectionUI>(std::move(models));
         this->system_scheduler.register_system<core::UISystem>(
-            UI_PRIORITY, ui, [selection](sub_system::IUI& ui) { selection->update(ui); });
+            UI_PRIORITY,
+            ui,
+            [selection](sub_system::IUI& ui) { selection->update(ui); },
+            [selection]() { return selection->should_close(); });
         render_system->set_ui(ui);
         return true;
     }

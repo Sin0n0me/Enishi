@@ -13,10 +13,12 @@ namespace enishi::core {
         std::shared_ptr<sub_system::IModelSelection> models;
         Page page = Page::Actions;
         std::string error_message;
+        bool exit_requested = false;
 
       public:
         explicit SelectionUI(std::shared_ptr<sub_system::IModelSelection> models);
         void update(sub_system::IUI& ui);
+        [[nodiscard]] bool should_close(void) const;
 
       private:
         void draw_actions(sub_system::IUI& ui);
