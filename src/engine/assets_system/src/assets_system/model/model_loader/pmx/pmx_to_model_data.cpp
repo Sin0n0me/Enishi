@@ -338,7 +338,8 @@ namespace enishi::assets_system {
                 dst.name = src.name;
                 dst.relate_bone_index = static_cast<std::uint32_t>(src.bone);
                 dst.group_index = src.group;
-                dst.group_mask = static_cast<std::uint16_t>(~src.non_collision_mask);
+                // The stored bits enable collision groups despite the field's name.
+                dst.group_mask = src.non_collision_mask;
                 if (src.mode == PMXRigidBodyMode::Kinematic) {
                     dst.kind = types::RigidBodyKind::Kinematic;
                 } else if (src.mode == PMXRigidBodyMode::Dynamic) {

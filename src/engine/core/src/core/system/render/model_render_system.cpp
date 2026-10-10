@@ -1,5 +1,6 @@
 #include "model_render_system.h"
 #include "last_model_cache.h"
+#include <component/physics_bodies_component.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <filesystem>
 #include <foundation/log/logger.h>
@@ -86,6 +87,11 @@ namespace enishi::core {
             if (!loaded->second.visible) {
                 this->model_render_pass->add_mesh(loaded->second.mesh);
                 loaded->second.visible = true;
+                auto bodies =
+                    this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
+                if (bodies.is_some()) {
+                    bodies.unwrap_mut().enabled = true;
+                }
             }
             this->remember_model(id);
             return {};
@@ -130,6 +136,11 @@ namespace enishi::core {
         }
         this->model_render_pass->remove_mesh(loaded->second.mesh);
         loaded->second.visible = false;
+        auto bodies =
+            this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
+        if (bodies.is_some()) {
+            bodies.unwrap_mut().enabled = false;
+        }
     }
 
     void ModelRenderSystem::update(const types::DeltaTime& delta_time) {

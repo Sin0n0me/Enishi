@@ -96,6 +96,9 @@ namespace enishi::physics::bullet3 {
     }
 
     void BulletRigidBody::sync_animation(void) {
+        if (!this->is_in_world()) {
+            return;
+        }
         const auto accessor = this->native_view->get_native_motion_state_accessor();
         for (const auto handle : {this->kinematic_motion_state, this->active_motion_state}) {
             auto state = accessor->get_motion_state(handle);
@@ -106,10 +109,16 @@ namespace enishi::physics::bullet3 {
     }
 
     void BulletRigidBody::apply_local_transform(void) {
+        if (!this->is_in_world()) {
+            return;
+        }
         this->views.updater->update_local(this->bone_index); // 物理状態の反映(ローカル空間)
     }
 
     void BulletRigidBody::apply_global_transform(void) {
+        if (!this->is_in_world()) {
+            return;
+        }
         auto&& opt_active_motion_state =
             this->native_view->get_native_motion_state_accessor()->get_motion_state(
                 this->active_motion_state);
@@ -127,5 +136,11 @@ namespace enishi::physics::bullet3 {
             kinematic_motion_state->reflect_global_transform(
                 this->views.physics_bone_view.get(), this->views.updater.get());
         }
+    }
+
+    bool BulletRigidBody::is_in_world(void) const {
+        const auto body = this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
+            this->rigid_body);
+        return body.is_some() && body.unwrap()->isInWorld();
     }
 } // namespace enishi::physics::bullet3

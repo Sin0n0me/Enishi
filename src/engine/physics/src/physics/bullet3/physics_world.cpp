@@ -319,7 +319,7 @@ namespace enishi::physics::bullet3 {
 
         for (auto& rigid_body : native_rigid_bodies) {
             const auto cache = world->getPairCache();
-            if (cache != nullptr) {
+            if (cache != nullptr && rigid_body->getBroadphaseHandle() != nullptr) {
                 cache->cleanProxyFromPairs(
                     rigid_body->getBroadphaseHandle(), this->world->getDispatcher());
             }

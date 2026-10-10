@@ -116,6 +116,10 @@ namespace enishi::core {
             }
             auto& bones = *found->second;
             bones.pending_after_physics = false;
+            const auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
+            if (bodies.is_some() && !bodies.unwrap().enabled) {
+                continue;
+            }
             if (this->physics_engine != nullptr &&
                 this->physics_engine->get_world()->get_config_reader()->can_update()) {
                 this->import_physics_pose(bones);

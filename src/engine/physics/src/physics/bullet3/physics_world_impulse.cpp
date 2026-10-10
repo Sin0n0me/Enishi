@@ -25,7 +25,9 @@ namespace enishi::physics::bullet3 {
             return foundation::Error(
                 sub_system::PhysicsError::MakeError, "Impulse target body is missing");
         }
-        apply_rigid_body_impulse(*body.unwrap(), impulse);
+        if (body.unwrap()->isInWorld()) {
+            apply_rigid_body_impulse(*body.unwrap(), impulse);
+        }
         return {};
     }
 } // namespace enishi::physics::bullet3

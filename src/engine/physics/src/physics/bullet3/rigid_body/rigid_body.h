@@ -39,5 +39,8 @@ namespace enishi::physics::bullet3 {
         void sync_animation(void) override;
         void apply_local_transform(void) override;
         void apply_global_transform(void) override;
+
+      private:
+        bool is_in_world(void) const;
     };
 } // namespace enishi::physics::bullet3

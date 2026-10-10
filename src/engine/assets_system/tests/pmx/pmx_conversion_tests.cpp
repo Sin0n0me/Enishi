@@ -171,7 +171,7 @@ void pmx_conversion_value_tests() {
               model.materials[0].textures[1].blend == types::MaterialTexture::Blend::Add,
         "material flags and environment blend");
     const auto& bodies = addon<types::AddonRigidBodies>(model);
-    check(bodies.size() == 1 && bodies[0].mass == 5 && bodies[0].group_mask == 0xFFFC,
+    check(bodies.size() == 1 && bodies[0].mass == 5 && bodies[0].group_mask == 0x0003,
         "rigid body conversion");
     check(bodies[0].position == glm::vec3(3, 2, 1), "rigid body bone-relative offset");
     const auto& joints = addon<types::AddonPhysicsJoints>(model);
