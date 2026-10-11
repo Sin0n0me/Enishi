@@ -3,9 +3,11 @@
 #include <cstddef>
 #include <engine_types/assets/model/model_data.h>
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
+#include <engine_types/renderer/shader/shader_input_info.h>
 #include <foundation/result/result.h>
 #include <optional>
 #include <renderer/errors/errors.h>
+#include <span>
 #include <string_view>
 
 namespace enishi::renderer {
@@ -33,6 +35,8 @@ namespace enishi::renderer {
 
     [[nodiscard]] foundation::Result<std::vector<SkinnedVertex>, RendererError>
     make_skinned_vertices(const types::ModelData& model);
+    [[nodiscard]] foundation::VoidResult<RendererError> validate_skinned_shader_inputs(
+        std::span<const types::ShaderInputLayout> inputs);
     [[nodiscard]] std::optional<std::uint32_t> skinned_vertex_offset(std::string_view semantic);
     [[nodiscard]] std::vector<types::MeshHandles::UVStream> skinned_uv_streams(
         types::HandleId buffer);

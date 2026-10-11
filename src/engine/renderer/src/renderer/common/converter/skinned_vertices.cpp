@@ -13,6 +13,38 @@ namespace enishi::renderer {
         }
         return streams;
     }
+    foundation::VoidResult<RendererError> validate_skinned_shader_inputs(
+        std::span<const types::ShaderInputLayout> inputs) {
+        constexpr std::uint32_t INFLUENCE_COMPONENTS = 4;
+        constexpr std::uint32_t METHOD_COMPONENTS = 1;
+        bool has_indices = false;
+        bool has_weights = false;
+        bool has_method = false;
+        bool is_skinned = false;
+        for (const auto& input : inputs) {
+            if (input.name == "BONEINDICES") {
+                is_skinned = true;
+                has_indices = input.value_type == types::ShaderInputValueType::UnsignedInteger &&
+                              input.component_count == INFLUENCE_COMPONENTS;
+            } else if (input.name == "BONEWEIGHTS") {
+                is_skinned = true;
+                has_weights = input.value_type == types::ShaderInputValueType::Float &&
+                              input.component_count == INFLUENCE_COMPONENTS;
+            } else if (input.name == "SKINNING_METHOD") {
+                is_skinned = true;
+                has_method = input.value_type == types::ShaderInputValueType::UnsignedInteger &&
+                             input.component_count == METHOD_COMPONENTS;
+            }
+        }
+        // Legacy DXBC reads one packed uint16 pair. With the current uint4 stream,
+        // its second index becomes bone 0, even though CreateInputLayout succeeds.
+        if (is_skinned && !(has_indices && has_weights && has_method)) {
+            return foundation::Error(RendererError::InputLayoutError,
+                "Incompatible model shader vertex layout. Rebuild shaders with python "
+                "shader_compile.py.");
+        }
+        return {};
+    }
     std::optional<std::uint32_t> skinned_vertex_offset(std::string_view semantic) {
         if (semantic == "POSITION") {
             return static_cast<std::uint32_t>(offsetof(SkinnedVertex, position));

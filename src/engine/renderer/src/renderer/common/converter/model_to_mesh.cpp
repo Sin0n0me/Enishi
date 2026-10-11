@@ -154,31 +154,7 @@ namespace enishi::renderer {
             // TODO:
             std::vector<std::byte> uniform;
             uniform.reserve(sizeof(types::UniformCamera));
-            constexpr float eye_position = 11.0f;
-            constexpr float distance = 25.0f;
-            constexpr float fov = 45.0f * (3.1415926535f / 180.0f);
-            const glm::vec3 eye{
-                0,
-                eye_position + 7.5f,
-                -distance,
-            };
-            const glm::vec3 target{
-                0.0f,
-                eye_position,
-                0.0f,
-            };
-            const glm::vec3 up{
-                0.0f,
-                1.0f,
-                0.0f,
-            };
-
-            types::UniformCamera camera{
-                .world = glm::mat4(1.0f),
-                .view = glm::lookAtLH(eye, target, up),
-                .projection = glm::perspectiveFovLH(fov, 600.0f, 800.0f, 0.1f, 200.0f),
-            };
-            camera.mvp = camera.projection * camera.view * camera.world;
+            const auto camera = types::make_default_model_camera();
 
             append_bytes(uniform, camera);
 

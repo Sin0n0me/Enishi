@@ -1,4 +1,5 @@
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstring>
 #include <d3d11.h>
@@ -248,6 +249,23 @@ RWStructuredBuffer<Output> results : register(u0);
             runner.run(vertex, bones).position, expected, "spherical corrected anchor deformation");
     }
 
+    void shader_layout_validation_tests() {
+        std::vector<types::ShaderInputLayout> inputs{
+            {"BONEINDICES", types::ShaderInputValueType::UnsignedInteger, 0, 1, 0, 4},
+            {"BONEWEIGHTS", types::ShaderInputValueType::Float, 0, 1, 0, 4},
+            {"SKINNING_METHOD", types::ShaderInputValueType::UnsignedInteger, 0, 1, 0, 1}};
+        check(renderer::validate_skinned_shader_inputs(inputs).is_ok(),
+            "current skinning signature accepted");
+        inputs.front().component_count = 1;
+        inputs[1].component_count = 2;
+        inputs.pop_back();
+        check(renderer::validate_skinned_shader_inputs(inputs).is_err(),
+            "legacy packed bone signature rejected before rendering");
+        inputs = {{"POSITION", types::ShaderInputValueType::Float, 0, 1, 0, 3}};
+        check(renderer::validate_skinned_shader_inputs(inputs).is_ok(),
+            "non-skinned passes do not require bone inputs");
+    }
+
     void packing_tests() {
         types::ModelData model;
         model.vertices.push_back({types::Vertex{{1, 2, 3}, {0, 1, 0}, {0, 0}},
@@ -314,12 +332,20 @@ void shader_signature_tests() {
             reinterpret_cast<void**>(reflection.GetAddressOf())));
         D3D11_SHADER_DESC shader{};
         succeeded(reflection->GetDesc(&shader));
+        std::vector<types::ShaderInputLayout> inputs;
         for (UINT index = 0; index < shader.InputParameters; ++index) {
             D3D11_SIGNATURE_PARAMETER_DESC input{};
             succeeded(reflection->GetInputParameterDesc(index, &input));
             check(renderer::skinned_vertex_offset(input.SemanticName).has_value(),
                 "all reflected model inputs must have explicit vertex offsets");
+            const auto type = input.ComponentType == D3D_REGISTER_COMPONENT_UINT32
+                                  ? types::ShaderInputValueType::UnsignedInteger
+                                  : types::ShaderInputValueType::Float;
+            const auto count = static_cast<std::uint32_t>(std::popcount(input.Mask));
+            inputs.push_back({input.SemanticName, type, input.SemanticIndex, 1, 0, count});
         }
+        check(renderer::validate_skinned_shader_inputs(inputs).is_ok(),
+            "compiled model, edge and shadow shaders match the vertex stream");
     }
 }
 
@@ -354,6 +380,7 @@ void material_shader_tests() {
 }
 
 int main() {
+    shader_layout_validation_tests();
     shader_signature_tests();
     material_shader_tests();
     packing_tests();

@@ -345,6 +345,40 @@ namespace enishi::collider {
             static_cast<float>(depth)};
     }
 
+    std::optional<types::ModelHit> Collider::raycast(const types::Ray& ray,
+        const std::function<bool(types::CollisionModelId, types::BoneIndex)>& accepts) const {
+        if (!finite(ray.origin) || !finite(ray.direction) ||
+            !(glm::dot(glm::dvec3(ray.direction), glm::dvec3(ray.direction)) > 0.0)) {
+            return std::nullopt;
+        }
+        const auto direction = glm::normalize(glm::dvec3(ray.direction));
+        std::optional<types::ModelHit> nearest;
+        double distance = std::numeric_limits<double>::max();
+        for (const auto& [model, bounds] : this->models) {
+            for (const auto& [bone, obb] : bounds.world_obbs) {
+                if (accepts != nullptr && !accepts(model, bone)) {
+                    continue;
+                }
+                double lower = 0.0;
+                double upper = distance;
+                if (!clip(glm::dvec3(ray.origin), direction, obb, 0.0, lower, upper)) {
+                    continue;
+                }
+                if (nearest.has_value() && lower == distance &&
+                    (model > nearest->model || (model == nearest->model && bone > nearest->bone))) {
+                    continue;
+                }
+                distance = lower;
+                // The direction is unit length, so t is world distance and p = origin + t*d.
+                nearest = types::ModelHit{model,
+                    bone,
+                    glm::vec3(glm::dvec3(ray.origin) + lower * direction),
+                    static_cast<float>(lower)};
+            }
+        }
+        return nearest;
+    }
+
     bool Collider::hit_model(const types::Ray& ray, const types::OBB& obb) {
         if (!valid(obb) || !finite(ray.origin) || !finite(ray.direction) ||
             glm::dot(glm::dvec3(ray.direction), glm::dvec3(ray.direction)) == 0.0) {

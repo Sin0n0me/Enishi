@@ -20,6 +20,8 @@ namespace enishi::platform {
         [[nodiscard]] virtual types::ClientMousePosition get_client_mouse_position(
             const types::WindowPosition& position) const noexcept = 0;
         [[nodiscard]] virtual types::MouseWheel get_mouse_wheel(void) const noexcept = 0;
+        [[nodiscard]] virtual types::ClientMousePosition get_mouse_press_position(
+            types::MouseButton button, const types::WindowPosition& position) const noexcept = 0;
         [[nodiscard]] virtual bool is_mouse_button_down(
             const types::MouseButton button) const noexcept = 0;
         [[nodiscard]] virtual bool is_mouse_button_pressed(

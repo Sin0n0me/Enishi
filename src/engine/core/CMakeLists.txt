@@ -67,7 +67,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(PHYSICS)
 
+FetchContent_Declare(COLLIDER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../collider)
+FetchContent_MakeAvailable(COLLIDER)
+
 set(DEPENDENCIES
+    PUBLIC collider
     PUBLIC platform
     PUBLIC sub_system
     PUBLIC ecs

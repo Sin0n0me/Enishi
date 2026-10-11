@@ -3,8 +3,10 @@
 #include <utility>
 
 namespace enishi::core {
-    SelectionUI::SelectionUI(std::shared_ptr<sub_system::IModelSelection> models)
-        : models(std::move(models)) {
+    SelectionUI::SelectionUI(std::shared_ptr<sub_system::IModelSelection> models,
+        std::shared_ptr<ModelClickSettings> click_settings)
+        : models(std::move(models))
+        , click_settings(std::move(click_settings)) {
     }
 
     bool SelectionUI::should_close(void) const {
@@ -23,6 +25,9 @@ namespace enishi::core {
             case Page::Actions:
                 this->draw_actions(ui);
                 break;
+            case Page::ClickSettings:
+                this->draw_click_settings(ui);
+                break;
             case Page::Models:
                 this->draw_models(ui);
                 break;
@@ -34,9 +39,35 @@ namespace enishi::core {
         if (ui.button("モデルの切り替え")) {
             this->page = Page::Models;
         }
+        if (ui.button("クリック設定")) {
+            this->page = Page::ClickSettings;
+        }
         if (ui.button("終了")) {
             this->exit_requested = true;
         }
+    }
+
+    void SelectionUI::draw_click_settings(sub_system::IUI& ui) {
+        if (ui.button("戻る")) {
+            this->page = Page::Actions;
+            return;
+        }
+        ui.text("クリック状態");
+        ui.text("Clicks: " + std::to_string(this->click_settings->click_count));
+        ui.text(this->click_settings->last_target);
+        ui.text(this->click_settings->last_result);
+        const auto draw_mode = [this, &ui](const char* label, ModelClickMode mode) {
+            ui.begin_disabled(this->click_settings->mode == mode);
+            if (ui.button(label)) {
+                this->click_settings->mode = mode;
+            }
+            ui.end_disabled();
+        };
+        draw_mode("なし", ModelClickMode::None);
+        draw_mode("触る", ModelClickMode::Touch);
+        draw_mode("押す", ModelClickMode::Push);
+        ui.text("触る: ボーンに設定されたアニメーションを再生");
+        ui.text("押す: クリックした部位に衝撃を加える");
     }
 
     void SelectionUI::draw_models(sub_system::IUI& ui) {

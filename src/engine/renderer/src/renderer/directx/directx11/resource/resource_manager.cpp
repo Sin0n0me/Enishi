@@ -81,6 +81,10 @@ namespace enishi::renderer::directx {
         const auto& reflection = opt_refection.unwrap();
         const auto input_layouts = reflection->get_shader_input_reflection()
                                        ->get_input_layouts(); // 保持しなければ名前が消える
+        const auto validation = validate_skinned_shader_inputs(input_layouts);
+        if (validation.is_err()) {
+            return validation.propagation(platform::RenderError::MakeError);
+        }
         auto input_elements = input_layouts |
                               std::views::transform([](const types::ShaderInputLayout& info) {
                                   return D3D11Converter::to_input_element_description(info);

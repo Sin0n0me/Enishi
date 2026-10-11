@@ -3,9 +3,57 @@
 #include <numeric>
 
 namespace enishi::model_controller {
+    namespace {
+        void collect_collision_vertices(
+            component::ModelComponent& model, const types::ModelData& data) {
+            model.collision_vertices.resize(model.bind_bone.size());
+            for (const auto& attributes : data.vertices) {
+                glm::vec3 position(0);
+                bool has_position = false;
+                glm::u32vec4 indices(UINT32_MAX);
+                glm::vec4 weights(0);
+                for (const auto& attribute : attributes) {
+                    if (const auto* vertex = std::get_if<types::Vertex>(&attribute);
+                        vertex != nullptr) {
+                        position = vertex->position;
+                        has_position = true;
+                    } else if (const auto* vertex = std::get_if<types::VertexPosition>(&attribute);
+                               vertex != nullptr) {
+                        position = vertex->position;
+                        has_position = true;
+                    } else if (const auto* skin = std::get_if<types::Skinning>(&attribute);
+                               skin != nullptr) {
+                        indices = glm::u32vec4(skin->bone_index, 0, 0);
+                        weights = glm::vec4(skin->bone_weight, 0, 0);
+                    } else if (const auto* skin = std::get_if<types::Skinning4>(&attribute);
+                               skin != nullptr) {
+                        indices = skin->bone_index;
+                        weights = skin->bone_weight;
+                    }
+                }
+                if (!has_position) {
+                    continue;
+                }
+                for (glm::length_t influence = 0; influence < indices.length(); ++influence) {
+                    const auto bone = indices[influence];
+                    if (!(weights[influence] > 0) || !(bone < model.bind_bone.size())) {
+                        continue;
+                    }
+                    // p_bone = inverse(bind_global) * p_model; animated_global restores world
+                    // space.
+                    model.collision_vertices[bone].push_back(
+                        glm::vec3(model.bind_bone[bone].global_inverse * glm::vec4(position, 1)));
+                }
+            }
+        }
+    } // namespace
+
     component::ModelComponent make_model_component(
         const types::ModelData& data, types::RenderHandle handle) {
         component::ModelComponent model;
+        model.name = data.name;
+        const auto source_path = data.path.generic_u8string();
+        model.source_path.assign(source_path.begin(), source_path.end());
         model.render_handle = handle;
         for (const auto& addon : data.addons) {
             if (const auto* bones = std::get_if<types::AddonBones>(&addon); bones != nullptr) {
@@ -27,6 +75,7 @@ namespace enishi::model_controller {
                 model.physics_joints = *joints;
             }
         }
+        collect_collision_vertices(model, data);
         if (!model.morph_targets.targets.empty()) {
             model.morph_base_materials = data.materials;
             model.morph_base_positions.resize(data.vertices.size());

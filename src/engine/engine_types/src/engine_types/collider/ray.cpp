@@ -1,31 +1,31 @@
 #include "ray.h"
 
 namespace enishi::types {
-    Ray Ray::make_ray_from_screen(const types::WindowSize& window_size,
-        const types::ClientMousePosition& mouse_position,
-        const types::UniformCamera& camera) {
-        // スクリーン座標からNDCに
-        const float ndc_x = (2.0f * mouse_position.x / window_size.width) - 1.0f;
-        const float ndc_y = 1.0f - (2.0f * mouse_position.y / window_size.height);
-
-        // クリップ空間（z = 1 は far plane）
-        const glm::vec4 ray_clip = glm::vec4(ndc_x, ndc_y, 1.0f, 1.0f);
-
-        // ビュー空間へ逆変換
-        const glm::mat4 inverse_projection = glm::inverse(camera.projection);
-        glm::vec4 ray_view = ray_clip * inverse_projection;
-        ray_view.w = 0.0f; // 方向ベクトルなのでwを0に
-
-        // ワールド空間へ逆変換
-        const glm::mat4 inverse_view = glm::inverse(camera.view);
-        glm::vec4 ray_direction = glm::normalize(ray_view * inverse_view);
-
-        // レイの原点（カメラ位置）
-        const glm::vec4 ray_origin = inverse_view[3];
-
-        return Ray{
-            .origin = ray_origin,
-            .direction = ray_direction,
-        };
+    Ray Ray::make_ray_from_screen(const WindowSize& window_size,
+        const ClientMousePosition& mouse_position,
+        const UniformCamera& camera) {
+        if (!(window_size.width > 0) || !(window_size.height > 0)) {
+            return {glm::vec3(0), glm::vec3(0)};
+        }
+        constexpr float NDC_SCALE = 2.0f;
+        constexpr float FAR_DEPTH = 1.0f;
+        // Client pixels -> NDC: x = 2*x/width - 1, y = 1 - 2*y/height.
+        const float x = NDC_SCALE * static_cast<float>(mouse_position.x) /
+                            static_cast<float>(window_size.width) -
+                        1.0f;
+        const float y = 1.0f - NDC_SCALE * static_cast<float>(mouse_position.y) /
+                                   static_cast<float>(window_size.height);
+        // p_world = inverse(P * V) * p_clip, followed by the homogeneous divide.
+        const auto far_point =
+            glm::inverse(camera.projection * camera.view) * glm::vec4(x, y, FAR_DEPTH, 1);
+        const auto origin = glm::vec3(glm::inverse(camera.view)[3]);
+        if (far_point.w == 0.0f) {
+            return {origin, glm::vec3(0)};
+        }
+        const auto direction = glm::vec3(far_point) / far_point.w - origin;
+        if (!(glm::dot(direction, direction) > 0.0f)) {
+            return {origin, glm::vec3(0)};
+        }
+        return {origin, glm::normalize(direction)};
     }
 } // namespace enishi::types

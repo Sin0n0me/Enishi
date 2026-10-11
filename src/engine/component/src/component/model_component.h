@@ -12,6 +12,10 @@
 
 namespace enishi::component {
     struct ModelComponent {
+        std::string name;
+        std::string source_path;
+        bool visible = true;
+        std::vector<std::vector<glm::vec3>> collision_vertices;
         types::RenderHandle render_handle;
         std::vector<types::BoneNode> bone_node; // 接続先などの情報
         std::vector<types::BindBone> bind_bone; // バインドボーン

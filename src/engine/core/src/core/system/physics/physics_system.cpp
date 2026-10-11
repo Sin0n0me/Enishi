@@ -24,6 +24,24 @@ namespace enishi::core {
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
         auto* world = this->physics_engine->get_world();
         for (auto [entity, bodies] : this->registry->view<component::PhysicsBodiesComponent>()) {
+            const bool reset_pose = bodies.enabled && bodies.pose_reset_requested &&
+                                    world->get_config_reader()->can_update();
+            if (reset_pose) {
+                // Detach every body/constraint before resetting any body. Re-enabling uses
+                // T_body = T_animated_bone * offset and clears velocity from the old pose.
+                bool detached = true;
+                for (const auto& handle : bodies.handles) {
+                    const auto result = world->set_body_enabled(handle, false);
+                    if (result.is_err()) {
+                        foundation::Logger::warning(result.unwrap_err().get_message());
+                        detached = false;
+                    }
+                }
+                if (!detached) {
+                    continue;
+                }
+                bodies.simulation_enabled = false;
+            }
             if (bodies.enabled == bodies.simulation_enabled) {
                 continue;
             }
@@ -37,6 +55,9 @@ namespace enishi::core {
             }
             if (succeeded) {
                 bodies.simulation_enabled = bodies.enabled;
+                if (reset_pose) {
+                    bodies.pose_reset_requested = false;
+                }
             }
         }
         if (world->get_config_reader()->can_update()) {

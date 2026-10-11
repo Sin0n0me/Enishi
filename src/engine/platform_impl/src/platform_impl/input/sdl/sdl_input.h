@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
+#include <array>
 #include <platform/input/interface_input.h>
 #include <platform/input/interface_input_event.h>
 #include <vector>
@@ -10,7 +11,13 @@ namespace enishi::platform_impl {
       private:
         std::vector<bool> key_state;
         std::vector<bool> pre_key_state;
-        types::ScreenMousePosition mouse_position;
+        static constexpr std::size_t MOUSE_BUTTON_COUNT =
+            static_cast<std::size_t>(types::MouseButton::Button8) + 1;
+        std::array<bool, MOUSE_BUTTON_COUNT> mouse_down{};
+        std::array<bool, MOUSE_BUTTON_COUNT> mouse_pressed{};
+        std::array<bool, MOUSE_BUTTON_COUNT> mouse_released{};
+        std::array<types::ScreenMousePosition, MOUSE_BUTTON_COUNT> mouse_press_positions{};
+        types::ScreenMousePosition mouse_position{};
         types::ScreenMousePosition pre_mouse_position;
         types::MouseWheel mouse_wheel;
         types::MouseWheel pre_mouse_wheel;
@@ -23,6 +30,8 @@ namespace enishi::platform_impl {
         types::ClientMousePosition get_client_mouse_position(
             const types::WindowPosition& position) const noexcept override;
         types::MouseWheel get_mouse_wheel(void) const noexcept override;
+        types::ClientMousePosition get_mouse_press_position(
+            types::MouseButton button, const types::WindowPosition& position) const noexcept override;
         bool is_mouse_button_down(const types::MouseButton button) const noexcept override;
         bool is_mouse_button_pressed(const types::MouseButton button) const noexcept override;
         bool is_mouse_button_released(const types::MouseButton button) const noexcept override;
