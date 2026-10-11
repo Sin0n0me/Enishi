@@ -12,7 +12,7 @@ python build\generate_build.py
 ```
 
 ```bat
-build\build.cmd <opengl|directx> [Debug|Release|RelWithDebInfo|MinSizeRel] [auto|visualstudio|clang|gcc]
+build\build.cmd <opengl|directx|vulkan> [Debug|Release|RelWithDebInfo|MinSizeRel] [auto|visualstudio|clang|gcc]
 ```
 
 構成を省略した場合は `Debug`、ツールチェーンを省略した場合は `auto` を使用します。
@@ -43,6 +43,37 @@ build\build.cmd directx Release clang
 
 生成先はそれぞれ `build\opengl\clang` と `build\directx\clang` です。
 
+### Vulkan
+
+CMake 3.24以降と、[公式Vulkan SDK](https://vulkan.lunarg.com/sdk/home)が必要です。
+SDKに含まれるVulkanヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`を使用します。
+実行環境にはVulkan 1.1以上に対応したGPUドライバーと、64 KiB以上のuniform buffer範囲が必要です。
+
+```bat
+build\build.cmd vulkan Debug
+```
+
+生成先は `build\vulkan\visualstudio`（Clang指定時は `build\vulkan\clang`）です。
+Vulkan用GLSLはビルド時にSPIR-Vへ変換され、ビルドディレクトリの `shader\vulkan` から読み込まれます。
+`assets` へのシェーダーのコピーや、`shader_compile.py` の実行は不要です。
+
+SDKを通常のインストーラーで導入していない場合は、ビルド前に `VULKAN_SDK` をSDKのルートに設定してください。
+今回の作業環境では `build\vulkan-sdk` にSDKを展開しているため、プロジェクトルートで次のように指定できます。
+
+```bat
+set "VULKAN_SDK=%CD%\build\vulkan-sdk"
+build\build.cmd vulkan Debug
+```
+
+assetsを使用しない描画検証は、Vulkan構成に `-DENISHI_VULKAN_TESTS=ON` を追加してビルドすると実行できます。
+検証時はSDKのValidation Layerを使用します。
+
+```bat
+cmake -S src -B build\vulkan\visualstudio -DUSE_VULKAN=ON -DENISHI_VULKAN_TESTS=ON
+cmake --build build\vulkan\visualstudio --config Debug
+set "VK_LAYER_PATH=%VULKAN_SDK%\Bin"
+ctest --test-dir build\vulkan\visualstudio -C Debug --output-on-failure
+```
 ### find_package のパッケージ探索
 
 ビルド BAT は `find_package` の依存関係を探索するため、vcpkg の
