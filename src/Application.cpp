@@ -22,7 +22,9 @@
 
 #include <core/system/asset/shader/shader_data_provider.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+#include <renderer/vulkan/vulkan_render_initializer.h>
+#elif defined(USE_OPENGL40)
 #include <renderer/opengl/opengl40/opengl40_render_initializer.h>
 #else
 #include <renderer/directx/directx11/d3d11_render_initializer.h>
@@ -140,7 +142,9 @@ namespace enishi {
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
                 platform::WindowSystem::Windows,
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+                types::GraphicsAPI::Vulkan11));
+#elif defined(USE_OPENGL40)
                 types::GraphicsAPI::OpenGL40));
 #else
                 types::GraphicsAPI::DirectX11));
@@ -175,7 +179,15 @@ namespace enishi {
             return {};
         }
 
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(root_window);
+        if (sdl_window == nullptr || sdl_window->get_window_handle().is_none()) {
+            foundation::Logger::error("Vulkan requires an SDL3 window");
+            return {};
+        }
+        auto initializer = renderer::vulkan::VulkanRenderInitializer{};
+        auto result_renderer = initializer.init(sdl_window->get_window_handle().unwrap());
+#elif defined(USE_OPENGL40)
         auto context = root_window->create_opengl_context();
         if (context.is_err()) {
             foundation::Logger::error(context.unwrap_err().get_message());

@@ -11,9 +11,9 @@ if "%BACKEND%"=="" goto :usage
 if "%CONFIG%"=="" set "CONFIG=Debug"
 if "%TOOLCHAIN%"=="" set "TOOLCHAIN=auto"
 if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS=-DPython_EXECUTABLE=%PYTHON_EXECUTABLE% -DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%"
-if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON"
-if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF"
-if /I "%BACKEND%"=="vulkan" goto :vulkan
+if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON -DUSE_VULKAN=OFF"
+if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF"
+if /I "%BACKEND%"=="vulkan" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=ON"
 if "%BACKEND_OPTIONS%"=="" goto :usage
 if /I "%TOOLCHAIN%"=="auto" goto :auto
 if /I "%TOOLCHAIN%"=="visualstudio" goto :visualstudio
@@ -94,9 +94,6 @@ cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPT
 if errorlevel 1 exit /b %errorlevel%
 cmake --build "%BUILD_DIR%"
 exit /b %errorlevel%
-:vulkan
-echo Vulkan build support has not been added to CMake yet.
-exit /b 1
 :usage
-echo Usage: %~nx0 ^<opengl^|directx^> [config] [auto^|visualstudio^|clang^|gcc]
+echo Usage: %~nx0 ^<opengl^|directx^|vulkan^> [config] [auto^|visualstudio^|clang^|gcc]
 exit /b 1

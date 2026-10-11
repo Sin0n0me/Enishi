@@ -2,7 +2,11 @@
 #include <foundation/path/path_utility.h>
 
 namespace enishi::core {
+#if defined(ENISHI_GENERATED_SHADER_DIRECTORY)
+    const std::filesystem::path SHADER_PATH = ENISHI_GENERATED_SHADER_DIRECTORY;
+#else
     const std::filesystem::path SHADER_PATH = "./assets/shader";
+#endif
 
     ShaderDataProvider::ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system)
         : asset_system(std::move(asset_system)) {
