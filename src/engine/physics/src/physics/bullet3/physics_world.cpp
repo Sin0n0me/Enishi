@@ -106,8 +106,10 @@ namespace enishi::physics::bullet3 {
         }
         const auto max_step = this->config->get_max_step_count();
 
-        this->world->stepSimulation(
-            static_cast<btScalar>(dt.to_float()), max_step, static_cast<btScalar>(fixed_step_time));
+        // Bullet uses seconds: dt_seconds = dt_microseconds / UNITS_PER_SECOND.
+        this->world->stepSimulation(static_cast<btScalar>(dt.to_float_second()),
+            max_step,
+            static_cast<btScalar>(fixed_step_time));
     }
 
     void PhysicsWorld::set_gravity(const glm::vec3& vec) {
