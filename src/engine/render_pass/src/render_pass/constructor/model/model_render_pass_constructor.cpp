@@ -10,7 +10,10 @@
 // #include <platform/window/interface_window.h>
 
 namespace enishi::render_pass {
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+    constexpr char VS_FILE_NAME[] = "vs_model_vk";
+    constexpr char PS_FILE_NAME[] = "ps_model_vk";
+#elif defined(USE_OPENGL40)
     constexpr char VS_FILE_NAME[] = "vs_model_gl";
     constexpr char PS_FILE_NAME[] = "ps_model_gl";
 #else
@@ -34,7 +37,12 @@ namespace enishi::render_pass {
             .add_topology(types::PrimitiveTopology::TriangleList)
             ->add_shaders(shader_data_provider, this->get_paths())
             ->add_render_target_view(render_target)
-            ->add_depth_stencil_view(types::ImageFormat::D24_UNORM_S8_UINT)
+            ->add_depth_stencil_view(
+#if defined(USE_VULKAN)
+                types::ImageFormat::D32_FLOAT)
+#else
+                types::ImageFormat::D24_UNORM_S8_UINT)
+#endif
             ->add_rasterizer_state(types::RasterizerStateDescription{
                 .cull_mode = types::CullMode::None,
                 .front_face = types::FrontFace::CounterClockwise,

@@ -1,12 +1,9 @@
 #pragma once
 #include "vulkan_renderer.h"
-#include <platform/renderer/interface_render_initializer.h>
-
 namespace enishi::renderer::vulkan {
-    class VullkanRenderInitializer : public platform::IRendererInitializer<VulkanRenderer> {
+    class VulkanRenderInitializer final {
       public:
-        foundation::Result<std::shared_ptr<VulkanRenderer>, platform::RenderError> init(
-            const platform::WindowHandle& window_handle,
-            const types::WindowSize& window_size) override;
+        platform::RenderResult<std::shared_ptr<VulkanRenderer>> init(
+            SDL_Window* window, bool validation = false);
     };
 } // namespace enishi::renderer::vulkan

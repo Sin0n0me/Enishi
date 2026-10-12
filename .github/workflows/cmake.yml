@@ -11,9 +11,11 @@ jobs:
     strategy:
       matrix:
         config: [Release, Debug]
-        backend: [directx, opengl]
+        backend: [directx, opengl, vulkan]
         #platform: [x86, x64]
         platform: [x64]
+    env:
+      VULKAN_SDK_VERSION: '1.4.363.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +36,46 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.platform }}
+
+      - name: Cache Vulkan SDK
+        if: matrix.backend == 'vulkan'
+        id: vulkan-sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vulkan-sdk
+          key: ${{ runner.os }}-vulkan-sdk-${{ matrix.platform }}-${{ env.VULKAN_SDK_VERSION }}
+
+      - name: Install Vulkan SDK
+        if: matrix.backend == 'vulkan' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:VULKAN_SDK_VERSION
+          $installer = Join-Path $env:RUNNER_TEMP 'vulkan-sdk-installer.exe'
+          $sdkRoot = Join-Path $env:RUNNER_TEMP 'vulkan-sdk'
+          Invoke-WebRequest "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe" -OutFile $installer
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O="?LunarG, Inc\.') {
+            throw 'Vulkan SDK installer signature is not a valid LunarG signature'
+          }
+          $arguments = @('--root', "`"$sdkRoot`"", '--accept-licenses', '--default-answer', '--confirm-command', 'install', 'copy_only=1')
+          $process = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Vulkan SDK installation failed: $($process.ExitCode)"
+          }
+
+      - name: Configure Vulkan SDK environment
+        if: matrix.backend == 'vulkan'
+        shell: pwsh
+        run: |
+          $sdkRoot = Join-Path $env:RUNNER_TEMP 'vulkan-sdk'
+          foreach ($required in @('Include/vulkan/vulkan.h', 'Lib/vulkan-1.lib', 'Bin/glslc.exe', 'Bin/spirv-val.exe', 'Source/SPIRV-Reflect/spirv_reflect.c')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $required))) {
+              throw "Vulkan SDK component is missing: $required"
+            }
+          }
+          "VULKAN_SDK=$sdkRoot" >> $env:GITHUB_ENV
+          (Join-Path $sdkRoot 'Bin') >> $env:GITHUB_PATH
 
       - name: Cache CMake dependencies
         uses: actions/cache@v4
@@ -82,3 +124,24 @@ jobs:
           "%PYTHON_EXECUTABLE%" -c "import jinja2"
           build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} visualstudio
         shell: cmd
+
+      # Compile the GPU tests without running them on a hosted runner without a guaranteed Vulkan device.
+      - name: Build Vulkan validation executable
+        if: matrix.backend == 'vulkan'
+        shell: pwsh
+        run: |
+          cmake -S src -B build/vulkan/visualstudio -DENISHI_VULKAN_TESTS=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/vulkan/visualstudio --config ${{ matrix.config }} --target vulkan_render_tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate Vulkan shaders
+        if: matrix.backend == 'vulkan'
+        shell: pwsh
+        run: |
+          $shaders = @(Get-ChildItem -LiteralPath build/vulkan/visualstudio/shader/vulkan -Filter *.spv)
+          if ($shaders.Count -eq 0) { throw 'No compiled Vulkan shaders were found' }
+          foreach ($shader in $shaders) {
+            & "$env:VULKAN_SDK/Bin/spirv-val.exe" --target-env vulkan1.1 $shader.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

@@ -3,8 +3,13 @@
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 
 namespace enishi::render_pass {
+#if defined(USE_VULKAN)
+    constexpr char VS_FILE_NAME[] = "vs_clear_wall_vk";
+    constexpr char PS_FILE_NAME[] = "ps_clear_wall_vk";
+#else
     constexpr char VS_FILE_NAME[] = "vs_clear_wall";
     constexpr char PS_FILE_NAME[] = "ps_clear_wall";
+#endif
 
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     BackgroundRenderPassConstructor::make(platform::IRenderer* const renderer,
@@ -15,10 +20,20 @@ namespace enishi::render_pass {
             .add_topology(types::PrimitiveTopology::TriangleList)
             ->add_swap_chain_render_target_view(types::ImageFormat::BGRA8_UNORM)
             ->add_shaders(shader_data_provider, this->get_paths())
-            ->add_depth_stencil_view(types::ImageFormat::D24_UNORM_S8_UINT)
+            ->add_depth_stencil_view(
+#if defined(USE_VULKAN)
+                types::ImageFormat::D32_FLOAT)
+#else
+                types::ImageFormat::D24_UNORM_S8_UINT)
+#endif
             ->add_blend_state(types::BlendStateDescription{
+#if defined(USE_VULKAN)
+                .alpha_to_coverage = false,
+                .independent_blend = false,
+#else
                 .alpha_to_coverage = true,
                 .independent_blend = true,
+#endif
                 .render_targets = types::RenderTargetBlendState::default_blend_state(),
             })
             ->add_depth_stencil_state(types::DepthStencilStateDescription{

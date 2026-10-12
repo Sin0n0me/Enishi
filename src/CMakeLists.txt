@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.24)
 project(enishi_engine)
 
 # MSVCコンパイラの場合のみ、ソースコードと実行バイナリの文字セットをUTF-8に設定
@@ -29,7 +29,12 @@ else()
     option(USE_OPENGL40 "Use the OpenGL 4.0 renderer" ON)
 endif()
 
-if(USE_OPENGL40)
+option(USE_VULKAN "Use the Vulkan renderer" OFF)
+if(USE_VULKAN)
+    set(USE_OPENGL40 OFF)
+    set(USE_DIRECTX_11 OFF)
+    find_package(Vulkan REQUIRED COMPONENTS glslc)
+elseif(USE_OPENGL40)
     set(USE_DIRECTX_11 OFF)
 else()
     set(USE_DIRECTX_11 ON)
@@ -119,6 +124,21 @@ set(DEPENDENCIES
 target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
+
+if(USE_VULKAN)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
+    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
+    add_dependencies(${PROJECT_NAME} enishi_vulkan_shaders)
+    target_compile_definitions(core PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
+    option(ENISHI_VULKAN_TESTS "Build synthetic Vulkan rendering tests without model assets" OFF)
+    if(ENISHI_VULKAN_TESTS)
+        enable_testing()
+        add_subdirectory(engine/renderer/tests/vulkan)
+    endif()
+endif()
+
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23

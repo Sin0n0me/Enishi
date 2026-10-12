@@ -18,7 +18,9 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 
-if(USE_OPENGL40)
+if(USE_VULKAN)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_VULKAN)
+elseif(USE_OPENGL40)
     target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_OPENGL40")
 endif()
 
