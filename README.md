@@ -141,3 +141,35 @@ push_states Dynamic DynamicAdjustBone
 
 省略時または `push_states all` では全ステートが判定対象です。`push_states none` では対象がなくなります。
 `Kinematic` はクリック判定の対象にできますが、アニメーションで駆動されるため物理的な衝撃では動きません。
+
+## スクリプト
+
+Musubuは `src/engine/script/Musubu` にサブモジュールとして固定されています。
+初回取得時は `git submodule update --init --recursive` を実行してください。
+ビルドにはRustのstableツールチェーン（1.88以降）とCargoが必要です。
+CMakeがMusubuの接続ライブラリをビルドするため、別途DLLをコピーする必要はありません。
+依存関係がキャッシュ済みの場合は `-DENISHI_CARGO_OFFLINE=ON` でCargoの外部取得を無効にできます。
+
+選択UIの「スクリプト」を押すと、入力欄・エラー欄・実行ボタン・戻るボタンを表示します。
+「実行」は入力全体をコンパイルし、引数のない `main()` を呼び出します。
+例えば次の入力は整数42を返します。
+
+```rust
+fn main() -> i32 {
+    6 * 7
+}
+```
+
+コンパイルエラーは行・列情報を含めて表示し、実行時エラーも同じエラー欄に表示します。
+入力は画面を戻っても保持されます。実行はUIスレッド上で同期的に行うため、終了しないループは使用しないでください。
+
+各システムは `sub_system::IScriptResultReceiver` を実装し、共有する
+`sub_system::IScriptEngine` の `add_result_receiver()` に登録することで結果を受け取れます。
+`on_script_result(const ScriptValue&)` は実行成功時に登録順で呼ばれます。
+戻り値は型付きの所有データで、構造体のフィールド名や行列の列構造も保持します。
+受信側で必要な値を検査してシステムへ反映してください。登録先の寿命は呼び出し元が管理します。
+受信側がエラーを返した場合は以後の通知を停止しますが、既に反映した変更は巻き戻しません。
+
+assetsを使わないスクリプト実行・UI遷移・画面端配置の検証は、構成時に
+`-DENISHI_SCRIPT_TESTS=ON` を指定し、`enishi_script_tests` をビルドしてから
+`ctest --test-dir <ビルド先> -C Debug -R enishi_script_tests --output-on-failure` で実行できます。

@@ -140,6 +140,12 @@ if(USE_VULKAN)
 endif()
 
 
+option(ENISHI_SCRIPT_TESTS "Build asset-free script and UI validation" OFF)
+if(ENISHI_SCRIPT_TESTS)
+    enable_testing()
+    add_subdirectory(engine/script/tests)
+endif()
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
