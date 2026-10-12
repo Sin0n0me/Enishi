@@ -1,0 +1,4 @@
+[submodule "src/engine/script/Musubu"]
+	path = src/engine/script/Musubu
+	url = https://github.com/Sin0n0me/Musubu.git
+	branch = master
