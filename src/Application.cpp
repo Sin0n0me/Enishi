@@ -87,6 +87,7 @@ namespace enishi {
             return false;
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
+        skinning_system->set_cursor_window(root_window);
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(

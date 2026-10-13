@@ -142,6 +142,28 @@ push_states Dynamic DynamicAdjustBone
 省略時または `push_states all` では全ステートが判定対象です。`push_states none` では対象がなくなります。
 `Kinematic` はクリック判定の対象にできますが、アニメーションで駆動されるため物理的な衝撃では動きません。
 
+## カーソルへの反応
+
+モデルの近くにカーソルを置くと、首・頭がその方向を向き、近い側の腕を伸ばします。
+クリックや専用のモーションファイルは不要です。カーソルが離れると元の姿勢へ滑らかに戻ります。
+再生中のアニメーションに回転を重ね、既存のIK・物理演算より前に適用します。
+首・頭の角度と腕の到達距離には制限があり、ボーンの長さは変更しません。
+
+MMDの前方（-Z）を基準に、次のボーン名を自動認識します。
+
+| 部位 | 対応するボーン名 |
+| --- | --- |
+| 首・頭 | `首` / `neck` / `Neck`、`頭` / `head` / `Head` |
+| 左腕 | `左腕` / `leftUpperArm` / `LeftArm`、`左ひじ` / `左肘` / `leftLowerArm` / `LeftForeArm`、`左手首` / `leftHand` / `LeftHand` |
+| 右腕 | `右腕` / `rightUpperArm` / `RightArm`、`右ひじ` / `右肘` / `rightLowerArm` / `RightForeArm`、`右手首` / `rightHand` / `RightHand` |
+
+腕は上腕→ひじ→手首の親子関係が必要です。途中に捩りボーンがあっても認識します。
+認識できない部位、物理演算で制御されるボーン、回転軸が固定されたボーンは補正しません。
+非表示のモデルは更新しません。
+
+assetsを使わない検証は `-DENISHI_CURSOR_TESTS=ON` で構成し、`enishi_cursor_tests` をビルドしてから
+`ctest --test-dir <ビルド先> -C Debug -R enishi_cursor_tests --output-on-failure` で実行できます。
+
 ## スクリプト
 
 Musubuは `src/engine/script/Musubu` にサブモジュールとして固定されています。
