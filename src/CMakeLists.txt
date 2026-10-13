@@ -146,6 +146,12 @@ if(ENISHI_SCRIPT_TESTS)
     add_subdirectory(engine/script/tests)
 endif()
 
+option(ENISHI_CURSOR_TESTS "Build asset-free procedural cursor pose validation" OFF)
+if(ENISHI_CURSOR_TESTS)
+    enable_testing()
+    add_subdirectory(engine/core/tests/cursor)
+endif()
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
