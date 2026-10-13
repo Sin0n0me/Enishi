@@ -31,6 +31,21 @@ jobs:
 
       - name: Install Python dependencies
         run: python -m pip install --requirement .github/requirements-ci.txt
+
+      - name: Set up Rust for Musubu
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +stable --version
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src/engine/script/bridge/Cargo.lock') }}
           
       - name: Setup Developer Command
         uses: ilammy/msvc-dev-cmd@v1
@@ -133,6 +148,16 @@ jobs:
           cmake -S src -B build/vulkan/visualstudio -DENISHI_VULKAN_TESTS=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build/vulkan/visualstudio --config ${{ matrix.config }} --target vulkan_render_tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and run script validation
+        shell: pwsh
+        run: |
+          cmake -S src -B build/${{ matrix.backend }}/visualstudio -DENISHI_SCRIPT_TESTS=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/${{ matrix.backend }}/visualstudio --config ${{ matrix.config }} --target enishi_script_tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/${{ matrix.backend }}/visualstudio -C ${{ matrix.config }} -R '^enishi_script_tests$' --output-on-failure --no-tests=error
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Validate Vulkan shaders

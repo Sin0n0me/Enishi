@@ -1,4 +1,5 @@
 #include "ui.h"
+#include <algorithm>
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <utility>
@@ -103,9 +104,54 @@ namespace enishi::ui {
         return ImGui::InputText(label, &value);
     }
 
-    bool UI::begin_context_popup(const char* id) {
+    bool UI::input_text_multiline(const char* label, std::string& value, bool read_only) {
         ImGui::SetCurrentContext(this->context.get());
-        return ImGui::BeginPopupContextVoid(id, ImGuiPopupFlags_MouseButtonRight);
+        ImGui::TextUnformatted(label);
+        const auto flags =
+            read_only ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AllowTabInput;
+        constexpr float EDITOR_LINES = 8.0f;
+        constexpr float ERROR_LINES = 5.0f;
+        // Height = requested text lines * line height, plus the frame's top and bottom padding.
+        const float lines = read_only ? ERROR_LINES : EDITOR_LINES;
+        const float height =
+            lines * ImGui::GetTextLineHeight() + 2.0f * ImGui::GetStyle().FramePadding.y;
+        const std::string hidden_label = std::string("##") + label;
+        return ImGui::InputTextMultiline(
+            hidden_label.c_str(), &value, ImVec2{ImGui::GetContentRegionAvail().x, height}, flags);
+    }
+
+    bool UI::begin_context_popup(const char* id, float width, float height) {
+        ImGui::SetCurrentContext(this->context.get());
+        if (!ImGui::IsPopupOpen(id)) {
+            const auto mouse = ImGui::GetMousePos();
+            this->popup_anchor_x = mouse.x;
+            this->popup_anchor_y = mouse.y;
+        }
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
+            !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
+            !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
+            ImGui::OpenPopup(id);
+        }
+        const auto viewport = ImGui::GetMainViewport();
+        constexpr float MINIMUM_EXTENT = 1.0f;
+        if (viewport->WorkSize.x < MINIMUM_EXTENT || viewport->WorkSize.y < MINIMUM_EXTENT) {
+            return false;
+        }
+        const ImVec2 size{
+            std::clamp(width, MINIMUM_EXTENT, (std::max)(MINIMUM_EXTENT, viewport->WorkSize.x)),
+            std::clamp(height, MINIMUM_EXTENT, (std::max)(MINIMUM_EXTENT, viewport->WorkSize.y))};
+        // Clamp each page before Begin draws it: position = clamp(anchor, work_min, work_max -
+        // size).
+        const ImVec2 position{std::clamp(this->popup_anchor_x,
+                                  viewport->WorkPos.x,
+                                  viewport->WorkPos.x + viewport->WorkSize.x - size.x),
+            std::clamp(this->popup_anchor_y,
+                viewport->WorkPos.y,
+                viewport->WorkPos.y + viewport->WorkSize.y - size.y)};
+        ImGui::SetNextWindowPos(position);
+        ImGui::SetNextWindowSize(size);
+        ImGui::SetNextWindowSizeConstraints(ImVec2{MINIMUM_EXTENT, MINIMUM_EXTENT}, size);
+        return ImGui::BeginPopup(id, ImGuiWindowFlags_HorizontalScrollbar);
     }
 
     void UI::end_popup(void) {

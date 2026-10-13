@@ -1,4 +1,5 @@
 #include "application.h"
+#include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/model_event_motion_handler.h>
 #include <core/system/asset/asset_system.h>
@@ -278,8 +279,9 @@ namespace enishi {
         }
         const auto ui = result.unwrap();
         constexpr core::Priority UI_PRIORITY = 99;
+        const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto selection =
-            std::make_shared<core::SelectionUI>(std::move(models), this->click_settings);
+            std::make_shared<core::SelectionUI>(std::move(models), this->click_settings, scripts);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,

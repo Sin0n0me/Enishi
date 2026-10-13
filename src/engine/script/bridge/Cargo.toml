@@ -1,0 +1,16 @@
+[package]
+name = "enishi_musubu_bridge"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+musubu_driver = { path = "../Musubu/compiler/musubu_driver" }
+musubu_engine = { path = "../Musubu/compiler/musubu_engine" }
+musubu_primitive = { path = "../Musubu/compiler/musubu_primitive" }
+musubu_cache = { path = "../Musubu/compiler/musubu_cache" }
+musubu_lexer = { path = "../Musubu/compiler/musubu_lexer" }
+musubu_parser = { path = "../Musubu/compiler/musubu_parser" }
+musubu_ast = { path = "../Musubu/compiler/musubu_ast" }
