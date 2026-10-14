@@ -25,6 +25,7 @@ namespace enishi::core {
         enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
         std::array<types::BoneIndex, Count> joints;
         std::array<types::BoneIndex, 2> wrists;
+        std::array<types::BoneIndex, 2> eyes;
         std::array<glm::quat, Count> offsets;
         std::array<glm::quat, Count> originals;
         std::array<glm::quat, Count> bind_rotations;
@@ -77,9 +78,10 @@ namespace enishi::core {
         void update_globals(
             const component::ModelComponent& model, const component::AnimationComponent& animation);
         [[nodiscard]] std::optional<glm::vec3> target(const CursorRay& cursor) const;
+        [[nodiscard]] std::optional<glm::vec3> gaze_offset(const CursorRay& cursor) const;
         void look(component::AnimationComponent& animation,
             Joint joint,
-            const glm::vec3& target,
+            const glm::vec3& offset,
             float yaw_limit,
             float pitch_limit);
         void reach(const component::ModelComponent& model,

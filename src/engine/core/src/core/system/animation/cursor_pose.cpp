@@ -14,6 +14,8 @@ namespace enishi::core {
         constexpr float PROXIMITY_RATIO = 0.18f;
         constexpr float TARGET_DEPTH_RATIO = 0.12f;
         constexpr float ARM_SWITCH_RATIO = 0.8f;
+        constexpr float GAZE_DEPTH_RATIO = 0.25f;
+        constexpr float FACE_HEIGHT_RATIO = 0.5f;
 
         types::BoneIndex find_bone(
             const component::ModelComponent& model, std::initializer_list<std::string_view> names) {
@@ -53,6 +55,8 @@ namespace enishi::core {
         , wrists{find_bone(model, {"左手首", "leftHand", "LeftHand"}),
               find_bone(model, {"右手首", "rightHand", "RightHand"})} {
         this->config = config;
+        this->eyes = {find_bone(model, {"左目", "leftEye", "LeftEye"}),
+            find_bone(model, {"右目", "rightEye", "RightEye"})};
         this->offsets.fill(IDENTITY);
         this->originals.fill(IDENTITY);
         for (auto& index : this->joints) {
@@ -145,9 +149,52 @@ namespace enishi::core {
         return point;
     }
 
+    std::optional<glm::vec3> CursorPose::gaze_offset(const CursorRay& cursor) const {
+        const auto head = this->body_bones[BodyHead];
+        const auto neck = this->body_bones[BodyNeck];
+        const auto anchor = head < this->globals.size() ? head : neck;
+        if (!(anchor < this->globals.size())) {
+            return std::nullopt;
+        }
+        auto center = glm::vec3(this->globals[anchor][3]);
+        if (this->eyes[0] < this->globals.size() && this->eyes[1] < this->globals.size()) {
+            center = (glm::vec3(this->globals[this->eyes[0]][3]) +
+                         glm::vec3(this->globals[this->eyes[1]][3])) *
+                     0.5f;
+        } else if (head < this->globals.size() && neck < this->globals.size()) {
+            // Without eye bones, estimate the face center half a neck-to-head length
+            // above the head pivot: c = head + up * |head-neck|/2.
+            const auto up = glm::mat3(this->globals[head]) * this->head_local_up;
+            if (glm::length(up) > EPSILON) {
+                center += glm::normalize(up) * FACE_HEIGHT_RATIO *
+                          glm::length(center - glm::vec3(this->globals[neck][3]));
+            }
+        }
+        auto low = glm::vec3(this->globals.front()[3]);
+        auto high = low;
+        for (const auto& global : this->globals) {
+            low = (glm::min)(low, glm::vec3(global[3]));
+            high = (glm::max)(high, glm::vec3(global[3]));
+        }
+        const float depth = (high.y - low.y) * GAZE_DEPTH_RATIO;
+        const float denominator = glm::dot(cursor.ray.direction, cursor.plane_normal);
+        if (!(depth > EPSILON) || !(std::abs(denominator) > EPSILON)) {
+            return std::nullopt;
+        }
+        // Intersect a camera-facing plane THROUGH the face, not the torso:
+        // t=dot(c-origin,n)/dot(ray,n), offset=(origin+t*ray-c)/depth.
+        // The projected face center therefore has zero offset at every camera angle.
+        const float distance =
+            glm::dot(center - cursor.ray.origin, cursor.plane_normal) / denominator;
+        if (!(distance > 0) || !std::isfinite(distance)) {
+            return std::nullopt;
+        }
+        return (cursor.ray.origin + distance * cursor.ray.direction - center) / depth;
+    }
+
     void CursorPose::look(component::AnimationComponent& animation,
         Joint joint,
-        const glm::vec3& target,
+        const glm::vec3& offset,
         float yaw_limit,
         float pitch_limit) {
         const auto index = this->joints[joint];
@@ -158,10 +205,14 @@ namespace enishi::core {
         if (!(std::abs(glm::determinant(glm::mat3(global))) > EPSILON)) {
             return;
         }
-        const auto direction = glm::inverse(glm::mat3(global)) * (target - glm::vec3(global[3]));
-        if (!(glm::length(direction) > EPSILON)) {
-            return;
+        auto axes = glm::mat3(global);
+        for (glm::length_t column = 0; column < axes.length(); ++column) {
+            axes[column] = glm::normalize(axes[column]);
         }
+        const auto local = glm::inverse(axes) * offset;
+        // Keep the virtual goal strictly ahead: d=(offset.x,offset.y,-1).
+        // Unlike a nearby world-space point, this cannot cross atan2's rear-facing branch cut.
+        const glm::vec3 direction(local.x, local.y, -1.0f);
         // MMD faces local -Z. yaw=atan2(-x,-z), pitch=atan2(y,sqrt(x*x+z*z)).
         const float yaw = std::clamp(std::atan2(-direction.x, -direction.z),
             -glm::radians(yaw_limit),
@@ -222,10 +273,13 @@ namespace enishi::core {
         this->update_globals(model, animation);
         const auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         if (point.has_value()) {
-            this->look(animation, Neck, *point, this->config.neck_yaw, this->config.neck_pitch);
-            this->update_globals(model, animation);
-            this->look(animation, Head, *point, this->config.head_yaw, this->config.head_pitch);
-            this->update_globals(model, animation);
+            const auto gaze = this->gaze_offset(*cursor);
+            if (gaze.has_value()) {
+                this->look(animation, Neck, *gaze, this->config.neck_yaw, this->config.neck_pitch);
+                this->update_globals(model, animation);
+                this->look(animation, Head, *gaze, this->config.head_yaw, this->config.head_pitch);
+                this->update_globals(model, animation);
+            }
             this->reach(model, animation, *point);
         } else {
             this->active_arm.reset();
