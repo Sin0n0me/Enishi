@@ -14,10 +14,6 @@ namespace enishi::core {
         constexpr float PROXIMITY_RATIO = 0.18f;
         constexpr float TARGET_DEPTH_RATIO = 0.12f;
         constexpr float ARM_SWITCH_RATIO = 0.8f;
-        constexpr float NECK_YAW = 20.0f;
-        constexpr float NECK_PITCH = 12.0f;
-        constexpr float HEAD_YAW = 40.0f;
-        constexpr float HEAD_PITCH = 25.0f;
 
         types::BoneIndex find_bone(
             const component::ModelComponent& model, std::initializer_list<std::string_view> names) {
@@ -47,7 +43,7 @@ namespace enishi::core {
 
     } // namespace
 
-    CursorPose::CursorPose(const component::ModelComponent& model)
+    CursorPose::CursorPose(const component::ModelComponent& model, CursorPoseConfig config)
         : joints{find_bone(model, {"首", "neck", "Neck"}),
               find_bone(model, {"頭", "head", "Head"}),
               find_bone(model, {"左腕", "leftUpperArm", "LeftArm"}),
@@ -56,6 +52,7 @@ namespace enishi::core {
               find_bone(model, {"右ひじ", "右肘", "rightLowerArm", "RightForeArm"})}
         , wrists{find_bone(model, {"左手首", "leftHand", "LeftHand"}),
               find_bone(model, {"右手首", "rightHand", "RightHand"})} {
+        this->config = config;
         this->offsets.fill(IDENTITY);
         this->originals.fill(IDENTITY);
         for (auto& index : this->joints) {
@@ -225,14 +222,15 @@ namespace enishi::core {
         this->update_globals(model, animation);
         const auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         if (point.has_value()) {
-            this->look(animation, Neck, *point, NECK_YAW, NECK_PITCH);
+            this->look(animation, Neck, *point, this->config.neck_yaw, this->config.neck_pitch);
             this->update_globals(model, animation);
-            this->look(animation, Head, *point, HEAD_YAW, HEAD_PITCH);
+            this->look(animation, Head, *point, this->config.head_yaw, this->config.head_pitch);
             this->update_globals(model, animation);
             this->reach(model, animation, *point);
         } else {
             this->active_arm.reset();
         }
+        const auto previous = this->offsets;
         // Exponential smoothing alpha=1-exp(-rate*dt) is independent of frame rate.
         const float alpha = std::isfinite(seconds)
                                 ? 1.0f - std::exp(-RESPONSE_RATE * (std::max)(0.0f, seconds))
@@ -249,6 +247,7 @@ namespace enishi::core {
                 glm::normalize(this->originals[joint] * this->offsets[joint]);
         }
         this->protect_arms(model, animation);
+        this->limit_arm_speed(model, animation, previous, seconds);
         this->applied = true;
     }
 

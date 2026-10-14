@@ -30,6 +30,13 @@ namespace enishi::core {
         this->cursor_window = window;
     }
 
+    void SkinningSystem::set_cursor_config(const CursorPoseConfig& config) {
+        this->cursor_config = config;
+        for (auto& [entity, bones] : this->model_bones) {
+            bones->cursor_pose.reset();
+        }
+    }
+
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
         const auto window = this->cursor_window.lock();
         const auto cursor = window != nullptr ? read_cursor_ray(*window) : std::nullopt;
@@ -83,7 +90,7 @@ namespace enishi::core {
                     : std::span<const types::SkinningCommand>(skinning.order);
 
             if (bones.cursor_pose == nullptr && window != nullptr) {
-                bones.cursor_pose = std::make_unique<CursorPose>(model);
+                bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
             }
             if (bones.cursor_pose != nullptr) {
                 bones.cursor_pose->apply(model, animation, cursor, delta_time.to_float_second());

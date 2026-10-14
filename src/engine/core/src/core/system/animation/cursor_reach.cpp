@@ -382,6 +382,69 @@ namespace enishi::core {
         return false;
     }
 
+    void CursorPose::limit_arm_speed(const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        const std::array<glm::quat, Count>& previous,
+        float seconds) {
+        const float elapsed = std::isfinite(seconds) ? (std::max)(0.0f, seconds) : 0.0f;
+        const float step = glm::radians(this->config.arm_speed) * elapsed;
+        constexpr std::size_t BACKTRACK_STEPS = 12;
+        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+            const auto arm = side == 0 ? LeftArm : RightArm;
+            const auto elbow = side == 0 ? LeftElbow : RightElbow;
+            if (!(this->wrists[side] < this->globals.size())) {
+                continue;
+            }
+            const auto desired_upper = this->offsets[arm];
+            const auto desired_lower = this->offsets[elbow];
+            // Shortest quaternion arc: theta = 2*atan2(|q.xyz|, |q.w|).
+            // Both joints use t=min(1, speed*dt/max(theta)), preserving the solved bend.
+            const auto upper_delta = glm::inverse(previous[arm]) * desired_upper;
+            const auto lower_delta = glm::inverse(previous[elbow]) * desired_lower;
+            const float upper_angle =
+                2.0f *
+                std::atan2(glm::length(glm::vec3(upper_delta.x, upper_delta.y, upper_delta.z)),
+                    std::abs(upper_delta.w));
+            const float lower_angle =
+                2.0f *
+                std::atan2(glm::length(glm::vec3(lower_delta.x, lower_delta.y, lower_delta.z)),
+                    std::abs(lower_delta.w));
+            const float angle = (std::max)(upper_angle, lower_angle);
+            if (!(angle > step)) {
+                continue;
+            }
+            const auto set_offsets = [&](const glm::quat& upper, const glm::quat& lower) {
+                this->offsets[arm] = upper;
+                this->offsets[elbow] = lower;
+                animation.animation[this->joints[arm]].rotation =
+                    glm::normalize(this->originals[arm] * upper);
+                animation.animation[this->joints[elbow]].rotation =
+                    glm::normalize(this->originals[elbow] * lower);
+                this->update_globals(model, animation);
+            };
+            float fraction = step / angle;
+            bool accepted = false;
+            for (std::size_t attempt = 0; attempt < BACKTRACK_STEPS; ++attempt) {
+                set_offsets(glm::normalize(glm::slerp(previous[arm], desired_upper, fraction)),
+                    glm::normalize(glm::slerp(previous[elbow], desired_lower, fraction)));
+                if (this->arm_clear(side, this->arm_frame(side))) {
+                    accepted = true;
+                    break;
+                }
+                // A safe destination does not imply a safe interpolation. Backtrack t/=2.
+                fraction *= 0.5f;
+            }
+            if (!accepted) {
+                set_offsets(previous[arm], previous[elbow]);
+                if (!this->arm_clear(side, this->arm_frame(side)) && elapsed > 0) {
+                    // An animated torso/head may move into the previous pose. In that case
+                    // clearance takes precedence over speed; never retain an intersecting arm.
+                    set_offsets(desired_upper, desired_lower);
+                }
+            }
+        }
+    }
+
     void CursorPose::protect_arms(
         const component::ModelComponent& model, component::AnimationComponent& animation) {
         this->update_globals(model, animation);

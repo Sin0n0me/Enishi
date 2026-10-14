@@ -1,4 +1,5 @@
 #pragma once
+#include "cursor_pose_config.h"
 #include <array>
 #include <component/animation_component.h>
 #include <component/model_component.h>
@@ -62,9 +63,10 @@ namespace enishi::core {
         std::vector<types::BoneIndex> traversal;
         std::optional<std::size_t> active_arm;
         bool applied = false;
+        CursorPoseConfig config;
 
       public:
-        explicit CursorPose(const component::ModelComponent& model);
+        explicit CursorPose(const component::ModelComponent& model, CursorPoseConfig config = {});
         void apply(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
@@ -98,5 +100,9 @@ namespace enishi::core {
             const ArmFrame& frame);
         void protect_arms(
             const component::ModelComponent& model, component::AnimationComponent& animation);
+        void limit_arm_speed(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::array<glm::quat, Count>& previous,
+            float seconds);
     };
 } // namespace enishi::core

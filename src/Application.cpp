@@ -88,6 +88,12 @@ namespace enishi {
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
+        auto cursor_config = core::load_cursor_pose_config("config/cursor_tracking.cfg");
+        if (cursor_config.is_err()) {
+            foundation::Logger::warning(cursor_config.unwrap_err().get_message());
+        } else {
+            skinning_system->set_cursor_config(std::move(cursor_config).unwrap());
+        }
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
