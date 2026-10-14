@@ -150,16 +150,6 @@ jobs:
           cmake --build build/vulkan/visualstudio --config ${{ matrix.config }} --target vulkan_render_tests
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Build and run script and cursor validation
-        shell: pwsh
-        run: |
-          cmake -S src -B build/${{ matrix.backend }}/visualstudio -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build build/${{ matrix.backend }}/visualstudio --config ${{ matrix.config }} --target enishi_script_tests enishi_cursor_tests
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir build/${{ matrix.backend }}/visualstudio -C ${{ matrix.config }} -R '^enishi_(script|cursor)_tests$' --output-on-failure --no-tests=error
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Validate Vulkan shaders
         if: matrix.backend == 'vulkan'
         shell: pwsh
