@@ -10,6 +10,7 @@ namespace enishi::core {
         float head_yaw = 25.0f;
         float head_pitch = 15.0f;
         float arm_speed = 90.0f;
+        bool experimental_obb_collision = false;
     };
 
     enum class CursorConfigError { ReadFailed, InvalidSetting };

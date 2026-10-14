@@ -81,7 +81,9 @@ namespace enishi::core {
             }
         }
         this->initialize_arms(model);
-        this->initialize_collision(model);
+        if (this->config.experimental_obb_collision) {
+            this->initialize_collision(model);
+        }
         // Build a parent-first traversal without assuming source bone indices are sorted.
         std::vector<std::vector<types::BoneIndex>> children(model.bone_node.size());
         for (types::BoneIndex index = 0; index < model.bone_node.size(); ++index) {
@@ -282,7 +284,9 @@ namespace enishi::core {
         }
         // Dynamic clothing uses the last completed physics pose, rather than its source
         // animation pose. Candidate arm poses must not move these obstacles during search.
-        this->collision_physics_globals = animation.global;
+        if (this->config.experimental_obb_collision) {
+            this->collision_physics_globals = animation.global;
+        }
         this->update_globals(model, animation);
         const auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         if (point.has_value()) {

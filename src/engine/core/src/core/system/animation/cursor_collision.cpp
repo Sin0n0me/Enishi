@@ -174,6 +174,9 @@ namespace enishi::core {
     }
 
     bool CursorPose::mesh_arm_clear(std::size_t side) const {
+        if (!this->config.experimental_obb_collision) {
+            return true;
+        }
         const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
         const auto start = glm::vec3(this->globals[elbow][3]);
         const auto end = glm::vec3(this->globals[this->wrists[side]][3]);

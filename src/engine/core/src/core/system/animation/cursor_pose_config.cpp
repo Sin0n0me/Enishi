@@ -29,6 +29,10 @@ namespace enishi::core {
             std::string key;
             float value = 0;
             fields >> key;
+            if (!seen.insert(key).second) {
+                return foundation::Error(CursorConfigError::InvalidSetting,
+                    "Duplicate cursor setting at line " + std::to_string(line_number));
+            }
             float* destination = nullptr;
             if (key == "neck_yaw") {
                 destination = &config.neck_yaw;
@@ -42,9 +46,15 @@ namespace enishi::core {
                 destination = &config.arm_speed;
             }
             const float maximum = key == "arm_speed" ? MAX_SPEED : MAX_ANGLE;
-            if (destination == nullptr || !seen.insert(key).second || !(fields >> value) ||
-                !std::isfinite(value) || value < 0 || value > maximum ||
-                (key == "arm_speed" && !(value > 0))) {
+            if (key == "experimental_obb_collision") {
+                std::string mode;
+                if (!(fields >> mode) || (mode != "on" && mode != "off")) {
+                    return foundation::Error(CursorConfigError::InvalidSetting,
+                        "Invalid experimental OBB setting at line " + std::to_string(line_number));
+                }
+                config.experimental_obb_collision = mode == "on";
+            } else if (destination == nullptr || !(fields >> value) || !std::isfinite(value) ||
+                       value < 0 || value > maximum || (key == "arm_speed" && !(value > 0))) {
                 return foundation::Error(CursorConfigError::InvalidSetting,
                     "Invalid cursor setting at line " + std::to_string(line_number));
             }
@@ -53,7 +63,9 @@ namespace enishi::core {
                 return foundation::Error(CursorConfigError::InvalidSetting,
                     "Unexpected cursor setting field at line " + std::to_string(line_number));
             }
-            *destination = value;
+            if (destination != nullptr) {
+                *destination = value;
+            }
         }
         if (stream.bad() || (stream.fail() && !stream.eof())) {
             return foundation::Error(CursorConfigError::ReadFailed, "Cannot read cursor settings");

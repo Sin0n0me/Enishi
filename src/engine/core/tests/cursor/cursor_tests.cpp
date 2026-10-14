@@ -579,7 +579,9 @@ namespace {
             check(bounds.is_some(), "Synthetic clothing and hand OBBs must be valid");
             local[index] = bounds.unwrap();
         }
-        core::CursorPose pose(fixture.model);
+        core::CursorPoseConfig config;
+        config.experimental_obb_collision = true;
+        core::CursorPose pose(fixture.model, config);
         constexpr int FRAMES = 240;
         constexpr float FRAME_SECONDS = 1.0f / 60.0f;
         int both_reaching = 0;
@@ -702,6 +704,59 @@ namespace {
                 "A pixel near the face center must produce nearly neutral gaze");
         }
     }
+    void experimental_collision_setting() {
+        check(!core::CursorPoseConfig{}.experimental_obb_collision,
+            "Experimental collision must default to off");
+        std::istringstream empty;
+        auto defaults = core::parse_cursor_pose_config(empty);
+        check(defaults.is_ok() && !defaults.unwrap().experimental_obb_collision,
+            "Omitted experimental collision setting must stay off");
+        for (const bool enabled : {false, true}) {
+            std::istringstream settings(enabled ? "experimental_obb_collision on # enabled"
+                                                : "experimental_obb_collision off");
+            auto parsed = core::parse_cursor_pose_config(settings);
+            check(parsed.is_ok() && parsed.unwrap().experimental_obb_collision == enabled,
+                "Experimental collision toggle must load");
+        }
+        for (const auto text : {"experimental_obb_collision",
+                 "experimental_obb_collision true",
+                 "experimental_obb_collision on extra",
+                 "experimental_obb_collision on\nexperimental_obb_collision off"}) {
+            std::istringstream settings(text);
+            check(core::parse_cursor_pose_config(settings).is_err(),
+                "Invalid experimental collision settings must be rejected");
+        }
+        Fixture plain;
+        Fixture bounds;
+        bounds.model.collision_vertices.resize(Count);
+        constexpr float EXTENT = 10.0f;
+        for (const auto bone : {Root, Wrist, OtherWrist}) {
+            for (const float x : {-EXTENT, EXTENT}) {
+                for (const float y : {-EXTENT, EXTENT}) {
+                    for (const float z : {-EXTENT, EXTENT}) {
+                        bounds.model.collision_vertices[bone].push_back({x, y, z});
+                    }
+                }
+            }
+        }
+        core::CursorPose plain_pose(plain.model);
+        core::CursorPose bounds_pose(bounds.model);
+        constexpr int FRAMES = 60;
+        // dt = 1 second / frame count.
+        constexpr float FRAME_SECONDS = 1.0f / FRAMES;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            plain_pose.apply(plain.model, plain.animation, cursor(0, 7), FRAME_SECONDS);
+            bounds_pose.apply(bounds.model, bounds.animation, cursor(0, 7), FRAME_SECONDS);
+            for (std::size_t bone = 0; bone < Count; ++bone) {
+                check(glm::length(plain.animation.animation[bone].rotation -
+                                  bounds.animation.animation[bone].rotation) < TOLERANCE,
+                    "Disabled OBBs must not affect cursor poses or hand size");
+            }
+            plain_pose.restore(plain.animation);
+            bounds_pose.restore(bounds.animation);
+        }
+    }
+
     void overlap_query_matches_contact() {
         const types::OBB first{{0, 0, 0}, {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}, {1, 1, 1}};
         constexpr int ANGLES = 12;
@@ -793,7 +848,9 @@ namespace {
         for (const auto hand : {Wrist, OtherWrist}) {
             fixture.model.collision_vertices[hand] = fixture.model.collision_vertices[Count];
         }
-        core::CursorPose pose(fixture.model);
+        core::CursorPoseConfig config;
+        config.experimental_obb_collision = true;
+        core::CursorPose pose(fixture.model, config);
         std::chrono::steady_clock::time_point start;
         float movement = 0;
         for (int frame = -WARMUP_FRAMES; frame < MEASURED_FRAMES; ++frame) {
@@ -831,6 +888,7 @@ int main(int argc, char** argv) {
     rotated_body_avoidance();
     release_to_authored_elbow();
     configurable_limits();
+    experimental_collision_setting();
     bounded_reach_speed();
     face_center_gaze();
     overlapping_hand_tracking();
