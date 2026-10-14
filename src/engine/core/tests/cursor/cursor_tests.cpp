@@ -461,6 +461,47 @@ namespace {
             check(total_motion > SPEED, "Speed limiting must still allow arm movement");
         }
     }
+    void overlapping_hand_tracking() {
+        constexpr float START_X = 3.0f;
+        constexpr float CROSS_CENTER_X = 0.75f;
+        constexpr float TARGET_HEIGHT = 7.0f;
+        for (const float side : {-1.0f, 1.0f}) {
+            Fixture fixture;
+            core::CursorPose pose(fixture.model);
+            const auto first = side > 0 ? Arm : OtherArm;
+            const auto other = side > 0 ? OtherArm : Arm;
+            pose.apply(fixture.model,
+                fixture.animation,
+                cursor(side * START_X, TARGET_HEIGHT),
+                SETTLE_SECONDS);
+            pose.restore(fixture.animation);
+            // Cross the center repeatedly without crossing the opposite shoulder.
+            for (const float x : {-CROSS_CENTER_X, CROSS_CENTER_X, -CROSS_CENTER_X}) {
+                pose.apply(fixture.model,
+                    fixture.animation,
+                    cursor(side * x, TARGET_HEIGHT),
+                    SETTLE_SECONDS);
+                check(
+                    glm::length(fixture.animation.animation[first].rotation - IDENTITY) > TOLERANCE,
+                    "The original hand must keep tracking beyond the body center");
+                check(
+                    glm::length(fixture.animation.animation[other].rotation - IDENTITY) < TOLERANCE,
+                    "Center crossings must not activate the other hand");
+                check_arm_safety(fixture);
+                pose.restore(fixture.animation);
+            }
+            pose.apply(fixture.model,
+                fixture.animation,
+                cursor(-side * START_X, TARGET_HEIGHT),
+                SETTLE_SECONDS);
+            check(glm::length(fixture.animation.animation[other].rotation - IDENTITY) > TOLERANCE,
+                "The other hand must take over beyond the opposite shoulder");
+            check(glm::length(fixture.animation.animation[first].rotation - IDENTITY) < TOLERANCE,
+                "The original hand must release after a deliberate switch");
+            check_arm_safety(fixture);
+        }
+    }
+
     void face_center_gaze() {
         constexpr float FACE_OFFSET = 0.5f;
         constexpr float FACE_DEPTH = -0.25f;
@@ -558,5 +599,6 @@ int main() {
     configurable_limits();
     bounded_reach_speed();
     face_center_gaze();
+    overlapping_hand_tracking();
     std::cout << "Cursor pose tests passed\n";
 }

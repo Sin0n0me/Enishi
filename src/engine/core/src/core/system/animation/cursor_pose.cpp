@@ -14,6 +14,7 @@ namespace enishi::core {
         constexpr float PROXIMITY_RATIO = 0.18f;
         constexpr float TARGET_DEPTH_RATIO = 0.12f;
         constexpr float ARM_SWITCH_RATIO = 0.8f;
+        constexpr float ARM_SWITCH_SHOULDER_RATIO = 0.5f;
         constexpr float GAZE_DEPTH_RATIO = 0.25f;
         constexpr float FACE_HEIGHT_RATIO = 0.5f;
 
@@ -239,8 +240,24 @@ namespace enishi::core {
         if (!std::isfinite(distances[nearest])) {
             return;
         }
+        bool beyond_switch_boundary = true;
+        if (this->active_arm.has_value() && std::isfinite(distances[0]) &&
+            std::isfinite(distances[1])) {
+            const auto left = glm::vec3(this->globals[this->joints[LeftArm]][3]);
+            const auto right = glm::vec3(this->globals[this->joints[RightArm]][3]);
+            const auto across = left - right;
+            const float width = glm::length(across);
+            if (width > EPSILON) {
+                // s=dot(target-(left+right)/2, (left-right)/width). Keep the current
+                // hand until s crosses the opposite shoulder (margin=width/2).
+                const float lateral = glm::dot(target - (left + right) * 0.5f, across / width);
+                const float toward_other = *this->active_arm == 0 ? -lateral : lateral;
+                beyond_switch_boundary = toward_other > width * ARM_SWITCH_SHOULDER_RATIO;
+            }
+        }
         if (!this->active_arm.has_value() ||
-            distances[nearest] < distances[*this->active_arm] * ARM_SWITCH_RATIO) {
+            (beyond_switch_boundary &&
+                distances[nearest] < distances[*this->active_arm] * ARM_SWITCH_RATIO)) {
             this->active_arm = nearest;
         }
         this->reach_side(model, animation, *this->active_arm, target);
