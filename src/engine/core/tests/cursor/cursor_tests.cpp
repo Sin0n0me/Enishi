@@ -1,3 +1,5 @@
+#include <collider/collider.h>
+#include <collider/obb_maker.h>
 #include <core/system/animation/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
@@ -524,6 +526,86 @@ namespace {
         }
     }
 
+    void hands_and_clothing_clearance(bool physics_clothing) {
+        Fixture fixture;
+        types::BoneIndex clothing = Root;
+        if (physics_clothing) {
+            clothing = Count;
+            fixture.model.bone_node.emplace_back();
+            fixture.model.bone_node.back().parent = Root;
+            fixture.model.bone_node[Root].children.push_back(clothing);
+            fixture.model.bone_names.push_back("garment");
+            fixture.model.bind_bone.emplace_back();
+            fixture.animation.animation.emplace_back();
+            // The source pose is behind the body, but the completed physics pose is in front.
+            fixture.animation.animation.back().position = {0, 7, 3};
+            fixture.animation.global.push_back(
+                glm::translate(glm::mat4(1), glm::vec3(0, 7, -1.1f)));
+            types::PhysicsRigidBody body{};
+            body.relate_bone_index = clothing;
+            body.kind = types::RigidBodyKind::Dynamic;
+            fixture.model.rigid_bodies.push_back(body);
+        }
+        fixture.model.collision_vertices.resize(fixture.model.bone_node.size());
+        const auto box = [](const glm::vec3& center, const glm::vec3& extent) {
+            std::vector<glm::vec3> vertices;
+            for (const float x : {-1.0f, 1.0f}) {
+                for (const float y : {-1.0f, 1.0f}) {
+                    for (const float z : {-1.0f, 1.0f}) {
+                        vertices.push_back(center + extent * glm::vec3(x, y, z));
+                    }
+                }
+            }
+            return vertices;
+        };
+        // A garment protrudes in front of the torso capsule and covers the old hand targets.
+        fixture.model.collision_vertices[clothing] =
+            box(physics_clothing ? glm::vec3(0) : glm::vec3(0, 7, -1.1f), {1.3f, 1.5f, 0.3f});
+        fixture.model.collision_vertices[Wrist] = box({0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
+        fixture.model.collision_vertices[OtherWrist] = box({-0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
+        std::array<types::OBB, 3> local;
+        const std::array<types::BoneIndex, 3> BONES{clothing, Wrist, OtherWrist};
+        for (std::size_t index = 0; index < BONES.size(); ++index) {
+            auto bounds = collider::OBBMaker::make_by_covariance_matrix(
+                fixture.model.collision_vertices[BONES[index]]);
+            check(bounds.is_some(), "Synthetic clothing and hand OBBs must be valid");
+            local[index] = bounds.unwrap();
+        }
+        core::CursorPose pose(fixture.model);
+        constexpr int FRAMES = 240;
+        constexpr float FRAME_SECONDS = 1.0f / 60.0f;
+        int both_reaching = 0;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            const bool release = frame > FRAMES / 2;
+            const auto target = release ? std::optional<core::CursorRay>{} : cursor(0, 7);
+            pose.apply(fixture.model, fixture.animation, target, FRAME_SECONDS);
+            std::array<types::OBB, 3> world;
+            for (std::size_t index = 0; index < BONES.size(); ++index) {
+                const auto transform = physics_clothing && index == 0
+                                           ? fixture.animation.global[clothing]
+                                           : global(fixture.model, fixture.animation, BONES[index]);
+                auto bounds = collider::OBBMaker::transform(local[index], transform);
+                check(bounds.is_some(), "Synthetic world bounds must be valid");
+                world[index] = bounds.unwrap();
+            }
+            check(collider::Collider::intersect(world[1], world[2]).is_none(),
+                "Hand OBBs must not overlap during approach or release");
+            for (std::size_t hand = 1; hand < world.size(); ++hand) {
+                check(collider::Collider::intersect(world[0], world[hand]).is_none(),
+                    "Hands must avoid clothing outside the torso capsule during interpolation");
+            }
+            if (!release &&
+                glm::length(fixture.animation.animation[Arm].rotation - IDENTITY) > TOLERANCE &&
+                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) >
+                    TOLERANCE) {
+                ++both_reaching;
+            }
+            check_arm_safety(fixture);
+            pose.restore(fixture.animation);
+        }
+        check(both_reaching > FRAMES / 4, "Collision avoidance must preserve two-handed reaching");
+    }
+
     void face_center_gaze() {
         constexpr float FACE_OFFSET = 0.5f;
         constexpr float FACE_DEPTH = -0.25f;
@@ -622,5 +704,7 @@ int main() {
     bounded_reach_speed();
     face_center_gaze();
     overlapping_hand_tracking();
+    hands_and_clothing_clearance(false);
+    hands_and_clothing_clearance(true);
     std::cout << "Cursor pose tests passed\n";
 }
