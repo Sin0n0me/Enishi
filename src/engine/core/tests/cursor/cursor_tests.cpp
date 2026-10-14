@@ -248,6 +248,135 @@ namespace {
         skinning.update(types::DeltaTime(0.016f));
         check(matrices[Wrist] == hidden_matrix, "Hidden model must not be updated");
     }
+
+    float distance_to_axis(const glm::vec3& point, const glm::vec3& start, const glm::vec3& end) {
+        const auto axis = end - start;
+        // Closest point on the segment: start + clamp(dot(p-start,axis)/|axis|²)*axis.
+        const float along =
+            glm::clamp(glm::dot(point - start, axis) / glm::dot(axis, axis), 0.0f, 1.0f);
+        return glm::length(point - start - along * axis);
+    }
+
+    void check_arm_safety(const Fixture& fixture) {
+        constexpr float BODY_RADIUS = 0.64f;
+        constexpr float LIMB_CLEARANCE = 0.15f;
+        constexpr float HAND_CLEARANCE = 0.8f;
+        constexpr int SEGMENT_SAMPLES = 40;
+        const auto root = global(fixture.model, fixture.animation, Root);
+        const auto up = glm::normalize(glm::mat3(root) * glm::vec3(0, 1, 0));
+        const auto chest = glm::vec3(root * glm::vec4(0, 7, 0, 1));
+        const auto pelvis = chest - up * 3.2f;
+        const auto neck = glm::vec3(global(fixture.model, fixture.animation, Neck)[3]);
+        const auto head = glm::vec3(global(fixture.model, fixture.animation, Head)[3]);
+        const auto head_up = glm::normalize(
+            glm::mat3(global(fixture.model, fixture.animation, Head)) * glm::vec3(0, 1, 0));
+        const auto head_top = head + head_up * 1.1f;
+        for (std::size_t side = 0; side < 2; ++side) {
+            const auto arm = side == 0 ? Arm : OtherArm;
+            const auto elbow = side == 0 ? Elbow : OtherElbow;
+            const auto wrist = side == 0 ? Wrist : OtherWrist;
+            const auto shoulder_position =
+                glm::vec3(global(fixture.model, fixture.animation, arm)[3]);
+            const auto elbow_position =
+                glm::vec3(global(fixture.model, fixture.animation, elbow)[3]);
+            const auto wrist_position =
+                glm::vec3(global(fixture.model, fixture.animation, wrist)[3]);
+            const auto rotation = fixture.animation.animation[elbow].rotation;
+            const float sign = side == 0 ? 1.0f : -1.0f;
+            const float flex = 2.0f * std::atan2(rotation.y * sign, rotation.w);
+            check(std::abs(rotation.x) < TOLERANCE && std::abs(rotation.z) < TOLERANCE,
+                "Elbow must remain a single anatomical hinge, including transition frames");
+            check(flex > -TOLERANCE && flex < glm::radians(135.0f) + TOLERANCE,
+                "Elbow must not hyperextend or fold beyond its limit");
+            const auto shoulder_rotation = fixture.animation.animation[arm].rotation;
+            const auto shoulder_axis = glm::vec3(sign, 0, 0);
+            const float twist = 2.0f * std::atan2(shoulder_rotation.x * sign, shoulder_rotation.w);
+            const auto swing =
+                shoulder_rotation * glm::inverse(glm::angleAxis(twist, shoulder_axis));
+            const float swing_angle = 2.0f * std::acos(glm::clamp(std::abs(swing.w), 0.0f, 1.0f));
+            check(std::abs(twist) < glm::radians(80.0f) + TOLERANCE &&
+                      swing_angle < glm::radians(100.0f) + TOLERANCE,
+                "Shoulder twist and swing must remain within their anatomical limits");
+            check(std::abs(glm::length(elbow_position - shoulder_position) - 2.0f) < TOLERANCE &&
+                      std::abs(glm::length(wrist_position - elbow_position) - 2.0f) < TOLERANCE,
+                "Safety correction must preserve arm lengths");
+            for (int sample = 0; sample < SEGMENT_SAMPLES + 1; ++sample) {
+                const float t = static_cast<float>(sample) / static_cast<float>(SEGMENT_SAMPLES);
+                for (const auto point : {glm::mix(shoulder_position, elbow_position, t),
+                         glm::mix(elbow_position, wrist_position, t)}) {
+                    check(distance_to_axis(point, pelvis, neck) > BODY_RADIUS + LIMB_CLEARANCE,
+                        "The complete upper arm and forearm must clear the torso");
+                    check(distance_to_axis(point, head, head_top) > BODY_RADIUS + LIMB_CLEARANCE,
+                        "The complete upper arm and forearm must clear the head");
+                }
+            }
+            check(distance_to_axis(wrist_position, pelvis, neck) > BODY_RADIUS + HAND_CLEARANCE,
+                "Leave enough space for the hand, not only the wrist, near the chest");
+            check(distance_to_axis(wrist_position, head, head_top) > BODY_RADIUS + HAND_CLEARANCE,
+                "Leave enough space for the hand near the face");
+        }
+    }
+
+    void body_avoidance_and_hinge() {
+        constexpr int FRAMES = 180;
+        constexpr float FRAME_SECONDS = 1.0f / 60.0f;
+        Fixture fixture;
+        core::CursorPose pose(fixture.model);
+        int moving_frames = 0;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            // Cross the chest, face and centerline repeatedly, forcing arm switches and blending.
+            const float phase = static_cast<float>(frame) * 0.08f;
+            pose.apply(fixture.model,
+                fixture.animation,
+                cursor(2.5f * std::sin(phase), 7.0f + 2.8f * std::sin(phase * 0.7f)),
+                FRAME_SECONDS);
+            check_arm_safety(fixture);
+            if (glm::length(fixture.animation.animation[Arm].rotation - IDENTITY) > TOLERANCE ||
+                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) >
+                    TOLERANCE) {
+                ++moving_frames;
+            }
+            pose.restore(fixture.animation);
+        }
+        check(moving_frames > FRAMES / 2,
+            "Avoidance must retain reaching instead of disabling both arms");
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, FRAME_SECONDS);
+            check_arm_safety(fixture);
+            pose.restore(fixture.animation);
+        }
+    }
+
+    void rotated_body_avoidance() {
+        Fixture fixture;
+        fixture.animation.animation[Root].rotation =
+            glm::angleAxis(glm::radians(35.0f), glm::vec3(0, 0, 1)) *
+            glm::angleAxis(glm::radians(25.0f), glm::vec3(0, 1, 0));
+        core::CursorPose pose(fixture.model);
+        for (const auto point : {glm::vec2(-3, 6), glm::vec2(-4, 8), glm::vec2(0, 6)}) {
+            pose.apply(fixture.model, fixture.animation, cursor(point.x, point.y), SETTLE_SECONDS);
+            check_arm_safety(fixture);
+            pose.restore(fixture.animation);
+        }
+    }
+
+    void release_to_authored_elbow() {
+        Fixture fixture;
+        const auto authored = glm::angleAxis(glm::radians(15.0f), glm::vec3(1, 0, 0));
+        fixture.animation.animation[Elbow].rotation = authored;
+        core::CursorPose pose(fixture.model);
+        pose.apply(fixture.model, fixture.animation, cursor(3, 7), SETTLE_SECONDS);
+        pose.restore(fixture.animation);
+        constexpr int RETURN_FRAMES = 180;
+        for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, 1.0f / 60.0f);
+            if (frame + 1 < RETURN_FRAMES) {
+                pose.restore(fixture.animation);
+            }
+        }
+        check(glm::length(fixture.animation.animation[Elbow].rotation - authored) < TOLERANCE,
+            "After release, procedural hinge limits must not keep modifying the authored clip");
+    }
 } // namespace
 
 int main() {
@@ -256,5 +385,8 @@ int main() {
     limits_and_missing_bones();
     animated_pose();
     skinning_and_physics_pose();
+    body_avoidance_and_hinge();
+    rotated_body_avoidance();
+    release_to_authored_elbow();
     std::cout << "Cursor pose tests passed\n";
 }
