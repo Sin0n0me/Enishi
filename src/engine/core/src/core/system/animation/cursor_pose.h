@@ -62,7 +62,7 @@ namespace enishi::core {
         std::vector<glm::mat4> globals;
         std::vector<glm::mat4> external;
         std::vector<types::BoneIndex> traversal;
-        std::optional<std::size_t> active_arm;
+        std::array<bool, 2> active_arms{};
         bool applied = false;
         CursorPoseConfig config;
 
@@ -88,6 +88,7 @@ namespace enishi::core {
             component::AnimationComponent& animation,
             const glm::vec3& target);
         void initialize_arms(const component::ModelComponent& model);
+        [[nodiscard]] bool can_reach(std::size_t side, const glm::vec3& target) const;
         [[nodiscard]] ArmFrame arm_frame(std::size_t side) const;
         [[nodiscard]] bool arm_clear(std::size_t side, const ArmFrame& frame) const;
         void constrain_arm(component::AnimationComponent& animation, std::size_t side) const;

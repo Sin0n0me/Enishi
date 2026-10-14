@@ -164,7 +164,10 @@ namespace {
         pose.apply(fixture.model, fixture.animation, cursor(6, 8), SETTLE_SECONDS);
         const auto shoulder = glm::vec3(global(fixture.model, fixture.animation, Arm)[3]);
         const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
-        check(glm::length(wrist - shoulder) < 4.0f, "Unreachable targets must not stretch the arm");
+        check(glm::length(wrist - shoulder) < 4.0f + TOLERANCE,
+            "Unreachable targets must not stretch the arm");
+        check(fixture.animation.animation[Arm].rotation == IDENTITY,
+            "An out-of-range arm must remain in its authored pose");
         pose.restore(fixture.animation);
         fixture.model.bone_names[Elbow] = "unrecognized";
         fixture.model.bone_names[Neck] = "unrecognized neck";
@@ -178,6 +181,12 @@ namespace {
             "Physics-owned head must be untouched");
         check(fixture.animation.animation[Arm].rotation == IDENTITY,
             "Incomplete chains must be skipped");
+        unsupported.restore(fixture.animation);
+        unsupported.apply(fixture.model, fixture.animation, cursor(0, 7), SETTLE_SECONDS);
+        check(
+            fixture.animation.animation[Arm].rotation == IDENTITY &&
+                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) > TOLERANCE,
+            "A missing arm chain must not prevent the valid arm from tracking the center");
         unsupported.restore(fixture.animation);
         Fixture zero;
         zero.animation.animation[Wrist].position = glm::vec3(0);
@@ -475,7 +484,8 @@ namespace {
                 cursor(side * START_X, TARGET_HEIGHT),
                 SETTLE_SECONDS);
             pose.restore(fixture.animation);
-            // Cross the center repeatedly without crossing the opposite shoulder.
+            // Both hands should follow across the overlapping range, regardless of
+            // which side was active before entering it.
             for (const float x : {-CROSS_CENTER_X, CROSS_CENTER_X, -CROSS_CENTER_X}) {
                 pose.apply(fixture.model,
                     fixture.animation,
@@ -485,8 +495,8 @@ namespace {
                     glm::length(fixture.animation.animation[first].rotation - IDENTITY) > TOLERANCE,
                     "The original hand must keep tracking beyond the body center");
                 check(
-                    glm::length(fixture.animation.animation[other].rotation - IDENTITY) < TOLERANCE,
-                    "Center crossings must not activate the other hand");
+                    glm::length(fixture.animation.animation[other].rotation - IDENTITY) > TOLERANCE,
+                    "Both hands must track inside the overlapping range");
                 check_arm_safety(fixture);
                 pose.restore(fixture.animation);
             }
@@ -495,10 +505,22 @@ namespace {
                 cursor(-side * START_X, TARGET_HEIGHT),
                 SETTLE_SECONDS);
             check(glm::length(fixture.animation.animation[other].rotation - IDENTITY) > TOLERANCE,
-                "The other hand must take over beyond the opposite shoulder");
+                "The in-range hand must continue beyond the opposite shoulder");
             check(glm::length(fixture.animation.animation[first].rotation - IDENTITY) < TOLERANCE,
-                "The original hand must release after a deliberate switch");
+                "Only the out-of-range hand must return to its authored pose");
             check_arm_safety(fixture);
+            pose.restore(fixture.animation);
+            pose.apply(fixture.model, fixture.animation, cursor(0, TARGET_HEIGHT), SETTLE_SECONDS);
+            for (const auto arm : {Arm, OtherArm}) {
+                check(glm::length(fixture.animation.animation[arm].rotation - IDENTITY) > TOLERANCE,
+                    "Both hands must resume tracking after returning to the center");
+            }
+            pose.restore(fixture.animation);
+            pose.apply(fixture.model, fixture.animation, std::nullopt, SETTLE_SECONDS);
+            for (const auto arm : {Arm, OtherArm}) {
+                check(glm::length(fixture.animation.animation[arm].rotation - IDENTITY) < TOLERANCE,
+                    "Both hands must release when the cursor leaves");
+            }
         }
     }
 

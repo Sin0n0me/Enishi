@@ -24,6 +24,9 @@ namespace enishi::core {
         constexpr float AVOID_FORWARD_STEP = 0.1f;
         constexpr float AVOID_SIDE_STEP = 0.04f;
         constexpr std::size_t AVOID_ATTEMPTS = 12;
+        constexpr float REACH_RELEASE_RATIO = 1.05f;
+        constexpr float CROSS_BODY_RATIO = 0.5f;
+        constexpr float CROSS_BODY_RELEASE_RATIO = 0.6f;
 
         glm::quat rotation_of(const glm::mat4& transform) {
             glm::mat3 axes(transform);
@@ -194,6 +197,43 @@ namespace enishi::core {
                 std::atan2(glm::dot(glm::cross(glm::normalize(upper), glm::normalize(lower)), axis),
                     glm::dot(glm::normalize(upper), glm::normalize(lower)));
         }
+    }
+
+    bool CursorPose::can_reach(std::size_t side, const glm::vec3& target) const {
+        if (!(this->wrists[side] < this->globals.size())) {
+            return false;
+        }
+        const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
+        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
+        const auto shoulder = glm::vec3(this->globals[arm][3]);
+        const auto joint = glm::vec3(this->globals[elbow][3]);
+        const float upper = glm::length(joint - shoulder);
+        const float lower = glm::length(glm::vec3(this->globals[this->wrists[side]][3]) - joint);
+        // Each arm owns its range: |target-shoulder| < upper+lower. A 5% release
+        // margin avoids repeatedly entering/leaving when the cursor grazes the boundary.
+        const float release = this->active_arms[side] ? REACH_RELEASE_RATIO : 1.0f;
+        if (!(upper > EPSILON) || !(lower > EPSILON) ||
+            !(glm::length(target - shoulder) < (upper + lower) * release)) {
+            return false;
+        }
+        if (this->body_bones[BodyLeft] < this->globals.size() &&
+            this->body_bones[BodyRight] < this->globals.size()) {
+            const auto left = glm::vec3(this->globals[this->body_bones[BodyLeft]][3]);
+            const auto right = glm::vec3(this->globals[this->body_bones[BodyRight]][3]);
+            const auto across = left - right;
+            const float width = glm::length(across);
+            if (width > EPSILON) {
+                // Project onto the shoulder axis; both ranges overlap across the torso.
+                // s=dot(target-midpoint, outward), allowed when s > -width*margin.
+                const float sign = side == 0 ? 1.0f : -1.0f;
+                const float lateral =
+                    sign * glm::dot(target - (left + right) * 0.5f, across / width);
+                const float margin =
+                    this->active_arms[side] ? CROSS_BODY_RELEASE_RATIO : CROSS_BODY_RATIO;
+                return lateral > -width * margin;
+            }
+        }
+        return true;
     }
 
     CursorPose::ArmFrame CursorPose::arm_frame(std::size_t side) const {
@@ -458,7 +498,7 @@ namespace enishi::core {
             }
             // Releasing an arm must converge to the authored animation, even when that
             // animation intentionally contains rotations outside the procedural hinge limits.
-            if (this->active_arm.has_value() && *this->active_arm == side) {
+            if (this->active_arms[side]) {
                 this->constrain_arm(animation, side);
             }
             this->update_globals(model, animation);

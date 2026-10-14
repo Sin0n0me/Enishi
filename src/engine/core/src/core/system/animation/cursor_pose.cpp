@@ -3,7 +3,6 @@
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 #include <initializer_list>
-#include <limits>
 #include <string_view>
 
 namespace enishi::core {
@@ -13,8 +12,6 @@ namespace enishi::core {
         constexpr float RESPONSE_RATE = 8.0f;
         constexpr float PROXIMITY_RATIO = 0.18f;
         constexpr float TARGET_DEPTH_RATIO = 0.12f;
-        constexpr float ARM_SWITCH_RATIO = 0.8f;
-        constexpr float ARM_SWITCH_SHOULDER_RATIO = 0.5f;
         constexpr float GAZE_DEPTH_RATIO = 0.25f;
         constexpr float FACE_HEIGHT_RATIO = 0.5f;
 
@@ -229,38 +226,10 @@ namespace enishi::core {
     void CursorPose::reach(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const glm::vec3& target) {
-        std::array<float, 2> distances{};
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
-            distances[side] = arm < this->globals.size()
-                                  ? glm::length(target - glm::vec3(this->globals[arm][3]))
-                                  : std::numeric_limits<float>::infinity();
+            const bool in_range = this->can_reach(side, target);
+            this->active_arms[side] = in_range && this->reach_side(model, animation, side, target);
         }
-        const std::size_t nearest = distances[0] < distances[1] ? 0 : 1;
-        if (!std::isfinite(distances[nearest])) {
-            return;
-        }
-        bool beyond_switch_boundary = true;
-        if (this->active_arm.has_value() && std::isfinite(distances[0]) &&
-            std::isfinite(distances[1])) {
-            const auto left = glm::vec3(this->globals[this->joints[LeftArm]][3]);
-            const auto right = glm::vec3(this->globals[this->joints[RightArm]][3]);
-            const auto across = left - right;
-            const float width = glm::length(across);
-            if (width > EPSILON) {
-                // s=dot(target-(left+right)/2, (left-right)/width). Keep the current
-                // hand until s crosses the opposite shoulder (margin=width/2).
-                const float lateral = glm::dot(target - (left + right) * 0.5f, across / width);
-                const float toward_other = *this->active_arm == 0 ? -lateral : lateral;
-                beyond_switch_boundary = toward_other > width * ARM_SWITCH_SHOULDER_RATIO;
-            }
-        }
-        if (!this->active_arm.has_value() ||
-            (beyond_switch_boundary &&
-                distances[nearest] < distances[*this->active_arm] * ARM_SWITCH_RATIO)) {
-            this->active_arm = nearest;
-        }
-        this->reach_side(model, animation, *this->active_arm, target);
     }
 
     void CursorPose::apply(const component::ModelComponent& model,
@@ -299,7 +268,7 @@ namespace enishi::core {
             }
             this->reach(model, animation, *point);
         } else {
-            this->active_arm.reset();
+            this->active_arms.fill(false);
         }
         const auto previous = this->offsets;
         // Exponential smoothing alpha=1-exp(-rate*dt) is independent of frame rate.
