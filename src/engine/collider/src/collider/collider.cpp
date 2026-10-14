@@ -281,7 +281,15 @@ namespace enishi::collider {
         const types::OBB& first,
         const types::CollisionModelId second_model,
         const types::OBB& second) {
-        if (first_model == second_model || !valid(first) || !valid(second)) {
+        if (first_model == second_model) {
+            return {};
+        }
+        return Collider::intersect(first, second);
+    }
+
+    foundation::Option<types::OBBContact> Collider::intersect(
+        const types::OBB& first, const types::OBB& second) {
+        if (!valid(first) || !valid(second)) {
             return {};
         }
         const glm::dvec3 delta = glm::dvec3(second.center) - glm::dvec3(first.center);
