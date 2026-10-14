@@ -1,3 +1,4 @@
+#include <chrono>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <core/system/animation/cursor_pose.h>
@@ -7,6 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <sstream>
+#include <string_view>
 
 using namespace enishi;
 
@@ -526,24 +528,27 @@ namespace {
         }
     }
 
-    void hands_and_clothing_clearance(bool physics_clothing) {
+    void hands_and_clothing_clearance(bool physics_clothing, bool attached = false) {
         Fixture fixture;
         types::BoneIndex clothing = Root;
-        if (physics_clothing) {
+        if (physics_clothing || attached) {
             clothing = Count;
             fixture.model.bone_node.emplace_back();
-            fixture.model.bone_node.back().parent = Root;
-            fixture.model.bone_node[Root].children.push_back(clothing);
+            const auto parent = attached ? Wrist : Root;
+            fixture.model.bone_node.back().parent = parent;
+            fixture.model.bone_node[parent].children.push_back(clothing);
             fixture.model.bone_names.push_back("garment");
             fixture.model.bind_bone.emplace_back();
             fixture.animation.animation.emplace_back();
             // The source pose is behind the body, but the completed physics pose is in front.
-            fixture.animation.animation.back().position = {0, 7, 3};
+            fixture.animation.animation.back().position =
+                attached ? glm::vec3(0) : glm::vec3(0, 7, 3);
             fixture.animation.global.push_back(
-                glm::translate(glm::mat4(1), glm::vec3(0, 7, -1.1f)));
+                attached ? global(fixture.model, fixture.animation, clothing)
+                         : glm::translate(glm::mat4(1), glm::vec3(0, 7, -1.1f)));
             types::PhysicsRigidBody body{};
             body.relate_bone_index = clothing;
-            body.kind = types::RigidBodyKind::Dynamic;
+            body.kind = attached ? types::RigidBodyKind::Kinematic : types::RigidBodyKind::Dynamic;
             fixture.model.rigid_bodies.push_back(body);
         }
         fixture.model.collision_vertices.resize(fixture.model.bone_node.size());
@@ -563,6 +568,9 @@ namespace {
             box(physics_clothing ? glm::vec3(0) : glm::vec3(0, 7, -1.1f), {1.3f, 1.5f, 0.3f});
         fixture.model.collision_vertices[Wrist] = box({0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
         fixture.model.collision_vertices[OtherWrist] = box({-0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
+        if (attached) {
+            fixture.model.collision_vertices[clothing] = fixture.model.collision_vertices[Wrist];
+        }
         std::array<types::OBB, 3> local;
         const std::array<types::BoneIndex, 3> BONES{clothing, Wrist, OtherWrist};
         for (std::size_t index = 0; index < BONES.size(); ++index) {
@@ -591,6 +599,11 @@ namespace {
             check(collider::Collider::intersect(world[1], world[2]).is_none(),
                 "Hand OBBs must not overlap during approach or release");
             for (std::size_t hand = 1; hand < world.size(); ++hand) {
+                if (attached && hand == 1) {
+                    check(collider::Collider::intersect(world[0], world[hand]).is_some(),
+                        "Direct parent/child OBBs may overlap without blocking arm movement");
+                    continue;
+                }
                 check(collider::Collider::intersect(world[0], world[hand]).is_none(),
                     "Hands must avoid clothing outside the torso capsule during interpolation");
             }
@@ -689,9 +702,126 @@ namespace {
                 "A pixel near the face center must produce nearly neutral gaze");
         }
     }
+    void overlap_query_matches_contact() {
+        const types::OBB first{{0, 0, 0}, {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}, {1, 1, 1}};
+        constexpr int ANGLES = 12;
+        constexpr int POSITIONS = 20;
+        constexpr float ANGLE_STEP = 0.17f;
+        constexpr float POSITION_STEP = 0.25f;
+        for (int angle = 0; angle < ANGLES; ++angle) {
+            auto second = first;
+            const auto rotation = glm::mat3_cast(glm::angleAxis(
+                static_cast<float>(angle) * ANGLE_STEP, glm::normalize(glm::vec3(1, 2, 3))));
+            for (int axis = 0; axis < 3; ++axis) {
+                second.axis[axis] = rotation[axis];
+            }
+            for (int position = 0; position < POSITIONS; ++position) {
+                second.center.x = static_cast<float>(position) * POSITION_STEP;
+                check(collider::Collider::overlap(first, second) ==
+                          collider::Collider::intersect(first, second).is_some(),
+                    "Boolean SAT must match contact queries for rotation, containment and "
+                    "touching");
+            }
+        }
+        auto invalid = first;
+        invalid.half_extent.x = -1;
+        check(!collider::Collider::overlap(first, invalid), "Invalid bounds must be rejected");
+        check(collider::Collider::intersect(1, first, 1, first).is_none(),
+            "Geometry queries must not enable same-model collision events");
+    }
+
+    void cached_pose_changes() {
+        Fixture fixture;
+        core::CursorPose warm(fixture.model);
+        constexpr int FRAMES = 12;
+        constexpr float MOVE_STEP = 0.03f;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            const float phase = static_cast<float>(frame) * MOVE_STEP;
+            fixture.animation.animation[Root].position = {phase, phase, 0};
+            fixture.animation.animation[Root].rotation = glm::angleAxis(phase, glm::vec3(0, 1, 0));
+            fixture.animation.animation[Root].scale = {1 + phase, 1, 1};
+            auto fresh_animation = fixture.animation;
+            core::CursorPose fresh(fixture.model);
+            const auto target = cursor(0, 7);
+            warm.apply(fixture.model, fixture.animation, target, SETTLE_SECONDS);
+            fresh.apply(fixture.model, fresh_animation, target, SETTLE_SECONDS);
+            for (const auto bone : {Neck, Head, Arm, Elbow, OtherArm, OtherElbow}) {
+                check(glm::length(fixture.animation.animation[bone].rotation -
+                                  fresh_animation.animation[bone].rotation) < TOLERANCE,
+                    "Cached transforms must follow parent translation, rotation and scale");
+            }
+            warm.restore(fixture.animation);
+        }
+    }
+
+    void benchmark_cursor() {
+        Fixture fixture;
+        constexpr int EXTRA_BONES = 192;
+        constexpr int GRID_WIDTH = 16;
+        constexpr int WARMUP_FRAMES = 30;
+        constexpr int MEASURED_FRAMES = 300;
+        constexpr float FRAME_SECONDS = 1.0f / 60.0f;
+        constexpr float GRID_SPACING = 0.2f;
+        constexpr float BOX_EXTENT = 0.08f;
+        fixture.model.collision_vertices.resize(Count + EXTRA_BONES);
+        for (int offset = 0; offset < EXTRA_BONES; ++offset) {
+            const auto bone = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
+            fixture.model.bone_node.emplace_back();
+            fixture.model.bone_node.back().parent = Root;
+            fixture.model.bone_node[Root].children.push_back(bone);
+            fixture.model.bone_names.push_back("synthetic");
+            fixture.animation.animation.emplace_back();
+            fixture.animation.animation.back().position = {
+                GRID_SPACING * static_cast<float>(offset % GRID_WIDTH),
+                GRID_SPACING * static_cast<float>(offset / GRID_WIDTH),
+                3.0f};
+            fixture.animation.global.push_back(global(fixture.model, fixture.animation, bone));
+            fixture.model.bind_bone.emplace_back();
+            auto& bind = fixture.model.bind_bone.back();
+            bind.local = fixture.animation.global.back();
+            bind.global = bind.local;
+            bind.global_inverse = glm::inverse(bind.global);
+            for (const float x : {-1.0f, 1.0f}) {
+                for (const float y : {-1.0f, 1.0f}) {
+                    for (const float z : {-1.0f, 1.0f}) {
+                        fixture.model.collision_vertices[bone].push_back(
+                            BOX_EXTENT * glm::vec3(x, y, z));
+                    }
+                }
+            }
+        }
+        for (const auto hand : {Wrist, OtherWrist}) {
+            fixture.model.collision_vertices[hand] = fixture.model.collision_vertices[Count];
+        }
+        core::CursorPose pose(fixture.model);
+        std::chrono::steady_clock::time_point start;
+        float movement = 0;
+        for (int frame = -WARMUP_FRAMES; frame < MEASURED_FRAMES; ++frame) {
+            if (frame == 0) {
+                start = std::chrono::steady_clock::now();
+            }
+            const float phase = static_cast<float>(frame) * FRAME_SECONDS;
+            pose.apply(fixture.model,
+                fixture.animation,
+                cursor(std::sin(phase), 7.0f + std::sin(phase)),
+                FRAME_SECONDS);
+            movement += glm::length(fixture.animation.animation[Arm].rotation - IDENTITY);
+            pose.restore(fixture.animation);
+        }
+        const auto elapsed =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
+                .count();
+        check(movement > TOLERANCE, "The benchmark must actually animate the arms");
+        std::cout << "Cursor benchmark: " << MEASURED_FRAMES << " frames, " << elapsed << " ms, "
+                  << elapsed / MEASURED_FRAMES << " ms/frame\n";
+    }
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--benchmark") {
+        benchmark_cursor();
+        return EXIT_SUCCESS;
+    }
     look_and_reach();
     smoothing_and_return();
     limits_and_missing_bones();
@@ -706,5 +836,8 @@ int main() {
     overlapping_hand_tracking();
     hands_and_clothing_clearance(false);
     hands_and_clothing_clearance(true);
+    hands_and_clothing_clearance(false, true);
+    overlap_query_matches_contact();
+    cached_pose_changes();
     std::cout << "Cursor pose tests passed\n";
 }
