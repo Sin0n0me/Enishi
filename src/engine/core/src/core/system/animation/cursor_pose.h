@@ -26,6 +26,37 @@ namespace enishi::core {
         std::array<types::BoneIndex, 2> wrists;
         std::array<glm::quat, Count> offsets;
         std::array<glm::quat, Count> originals;
+        std::array<glm::quat, Count> bind_rotations;
+        std::array<glm::vec3, 2> hinge_axes;
+        std::array<glm::vec3, 2> upper_axes;
+        std::array<float, 2> bind_flex{};
+        enum BodyBone : std::size_t {
+            BodyLeft,
+            BodyRight,
+            BodyNeck,
+            BodyHead,
+            BodyHips,
+            BodyCount
+        };
+        std::array<types::BoneIndex, BodyCount> body_bones;
+        types::BoneIndex body_anchor = types::INVALID_BONE_INDEX;
+        glm::mat3 body_bind_inverse{1};
+        glm::vec3 head_local_up{0, 1, 0};
+        struct Capsule {
+            glm::vec3 start;
+            glm::vec3 end;
+            float radius;
+        };
+        struct ArmFrame {
+            glm::vec3 center;
+            glm::vec3 outward;
+            glm::vec3 up;
+            glm::vec3 forward;
+            float length;
+            float arm_margin;
+            float hand_margin;
+            std::vector<Capsule> obstacles;
+        };
         std::vector<glm::mat4> globals;
         std::vector<glm::mat4> external;
         std::vector<types::BoneIndex> traversal;
@@ -52,10 +83,20 @@ namespace enishi::core {
         void reach(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const glm::vec3& target);
-        void aim(component::AnimationComponent& animation,
-            Joint joint,
-            const glm::vec3& from,
-            const glm::vec3& to,
-            float limit);
+        void initialize_arms(const component::ModelComponent& model);
+        [[nodiscard]] ArmFrame arm_frame(std::size_t side) const;
+        [[nodiscard]] bool arm_clear(std::size_t side, const ArmFrame& frame) const;
+        void constrain_arm(component::AnimationComponent& animation, std::size_t side) const;
+        bool reach_side(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            std::size_t side,
+            const glm::vec3& target);
+        void solve_arm(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            std::size_t side,
+            const glm::vec3& target,
+            const ArmFrame& frame);
+        void protect_arms(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
     };
 } // namespace enishi::core

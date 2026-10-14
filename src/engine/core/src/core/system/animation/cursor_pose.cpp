@@ -13,14 +13,11 @@ namespace enishi::core {
         constexpr float RESPONSE_RATE = 8.0f;
         constexpr float PROXIMITY_RATIO = 0.18f;
         constexpr float TARGET_DEPTH_RATIO = 0.12f;
-        constexpr float REACH_RATIO = 0.98f;
         constexpr float ARM_SWITCH_RATIO = 0.8f;
         constexpr float NECK_YAW = 20.0f;
         constexpr float NECK_PITCH = 12.0f;
         constexpr float HEAD_YAW = 40.0f;
         constexpr float HEAD_PITCH = 25.0f;
-        constexpr float ARM_ANGLE = 120.0f;
-        constexpr float ELBOW_ANGLE = 150.0f;
 
         types::BoneIndex find_bone(
             const component::ModelComponent& model, std::initializer_list<std::string_view> names) {
@@ -48,33 +45,6 @@ namespace enishi::core {
             return false;
         }
 
-        glm::quat limited(glm::quat rotation, float degrees) {
-            if (rotation.w < 0) {
-                rotation = -rotation;
-            }
-            // Unit quaternion angle = 2*acos(w); interpolate to cap the additive rotation.
-            const float angle = 2.0f * std::acos(std::clamp(rotation.w, 0.0f, 1.0f));
-            const float limit = glm::radians(degrees);
-            return angle > limit ? glm::slerp(IDENTITY, rotation, limit / angle) : rotation;
-        }
-
-        glm::quat between(glm::vec3 from, glm::vec3 to) {
-            if (!(glm::length(from) > EPSILON) || !(glm::length(to) > EPSILON)) {
-                return IDENTITY;
-            }
-            from = glm::normalize(from);
-            to = glm::normalize(to);
-            const float cosine = std::clamp(glm::dot(from, to), -1.0f, 1.0f);
-            if (cosine < -1.0f + EPSILON) {
-                auto axis = glm::cross(from, glm::vec3(0, 1, 0));
-                if (!(glm::length(axis) > EPSILON)) {
-                    axis = glm::cross(from, glm::vec3(1, 0, 0));
-                }
-                return glm::angleAxis(glm::pi<float>(), glm::normalize(axis));
-            }
-            // Shortest-arc quaternion q = normalize((1 + dot(a,b), cross(a,b))).
-            return glm::normalize(glm::quat(1.0f + cosine, glm::cross(from, to)));
-        }
     } // namespace
 
     CursorPose::CursorPose(const component::ModelComponent& model)
@@ -111,6 +81,7 @@ namespace enishi::core {
                 this->wrists[side] = types::INVALID_BONE_INDEX;
             }
         }
+        this->initialize_arms(model);
         // Build a parent-first traversal without assuming source bone indices are sorted.
         std::vector<std::vector<types::BoneIndex>> children(model.bone_node.size());
         for (types::BoneIndex index = 0; index < model.bone_node.size(); ++index) {
@@ -206,22 +177,6 @@ namespace enishi::core {
             glm::angleAxis(yaw, glm::vec3(0, 1, 0)) * glm::angleAxis(pitch, glm::vec3(1, 0, 0));
     }
 
-    void CursorPose::aim(component::AnimationComponent& animation,
-        Joint joint,
-        const glm::vec3& from,
-        const glm::vec3& to,
-        float limit) {
-        const auto index = this->joints[joint];
-        const auto axes = glm::mat3(this->globals[index]);
-        if (!(std::abs(glm::determinant(axes)) > EPSILON)) {
-            return;
-        }
-        // Express the world-space direction correction in the joint's current local frame.
-        const auto inverse = glm::inverse(axes);
-        animation.animation[index].rotation *=
-            limited(between(inverse * from, inverse * to), limit);
-    }
-
     void CursorPose::reach(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const glm::vec3& target) {
@@ -240,46 +195,7 @@ namespace enishi::core {
             distances[nearest] < distances[*this->active_arm] * ARM_SWITCH_RATIO) {
             this->active_arm = nearest;
         }
-        const auto side = *this->active_arm;
-        const auto arm = side == 0 ? LeftArm : RightArm;
-        const auto elbow = side == 0 ? LeftElbow : RightElbow;
-        const auto shoulder_position = glm::vec3(this->globals[this->joints[arm]][3]);
-        const auto elbow_position = glm::vec3(this->globals[this->joints[elbow]][3]);
-        const auto wrist_position = glm::vec3(this->globals[this->wrists[side]][3]);
-        const float upper = glm::length(elbow_position - shoulder_position);
-        const float lower = glm::length(wrist_position - elbow_position);
-        const auto toward = target - shoulder_position;
-        if (!(upper > EPSILON) || !(lower > EPSILON) || !(glm::length(toward) > EPSILON)) {
-            return;
-        }
-        const float minimum = std::abs(upper - lower) + EPSILON;
-        const float maximum = (upper + lower) * REACH_RATIO;
-        if (!(minimum < maximum)) {
-            return;
-        }
-        const float distance = std::clamp(glm::length(toward), minimum, maximum);
-        const auto direction = glm::normalize(toward);
-        // Two-bone IK: x=(a²-b²+d²)/(2d), h=sqrt(a²-x²), elbow=S+x*u+h*pole.
-        const float along =
-            (upper * upper - lower * lower + distance * distance) / (2.0f * distance);
-        const float perpendicular = std::sqrt((std::max)(0.0f, upper * upper - along * along));
-        auto pole = glm::vec3(0, -1, 0) - direction * glm::dot(glm::vec3(0, -1, 0), direction);
-        if (!(glm::length(pole) > EPSILON)) {
-            pole = glm::vec3(0, 0, -1) - direction * glm::dot(glm::vec3(0, 0, -1), direction);
-        }
-        const auto desired_elbow =
-            shoulder_position + direction * along + glm::normalize(pole) * perpendicular;
-        this->aim(animation,
-            arm,
-            elbow_position - shoulder_position,
-            desired_elbow - shoulder_position,
-            ARM_ANGLE);
-        this->update_globals(model, animation);
-        const auto moved_elbow = glm::vec3(this->globals[this->joints[elbow]][3]);
-        const auto moved_wrist = glm::vec3(this->globals[this->wrists[side]][3]);
-        const auto reachable = shoulder_position + direction * distance;
-        this->aim(
-            animation, elbow, moved_wrist - moved_elbow, reachable - moved_elbow, ELBOW_ANGLE);
+        this->reach_side(model, animation, *this->active_arm, target);
     }
 
     void CursorPose::apply(const component::ModelComponent& model,
@@ -332,6 +248,7 @@ namespace enishi::core {
             animation.animation[index].rotation =
                 glm::normalize(this->originals[joint] * this->offsets[joint]);
         }
+        this->protect_arms(model, animation);
         this->applied = true;
     }
 
