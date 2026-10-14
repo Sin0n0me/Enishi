@@ -81,6 +81,7 @@ namespace enishi::core {
             }
         }
         this->initialize_arms(model);
+        this->initialize_collision(model);
         // Build a parent-first traversal without assuming source bone indices are sorted.
         std::vector<std::vector<types::BoneIndex>> children(model.bone_node.size());
         for (types::BoneIndex index = 0; index < model.bone_node.size(); ++index) {
@@ -112,6 +113,7 @@ namespace enishi::core {
                                    glm::mat4_cast(local.rotation) *
                                    glm::scale(glm::mat4(1), local.scale);
         }
+        this->update_collision_bounds();
     }
 
     std::optional<glm::vec3> CursorPose::target(const CursorRay& cursor) const {
@@ -226,9 +228,17 @@ namespace enishi::core {
     void CursorPose::reach(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const glm::vec3& target) {
+        const std::array<bool, 2> in_range{this->can_reach(0, target), this->can_reach(1, target)};
+        const bool both = in_range[0] && in_range[1];
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            const bool in_range = this->can_reach(side, target);
-            this->active_arms[side] = in_range && this->reach_side(model, animation, side, target);
+            auto goal = target;
+            if (both) {
+                // Separate goals by the sum of the hand envelopes, plus a small gap.
+                constexpr float HAND_GAP_RATIO = 1.1f;
+                goal += this->arm_frame(side).outward * this->hand_radius(side) * HAND_GAP_RATIO;
+            }
+            this->active_arms[side] =
+                in_range[side] && this->reach_side(model, animation, side, goal);
         }
     }
 
@@ -256,6 +266,9 @@ namespace enishi::core {
                 }
             }
         }
+        // Dynamic clothing uses the last completed physics pose, rather than its source
+        // animation pose. Candidate arm poses must not move these obstacles during search.
+        this->collision_physics_globals = animation.global;
         this->update_globals(model, animation);
         const auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         if (point.has_value()) {
@@ -288,6 +301,9 @@ namespace enishi::core {
         }
         this->protect_arms(model, animation);
         this->limit_arm_speed(model, animation, previous, seconds);
+        // Limiting each arm changes the obstacle seen by the other arm. Recheck the pair
+        // together; clearance takes precedence if the two limited trajectories intersect.
+        this->protect_arms(model, animation);
         this->applied = true;
     }
 

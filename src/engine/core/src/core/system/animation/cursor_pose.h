@@ -3,6 +3,7 @@
 #include <array>
 #include <component/animation_component.h>
 #include <component/model_component.h>
+#include <engine_types/collider/obb.h>
 #include <engine_types/collider/ray.h>
 #include <optional>
 
@@ -65,6 +66,18 @@ namespace enishi::core {
         std::array<bool, 2> active_arms{};
         bool applied = false;
         CursorPoseConfig config;
+        struct CollisionBone {
+            types::BoneIndex bone;
+            types::OBB local;
+            std::optional<types::OBB> world;
+            glm::mat4 transform{0};
+            int arm = -1;
+            bool distal = false;
+            bool hand = false;
+            bool physics = false;
+        };
+        std::vector<CollisionBone> collision_bones;
+        std::vector<glm::mat4> collision_physics_globals;
 
       public:
         explicit CursorPose(const component::ModelComponent& model, CursorPoseConfig config = {});
@@ -88,6 +101,10 @@ namespace enishi::core {
             component::AnimationComponent& animation,
             const glm::vec3& target);
         void initialize_arms(const component::ModelComponent& model);
+        void initialize_collision(const component::ModelComponent& model);
+        void update_collision_bounds();
+        [[nodiscard]] bool mesh_arm_clear(std::size_t side) const;
+        [[nodiscard]] float hand_radius(std::size_t side) const;
         [[nodiscard]] bool can_reach(std::size_t side, const glm::vec3& target) const;
         [[nodiscard]] ArmFrame arm_frame(std::size_t side) const;
         [[nodiscard]] bool arm_clear(std::size_t side, const ArmFrame& frame) const;

@@ -303,7 +303,29 @@ namespace enishi::core {
                 return false;
             }
         }
-        return true;
+        const std::size_t other = 1 - side;
+        if (this->wrists[other] < this->globals.size()) {
+            const auto other_elbow = this->joints[other == 0 ? LeftElbow : RightElbow];
+            const auto other_joint = glm::vec3(this->globals[other_elbow][3]);
+            const auto other_wrist = glm::vec3(this->globals[this->wrists[other]][3]);
+            const auto other_frame = this->arm_frame(other);
+            const float limb_clearance = frame.arm_margin + other_frame.arm_margin;
+            const float hand_clearance = frame.hand_margin + other_frame.hand_margin;
+            const float first_hand_clearance = frame.hand_margin + other_frame.arm_margin;
+            const float second_hand_clearance = other_frame.hand_margin + frame.arm_margin;
+            // Capsules overlap when segment distance squared < (r1+r2)^2.
+            if (segment_distance_squared(joint, wrist, other_joint, other_wrist) <
+                    limb_clearance * limb_clearance ||
+                glm::dot(wrist - other_wrist, wrist - other_wrist) <
+                    hand_clearance * hand_clearance ||
+                segment_distance_squared(wrist, wrist, other_joint, other_wrist) <
+                    first_hand_clearance * first_hand_clearance ||
+                segment_distance_squared(other_wrist, other_wrist, joint, wrist) <
+                    second_hand_clearance * second_hand_clearance) {
+                return false;
+            }
+        }
+        return this->mesh_arm_clear(side);
     }
 
     void CursorPose::constrain_arm(
