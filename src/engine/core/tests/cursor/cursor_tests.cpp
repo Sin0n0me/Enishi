@@ -1,6 +1,7 @@
 #include <core/system/animation/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
+#include <engine_types/renderer/uniform_buffer/camera.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <sstream>
@@ -460,6 +461,89 @@ namespace {
             check(total_motion > SPEED, "Speed limiting must still allow arm movement");
         }
     }
+    void face_center_gaze() {
+        constexpr float FACE_OFFSET = 0.5f;
+        constexpr float FACE_DEPTH = -0.25f;
+        constexpr float CROSSING_STEP = 0.001f;
+        constexpr float CONTINUITY_TOLERANCE = 0.005f;
+        for (const bool with_eyes : {false, true}) {
+            Fixture fixture;
+            if (with_eyes) {
+                for (const auto side : {-1.0f, 1.0f}) {
+                    const auto index =
+                        static_cast<types::BoneIndex>(fixture.model.bone_node.size());
+                    fixture.model.bone_names.push_back(side < 0 ? "左目" : "右目");
+                    fixture.model.bone_node.emplace_back();
+                    fixture.model.bone_node.back().parent = Head;
+                    fixture.model.bone_node[Head].children.push_back(index);
+                    fixture.animation.animation.emplace_back();
+                    fixture.animation.animation.back().position =
+                        glm::vec3(side * FACE_OFFSET, FACE_OFFSET, FACE_DEPTH);
+                    fixture.animation.global.push_back(
+                        global(fixture.model, fixture.animation, index));
+                    fixture.model.bind_bone.emplace_back();
+                    auto& bind = fixture.model.bind_bone.back();
+                    bind.local =
+                        glm::translate(glm::mat4(1), fixture.animation.animation.back().position);
+                    bind.global = fixture.animation.global.back();
+                    bind.global_inverse = glm::inverse(bind.global);
+                }
+            }
+            const glm::vec3 center(0, 9.0f + FACE_OFFSET, with_eyes ? FACE_DEPTH : 0.0f);
+            const auto camera = types::make_default_model_camera();
+            const auto inverse_view = glm::inverse(camera.view);
+            const auto origin = glm::vec3(inverse_view[3]);
+            const auto normal = glm::normalize(glm::vec3(inverse_view[2]));
+            const auto ray_at = [&](const glm::vec3& point) {
+                return core::CursorRay{{origin, glm::normalize(point - origin)}, normal};
+            };
+            core::CursorPose pose(fixture.model);
+            // First establish a non-neutral gaze; returning to center must release it even
+            // though the cursor is still inside the model's activation region.
+            pose.apply(fixture.model,
+                fixture.animation,
+                ray_at(center + glm::vec3(2, 0, 0)),
+                SETTLE_SECONDS);
+            pose.restore(fixture.animation);
+            pose.apply(fixture.model, fixture.animation, ray_at(center), SETTLE_SECONDS);
+            for (const auto bone : {Neck, Head}) {
+                check(
+                    glm::length(fixture.animation.animation[bone].rotation - IDENTITY) < TOLERANCE,
+                    "A cursor at the projected face center must restore neutral neck and head");
+            }
+            pose.restore(fixture.animation);
+            for (const auto axis : {glm::vec3(1, 0, 0), glm::vec3(0, 1, 0)}) {
+                std::array<glm::quat, 2> previous{IDENTITY, IDENTITY};
+                for (const float sign : {-1.0f, 1.0f}) {
+                    pose.apply(fixture.model,
+                        fixture.animation,
+                        ray_at(center + axis * sign * CROSSING_STEP),
+                        SETTLE_SECONDS);
+                    std::size_t joint = 0;
+                    for (const auto bone : {Neck, Head}) {
+                        const auto rotation = fixture.animation.animation[bone].rotation;
+                        check(glm::length(rotation - previous[joint]) < CONTINUITY_TOLERANCE,
+                            "Crossing the face center must not flip gaze between angular limits");
+                        previous[joint++] = rotation;
+                    }
+                    pose.restore(fixture.animation);
+                }
+            }
+            // Exercise the same pixel -> ray conversion used by the application as well.
+            const auto clip = camera.mvp * glm::vec4(center, 1);
+            const auto ndc = glm::vec2(clip) / clip.w;
+            const types::WindowSize size{600, 800};
+            const types::ClientMousePosition pixel{
+                static_cast<int>(std::lround((ndc.x + 1.0f) * 0.5f * size.width)),
+                static_cast<int>(std::lround((1.0f - ndc.y) * 0.5f * size.height))};
+            const core::CursorRay screen_ray{
+                types::Ray::make_ray_from_screen(size, pixel, camera), normal};
+            pose.apply(fixture.model, fixture.animation, screen_ray, SETTLE_SECONDS);
+            check(glm::length(fixture.animation.animation[Head].rotation - IDENTITY) <
+                      CONTINUITY_TOLERANCE,
+                "A pixel near the face center must produce nearly neutral gaze");
+        }
+    }
 } // namespace
 
 int main() {
@@ -473,5 +557,6 @@ int main() {
     release_to_authored_elbow();
     configurable_limits();
     bounded_reach_speed();
+    face_center_gaze();
     std::cout << "Cursor pose tests passed\n";
 }
