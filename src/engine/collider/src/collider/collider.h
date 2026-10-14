@@ -49,6 +49,7 @@ namespace enishi::collider {
         std::size_t check_collisions(void);
 
         // Geometry-only query for deliberate self-collision checks. Touching counts as collision.
+        [[nodiscard]] static bool overlap(const types::OBB& first, const types::OBB& second);
         [[nodiscard]] static foundation::Option<types::OBBContact> intersect(
             const types::OBB& first, const types::OBB& second);
         // Same-owner rejection precedes geometric work for inter-model collision events.
