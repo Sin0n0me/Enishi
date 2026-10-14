@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <sstream>
 
 using namespace enishi;
 
@@ -118,7 +119,7 @@ namespace {
             "Only the near arm should reach");
         const auto neck_forward = fixture.animation.animation[Neck].rotation * glm::vec3(0, 0, -1);
         check(std::abs(std::atan2(-neck_forward.x, -neck_forward.z)) <
-                  glm::radians(20.0f) + TOLERANCE,
+                  glm::radians(core::CursorPoseConfig{}.neck_yaw) + TOLERANCE,
             "Neck yaw must stay within its limit");
         check(fixture.animation.animation[Twist].rotation == IDENTITY,
             "Do not write intermediate or unrelated bones");
@@ -377,6 +378,88 @@ namespace {
         check(glm::length(fixture.animation.animation[Elbow].rotation - authored) < TOLERANCE,
             "After release, procedural hinge limits must not keep modifying the authored clip");
     }
+    void configurable_limits() {
+        std::istringstream settings("\xEF\xBB\xBF# custom settings\nneck_yaw 4\nneck_pitch 2\n"
+                                    "head_yaw 8\nhead_pitch 3\narm_speed 45 # degrees/sec\n");
+        auto parsed = core::parse_cursor_pose_config(settings);
+        check(parsed.is_ok(), "Valid cursor configuration must load");
+        const auto config = std::move(parsed).unwrap();
+        check(config.neck_yaw == 4 && config.neck_pitch == 2 && config.head_yaw == 8 &&
+                  config.head_pitch == 3 && config.arm_speed == 45,
+            "All configured values must be retained");
+        for (const auto text : {"neck_yaw -1",
+                 "neck_pitch 91",
+                 "arm_speed 0",
+                 "arm_speed 721",
+                 "arm_speed nan",
+                 "arm_speed inf",
+                 "neck_yaw 2 extra",
+                 "unknown 5",
+                 "head_yaw",
+                 "neck_yaw 2\nneck_yaw 3"}) {
+            std::istringstream invalid(text);
+            check(core::parse_cursor_pose_config(invalid).is_err(),
+                "Invalid cursor configuration must be rejected");
+        }
+        std::istringstream empty;
+        auto defaults = core::parse_cursor_pose_config(empty);
+        check(defaults.is_ok() && defaults.unwrap().neck_yaw == 10,
+            "Omitted settings must use stricter defaults");
+        Fixture fixture;
+        core::CursorPose pose(fixture.model, config);
+        pose.apply(fixture.model, fixture.animation, cursor(5, 3), SETTLE_SECONDS);
+        for (const auto bone : {Neck, Head}) {
+            const auto direction = fixture.animation.animation[bone].rotation * glm::vec3(0, 0, -1);
+            // qYaw*qPitch facing -Z yields yaw=atan2(-x,-z), pitch=asin(y).
+            const float yaw = glm::degrees(std::atan2(-direction.x, -direction.z));
+            const float pitch = glm::degrees(std::asin(direction.y));
+            const float yaw_limit = bone == Neck ? config.neck_yaw : config.head_yaw;
+            const float pitch_limit = bone == Neck ? config.neck_pitch : config.head_pitch;
+            check(
+                std::abs(yaw) < yaw_limit + TOLERANCE && std::abs(pitch) < pitch_limit + TOLERANCE,
+                "Configured neck and head angle limits must be respected");
+            check(std::abs(yaw) > TOLERANCE, "Configuration must not disable gaze");
+        }
+    }
+
+    void bounded_reach_speed() {
+        constexpr float SPEED = 45.0f;
+        constexpr int FRAMES = 240;
+        for (const float seconds : {1.0f / 30.0f, 1.0f / 60.0f, 1.0f / 120.0f}) {
+            Fixture fixture;
+            core::CursorPoseConfig config;
+            config.arm_speed = SPEED;
+            core::CursorPose pose(fixture.model, config);
+            std::array<glm::quat, 4> previous{IDENTITY, IDENTITY, IDENTITY, IDENTITY};
+            constexpr std::array<Bone, 4> ARMS{Arm, Elbow, OtherArm, OtherElbow};
+            float total_motion = 0;
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                // Enter/leave the boundary, switch sides, then move to the face and torso.
+                const std::array<glm::vec2, 6> targets{glm::vec2(6.5f, 7),
+                    glm::vec2(20, 7),
+                    glm::vec2(-6.5f, 7),
+                    glm::vec2(0, 9),
+                    glm::vec2(0, 6),
+                    glm::vec2(20, 7)};
+                const auto target = targets[static_cast<std::size_t>(frame / 40)];
+                pose.apply(fixture.model, fixture.animation, cursor(target.x, target.y), seconds);
+                for (std::size_t joint = 0; joint < ARMS.size(); ++joint) {
+                    const auto rotation = fixture.animation.animation[ARMS[joint]].rotation;
+                    const auto delta = glm::inverse(previous[joint]) * rotation;
+                    const float angle = glm::degrees(
+                        2.0f * std::atan2(glm::length(glm::vec3(delta.x, delta.y, delta.z)),
+                                   std::abs(delta.w)));
+                    check(angle < SPEED * seconds + TOLERANCE,
+                        "Reaching, switching and returning must respect configured angular speed");
+                    total_motion += angle;
+                    previous[joint] = rotation;
+                }
+                check_arm_safety(fixture);
+                pose.restore(fixture.animation);
+            }
+            check(total_motion > SPEED, "Speed limiting must still allow arm movement");
+        }
+    }
 } // namespace
 
 int main() {
@@ -388,5 +471,7 @@ int main() {
     body_avoidance_and_hinge();
     rotated_body_avoidance();
     release_to_authored_elbow();
+    configurable_limits();
+    bounded_reach_speed();
     std::cout << "Cursor pose tests passed\n";
 }
