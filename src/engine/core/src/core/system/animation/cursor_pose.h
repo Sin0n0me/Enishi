@@ -62,6 +62,10 @@ namespace enishi::core {
         };
         std::vector<glm::mat4> globals;
         std::vector<glm::mat4> external;
+        std::vector<component::AnimationBuffer> cached_local;
+        std::vector<glm::mat4> cached_external;
+        std::vector<bool> changed_globals;
+        bool globals_cached = false;
         std::vector<types::BoneIndex> traversal;
         std::array<bool, 2> active_arms{};
         bool applied = false;
@@ -71,12 +75,22 @@ namespace enishi::core {
             types::OBB local;
             std::optional<types::OBB> world;
             glm::mat4 transform{0};
+            glm::vec3 lower{};
+            glm::vec3 upper{};
             int arm = -1;
             bool distal = false;
             bool hand = false;
             bool physics = false;
         };
-        std::vector<CollisionBone> collision_bones;
+        mutable std::vector<CollisionBone> collision_bones;
+        struct CollisionQuery {
+            std::size_t obstacle;
+            bool forearm;
+            bool hand;
+            std::vector<std::size_t> limbs;
+        };
+        std::array<std::vector<CollisionQuery>, 2> collision_queries;
+        std::array<std::vector<std::size_t>, 2> hand_bounds;
         std::vector<glm::mat4> collision_physics_globals;
 
       public:
@@ -102,7 +116,8 @@ namespace enishi::core {
             const glm::vec3& target);
         void initialize_arms(const component::ModelComponent& model);
         void initialize_collision(const component::ModelComponent& model);
-        void update_collision_bounds();
+        void initialize_collision_queries(const component::ModelComponent& model);
+        [[nodiscard]] const CollisionBone& collision_bound(std::size_t index) const;
         [[nodiscard]] bool mesh_arm_clear(std::size_t side) const;
         [[nodiscard]] float hand_radius(std::size_t side) const;
         [[nodiscard]] bool can_reach(std::size_t side, const glm::vec3& target) const;

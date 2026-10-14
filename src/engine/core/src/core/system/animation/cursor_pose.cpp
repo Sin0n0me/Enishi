@@ -98,6 +98,9 @@ namespace enishi::core {
         }
         this->globals.resize(model.bone_node.size(), glm::mat4(1));
         this->external.resize(model.bone_node.size(), glm::mat4(1));
+        this->cached_local.resize(model.bone_node.size());
+        this->cached_external.resize(model.bone_node.size(), glm::mat4(1));
+        this->changed_globals.resize(model.bone_node.size(), false);
     }
 
     void CursorPose::update_globals(
@@ -105,6 +108,17 @@ namespace enishi::core {
         for (const auto index : this->traversal) {
             const auto& local = animation.animation[index];
             const auto parent = model.bone_node[index].parent;
+            const auto& cached = this->cached_local[index];
+            const bool changed = !this->globals_cached || local.position != cached.position ||
+                                 local.rotation != cached.rotation || local.scale != cached.scale ||
+                                 this->external[index] != this->cached_external[index] ||
+                                 (parent < this->globals.size() && this->changed_globals[parent]);
+            this->changed_globals[index] = changed;
+            if (!changed) {
+                continue;
+            }
+            this->cached_local[index] = local;
+            this->cached_external[index] = this->external[index];
             const auto parent_global =
                 parent < this->globals.size() ? this->globals[parent] : glm::mat4(1);
             // G = external * G_parent * T * R * S, matching the skinning hierarchy.
@@ -113,7 +127,7 @@ namespace enishi::core {
                                    glm::mat4_cast(local.rotation) *
                                    glm::scale(glm::mat4(1), local.scale);
         }
-        this->update_collision_bounds();
+        this->globals_cached = true;
     }
 
     std::optional<glm::vec3> CursorPose::target(const CursorRay& cursor) const {
