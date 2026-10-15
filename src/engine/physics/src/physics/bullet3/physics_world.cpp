@@ -100,8 +100,8 @@ namespace enishi::physics::bullet3 {
         }
 
         const auto fixed_step_time = this->config->get_fixed_step_time();
-        for (auto& body :
-            this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies()) {
+        this->refresh_enabled_bodies();
+        for (auto* body : this->enabled_bodies) {
             body->sync_animation();
         }
         const auto max_step = this->config->get_max_step_count();
@@ -183,15 +183,14 @@ namespace enishi::physics::bullet3 {
         const auto [rigid_body_handle, native_rigid_body] =
             rigid_body_view->emplace_native_rigid_body(std::move(rigid_body_result).unwrap_mut());
         auto opt_rigid_body = rigid_body_view->link_rigid_body(rigid_body_handle,
-            std::make_unique<BulletRigidBody>(*this->resource_pool,
+            std::make_unique<BulletRigidBody>(*native_rigid_body,
+                *active_motion_state_shared,
+                *kinematic_motion_state_shared,
                 PhysicsBoneViews{
                     .views = view_list,
                     .updater = updater,
                     .physics_bone_view = physics_bone_view,
                 },
-                rigid_body_handle,
-                active_motion_state_handle,
-                kinematic_motion_state_handle,
                 rigid_body_description.kind,
                 rigid_body_description.relate_bone_index));
         if (opt_rigid_body.is_none()) {
@@ -211,6 +210,8 @@ namespace enishi::physics::bullet3 {
         const auto mask = rigid_body_description.group_mask;
         const auto group = 1 << rigid_body_description.group_index;
         this->world->addRigidBody(native_rigid_body.get(), group, mask);
+        this->registered_bodies.push_back({native_rigid_body.get(), rigid_body.get()});
+        this->enabled_bodies_dirty = true;
 
         // オブジェクトとリンク
         auto linked = this->object_manager->link_handle(object.unwrap(), handle);
@@ -335,14 +336,28 @@ namespace enishi::physics::bullet3 {
         if (!this->config->can_update()) {
             return;
         }
-        const auto rigid_bodies =
-            this->resource_pool->get_native_rigid_body_accessor()->get_rigid_bodies();
-        for (auto& rb : rigid_bodies) {
+        this->refresh_enabled_bodies();
+        for (auto* rb : this->enabled_bodies) {
             rb->apply_global_transform();
         }
-        for (auto& rb : rigid_bodies) {
+        for (auto* rb : this->enabled_bodies) {
             rb->apply_local_transform();
         }
+    }
+
+    void PhysicsWorld::refresh_enabled_bodies() {
+        if (!this->enabled_bodies_dirty) {
+            return;
+        }
+        this->enabled_bodies.clear();
+        this->enabled_bodies.reserve(this->registered_bodies.size());
+        // Preserve registration order, including bodies sharing the same bone.
+        for (const auto& entry : this->registered_bodies) {
+            if (entry.native->isInWorld()) {
+                this->enabled_bodies.push_back(entry.wrapper);
+            }
+        }
+        this->enabled_bodies_dirty = false;
     }
 
     sub_system::IPhysicsWorldConfigWriter* PhysicsWorld::get_config_writer(void) noexcept {
