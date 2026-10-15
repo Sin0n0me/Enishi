@@ -713,6 +713,121 @@ namespace {
                 "A pixel near the face center must produce nearly neutral gaze");
         }
     }
+    Fixture leg_fixture() {
+        Fixture fixture;
+        constexpr std::size_t LEG_BONES = 8;
+        const std::array<const char*, LEG_BONES> names{"leftUpperLeg",
+            "leftLowerLeg",
+            "leftFoot",
+            "rightUpperLeg",
+            "rightLowerLeg",
+            "rightFoot",
+            "LeftFootIK",
+            "RightFootIK"};
+        const std::array<types::BoneIndex, LEG_BONES> parents{
+            Root, Count, Count + 1, Root, Count + 3, Count + 4, Root, Root};
+        const std::array<glm::vec3, LEG_BONES> positions{glm::vec3(1, 6, 0),
+            glm::vec3(0, -3, 0),
+            glm::vec3(0, -3, 0),
+            glm::vec3(-1, 6, 0),
+            glm::vec3(0, -3, 0),
+            glm::vec3(0, -3, 0),
+            glm::vec3(1, 0, 0),
+            glm::vec3(-1, 0, 0)};
+        fixture.model.bone_node.resize(Count + LEG_BONES);
+        fixture.model.bind_bone.resize(Count + LEG_BONES);
+        fixture.animation.animation.resize(Count + LEG_BONES);
+        fixture.animation.global.resize(Count + LEG_BONES);
+        for (std::size_t i = 0; i < LEG_BONES; ++i) {
+            const auto bone = Count + i;
+            fixture.model.bone_names.emplace_back(names[i]);
+            fixture.model.bone_node[bone].parent = parents[i];
+            fixture.model.bone_node[parents[i]].children.push_back(bone);
+            fixture.animation.animation[bone].position = positions[i];
+            const auto matrix = global(fixture.model, fixture.animation, bone);
+            fixture.animation.global[bone] = matrix;
+            fixture.model.bind_bone[bone].local = glm::translate(glm::mat4(1), positions[i]);
+            fixture.model.bind_bone[bone].global = matrix;
+            fixture.model.bind_bone[bone].global_inverse = glm::inverse(matrix);
+        }
+        for (std::size_t side = 0; side < 2; ++side) {
+            const auto hip = static_cast<types::BoneIndex>(Count + side * 3);
+            types::CCDIK ccd{};
+            ccd.iterations = 40;
+            ccd.target = hip + 2;
+            ccd.ik_bone = static_cast<types::BoneIndex>(Count + 6 + side);
+            ccd.chain = {hip + 1, hip};
+            ccd.limit = types::IKLimitAngle{0.5f};
+            ccd.link_limits = {{true, {-glm::pi<float>(), 0, 0}, {0, 0, 0}}, {}};
+            fixture.model.iks.push_back({ccd});
+        }
+        return fixture;
+    }
+
+    void jump_knee_bend() {
+        auto fixture = leg_fixture();
+        auto registry = std::make_shared<ecs::Registry>();
+        const auto entity = registry->create();
+        check(registry->emplace<component::ModelComponent>(entity, fixture.model).is_ok(),
+            "Insert leg model");
+        check(registry->emplace<component::AnimationComponent>(entity, fixture.animation).is_ok(),
+            "Insert leg animation");
+        check(
+            registry->emplace<component::SkinningComponent>(entity).is_ok(), "Insert leg skinning");
+        component::IKComponent ik;
+        ik.iks = fixture.model.iks;
+        ik.rotation.resize(fixture.model.bone_node.size(), IDENTITY);
+        ik.globals = fixture.animation.global;
+        for (std::size_t i = 0; i < ik.iks.size(); ++i) {
+            ik.ik_map.emplace(
+                std::get<types::CCDIK>(ik.iks[i].method).ik_bone, static_cast<types::IkIndex>(i));
+        }
+        check(registry->emplace<component::IKComponent>(entity, ik).is_ok(), "Insert leg IK");
+        auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
+        auto& model = registry->get<component::ModelComponent>(entity).unwrap_mut();
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(model, config);
+        core::SkinningSystem skinning(registry, nullptr);
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 100;
+        bool prepared = false;
+        bool airborne = false;
+        bool landed = false;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(
+                model, animation, frame == 0 ? std::optional(cursor(0, 11.5f)) : std::nullopt, DT);
+            const float height = animation.animation[Root].position.y;
+            if (height < -TOLERANCE) {
+                prepared = prepared || !airborne;
+                landed = landed || airborne;
+                for (const auto knee : {Count + 1, Count + 4}) {
+                    check(glm::length(animation.animation[knee].rotation - IDENTITY) > TOLERANCE,
+                        "Crouching must bend both knees");
+                }
+            }
+            airborne = airborne || height > TOLERANCE;
+            skinning.update(types::DeltaTime(DT));
+            for (const auto foot : {Count + 2, Count + 5}) {
+                const auto position = glm::vec3(animation.global[foot][3]);
+                const auto bind = glm::vec3(model.bind_bone[foot].global[3]);
+                check(glm::length(glm::vec2(position.x - bind.x, position.z - bind.z)) < TOLERANCE,
+                    "Feet must not slide when crouching, including after foot IK");
+                check(std::abs(position.y - (std::max)(height, 0.0f)) < TOLERANCE,
+                    "Feet must remain planted during preparation and landing");
+            }
+            pose.restore(animation);
+            for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
+                check(animation.animation[bone].position ==
+                              fixture.animation.animation[bone].position &&
+                          animation.animation[bone].rotation ==
+                              fixture.animation.animation[bone].rotation,
+                    "Jump must restore all source bones and IK goals");
+            }
+        }
+        check(prepared && airborne && landed, "Jump must prepare, fly and absorb landing");
+    }
+
     void stationary_jump() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
@@ -994,6 +1109,7 @@ int main(int argc, char** argv) {
     release_to_authored_elbow();
     configurable_limits();
     stationary_jump();
+    jump_knee_bend();
     experimental_collision_setting();
     bounded_reach_speed();
     face_center_gaze();
