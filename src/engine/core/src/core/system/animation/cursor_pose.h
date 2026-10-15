@@ -70,6 +70,12 @@ namespace enishi::core {
         std::array<bool, 2> active_arms{};
         bool applied = false;
         CursorPoseConfig config;
+        std::vector<types::BoneIndex> roots;
+        std::vector<glm::vec3> original_root_positions;
+        float jump_wait = 0;
+        float jump_time = 0;
+        float jump_height = 0;
+        float jump_rest = 0;
         struct CollisionBone {
             types::BoneIndex bone;
             types::OBB local;
@@ -102,6 +108,11 @@ namespace enishi::core {
         void restore(component::AnimationComponent& animation);
 
       private:
+        void apply_jump(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::optional<glm::vec3>& point,
+            float seconds);
+        [[nodiscard]] float desired_jump_height(const glm::vec3& point) const;
         void update_globals(
             const component::ModelComponent& model, const component::AnimationComponent& animation);
         [[nodiscard]] std::optional<glm::vec3> target(const CursorRay& cursor) const;

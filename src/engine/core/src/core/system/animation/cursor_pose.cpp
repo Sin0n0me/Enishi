@@ -92,6 +92,7 @@ namespace enishi::core {
                 children[parent].push_back(index);
             } else {
                 this->traversal.push_back(index);
+                this->roots.push_back(index);
             }
         }
         for (std::size_t cursor = 0; cursor < this->traversal.size(); ++cursor) {
@@ -99,6 +100,7 @@ namespace enishi::core {
             this->traversal.insert(this->traversal.end(), next.begin(), next.end());
         }
         this->globals.resize(model.bone_node.size(), glm::mat4(1));
+        this->original_root_positions.resize(this->roots.size());
         this->external.resize(model.bone_node.size(), glm::mat4(1));
         this->cached_local.resize(model.bone_node.size());
         this->cached_external.resize(model.bone_node.size(), glm::mat4(1));
@@ -158,7 +160,11 @@ namespace enishi::core {
         }
         // Ignore depth in the proximity test: the target plane is deliberately in front.
         const auto planar = glm::vec2(point);
-        const auto closest = glm::clamp(planar, glm::vec2(low), glm::vec2(high));
+        auto proximity_high = high;
+        if (this->config.jump_enabled) {
+            proximity_high.y += height * this->config.jump_height_ratio;
+        }
+        const auto closest = glm::clamp(planar, glm::vec2(low), glm::vec2(proximity_high));
         if (glm::length(planar - closest) > height * PROXIMITY_RATIO) {
             return std::nullopt;
         }
@@ -244,10 +250,29 @@ namespace enishi::core {
     void CursorPose::reach(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const glm::vec3& target) {
-        const std::array<bool, 2> in_range{this->can_reach(0, target), this->can_reach(1, target)};
+        std::array<glm::vec3, 2> goals{target, target};
+        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+            if (!(this->jump_wait > 0 || this->jump_height > 0) ||
+                !(this->wrists[side] < this->globals.size()) || this->can_reach(side, target)) {
+                continue;
+            }
+            const auto shoulder =
+                glm::vec3(this->globals[this->joints[side == 0 ? LeftArm : RightArm]][3]);
+            const auto delta = target - shoulder;
+            if (!(delta.y > 0)) {
+                continue;
+            }
+            // While preparing/in flight, stretch toward the cursor within the reach sphere:
+            // goal = shoulder + normalize(target-shoulder) * arm_length * margin.
+            constexpr float JUMP_REACH_MARGIN = 0.95f;
+            goals[side] =
+                shoulder + glm::normalize(delta) * this->arm_frame(side).length * JUMP_REACH_MARGIN;
+        }
+        const std::array<bool, 2> in_range{
+            this->can_reach(0, goals[0]), this->can_reach(1, goals[1])};
         const bool both = in_range[0] && in_range[1];
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            auto goal = target;
+            auto goal = goals[side];
             if (both) {
                 // Separate goals by the sum of the hand envelopes, plus a small gap.
                 constexpr float HAND_GAP_RATIO = 1.1f;
@@ -288,7 +313,11 @@ namespace enishi::core {
             this->collision_physics_globals = animation.global;
         }
         this->update_globals(model, animation);
-        const auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
+        auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
+        this->apply_jump(model, animation, point, seconds);
+        if (this->jump_height > 0 && cursor.has_value()) {
+            point = this->target(*cursor);
+        }
         if (point.has_value()) {
             const auto gaze = this->gaze_offset(*cursor);
             if (gaze.has_value()) {
@@ -328,6 +357,9 @@ namespace enishi::core {
     void CursorPose::restore(component::AnimationComponent& animation) {
         if (!this->applied) {
             return;
+        }
+        for (std::size_t index = 0; index < this->roots.size(); ++index) {
+            animation.animation[this->roots[index]].position = this->original_root_positions[index];
         }
         for (std::size_t joint = 0; joint < Count; ++joint) {
             if (this->joints[joint] < animation.animation.size()) {

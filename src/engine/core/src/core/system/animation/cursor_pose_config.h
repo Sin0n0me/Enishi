@@ -11,6 +11,11 @@ namespace enishi::core {
         float head_pitch = 15.0f;
         float arm_speed = 90.0f;
         bool experimental_obb_collision = false;
+        bool jump_enabled = true;
+        float jump_height_ratio = 0.18f;
+        float jump_duration = 0.65f;
+        float jump_delay = 0.35f;
+        float jump_cooldown = 1.5f;
     };
 
     enum class CursorConfigError { ReadFailed, InvalidSetting };
