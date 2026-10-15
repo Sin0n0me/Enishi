@@ -26,6 +26,52 @@ namespace {
         }
     };
 
+    void sleeping_joint_tests() {
+        constexpr float STEP = 1.0f / 60.0f;
+        constexpr int SETTLE_FRAMES = 360;
+        glm::mat4 anchor_local(1);
+        glm::mat4 dynamic_local(1);
+        auto anchor_global = glm::translate(glm::mat4(1), glm::vec3(0, 10, 0));
+        auto dynamic_global = anchor_global;
+        auto anchor =
+            std::make_shared<skinning_system::PhysicsBoneView>(anchor_local, anchor_global);
+        auto dynamic =
+            std::make_shared<skinning_system::PhysicsBoneView>(dynamic_local, dynamic_global);
+        const std::vector<types::BoneNode> nodes(2);
+        auto cache = std::make_shared<skinning_system::PhysicsBonesCache>(
+            nodes, std::vector<std::shared_ptr<skinning_system::PhysicsBoneView>>{anchor, dynamic});
+        auto updater = std::make_shared<skinning_system::PhysicsBonesUpdater>(*cache);
+        physics::bullet3::PhysicsWorld world(std::make_shared<platform_impl::PhysicsWorldConfig>());
+        check(world.init().is_ok(), "initialize joint sleep world");
+        world.set_gravity(glm::vec3(0));
+        const auto object = world.add_object();
+        check(object.is_ok(), "create joint sleep object");
+        types::PhysicsRigidBody body{};
+        body.kind = types::RigidBodyKind::Kinematic;
+        body.shape = types::RBShapeSphere{0.1f};
+        check(world.add_rigid_body(object.unwrap(), body, cache, updater, anchor).is_ok(),
+            "create joint anchor");
+        body.kind = types::RigidBodyKind::Dynamic;
+        body.mass = 1;
+        body.relate_bone_index = 1;
+        check(world.add_rigid_body(object.unwrap(), body, cache, updater, dynamic).is_ok(),
+            "create disconnected bone attached by joint only");
+        types::PhysicsJoint joint{};
+        joint.rigid_body_b = 1;
+        joint.position = {0, 10, 0};
+        check(world.add_joint(object.unwrap(), joint).is_ok(), "create locked joint");
+        for (int frame = 0; frame < SETTLE_FRAMES; ++frame) {
+            world.simulation(types::DeltaTime(STEP));
+        }
+        anchor_global[3].x = 1;
+        for (int frame = 0; frame < 30; ++frame) {
+            world.simulation(types::DeltaTime(STEP));
+        }
+        world.apply_physics();
+        check(dynamic_global[3].x > 0.5f,
+            "moving sleeping anchor wakes joint-only attachment without bone animation changes");
+    }
+
     void enabled_body_cache_tests() {
         constexpr int BODY_COUNT = 64;
         glm::mat4 local(1);
@@ -85,6 +131,7 @@ namespace {
 } // namespace
 
 void physics_object_tests() {
+    sleeping_joint_tests();
     enabled_body_cache_tests();
     glm::mat4 local(1);
     glm::mat4 global(1);

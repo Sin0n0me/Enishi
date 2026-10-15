@@ -22,6 +22,8 @@ namespace enishi::physics::bullet3 {
         PhysicsBoneViews views;
         types::RigidBodyKind kind;
         types::BoneIndex bone_index;
+        glm::mat4 animation_transform{1};
+        bool has_animation_transform{false};
 
       public:
         explicit BulletRigidBody(btRigidBody& rigid_body,

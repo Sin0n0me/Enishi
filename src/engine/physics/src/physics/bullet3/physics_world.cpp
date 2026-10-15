@@ -104,6 +104,22 @@ namespace enishi::physics::bullet3 {
         for (auto* body : this->enabled_bodies) {
             body->sync_animation();
         }
+        // Kinematic bodies do not merge Bullet islands. Wake joint-only connections too,
+        // including attachments whose authored bone is not a descendant of the moving anchor.
+        for (int index = 0; index < this->world->getNumConstraints(); ++index) {
+            auto* joint = this->world->getConstraint(index);
+            if (!joint->isEnabled()) {
+                continue;
+            }
+            auto& a = joint->getRigidBodyA();
+            auto& b = joint->getRigidBodyB();
+            if (a.isKinematicObject() && a.isActive() && !b.isActive()) {
+                b.activate(true);
+            }
+            if (b.isKinematicObject() && b.isActive() && !a.isActive()) {
+                a.activate(true);
+            }
+        }
         const auto max_step = this->config->get_max_step_count();
 
         // Bullet uses seconds: dt_seconds = dt_microseconds / UNITS_PER_SECOND.

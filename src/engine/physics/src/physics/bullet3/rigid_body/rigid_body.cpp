@@ -24,6 +24,7 @@ namespace enishi::physics::bullet3 {
         this->rigid_body.setCollisionFlags(flag);
         this->rigid_body.setMotionState(
             dynamic ? &this->active_motion_state : &this->kinematic_motion_state);
+        this->rigid_body.activate(true);
     }
 
     void BulletRigidBody::reset(void) {
@@ -40,11 +41,20 @@ namespace enishi::physics::bullet3 {
         this->rigid_body.getMotionState()->getWorldTransform(transform);
         this->rigid_body.setWorldTransform(transform);
         this->rigid_body.setInterpolationWorldTransform(transform);
+        this->rigid_body.activate(true);
+        this->has_animation_transform = false;
     }
 
     void BulletRigidBody::sync_animation(void) {
         if (!this->is_in_world()) {
             return;
+        }
+        const auto& animated = this->views.physics_bone_view->get_physics_global();
+        // Compare authored input, not the simulated transform: settling must not wake itself.
+        if (!this->has_animation_transform || animated != this->animation_transform) {
+            this->rigid_body.activate(true);
+            this->animation_transform = animated;
+            this->has_animation_transform = true;
         }
         this->kinematic_motion_state.update_global_transform(this->views.physics_bone_view.get());
         this->active_motion_state.update_global_transform(this->views.physics_bone_view.get());
