@@ -871,6 +871,55 @@ namespace {
         }
     }
 
+    void reachable_cursor_does_not_jump() {
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 100;
+        for (const float camera_distance : {15.0f, 25.0f, 40.0f}) {
+            for (const bool frontal : {false, true}) {
+                Fixture fixture;
+                core::CursorPoseConfig config;
+                config.jump_delay = 0;
+                core::CursorPose pose(fixture.model, config);
+                const auto origin = frontal ? glm::vec3(1, 10.95f, -camera_distance)
+                                            : glm::vec3(0, 18.5f, -camera_distance);
+                const auto normal =
+                    frontal ? glm::vec3(0, 0, 1) : glm::normalize(glm::vec3(0, 11, 0) - origin);
+                const glm::vec3 reachable(1, 10.95f, 0);
+                const core::CursorRay ray{{origin, glm::normalize(reachable - origin)}, normal};
+                for (int frame = 0; frame < FRAMES; ++frame) {
+                    pose.apply(fixture.model, fixture.animation, ray, DT);
+                    check(fixture.animation.animation[Root].position == glm::vec3(0),
+                        "A reachable screen cursor must not trigger a jump due to target-plane "
+                        "depth");
+                    if (frame == FRAMES - 1) {
+                        check(global(fixture.model, fixture.animation, Wrist)[3].y > 8.0f,
+                            "The arm must keep reaching toward a reachable cursor");
+                    }
+                    pose.restore(fixture.animation);
+                }
+            }
+        }
+        Fixture fixture;
+        fixture.model.bone_names.push_back("fingerTip");
+        fixture.model.bone_node.emplace_back();
+        fixture.model.bone_node.back().parent = Wrist;
+        fixture.model.bone_node[Wrist].children.push_back(Count);
+        fixture.animation.animation.emplace_back();
+        fixture.animation.animation.back().position = glm::vec3(0.6f, 0, 0);
+        fixture.animation.global.push_back(global(fixture.model, fixture.animation, Count));
+        fixture.model.bind_bone.emplace_back();
+        fixture.model.bind_bone.back().global = fixture.animation.global.back();
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(fixture.model, config);
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(1, 11.5f), DT);
+            check(fixture.animation.animation[Root].position == glm::vec3(0),
+                "Finger reach beyond the wrist must also prevent a jump");
+            pose.restore(fixture.animation);
+        }
+    }
+
     void stationary_jump() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
@@ -1152,6 +1201,7 @@ int main(int argc, char** argv) {
     release_to_authored_elbow();
     configurable_limits();
     stationary_jump();
+    reachable_cursor_does_not_jump();
     jump_knee_bend();
     reach_after_landing();
     experimental_collision_setting();
