@@ -81,6 +81,7 @@ namespace enishi::core {
             }
         }
         this->initialize_arms(model);
+        this->initialize_legs(model);
         if (this->config.experimental_obb_collision) {
             this->initialize_collision(model);
         }
@@ -360,6 +361,9 @@ namespace enishi::core {
         }
         for (std::size_t index = 0; index < this->roots.size(); ++index) {
             animation.animation[this->roots[index]].position = this->original_root_positions[index];
+        }
+        for (const auto& [index, original] : this->leg_originals) {
+            animation.animation[index] = original;
         }
         for (std::size_t joint = 0; joint < Count; ++joint) {
             if (this->joints[joint] < animation.animation.size()) {

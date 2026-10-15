@@ -7,6 +7,8 @@ namespace enishi::core {
         constexpr float EPSILON = 0.00001f;
         constexpr float REACH_MARGIN = 0.95f;
         constexpr float MAX_FRAME_SECONDS = 0.1f;
+        constexpr float PREPARATION_SECONDS = 0.24f;
+        constexpr float LANDING_SECONDS = 0.20f;
     } // namespace
 
     float CursorPose::desired_jump_height(const glm::vec3& point) const {
@@ -57,11 +59,17 @@ namespace enishi::core {
         for (std::size_t index = 0; index < this->roots.size(); ++index) {
             this->original_root_positions[index] = animation.animation[this->roots[index]].position;
         }
+        for (auto& [index, original] : this->leg_originals) {
+            original = animation.animation[index];
+        }
+        const bool has_legs =
+            this->legs[0][0] < this->globals.size() && this->legs[1][0] < this->globals.size();
+        const float landing = has_legs ? LANDING_SECONDS : 0;
         // Bound elapsed simulation time after a stall, avoiding a teleport through the flight.
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_FRAME_SECONDS) : 0;
         if (this->jump_height > 0) {
             this->jump_time += dt;
-            if (!(this->jump_time < this->config.jump_duration)) {
+            if (!(this->jump_time < this->config.jump_duration + landing)) {
                 this->jump_height = 0;
                 this->jump_rest = this->config.jump_cooldown;
                 this->jump_wait = 0;
@@ -74,7 +82,7 @@ namespace enishi::core {
             this->jump_wait = desired > 0 ? this->jump_wait + dt : 0;
             if (desired > 0 && !(this->jump_wait < this->config.jump_delay)) {
                 this->jump_height = desired;
-                this->jump_time = 0;
+                this->jump_time = has_legs ? -PREPARATION_SECONDS : 0;
                 this->jump_wait = 0;
             }
         }
@@ -82,7 +90,7 @@ namespace enishi::core {
             return;
         }
         // Ballistic arc y=4*H*u*(1-u), u=t/T; exactly zero at takeoff and landing.
-        const float phase = this->jump_time / this->config.jump_duration;
+        const float phase = std::clamp(this->jump_time / this->config.jump_duration, 0.0f, 1.0f);
         const glm::vec3 lift(0, 4.0f * this->jump_height * phase * (1.0f - phase), 0);
         for (const auto root : this->roots) {
             const auto axes = glm::mat3(this->external[root]);
@@ -94,5 +102,14 @@ namespace enishi::core {
             animation.animation[root].position += glm::inverse(axes) * lift;
         }
         this->update_globals(model, animation);
+        float bend = 0;
+        if (this->jump_time < 0) {
+            bend = std::sin(glm::pi<float>() * (1.0f + this->jump_time / PREPARATION_SECONDS));
+        } else if (this->jump_time > this->config.jump_duration && has_legs) {
+            bend = std::sin(
+                glm::pi<float>() * (this->jump_time - this->config.jump_duration) / landing);
+        }
+        // sin²(pi*t/T) gives zero bend and zero bend velocity at both ends of each phase.
+        this->crouch(model, animation, bend * bend);
     }
 } // namespace enishi::core

@@ -6,6 +6,7 @@
 #include <engine_types/collider/obb.h>
 #include <engine_types/collider/ray.h>
 #include <optional>
+#include <utility>
 
 namespace enishi::platform {
     class IWindow;
@@ -76,6 +77,9 @@ namespace enishi::core {
         float jump_time = 0;
         float jump_height = 0;
         float jump_rest = 0;
+        std::array<std::array<types::BoneIndex, 3>, 2> legs;
+        std::vector<types::BoneIndex> leg_ik_goals;
+        std::vector<std::pair<types::BoneIndex, component::AnimationBuffer>> leg_originals;
         struct CollisionBone {
             types::BoneIndex bone;
             types::OBB local;
@@ -108,6 +112,14 @@ namespace enishi::core {
         void restore(component::AnimationComponent& animation);
 
       private:
+        void initialize_legs(const component::ModelComponent& model);
+        void crouch(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float weight);
+        void bend_leg(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            std::size_t side,
+            const glm::mat4& ankle);
         void apply_jump(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<glm::vec3>& point,
