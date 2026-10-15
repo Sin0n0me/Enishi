@@ -238,3 +238,14 @@ fn main() -> i32 {
 assetsを使わないスクリプト実行・UI遷移・画面端配置の検証は、構成時に
 `-DENISHI_SCRIPT_TESTS=ON` を指定し、`enishi_script_tests` をビルドしてから
 `ctest --test-dir <ビルド先> -C Debug -R enishi_script_tests --output-on-failure` で実行できます。
+
+### カメラの更新API
+
+`Application::get_camera_controller()` は共有の `sub_system::ICameraController` を返します（`init()` 成功後に取得）。外部システムにはこのインターフェイスを渡し、具象クラスに依存せずカメラを更新できます。
+
+- `get_camera()`：現在の行列のコピーを取得します。
+- `set_view_projection(view, projection)`：ビュー・射影行列を同時に更新します。既存のモデルカメラと同じ左手座標系の行列を指定してください。
+- `reset()`：初期カメラへ戻します。
+
+更新はアプリケーションスレッドのフレーム更新開始前に行います。MVPは `projection * view * world` で再計算されます。非有限値や逆行列を求められない行列はエラーになり、以前の状態を維持します。戻り値のエラーを呼び出し側で処理してください。
+描画時のCamera定数バッファ、クリック判定、カーソル追従は同じ共有カメラを参照します。新しく表示したモデルや再表示したモデルにも、描画前に現在のカメラを転送します。ホイール入力の接続はまだ行っていません。

@@ -1,6 +1,7 @@
 #include "application.h"
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
+#include <core/system/camera/camera_controller.h>
 #include <core/system/animation/model_event_motion_handler.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/collision/model_collision_system.h>
@@ -60,9 +61,14 @@ namespace enishi {
         .height = WINDOW_SIZE.y,
     };
 
+    std::shared_ptr<sub_system::ICameraController> Application::get_camera_controller() const {
+        return this->camera;
+    }
+
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
         this->click_settings = std::make_shared<core::ModelClickSettings>();
+        this->camera = std::make_shared<core::CameraController>();
 
         // システムの追加
         auto asset_system = this->system_scheduler.register_system<core::AssetSystem>(50);
@@ -88,6 +94,7 @@ namespace enishi {
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
+        skinning_system->set_camera(this->camera);
         auto cursor_config = core::load_cursor_pose_config("config/cursor_tracking.cfg");
         if (cursor_config.is_err()) {
             foundation::Logger::warning(cursor_config.unwrap_err().get_message());
@@ -97,7 +104,7 @@ namespace enishi {
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings);
+            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings, this->camera);
         auto motion_rules = core::load_model_event_motions(
             "config/model_event_motions.cfg", this->click_settings.get());
         if (motion_rules.is_err()) {
@@ -259,6 +266,7 @@ namespace enishi {
             //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
         });
         render_system->set_render_passes(this->orchestra->get_passes());
+        render_system->set_camera(this->camera);
 
         const auto model_render_pass = this->orchestra->get_render_pass(
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);

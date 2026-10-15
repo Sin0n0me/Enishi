@@ -18,7 +18,8 @@ namespace enishi::core {
         glm::vec3 plane_normal;
     };
 
-    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(const platform::IWindow& window);
+    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(
+        const platform::IWindow& window, const types::UniformCamera& camera);
 
     // A temporary local-pose layer. Restore after skinning captures the pose, so an idle
     // animation or a stopped clip never accumulates last frame's cursor correction.

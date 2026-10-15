@@ -1,5 +1,6 @@
 #include "render_system.h"
 #include "bone_matrix_upload.h"
+#include "camera_upload.h"
 #include "material_morph_upload.h"
 #include "vertex_morph_upload.h"
 #include <component/animation_component.h>
@@ -20,6 +21,10 @@ namespace enishi::core {
         this->render_passes = std::move(render_passes);
     }
 
+    void RenderSystem::set_camera(std::shared_ptr<sub_system::ICameraController> camera) {
+        this->camera = std::move(camera);
+    }
+
     void RenderSystem::set_ui(std::shared_ptr<sub_system::IUI> ui) {
         this->ui = std::move(ui);
     }
@@ -32,6 +37,19 @@ namespace enishi::core {
     }
 
     void RenderSystem::update(const types::DeltaTime& delta_time) {
+        if (this->camera != nullptr) {
+            const auto snapshot = this->camera->get_camera();
+            for (auto [entity, model] : this->registry->view<component::ModelComponent>()) {
+                if (!model.visible) {
+                    continue;
+                }
+                // Upload every visible mesh, including newly loaded or re-shown models.
+                const auto result = upload_camera(*this->renderer, model, snapshot);
+                if (result.is_err()) {
+                    foundation::Logger::warning(result.unwrap_err().get_message());
+                }
+            }
+        }
         for (auto [entity, model, morph] :
             this->registry->view<component::ModelComponent, component::MorphComponent>()) {
             const auto result = upload_vertex_morphs(*this->renderer, model, morph);

@@ -30,6 +30,10 @@ namespace enishi::core {
         this->cursor_window = window;
     }
 
+    void SkinningSystem::set_camera(std::shared_ptr<sub_system::ICameraController> camera) {
+        this->camera = std::move(camera);
+    }
+
     void SkinningSystem::set_cursor_config(const CursorPoseConfig& config) {
         this->cursor_config = config;
         for (auto& [entity, bones] : this->model_bones) {
@@ -39,7 +43,9 @@ namespace enishi::core {
 
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
         const auto window = this->cursor_window.lock();
-        const auto cursor = window != nullptr ? read_cursor_ray(*window) : std::nullopt;
+        const auto cursor = window != nullptr && this->camera != nullptr
+                                ? read_cursor_ray(*window, this->camera->get_camera())
+                                : std::nullopt;
         for (auto [entity, animation, model, skinning] :
             this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
