@@ -2,6 +2,7 @@
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/camera/camera_controller.h>
+#include <core/system/camera/camera_zoom_system.h>
 #include <core/system/animation/model_event_motion_handler.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/collision/model_collision_system.h>
@@ -95,6 +96,17 @@ namespace enishi {
         foundation::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
         skinning_system->set_camera(this->camera);
+        core::CameraZoomConfig zoom_config;
+        auto zoom_settings = core::load_camera_zoom_config("config/camera.cfg");
+        if (zoom_settings.is_err()) {
+            foundation::Logger::warning(zoom_settings.unwrap_err().get_message());
+        } else {
+            zoom_config = std::move(zoom_settings).unwrap();
+        }
+        // Polling is priority 80; update the camera before click picking in pre_update (97).
+        constexpr core::Priority CAMERA_ZOOM_PRIORITY = 81;
+        this->system_scheduler.register_system<core::CameraZoomSystem>(
+            CAMERA_ZOOM_PRIORITY, root_window, this->camera, zoom_config);
         auto cursor_config = core::load_cursor_pose_config("config/cursor_tracking.cfg");
         if (cursor_config.is_err()) {
             foundation::Logger::warning(cursor_config.unwrap_err().get_message());
