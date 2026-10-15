@@ -221,7 +221,7 @@ namespace {
             "Restore must retain the clip's rotation, not reset to bind pose");
     }
 
-    void skinning_and_physics_pose() {
+    void skinning_and_physics_pose(bool jumping = false) {
         Fixture fixture;
         auto registry = std::make_shared<ecs::Registry>();
         const auto entity = registry->create();
@@ -241,9 +241,18 @@ namespace {
             "Insert physics pose");
         auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
         auto& model = registry->get<component::ModelComponent>(entity).unwrap_mut();
-        core::CursorPose pose(model);
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(model, config);
         core::SkinningSystem skinning(registry, nullptr);
-        pose.apply(model, animation, cursor(3, 7), SETTLE_SECONDS);
+        if (jumping) {
+            pose.apply(model, animation, cursor(0, 11.5f), 0.05f);
+            pose.restore(animation);
+            pose.apply(model, animation, cursor(0, 11.5f), 0.05f);
+            check(animation.animation[Root].position.y > 0, "Integration pose must be airborne");
+        } else {
+            pose.apply(model, animation, cursor(3, 7), SETTLE_SECONDS);
+        }
         const auto expected = global(model, animation, Wrist);
         skinning.update(types::DeltaTime(0.016f));
         pose.restore(animation);
@@ -704,6 +713,101 @@ namespace {
                 "A pixel near the face center must produce nearly neutral gaze");
         }
     }
+    void stationary_jump() {
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        for (const bool enabled : {false, true}) {
+            Fixture fixture;
+            // A separate foot IK root must move with the body, rather than pin feet to the floor.
+            fixture.model.bone_names.push_back("FootIK");
+            fixture.model.bone_node.emplace_back();
+            fixture.model.bone_node.back().parent = types::INVALID_BONE_INDEX;
+            fixture.model.bind_bone.emplace_back();
+            fixture.model.bind_bone.back().local = glm::mat4(1);
+            fixture.model.bind_bone.back().global = glm::mat4(1);
+            fixture.model.bind_bone.back().global_inverse = glm::mat4(1);
+            fixture.animation.animation.emplace_back();
+            fixture.animation.global.emplace_back(1.0f);
+            core::CursorPoseConfig config;
+            config.jump_enabled = enabled;
+            config.jump_delay = 0.2f;
+            config.jump_duration = 0.6f;
+            core::CursorPose pose(fixture.model, config);
+            float peak = 0;
+            int takeoffs = 0;
+            float previous = 0;
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
+                const auto position = fixture.animation.animation[Root].position;
+                check(fixture.animation.animation.back().position == position,
+                    "Independent IK root must receive the same jump translation");
+                check(position.x == 0 && position.z == 0 && !(position.y < 0),
+                    "Jump must stay vertical and above the source position");
+                if (frame * DT < config.jump_delay) {
+                    check(position.y == 0, "Jump must wait before takeoff");
+                }
+                if (position.y > 0 && previous == 0) {
+                    ++takeoffs;
+                }
+                previous = position.y;
+                peak = (std::max)(peak, position.y);
+                pose.restore(fixture.animation);
+                check(fixture.animation.animation[Root].position == glm::vec3(0),
+                    "Jump must restore source translation every frame");
+            }
+            check(takeoffs == (enabled ? 1 : 0), "Cooldown must prevent immediate repeated jumps");
+            check(enabled ? peak > 0 : peak == 0, "Jump toggle must control takeoff");
+            const float skeleton_height = fixture.model.bind_bone[Head].global[3].y;
+            check(!(peak > skeleton_height * config.jump_height_ratio),
+                "Jump height must stay within its configured limit");
+            check(previous == 0, "Jump must land at its original height");
+        }
+        for (const auto target : {cursor(3, 7), cursor(50, 40), cursor(0, 2)}) {
+            Fixture fixture;
+            core::CursorPose pose(fixture.model);
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, target, DT);
+                check(fixture.animation.animation[Root].position == glm::vec3(0),
+                    "Reachable, distant and low targets must not trigger a jump");
+                pose.restore(fixture.animation);
+            }
+        }
+        Fixture fixture;
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(fixture.model, config);
+        pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
+        pose.restore(fixture.animation);
+        float peak = 0;
+        float height = 0;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+            height = fixture.animation.animation[Root].position.y;
+            peak = (std::max)(peak, height);
+            pose.restore(fixture.animation);
+        }
+        check(peak > 0 && height == 0, "Losing the cursor in flight must still finish the landing");
+        std::istringstream settings("jump_enabled off\njump_height_ratio 0.2\njump_duration 0.8\n"
+                                    "jump_delay 0.4\njump_cooldown 2\n");
+        auto parsed = core::parse_cursor_pose_config(settings);
+        check(parsed.is_ok(), "Jump configuration must parse");
+        const auto loaded = parsed.unwrap();
+        check(!loaded.jump_enabled && loaded.jump_height_ratio == 0.2f &&
+                  loaded.jump_duration == 0.8f && loaded.jump_delay == 0.4f &&
+                  loaded.jump_cooldown == 2,
+            "Jump settings must be retained");
+        for (const auto text : {"jump_enabled true",
+                 "jump_height_ratio 0.6",
+                 "jump_duration 0",
+                 "jump_delay -1",
+                 "jump_cooldown nan",
+                 "jump_duration 11"}) {
+            std::istringstream invalid(text);
+            check(core::parse_cursor_pose_config(invalid).is_err(),
+                "Invalid jump settings must fail");
+        }
+    }
+
     void experimental_collision_setting() {
         check(!core::CursorPoseConfig{}.experimental_obb_collision,
             "Experimental collision must default to off");
@@ -884,10 +988,12 @@ int main(int argc, char** argv) {
     limits_and_missing_bones();
     animated_pose();
     skinning_and_physics_pose();
+    skinning_and_physics_pose(true);
     body_avoidance_and_hinge();
     rotated_body_avoidance();
     release_to_authored_elbow();
     configurable_limits();
+    stationary_jump();
     experimental_collision_setting();
     bounded_reach_speed();
     face_center_gaze();
