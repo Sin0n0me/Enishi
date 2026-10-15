@@ -351,9 +351,18 @@ namespace enishi::platform_impl {
                         },
                         this->position));
                     break;
-                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL:
-
+                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL: {
+                    if (capture_mouse ||
+                        event.wheel.windowID != SDL_GetWindowID(this->window.get())) {
+                        break;
+                    }
+                    // Normalize SDL's flipped direction before applying the user's preference.
+                    const float direction =
+                        event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+                    this->input.on_mouse_wheel(
+                        {event.wheel.x * direction, event.wheel.y * direction});
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_GAINED:
                     // SDL_StartTextInput();
                     break;
