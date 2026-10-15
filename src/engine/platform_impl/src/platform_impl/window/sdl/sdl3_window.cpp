@@ -373,6 +373,7 @@ namespace enishi::platform_impl {
             }
         }
 
+        this->refresh_mouse_position();
         SDL_Keymod mod = SDL_GetModState();
         /*
         io.AddKeyEvent(ImGuiKey::ImGuiKey_LeftCtrl, (mod & SDL_KMOD_CTRL) != 0);

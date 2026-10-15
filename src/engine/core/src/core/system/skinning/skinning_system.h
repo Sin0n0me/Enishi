@@ -37,6 +37,8 @@ namespace enishi::core {
       private:
         std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
+        std::weak_ptr<platform::IWindow> cursor_window;
+        CursorPoseConfig cursor_config;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
@@ -47,6 +49,8 @@ namespace enishi::core {
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void update_after_physics(void);
+        void set_cursor_window(const std::shared_ptr<platform::IWindow>& window);
+        void set_cursor_config(const CursorPoseConfig& config);
         void post_update(void) override;
         void render(void) const override;
 

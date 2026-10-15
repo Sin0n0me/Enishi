@@ -78,5 +78,6 @@ namespace enishi::platform_impl {
         bool handle_model_pointer(const SDL_Event& event, bool capture_mouse);
         void update_model_drag(void);
         void cancel_model_drag(void);
+        void refresh_mouse_position(void);
     };
 } // namespace enishi::platform_impl

@@ -2,6 +2,15 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::platform_impl {
+    void SDL3Window::refresh_mouse_position(void) {
+        float mouse_x = 0.0f;
+        float mouse_y = 0.0f;
+        // Motion events stop outside the window; tracking must still notice the cursor leaving.
+        SDL_GetGlobalMouseState(&mouse_x, &mouse_y);
+        this->input.on_mouse_move(
+            {static_cast<std::int32_t>(mouse_x), static_cast<std::int32_t>(mouse_y)});
+    }
+
     void SDL3Window::cancel_model_drag(void) {
         this->model_press.reset();
         this->model_dragging = false;
