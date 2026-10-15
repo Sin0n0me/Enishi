@@ -256,8 +256,10 @@ namespace enishi::core {
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         auto* const animation_view = bones.animation_cache->at(i);
                         auto* const physics_view = bones.physics_cache->at(i);
-                        physics_view->set_physics_global(
-                            animation_view->get_animation_global_transform());
+                        const auto& global = animation_view->get_animation_global_transform();
+                        if (physics_view->get_physics_global() != global) {
+                            physics_view->set_physics_global(global);
+                        }
                     }
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         bones.physics_updater->update_local(i);
