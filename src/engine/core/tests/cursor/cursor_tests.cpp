@@ -828,6 +828,49 @@ namespace {
         check(prepared && airborne && landed, "Jump must prepare, fly and absorb landing");
     }
 
+    void reach_after_landing() {
+        auto jumping = leg_fixture();
+        auto waiting = leg_fixture();
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        config.jump_cooldown = 10;
+        core::CursorPose jump_pose(jumping.model, config);
+        config.jump_delay = 10;
+        core::CursorPose waiting_pose(waiting.model, config);
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int TRACK_FRAMES = 180;
+        constexpr int SETTLED_FRAME = 120;
+        constexpr int RELEASE_FRAMES = 120;
+        constexpr float POSE_TOLERANCE = 0.02f;
+        for (int frame = 0; frame < TRACK_FRAMES + RELEASE_FRAMES; ++frame) {
+            const auto target =
+                frame < TRACK_FRAMES ? std::optional(cursor(0, 11.5f)) : std::nullopt;
+            jump_pose.apply(jumping.model, jumping.animation, target, DT);
+            waiting_pose.apply(waiting.model, waiting.animation, target, DT);
+            if (frame > SETTLED_FRAME && frame < TRACK_FRAMES) {
+                check(jumping.animation.animation[Root].position == glm::vec3(0),
+                    "Reach regression must cover the grounded cooldown");
+                for (const auto arm : {Arm, OtherArm}) {
+                    check(glm::length(waiting.animation.animation[arm].rotation - IDENTITY) >
+                              POSE_TOLERANCE,
+                        "Reference pose must keep reaching upward");
+                    check(glm::length(jumping.animation.animation[arm].rotation -
+                                      waiting.animation.animation[arm].rotation) < POSE_TOLERANCE,
+                        "Arms must keep reaching after landing, including during cooldown");
+                }
+            }
+            if (frame == TRACK_FRAMES + RELEASE_FRAMES - 1) {
+                for (const auto arm : {Arm, OtherArm}) {
+                    check(glm::length(jumping.animation.animation[arm].rotation - IDENTITY) <
+                              POSE_TOLERANCE,
+                        "Arms must still release when the cursor leaves");
+                }
+            }
+            jump_pose.restore(jumping.animation);
+            waiting_pose.restore(waiting.animation);
+        }
+    }
+
     void stationary_jump() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
@@ -1110,6 +1153,7 @@ int main(int argc, char** argv) {
     configurable_limits();
     stationary_jump();
     jump_knee_bend();
+    reach_after_landing();
     experimental_collision_setting();
     bounded_reach_speed();
     face_center_gaze();

@@ -252,9 +252,12 @@ namespace enishi::core {
         component::AnimationComponent& animation,
         const glm::vec3& target) {
         std::array<glm::vec3, 2> goals{target, target};
+        // Cooldown gates the next jump, not the effort to reach its target after landing.
+        const bool stretch =
+            this->jump_wait > 0 || this->jump_height > 0 || this->desired_jump_height(target) > 0;
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            if (!(this->jump_wait > 0 || this->jump_height > 0) ||
-                !(this->wrists[side] < this->globals.size()) || this->can_reach(side, target)) {
+            if (!stretch || !(this->wrists[side] < this->globals.size()) ||
+                this->can_reach(side, target)) {
                 continue;
             }
             const auto shoulder =
@@ -263,7 +266,7 @@ namespace enishi::core {
             if (!(delta.y > 0)) {
                 continue;
             }
-            // While preparing/in flight, stretch toward the cursor within the reach sphere:
+            // Stretch toward the cursor within the reach sphere, including after landing:
             // goal = shoulder + normalize(target-shoulder) * arm_length * margin.
             constexpr float JUMP_REACH_MARGIN = 0.95f;
             goals[side] =
