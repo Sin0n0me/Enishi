@@ -46,6 +46,9 @@ namespace enishi::core {
         const auto cursor = window != nullptr && this->camera != nullptr
                                 ? read_cursor_ray(*window, this->camera->get_camera())
                                 : std::nullopt;
+        const auto drag_cursor = window != nullptr && this->camera != nullptr
+                                     ? read_cursor_ray(*window, this->camera->get_camera(), true)
+                                     : std::nullopt;
         for (auto [entity, animation, model, skinning] :
             this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
@@ -99,7 +102,9 @@ namespace enishi::core {
                 bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
             }
             if (bones.cursor_pose != nullptr) {
-                bones.cursor_pose->apply(model, animation, cursor, delta_time.to_float_second());
+                bones.cursor_pose->apply(model, animation,
+                    bones.cursor_pose->is_hanging() ? drag_cursor : cursor,
+                    delta_time.to_float_second());
             }
             for (const auto command : order) {
                 this->execute_command(command, bones, opt_ik);

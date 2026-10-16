@@ -54,6 +54,8 @@ namespace enishi::core {
         void set_cursor_window(const std::shared_ptr<platform::IWindow>& window);
         void set_camera(std::shared_ptr<sub_system::ICameraController> camera);
         void set_cursor_config(const CursorPoseConfig& config);
+        bool begin_model_drag(types::ClientMousePosition cursor);
+        void end_model_drag();
         void post_update(void) override;
         void render(void) const override;
 

@@ -16,6 +16,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     "${ENGINE_ROOT}/engine_types/src/engine_types/collider/ray.cpp"
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"
     "${CORE_ROOT}/system/skinning/skinning_physics.cpp"
+    "${CORE_ROOT}/system/skinning/skinning_drag.cpp"
     "${CORE_ROOT}/system/skinning/bone_inheritance.cpp"
     "${CORE_ROOT}/system/animation/bone_morph.cpp"
     "${CORE_ROOT}/system/animation/morph_weights.cpp"
