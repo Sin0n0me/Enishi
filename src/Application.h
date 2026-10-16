@@ -8,6 +8,7 @@
 #include <core/timer/application_timer.h>
 
 #include <sub_system/model/interface_model_selection.h>
+#include <sub_system/camera/interface_camera_controller.h>
 #include <sub_system/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
@@ -18,6 +19,7 @@ namespace enishi {
       private:
         std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<core::ModelClickSettings> click_settings;
+        std::shared_ptr<sub_system::ICameraController> camera;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
@@ -25,6 +27,7 @@ namespace enishi {
       public:
         bool init(void);
         void run(void);
+        [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;
 
       private:
         std::shared_ptr<platform::IWindow> init_window(void);

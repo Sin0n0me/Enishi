@@ -26,7 +26,26 @@ namespace enishi::core {
     void SkinningSystem::pre_update(void) {
     }
 
+    void SkinningSystem::set_cursor_window(const std::shared_ptr<platform::IWindow>& window) {
+        this->cursor_window = window;
+    }
+
+    void SkinningSystem::set_camera(std::shared_ptr<sub_system::ICameraController> camera) {
+        this->camera = std::move(camera);
+    }
+
+    void SkinningSystem::set_cursor_config(const CursorPoseConfig& config) {
+        this->cursor_config = config;
+        for (auto& [entity, bones] : this->model_bones) {
+            bones->cursor_pose.reset();
+        }
+    }
+
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
+        const auto window = this->cursor_window.lock();
+        const auto cursor = window != nullptr && this->camera != nullptr
+                                ? read_cursor_ray(*window, this->camera->get_camera())
+                                : std::nullopt;
         for (auto [entity, animation, model, skinning] :
             this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
@@ -35,7 +54,13 @@ namespace enishi::core {
             auto opt_physics = this->registry->get<component::PhysicsComponent>(entity);
             auto opt_physics_bodies =
                 this->registry->get<component::PhysicsBodiesComponent>(entity);
-            if (opt_physics_bodies.is_some() && !opt_physics_bodies.unwrap().enabled) {
+            if (!model.visible ||
+                (opt_physics_bodies.is_some() && !opt_physics_bodies.unwrap().enabled)) {
+                const auto found = this->model_bones.find(entity);
+                if (found != this->model_bones.end()) {
+                    found->second->cursor_pose.reset();
+                    found->second->pending_after_physics = false;
+                }
                 continue;
             }
 
@@ -70,8 +95,18 @@ namespace enishi::core {
                     ? std::span<const types::SkinningCommand>(SkinningSystem::DEFAULT_ORDER)
                     : std::span<const types::SkinningCommand>(skinning.order);
 
+            if (bones.cursor_pose == nullptr && window != nullptr) {
+                bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
+            }
+            if (bones.cursor_pose != nullptr) {
+                bones.cursor_pose->apply(model, animation, cursor, delta_time.to_float_second());
+            }
             for (const auto command : order) {
                 this->execute_command(command, bones, opt_ik);
+            }
+            // IK and physics retain the corrected pose; source animation stays unmodified.
+            if (bones.cursor_pose != nullptr) {
+                bones.cursor_pose->restore(animation);
             }
 
             // Skinning行列の確定は順序に関わらず、全ステップの後に必ず行う

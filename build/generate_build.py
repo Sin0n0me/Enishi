@@ -40,9 +40,9 @@ def arguments(target: Format) -> list[str]:
             'if "%CONFIG%"=="" set "CONFIG=Debug"',
             'if "%TOOLCHAIN%"=="" set "TOOLCHAIN=auto"',
             'if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS=-DPython_EXECUTABLE=%PYTHON_EXECUTABLE% -DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%"',
-            'if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON"',
-            'if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF"',
-            'if /I "%BACKEND%"=="vulkan" goto :vulkan',
+            'if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON -DUSE_VULKAN=OFF"',
+            'if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF"',
+            'if /I "%BACKEND%"=="vulkan" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=ON"',
             'if "%BACKEND_OPTIONS%"=="" goto :usage',
             'if /I "%TOOLCHAIN%"=="auto" goto :auto',
             'if /I "%TOOLCHAIN%"=="visualstudio" goto :visualstudio',
@@ -55,8 +55,9 @@ def arguments(target: Format) -> list[str]:
         'config="${2:-Debug}"',
         'toolchain="${3:-auto}"',
         'case "$backend" in',
-        'opengl) backend_options=(-DUSE_OPENGL40=ON) ;;',
-        'directx) backend_options=(-DUSE_OPENGL40=OFF) ;;',
+        'opengl) backend_options=(-DUSE_OPENGL40=ON -DUSE_VULKAN=OFF) ;;',
+        'directx) backend_options=(-DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF) ;;',
+        'vulkan) backend_options=(-DUSE_OPENGL40=OFF -DUSE_VULKAN=ON) ;;',
         '*) echo "Unsupported backend: $backend" >&2; exit 1 ;;',
         "esac",
     ]
@@ -145,18 +146,15 @@ def cmd_builds(_: Format) -> list[str]:
         "if errorlevel 1 exit /b %errorlevel%",
         'cmake --build "%BUILD_DIR%"',
         "exit /b %errorlevel%",
-        ":vulkan",
-        "echo Vulkan build support has not been added to CMake yet.",
-        "exit /b 1",
         ":usage",
-        "echo Usage: %~nx0 ^<opengl^|directx^> [config] [auto^|visualstudio^|clang^|gcc]",
+        "echo Usage: %~nx0 ^<opengl^|directx^|vulkan^> [config] [auto^|visualstudio^|clang^|gcc]",
         "exit /b 1",
     ]
 
 
 def sh_functions(_: Format) -> list[str]:
     return [
-        "usage() { echo \"Usage: $(basename \"$0\") <opengl|directx> [config] [auto|clang|gcc]\" >&2; exit 1; }",
+        "usage() { echo \"Usage: $(basename \"$0\") <opengl|directx|vulkan> [config] [auto|clang|gcc]\" >&2; exit 1; }",
         "configure_packages() {",
         "    package_options=()",
         '    [[ -n "${CMAKE_TOOLCHAIN_FILE:-}" ]] && { package_options=("-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"); return; }',

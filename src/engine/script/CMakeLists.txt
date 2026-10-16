@@ -22,7 +22,42 @@ FetchContent_MakeAvailable(FOUNDATION)
 set(DEPENDENCIES
     engine_types
     foundation
+    sub_system
 )
+
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Musubu/compiler/musubu_engine/Cargo.toml")
+    message(FATAL_ERROR "Musubu is missing. Run git submodule update --init --recursive")
+endif()
+find_program(CARGO_EXECUTABLE cargo REQUIRED)
+option(ENISHI_CARGO_OFFLINE "Build Musubu using cached Cargo dependencies only" OFF)
+set(cargo_network_options)
+if(ENISHI_CARGO_OFFLINE)
+    list(APPEND cargo_network_options --offline)
+endif()
+set(musubu_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
+if(WIN32)
+    set(musubu_library "${musubu_target_dir}/release/enishi_musubu_bridge.lib")
+else()
+    set(musubu_library "${musubu_target_dir}/release/libenishi_musubu_bridge.a")
+endif()
+# Cargo tracks Rust sources and the pinned submodule, including changes after checkout.
+add_custom_target(enishi_musubu_build
+    COMMAND ${CMAKE_COMMAND} -E env RUSTUP_TOOLCHAIN=stable
+        "${CARGO_EXECUTABLE}" build --release --locked ${cargo_network_options}
+        --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/bridge/Cargo.toml"
+        --target-dir "${musubu_target_dir}"
+    BYPRODUCTS "${musubu_library}"
+    VERBATIM)
+add_library(enishi_musubu STATIC IMPORTED GLOBAL)
+set_target_properties(enishi_musubu PROPERTIES IMPORTED_LOCATION "${musubu_library}")
+add_dependencies(enishi_musubu enishi_musubu_build)
+if(WIN32)
+    target_link_libraries(enishi_musubu INTERFACE ws2_32 userenv bcrypt ntdll)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(enishi_musubu INTERFACE Threads::Threads ${CMAKE_DL_LIBS} m)
+endif()
+list(APPEND DEPENDENCIES enishi_musubu)
 
 #
 # 以降は触らなくて良い
@@ -45,6 +80,7 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
     DEPENDENCIES ${DEPENDENCIES}
+    PUBLIC_DEPENDENCIES sub_system
 )
 
 # MSVCコンパイラのホットリロードを有効に

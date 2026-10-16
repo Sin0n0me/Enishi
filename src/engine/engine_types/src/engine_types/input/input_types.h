@@ -14,8 +14,8 @@ namespace enishi::types {
     };
 
     struct MouseWheel {
-        std::int32_t x;
-        std::int32_t y;
+        float x = 0;
+        float y = 0;
     };
 
     constexpr ScreenMousePosition to_screen(
