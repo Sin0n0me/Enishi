@@ -12,8 +12,8 @@ namespace enishi::core {
         constexpr float DROP_SECONDS = 0.3f;
         constexpr float LANDING_SECONDS = 0.3f;
         constexpr float WALK_CYCLE_SECONDS = 0.5f;
-        constexpr float WALK_STRIDE_RATIO = 0.4f;
-        constexpr float WALK_STANCE_RATIO = 1.0f;
+        constexpr float WALK_STRIDE_RATIO = 0.8f;
+        constexpr float WALK_STANCE_RATIO = 2.0f;
         constexpr float WALK_FOOT_LIFT_RATIO = 0.06f;
         constexpr float WALK_CROUCH_WEIGHT = 1.2f;
         constexpr float MAX_DT = 0.05f;
@@ -299,7 +299,7 @@ namespace enishi::core {
                     this->globals[this->legs[0][2]][3] - this->globals[this->legs[1][2]][3]);
                 separation.y = 0;
                 if (glm::length(separation) > EPSILON) {
-                    // Bound the stride by stance width to avoid crossing the trailing foot.
+                    // Bound each stride relative to stance width as well as leg length.
                     stride = (std::min)(stride, glm::length(separation) * WALK_STANCE_RATIO);
                 }
             }
@@ -317,6 +317,18 @@ namespace enishi::core {
             return false;
         }
         this->hanging_originals = animation.animation;
+        if (!animation.motion_playing) {
+            // Blend the released pose toward lowered arms, rather than through the bind pose.
+            this->apply_idle_arms(model, animation, 1.0f);
+            for (const auto joint : {LeftArm, LeftElbow, RightArm, RightElbow}) {
+                const auto bone = this->joints[joint];
+                if (bone < animation.animation.size()) {
+                    // Carry q_offset=inverse(q_source)*q_idle into normal pose smoothing.
+                    this->offsets[joint] = glm::normalize(
+                        glm::inverse(this->originals[joint]) * animation.animation[bone].rotation);
+                }
+            }
+        }
         if (walk_time > 0) {
             this->apply_hanging_walk(model, animation, walk_time);
             this->update_hanging_ik_targets(model, animation);

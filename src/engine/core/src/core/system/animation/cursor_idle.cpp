@@ -68,7 +68,7 @@ namespace enishi::core {
         if (!(this->jump_height > 0)) {
             this->apply_idle_legs(model, animation, sway);
         }
-        this->apply_idle_arms(model, animation);
+        this->apply_idle_arms(model, animation, this->idle_weight);
     }
 
     void CursorPose::apply_idle_legs(const component::ModelComponent& model,
@@ -102,8 +102,9 @@ namespace enishi::core {
         }
     }
 
-    void CursorPose::apply_idle_arms(
-        const component::ModelComponent& model, component::AnimationComponent& animation) {
+    void CursorPose::apply_idle_arms(const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        float weight) {
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
             if (!(this->wrists[side] < this->globals.size())) {
                 continue;
@@ -120,9 +121,9 @@ namespace enishi::core {
                                    frame.forward * HAND_FORWARD_RATIO);
             this->solve_arm(model, animation, side, hand, frame);
             animation.animation[arm].rotation =
-                glm::slerp(upper, animation.animation[arm].rotation, this->idle_weight);
+                glm::slerp(upper, animation.animation[arm].rotation, weight);
             animation.animation[elbow].rotation =
-                glm::slerp(lower, animation.animation[elbow].rotation, this->idle_weight);
+                glm::slerp(lower, animation.animation[elbow].rotation, weight);
             this->update_globals(model, animation);
         }
     }

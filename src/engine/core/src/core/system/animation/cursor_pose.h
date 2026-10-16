@@ -29,8 +29,9 @@ namespace enishi::core {
         void apply_idle_legs(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             float sway);
-        void apply_idle_arms(
-            const component::ModelComponent& model, component::AnimationComponent& animation);
+        void apply_idle_arms(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float weight);
         enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
         std::array<types::BoneIndex, Count> joints;
         std::array<types::BoneIndex, 2> wrists;

@@ -904,6 +904,14 @@ namespace {
         pose.end_hanging();
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT, true);
+            constexpr int CONTACT_FRAME = 18;
+            if (frame > CONTACT_FRAME) {
+                for (const auto wrist : {Wrist, OtherWrist}) {
+                    check(global(fixture.model, fixture.animation, wrist)[3].y <
+                              global(fixture.model, fixture.animation, Count)[3].y,
+                        "Return walking transitions to idle without raising the arms again");
+                }
+            }
             pose.restore(fixture.animation);
             for (std::size_t bone = 0; bone < source.size(); ++bone) {
                 check(fixture.animation.animation[bone].position == source[bone].position &&
@@ -1195,7 +1203,7 @@ namespace {
             const glm::vec3 landing_offset(suspended_position.x - source[Root].position.x,
                 0,
                 suspended_position.z - source[Root].position.z);
-            constexpr float EXPECTED_STRIDE = 2.0f;
+            constexpr float EXPECTED_STRIDE = 4.0f;
             constexpr int LANDING_FRAMES = 36;
             constexpr int WALK_CYCLE_FRAMES = 30;
             const int expected_return_frame =
@@ -1215,6 +1223,16 @@ namespace {
                 constexpr int CONTACT_FRAME = 18;
                 constexpr int RECOVERY_FRAME = 36;
                 if (frame > CONTACT_FRAME) {
+                    if (frame < expected_return_frame - 1) {
+                        for (const auto wrist : {Wrist, OtherWrist}) {
+                            const float hand_height =
+                                global(fixture.model, fixture.animation, wrist)[3].y;
+                            const float hips_height =
+                                global(fixture.model, fixture.animation, Count)[3].y;
+                            check(hand_height < hips_height,
+                                "Landing and return walking keep both hands near the thighs");
+                        }
+                    }
                     for (const auto knee : {Count + 1, Count + 4}) {
                         const auto rotation = fixture.animation.animation[knee].rotation;
                         check(std::abs(rotation.y) < 0.0001f && std::abs(rotation.z) < 0.0001f,
