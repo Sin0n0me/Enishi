@@ -131,36 +131,48 @@ namespace enishi::core {
             this->body_anchor < this->globals.size()
                 ? glm::mat3(this->globals[this->body_anchor]) * this->body_bind_inverse
                 : glm::mat3(1);
-        auto forward = basis * glm::vec3(0, 0, -1);
-        if (glm::length(foot - hip) > EPSILON) {
-            const auto authored_axis = glm::normalize(foot - hip);
-            // Preserve the source bend plane: pole = upper - axis*dot(upper,axis).
-            const auto authored_pole =
-                knee - hip - authored_axis * glm::dot(knee - hip, authored_axis);
-            if (glm::length(authored_pole) > upper * EPSILON) {
-                forward = authored_pole;
-            }
-        }
+        const auto forward = basis * glm::vec3(0, 0, -1);
         const auto pole = forward - direction * glm::dot(forward, direction);
         if (!(glm::length(pole) > EPSILON)) {
             return;
         }
-        // Triangle projection x=(a²-b²+d²)/(2d), h=sqrt(a²-x²); straight knees bend forward (-Z).
-        const float along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
-        const float height = std::sqrt((std::max)(0.0f, upper * upper - along * along));
-        const auto desired_knee = hip + direction * along + glm::normalize(pole) * height;
+        const auto bind = orientation(model.bind_bone[leg[1]].local);
         const auto hip_rotation = orientation(this->globals[leg[0]]);
+        const auto upper_local = glm::inverse(hip_rotation * bind) * (knee - hip);
+        const auto lower_local = glm::inverse(orientation(this->globals[leg[1]])) * (foot - knee);
+        // For an X hinge, dot(u,Rx(theta)*v)=A*cos(theta)+B*sin(theta)+C.
+        // The law of cosines gives that dot product as (distance^2-upper^2-lower^2)/2.
+        const float a = upper_local.y * lower_local.y + upper_local.z * lower_local.z;
+        const float b = upper_local.z * lower_local.y - upper_local.y * lower_local.z;
+        const float c = upper_local.x * lower_local.x;
+        const float radius = std::sqrt(a * a + b * b);
+        if (!(radius > EPSILON)) {
+            return;
+        }
+        const float cosine =
+            std::clamp(((distance * distance - upper * upper - lower * lower) * 0.5f - c) / radius,
+                -1.0f,
+                1.0f);
+        const float angle =
+            std::clamp(std::atan2(b, a) - std::acos(cosine), -glm::pi<float>(), 0.0f);
+        animation.animation[leg[1]].rotation = bind * glm::angleAxis(angle, glm::vec3(1, 0, 0));
+        this->update_globals(model, animation);
+        // Aim the whole bent leg at the ankle; all sideways adjustment belongs to the hip.
+        const auto bent_leg = glm::vec3(this->globals[leg[2]][3]) - hip;
         animation.animation[leg[0]].rotation *=
-            glm::inverse(hip_rotation) * align(knee - hip, desired_knee - hip) * hip_rotation;
+            glm::inverse(hip_rotation) * align(bent_leg, delta) * hip_rotation;
         this->update_globals(model, animation);
-        const auto moved_knee = glm::vec3(this->globals[leg[1]][3]);
-        const auto knee_rotation = orientation(this->globals[leg[1]]);
-        animation.animation[leg[1]].rotation *=
-            glm::inverse(knee_rotation) *
-            align(glm::vec3(this->globals[leg[2]][3]) - moved_knee,
-                glm::vec3(ankle[3]) - moved_knee) *
-            knee_rotation;
-        this->update_globals(model, animation);
+        const auto moved_knee = glm::vec3(this->globals[leg[1]][3]) - hip;
+        const auto current_pole = moved_knee - direction * glm::dot(moved_knee, direction);
+        if (glm::length(current_pole) > EPSILON) {
+            // Twist around the hip-to-ankle axis without changing the knee's local X rotation.
+            const float twist = std::atan2(
+                glm::dot(direction, glm::cross(current_pole, pole)), glm::dot(current_pole, pole));
+            const auto current_hip = orientation(this->globals[leg[0]]);
+            animation.animation[leg[0]].rotation *=
+                glm::inverse(current_hip) * glm::angleAxis(twist, direction) * current_hip;
+            this->update_globals(model, animation);
+        }
         // Preserve the authored foot orientation while the hip and knee flex.
         animation.animation[leg[2]].rotation *=
             glm::inverse(orientation(this->globals[leg[2]])) * orientation(ankle);

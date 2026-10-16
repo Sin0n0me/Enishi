@@ -12,10 +12,10 @@ namespace enishi::core {
         constexpr float DROP_SECONDS = 0.3f;
         constexpr float LANDING_SECONDS = 0.3f;
         constexpr float WALK_CYCLE_SECONDS = 0.5f;
-        constexpr float WALK_STRIDE_RATIO = 0.2f;
-        constexpr float WALK_STANCE_RATIO = 0.5f;
+        constexpr float WALK_STRIDE_RATIO = 0.4f;
+        constexpr float WALK_STANCE_RATIO = 1.0f;
         constexpr float WALK_FOOT_LIFT_RATIO = 0.06f;
-        constexpr float WALK_CROUCH_WEIGHT = 0.8f;
+        constexpr float WALK_CROUCH_WEIGHT = 1.2f;
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
@@ -130,6 +130,7 @@ namespace enishi::core {
             this->hanging_landing_time = 0;
             this->hanging_pose.clear();
             this->hanging_return_offset = glm::vec3(0);
+            this->hanging_display_center = glm::vec3(0);
             this->hanging_return_cycles = 1;
             this->hanging_display_pose.clear();
             this->hanging_anchor = glm::vec3(0);
@@ -276,11 +277,12 @@ namespace enishi::core {
         component::AnimationComponent& animation,
         float seconds) {
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
+        const auto hips = this->body_bones[BodyHips];
+        const auto center_bone = hips < this->globals.size() ? hips : this->roots.front();
         if (this->hanging_landing_time == 0) {
-            const auto root = this->roots.front();
+            // Anchor the visible body, not a potentially distant model root/pivot.
             this->hanging_return_offset =
-                glm::mat3(this->external[root]) *
-                (this->hanging_display_pose[root].position - animation.animation[root].position);
+                this->hanging_display_center - glm::vec3(this->globals[center_bone][3]);
             this->hanging_return_offset.y = 0;
             float stride = this->arm_frame(this->hanging_side).length * WALK_STRIDE_RATIO;
             const auto& leg = this->legs[0];
@@ -297,7 +299,7 @@ namespace enishi::core {
                     this->globals[this->legs[0][2]][3] - this->globals[this->legs[1][2]][3]);
                 separation.y = 0;
                 if (glm::length(separation) > EPSILON) {
-                    // Limit stride to half the stance width to keep sideways steps from crossing.
+                    // Bound the stride by stance width to avoid crossing the trailing foot.
                     stride = (std::min)(stride, glm::length(separation) * WALK_STANCE_RATIO);
                 }
             }
@@ -332,6 +334,11 @@ namespace enishi::core {
             pose.rotation = glm::slerp(start.rotation, pose.rotation, rotation_weight);
             pose.scale = glm::mix(start.scale, pose.scale, rotation_weight);
         }
+        this->update_globals(model, animation);
+        // Undo only the horizontal sweep caused by straightening around the root pivot.
+        auto sweep = this->hanging_display_center - glm::vec3(this->globals[center_bone][3]);
+        sweep.y = 0;
+        this->translate_hanging_roots(animation, sweep);
         this->update_globals(model, animation);
         if (this->hanging_landing_time > DROP_SECONDS) {
             // sin^2(pi*t/T) bends the knees on contact and smoothly returns to standing.
@@ -433,6 +440,8 @@ namespace enishi::core {
         }
         this->blend_hanging_pose(animation);
         this->update_globals(model, animation);
+        this->hanging_display_center =
+            glm::vec3(this->globals[hips < this->globals.size() ? hips : this->roots.front()][3]);
         this->update_hanging_ik_targets(model, animation);
         this->hanging_display_pose = animation.animation;
         return true;

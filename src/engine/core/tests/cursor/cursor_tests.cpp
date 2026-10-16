@@ -1046,6 +1046,13 @@ namespace {
             const glm::vec3 landing_offset(suspended_position.x - source[Root].position.x,
                 0,
                 suspended_position.z - source[Root].position.z);
+            constexpr float EXPECTED_STRIDE = 2.0f;
+            constexpr int LANDING_FRAMES = 36;
+            constexpr int WALK_CYCLE_FRAMES = 30;
+            const int expected_return_frame =
+                LANDING_FRAMES +
+                WALK_CYCLE_FRAMES *
+                    static_cast<int>(std::ceil(glm::length(landing_offset) / EXPECTED_STRIDE));
             for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
                 if (frame == 0) {
@@ -1058,6 +1065,13 @@ namespace {
                 }
                 constexpr int CONTACT_FRAME = 18;
                 constexpr int RECOVERY_FRAME = 36;
+                if (frame > CONTACT_FRAME) {
+                    for (const auto knee : {Count + 1, Count + 4}) {
+                        const auto rotation = fixture.animation.animation[knee].rotation;
+                        check(std::abs(rotation.y) < 0.0001f && std::abs(rotation.z) < 0.0001f,
+                            "Landing and walking knees rotate only around local X");
+                    }
+                }
                 if (frame > CONTACT_FRAME && frame < RECOVERY_FRAME) {
                     bent_on_landing = bent_on_landing ||
                                       glm::length(fixture.animation.animation[Count + 1].rotation -
@@ -1095,6 +1109,11 @@ namespace {
                         stepped_right ||
                         global(fixture.model, fixture.animation, Count + 5)[3].y > 0.05f;
                 }
+                if (frame == expected_return_frame) {
+                    check(glm::length(fixture.animation.animation[Root].position -
+                                      source[Root].position) < 0.001f,
+                        "The doubled stride returns in the expected number of steps");
+                }
                 if (frame == RETURN_FRAMES - 1) {
                     check(glm::length(fixture.animation.animation[Root].rotation -
                                       source[Root].rotation) < 0.001f,
@@ -1113,6 +1132,53 @@ namespace {
             check(bent_on_landing, "Releasing suspension bends the knees on landing");
             check(stepped_left && stepped_right,
                 "The return walk lifts both feet in alternating steps");
+        }
+    }
+
+    void hanging_landing_keeps_hips_position() {
+        auto fixture = leg_fixture();
+        const auto hips = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
+        fixture.model.bone_names.emplace_back("hips");
+        fixture.model.bone_node.emplace_back();
+        fixture.model.bone_node.back().parent = Root;
+        fixture.model.bone_node[Root].children.push_back(hips);
+        fixture.animation.animation.emplace_back();
+        fixture.animation.animation.back().position = glm::vec3(0, 6, 0);
+        const auto matrix = global(fixture.model, fixture.animation, hips);
+        fixture.animation.global.push_back(matrix);
+        fixture.model.bind_bone.emplace_back();
+        fixture.model.bind_bone.back().local = matrix;
+        fixture.model.bind_bone.back().global = matrix;
+        fixture.model.bind_bone.back().global_inverse = glm::inverse(matrix);
+        core::CursorPoseConfig config;
+        config.jump_enabled = false;
+        core::CursorPose pose(fixture.model, config);
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+            for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
+        glm::vec3 release_center{};
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
+            release_center = glm::vec3(global(fixture.model, fixture.animation, hips)[3]);
+            pose.restore(fixture.animation);
+        }
+        pose.end_hanging();
+        constexpr int RECOVERY_FRAME = 36;
+        for (int frame = 0; frame < RECOVERY_FRAME; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+            const auto center = glm::vec3(global(fixture.model, fixture.animation, hips)[3]);
+            check(glm::length(glm::vec2(center.x - release_center.x, center.z - release_center.z)) <
+                      0.001f,
+                "Landing keeps the body in place even when the root pivot is below the hips");
+            pose.restore(fixture.animation);
         }
     }
 
@@ -1494,6 +1560,7 @@ int main(int argc, char** argv) {
     reachable_cursor_does_not_jump();
     hanging_drag();
     repeated_hanging_release();
+    hanging_landing_keeps_hips_position();
     hanging_restart_does_not_capture_temporary_pose();
     jump_knee_bend();
     reach_after_landing();

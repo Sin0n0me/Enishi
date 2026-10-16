@@ -80,6 +80,7 @@ namespace enishi::core {
         bool hanging_landing = false;
         float hanging_landing_time = 0;
         glm::vec3 hanging_return_offset{};
+        glm::vec3 hanging_display_center{};
         float hanging_return_cycles = 1;
         std::vector<component::AnimationBuffer> hanging_display_pose;
         float hanging_min_height = 0;
