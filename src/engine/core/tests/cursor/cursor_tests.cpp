@@ -1182,6 +1182,51 @@ namespace {
         }
     }
 
+    void landing_respects_rotated_leg_hinge() {
+        auto fixture = leg_fixture();
+        constexpr float HIP_YAW_DEGREES = 90;
+        const auto hip_rotation = glm::angleAxis(glm::radians(HIP_YAW_DEGREES), glm::vec3(0, 1, 0));
+        fixture.animation.animation[Count].rotation = hip_rotation;
+        fixture.animation.animation[Count + 3].rotation = hip_rotation;
+        core::CursorPoseConfig config;
+        config.jump_enabled = false;
+        core::CursorPose pose(fixture.model, config);
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+            for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(hand.x, hand.y + 3), DT);
+            pose.restore(fixture.animation);
+        }
+        pose.end_hanging();
+        constexpr int CONTACT_FRAME = 18;
+        constexpr int RECOVERY_FRAME = 36;
+        for (int frame = 0; frame < RECOVERY_FRAME; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+            if (frame > CONTACT_FRAME) {
+                for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                    const auto delta =
+                        glm::inverse(hip_rotation) * fixture.animation.animation[hip].rotation;
+                    check(std::abs(delta.y) < 0.001f && std::abs(delta.z) < 0.001f,
+                        "Landing must not twist the hip to force the knee into a model-space bend "
+                        "plane");
+                    const auto knee = fixture.animation.animation[hip + 1].rotation;
+                    check(std::abs(knee.y) < 0.0001f && std::abs(knee.z) < 0.0001f,
+                        "Rotated legs retain the knee's local X hinge");
+                }
+            }
+            pose.restore(fixture.animation);
+        }
+    }
+
     void hanging_restart_does_not_capture_temporary_pose() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
@@ -1561,6 +1606,7 @@ int main(int argc, char** argv) {
     hanging_drag();
     repeated_hanging_release();
     hanging_landing_keeps_hips_position();
+    landing_respects_rotated_leg_hinge();
     hanging_restart_does_not_capture_temporary_pose();
     jump_knee_bend();
     reach_after_landing();

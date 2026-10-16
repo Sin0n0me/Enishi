@@ -127,17 +127,15 @@ namespace enishi::core {
             return;
         }
         const auto direction = delta / distance;
-        const auto basis =
-            this->body_anchor < this->globals.size()
-                ? glm::mat3(this->globals[this->body_anchor]) * this->body_bind_inverse
-                : glm::mat3(1);
-        const auto forward = basis * glm::vec3(0, 0, -1);
-        const auto pole = forward - direction * glm::dot(forward, direction);
+        const auto bind = orientation(model.bind_bone[leg[1]].local);
+        const auto hip_rotation = orientation(this->globals[leg[0]]);
+        // A negative local-X knee bend puts the knee along cross(hinge, hip_to_ankle).
+        // A model-space forward pole would instead yaw the hip when its local axes differ.
+        const auto hinge = hip_rotation * bind * glm::vec3(1, 0, 0);
+        const auto pole = glm::cross(hinge, direction);
         if (!(glm::length(pole) > EPSILON)) {
             return;
         }
-        const auto bind = orientation(model.bind_bone[leg[1]].local);
-        const auto hip_rotation = orientation(this->globals[leg[0]]);
         const auto upper_local = glm::inverse(hip_rotation * bind) * (knee - hip);
         const auto lower_local = glm::inverse(orientation(this->globals[leg[1]])) * (foot - knee);
         // For an X hinge, dot(u,Rx(theta)*v)=A*cos(theta)+B*sin(theta)+C.
