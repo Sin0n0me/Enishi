@@ -1038,7 +1038,15 @@ namespace {
             }
             pose.end_hanging();
             bool bent_on_landing = false;
-            for (int frame = 0; frame < FRAMES; ++frame) {
+            bool stepped_left = false;
+            bool stepped_right = false;
+            std::array<glm::vec3, 2> previous_feet{};
+            bool have_previous_feet = false;
+            constexpr int RETURN_FRAMES = 360;
+            const glm::vec3 landing_offset(suspended_position.x - source[Root].position.x,
+                0,
+                suspended_position.z - source[Root].position.z);
+            for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
                 if (frame == 0) {
                     constexpr float MAX_INITIAL_DROP_RATIO = 0.05f;
@@ -1056,13 +1064,44 @@ namespace {
                                                   source[Count + 1].rotation) > 0.01f;
                     check(glm::length(
                               glm::vec3(global(fixture.model, fixture.animation, Count + 2)[3]) -
-                              glm::vec3(fixture.model.bind_bone[Count + 2].global[3])) < 0.001f,
+                              (glm::vec3(fixture.model.bind_bone[Count + 2].global[3]) +
+                                  landing_offset)) < 0.001f,
                         "Landing keeps the foot planted while bending the knee");
                 }
-                if (frame == FRAMES - 1) {
+                if (frame < RECOVERY_FRAME) {
+                    const auto position = fixture.animation.animation[Root].position;
+                    check(glm::length(glm::vec2(position.x - suspended_position.x,
+                              position.z - suspended_position.z)) < 0.001f,
+                        "Release lands in place before starting the return walk");
+                } else {
+                    constexpr float GROUND_TOLERANCE = 0.0001f;
+                    const std::array<glm::vec3, 2> feet{
+                        glm::vec3(global(fixture.model, fixture.animation, Count + 2)[3]),
+                        glm::vec3(global(fixture.model, fixture.animation, Count + 5)[3])};
+                    check((std::min)(std::abs(feet[0].y), std::abs(feet[1].y)) < GROUND_TOLERANCE,
+                        "Side stepping keeps one foot on the ground");
+                    for (std::size_t side = 0; side < feet.size(); ++side) {
+                        if (have_previous_feet && std::abs(feet[side].y) < GROUND_TOLERANCE &&
+                            std::abs(previous_feet[side].y) < GROUND_TOLERANCE) {
+                            check(glm::length(feet[side] - previous_feet[side]) < 0.001f,
+                                "The grounded foot does not slide during the return walk");
+                        }
+                    }
+                    previous_feet = feet;
+                    have_previous_feet = true;
+                    stepped_left = stepped_left ||
+                                   global(fixture.model, fixture.animation, Count + 2)[3].y > 0.05f;
+                    stepped_right =
+                        stepped_right ||
+                        global(fixture.model, fixture.animation, Count + 5)[3].y > 0.05f;
+                }
+                if (frame == RETURN_FRAMES - 1) {
                     check(glm::length(fixture.animation.animation[Root].rotation -
                                       source[Root].rotation) < 0.001f,
                         "Release restores the displayed root rotation on every repetition");
+                    check(glm::length(fixture.animation.animation[Root].position -
+                                      source[Root].position) < 0.001f,
+                        "Side stepping returns the model to its original position");
                 }
                 pose.restore(fixture.animation);
                 for (std::size_t bone = 0; bone < source.size(); ++bone) {
@@ -1072,6 +1111,8 @@ namespace {
                 }
             }
             check(bent_on_landing, "Releasing suspension bends the knees on landing");
+            check(stepped_left && stepped_right,
+                "The return walk lifts both feet in alternating steps");
         }
     }
 

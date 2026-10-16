@@ -79,6 +79,8 @@ namespace enishi::core {
         float hanging_entry_time = 0;
         bool hanging_landing = false;
         float hanging_landing_time = 0;
+        glm::vec3 hanging_return_offset{};
+        float hanging_return_cycles = 1;
         std::vector<component::AnimationBuffer> hanging_display_pose;
         float hanging_min_height = 0;
         std::size_t hanging_side = 0;
@@ -142,6 +144,11 @@ namespace enishi::core {
         bool apply_hanging_landing(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             float seconds);
+        void apply_hanging_walk(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float seconds);
+        void translate_hanging_roots(
+            component::AnimationComponent& animation, const glm::vec3& offset) const;
         bool apply_hanging(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,

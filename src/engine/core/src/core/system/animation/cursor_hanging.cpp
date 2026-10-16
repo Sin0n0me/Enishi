@@ -11,6 +11,11 @@ namespace enishi::core {
         constexpr float LIFT_ARM_RATIO = 0.12f;
         constexpr float DROP_SECONDS = 0.3f;
         constexpr float LANDING_SECONDS = 0.3f;
+        constexpr float WALK_CYCLE_SECONDS = 0.5f;
+        constexpr float WALK_STRIDE_RATIO = 0.2f;
+        constexpr float WALK_STANCE_RATIO = 0.5f;
+        constexpr float WALK_FOOT_LIFT_RATIO = 0.06f;
+        constexpr float WALK_CROUCH_WEIGHT = 0.8f;
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
@@ -124,6 +129,8 @@ namespace enishi::core {
             this->hanging_landing = false;
             this->hanging_landing_time = 0;
             this->hanging_pose.clear();
+            this->hanging_return_offset = glm::vec3(0);
+            this->hanging_return_cycles = 1;
             this->hanging_display_pose.clear();
             this->hanging_anchor = glm::vec3(0);
             this->hanging_target = glm::vec3(0);
@@ -210,12 +217,97 @@ namespace enishi::core {
         }
     }
 
+    void CursorPose::translate_hanging_roots(
+        component::AnimationComponent& animation, const glm::vec3& offset) const {
+        for (const auto root : this->roots) {
+            const auto axes = glm::mat3(this->external[root]);
+            if (std::abs(glm::determinant(axes)) > EPSILON) {
+                // Model-space displacement maps to local space as inverse(external.axes)*d.
+                animation.animation[root].position += glm::inverse(axes) * offset;
+            }
+        }
+    }
+
+    void CursorPose::apply_hanging_walk(const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        float seconds) {
+        const float cycle = seconds / WALK_CYCLE_SECONDS;
+        const float whole = std::floor(cycle);
+        const float phase = cycle - whole;
+        const float progress =
+            (whole + glm::smoothstep(0.0f, 1.0f, phase)) / this->hanging_return_cycles;
+        std::array<glm::mat4, 2> feet{glm::mat4(1), glm::mat4(1)};
+        for (std::size_t side = 0; side < this->legs.size(); ++side) {
+            if (this->legs[side][2] < this->globals.size()) {
+                feet[side] = this->globals[this->legs[side][2]];
+            }
+        }
+        this->translate_hanging_roots(animation, this->hanging_return_offset * (1 - progress));
+        this->update_globals(model, animation);
+        // Flex during each stride: sin^2(pi*phase) provides reach slack and ends at standing.
+        const float envelope = std::sin(glm::pi<float>() * phase);
+        this->crouch(model, animation, WALK_CROUCH_WEIGHT * envelope * envelope);
+        // Lead with the foot on the return side: direction=-release_offset.
+        const std::size_t leading =
+            glm::dot(glm::vec3(feet[0][3] - feet[1][3]), this->hanging_return_offset) > 0 ? 1 : 0;
+        for (std::size_t side = 0; side < this->legs.size(); ++side) {
+            const auto& leg = this->legs[side];
+            if (!(leg[2] < this->globals.size())) {
+                continue;
+            }
+            // Alternate half-cycle swings. Outside its swing a foot stays at a fixed ground point.
+            const float swing_start = side == leading ? 0.0f : 1.0f;
+            const float swing = std::clamp(2 * phase - swing_start, 0.0f, 1.0f);
+            const float foot_progress =
+                (whole + glm::smoothstep(0.0f, 1.0f, swing)) / this->hanging_return_cycles;
+            auto target = feet[side];
+            target[3] += glm::vec4(this->hanging_return_offset * (1 - foot_progress), 0);
+            const float length =
+                glm::length(glm::vec3(this->globals[leg[0]][3] - this->globals[leg[1]][3])) +
+                glm::length(glm::vec3(this->globals[leg[1]][3] - this->globals[leg[2]][3]));
+            // Foot arc h=L*ratio*sin^2(pi*s), zero height and vertical speed at contact.
+            const float lift = std::sin(glm::pi<float>() * swing);
+            target[3].y += length * WALK_FOOT_LIFT_RATIO * lift * lift;
+            this->bend_leg(model, animation, side, target);
+        }
+    }
+
     bool CursorPose::apply_hanging_landing(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         float seconds) {
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
+        if (this->hanging_landing_time == 0) {
+            const auto root = this->roots.front();
+            this->hanging_return_offset =
+                glm::mat3(this->external[root]) *
+                (this->hanging_display_pose[root].position - animation.animation[root].position);
+            this->hanging_return_offset.y = 0;
+            float stride = this->arm_frame(this->hanging_side).length * WALK_STRIDE_RATIO;
+            const auto& leg = this->legs[0];
+            if (leg[2] < this->globals.size()) {
+                stride =
+                    (glm::length(glm::vec3(this->globals[leg[0]][3] - this->globals[leg[1]][3])) +
+                        glm::length(
+                            glm::vec3(this->globals[leg[1]][3] - this->globals[leg[2]][3]))) *
+                    WALK_STRIDE_RATIO;
+            }
+            if (this->legs[0][2] < this->globals.size() &&
+                this->legs[1][2] < this->globals.size()) {
+                auto separation = glm::vec3(
+                    this->globals[this->legs[0][2]][3] - this->globals[this->legs[1][2]][3]);
+                separation.y = 0;
+                if (glm::length(separation) > EPSILON) {
+                    // Limit stride to half the stance width to keep sideways steps from crossing.
+                    stride = (std::min)(stride, glm::length(separation) * WALK_STANCE_RATIO);
+                }
+            }
+            // Integer gait cycles keep both feet grounded at the destination; stride <= L*ratio.
+            this->hanging_return_cycles =
+                std::ceil(glm::length(this->hanging_return_offset) / (std::max)(stride, EPSILON));
+        }
         this->hanging_landing_time += dt;
-        if (!(this->hanging_landing_time < DROP_SECONDS + LANDING_SECONDS)) {
+        const float walk_time = this->hanging_landing_time - DROP_SECONDS - LANDING_SECONDS;
+        if (!(walk_time < this->hanging_return_cycles * WALK_CYCLE_SECONDS)) {
             this->hanging_landing = false;
             this->hanging_weight = 0;
             this->end_hanging();
@@ -223,9 +315,15 @@ namespace enishi::core {
             return false;
         }
         this->hanging_originals = animation.animation;
+        if (walk_time > 0) {
+            this->apply_hanging_walk(model, animation, walk_time);
+            this->update_hanging_ik_targets(model, animation);
+            return true;
+        }
+        this->translate_hanging_roots(animation, this->hanging_return_offset);
         const float phase = std::clamp(this->hanging_landing_time / DROP_SECONDS, 0.0f, 1.0f);
         const float rotation_weight = glm::smoothstep(0.0f, 1.0f, phase);
-        // Falling displacement grows as t^2; land at the current authored ground pose.
+        // Falling displacement grows as t^2; preserve release X/Z until the walking phase.
         const float position_weight = phase * phase;
         for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
             auto& pose = animation.animation[bone];
