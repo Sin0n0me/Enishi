@@ -76,6 +76,7 @@ namespace enishi::core {
         bool applied = false;
         bool hanging = false;
         float hanging_weight = 0;
+        float hanging_min_height = 0;
         std::size_t hanging_side = 0;
         glm::vec3 hanging_anchor{};
         glm::vec3 hanging_normal{0, 0, 1};
@@ -130,12 +131,17 @@ namespace enishi::core {
             const CursorRay& cursor);
         void end_hanging();
         [[nodiscard]] bool is_hanging() const;
+        [[nodiscard]] bool suppress_hanging_ik(types::BoneIndex bone) const;
 
       private:
         bool apply_hanging(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
             float seconds);
+        void update_hanging_ik_targets(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
+        void prepare_hanging_limbs(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
         void hang_limb(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             types::BoneIndex start,

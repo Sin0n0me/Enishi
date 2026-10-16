@@ -10,6 +10,7 @@ namespace enishi::core {
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
+        constexpr float HEAD_CLEARANCE_RATIO = 0.05f;
         const glm::vec3 DOWN(0, -1, 0);
 
         glm::quat rotation(const glm::mat4& matrix) {
@@ -43,7 +44,8 @@ namespace enishi::core {
 
     std::optional<std::pair<std::size_t, float>> CursorPose::pick_hand(
         const component::AnimationComponent& animation, const CursorRay& cursor) const {
-        if (!this->globals_cached || this->hanging || this->hanging_weight > 0) {
+        if (!this->globals_cached || this->hanging || this->hanging_weight > EPSILON ||
+            !(this->joints[Head] < animation.global.size())) {
             return std::nullopt;
         }
         std::optional<std::pair<std::size_t, float>> result;
@@ -59,7 +61,10 @@ namespace enishi::core {
             // Closest point on ray: t=dot(hand-origin,d)/dot(d,d).
             const float t = glm::dot(hand - cursor.ray.origin, cursor.ray.direction) / squared;
             const float radius = this->arm_frame(side).length * HAND_RADIUS_RATIO;
-            if (t > 0 &&
+            const auto point = cursor.ray.origin + t * cursor.ray.direction;
+            const float minimum_height = animation.global[this->joints[Head]][3].y +
+                                         this->arm_frame(side).length * HEAD_CLEARANCE_RATIO;
+            if (point.y > minimum_height && t > 0 &&
                 glm::length(cursor.ray.origin + t * cursor.ray.direction - hand) < radius &&
                 (!result.has_value() || t < result->second)) {
                 result = std::pair{side, t};
@@ -71,7 +76,8 @@ namespace enishi::core {
     void CursorPose::begin_hanging(
         std::size_t side, const component::AnimationComponent& animation, const CursorRay& cursor) {
         if (!(side < this->wrists.size()) || !(this->wrists[side] < animation.global.size()) ||
-            this->cached_local.size() != animation.animation.size()) {
+            this->cached_local.size() != animation.animation.size() ||
+            !(this->joints[Head] < animation.global.size())) {
             return;
         }
         this->hanging_side = side;
@@ -81,6 +87,9 @@ namespace enishi::core {
         this->hanging_target = this->hanging_anchor;
         this->hanging_lag = this->hanging_anchor;
         this->hanging_weight = 0;
+        // Keep the entry threshold fixed; moving the suspended head must not move the threshold.
+        this->hanging_min_height = animation.global[this->joints[Head]][3].y +
+                                   this->arm_frame(side).length * HEAD_CLEARANCE_RATIO;
         this->hanging = true;
         this->jump_height = 0;
         this->jump_wait = 0;
@@ -91,6 +100,30 @@ namespace enishi::core {
     }
     bool CursorPose::is_hanging() const {
         return this->hanging;
+    }
+
+    bool CursorPose::suppress_hanging_ik(types::BoneIndex bone) const {
+        return this->hanging_weight > EPSILON &&
+               std::ranges::find(this->leg_ik_goals, bone) != this->leg_ik_goals.end();
+    }
+
+    void CursorPose::prepare_hanging_limbs(
+        const component::ModelComponent& model, component::AnimationComponent& animation) {
+        const auto elbow = this->hanging_side == 0 ? LeftElbow : RightElbow;
+        // flex=0 straightens the support arm in its hinge plane without hyperextension.
+        animation.animation[this->joints[elbow]].rotation =
+            this->bind_rotations[elbow] * glm::angleAxis(-this->bind_flex[this->hanging_side],
+                                              this->hinge_axes[this->hanging_side]);
+        // Capturing a jumping/crouching pose also captures knee bends. Start dangling legs from
+        // their bind axes; rotating only the hip would otherwise preserve the wrong bend plane.
+        for (const auto& leg : this->legs) {
+            for (const auto bone : leg) {
+                if (bone < model.bind_bone.size()) {
+                    animation.animation[bone].rotation = rotation(model.bind_bone[bone].local);
+                }
+            }
+        }
+        this->update_globals(model, animation);
     }
 
     void CursorPose::hang_limb(const component::ModelComponent& model,
@@ -107,6 +140,25 @@ namespace enishi::core {
         this->update_globals(model, animation);
     }
 
+    void CursorPose::update_hanging_ik_targets(
+        const component::ModelComponent& model, component::AnimationComponent& animation) {
+        // Foot IK targets must follow the dangling feet instead of pinning them to the ground.
+        for (const auto& ik : model.iks) {
+            const auto& ccd = std::get<types::CCDIK>(ik.method);
+            if (std::ranges::find(this->leg_ik_goals, ccd.ik_bone) == this->leg_ik_goals.end()) {
+                continue;
+            }
+            const auto parent = model.bone_node[ccd.ik_bone].parent;
+            const auto base =
+                this->external[ccd.ik_bone] *
+                (parent < this->globals.size() ? this->globals[parent] : glm::mat4(1));
+            if (ccd.target < this->globals.size() && std::abs(glm::determinant(base)) > EPSILON) {
+                animation.animation[ccd.ik_bone].position =
+                    glm::vec3(glm::inverse(base) * this->globals[ccd.target][3]);
+            }
+        }
+    }
+
     bool CursorPose::apply_hanging(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::optional<CursorRay>& cursor,
@@ -117,9 +169,6 @@ namespace enishi::core {
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
         // Exponential damping alpha=1-exp(-rate*dt), independent of frame rate.
         const float alpha = 1 - std::exp(-RESPONSE * dt);
-        this->hanging_weight = this->hanging
-                                   ? (std::min)(1.0f, this->hanging_weight + RESPONSE * dt)
-                                   : this->hanging_weight * (1 - alpha);
         if (this->hanging && cursor.has_value()) {
             const float denominator = glm::dot(cursor->ray.direction, this->hanging_normal);
             if (std::abs(denominator) > EPSILON) {
@@ -133,9 +182,15 @@ namespace enishi::core {
                 }
             }
         }
+        const bool above_head = this->hanging && this->hanging_target.y > this->hanging_min_height;
+        this->hanging_weight = above_head ? (std::min)(1.0f, this->hanging_weight + RESPONSE * dt)
+                                          : this->hanging_weight * (1 - alpha);
+        if (!(this->hanging_weight > EPSILON)) {
+            return false;
+        }
         this->hanging_originals = animation.animation;
         animation.animation = this->hanging_pose;
-        this->update_globals(model, animation);
+        this->prepare_hanging_limbs(model, animation);
         const auto wrist = this->wrists[this->hanging_side];
         const auto hips = this->body_bones[BodyHips];
         const auto center = hips < this->globals.size()
@@ -188,21 +243,7 @@ namespace enishi::core {
             pose.rotation = glm::slerp(original.rotation, pose.rotation, this->hanging_weight);
         }
         this->update_globals(model, animation);
-        // Foot IK targets must follow the dangling feet instead of pinning them to the ground.
-        for (const auto& ik : model.iks) {
-            const auto& ccd = std::get<types::CCDIK>(ik.method);
-            if (std::ranges::find(this->leg_ik_goals, ccd.ik_bone) == this->leg_ik_goals.end()) {
-                continue;
-            }
-            const auto parent = model.bone_node[ccd.ik_bone].parent;
-            const auto base =
-                this->external[ccd.ik_bone] *
-                (parent < this->globals.size() ? this->globals[parent] : glm::mat4(1));
-            if (ccd.target < this->globals.size() && std::abs(glm::determinant(base)) > EPSILON) {
-                animation.animation[ccd.ik_bone].position =
-                    glm::vec3(glm::inverse(base) * this->globals[ccd.target][3]);
-            }
-        }
+        this->update_hanging_ik_targets(model, animation);
         return true;
     }
 } // namespace enishi::core

@@ -871,15 +871,52 @@ namespace {
         }
     }
 
+    void check_hanging_limbs(
+        const Fixture& fixture, std::size_t selected_side, types::BoneIndex wrist) {
+        const auto shoulder = selected_side == 0 ? Arm : OtherArm;
+        const auto elbow = selected_side == 0 ? Elbow : OtherElbow;
+        const auto upper = glm::vec3(global(fixture.model, fixture.animation, elbow)[3] -
+                                     global(fixture.model, fixture.animation, shoulder)[3]);
+        const auto lower = glm::vec3(global(fixture.model, fixture.animation, wrist)[3] -
+                                     global(fixture.model, fixture.animation, elbow)[3]);
+        check(glm::dot(glm::normalize(upper), glm::normalize(lower)) > 0.999f,
+            "The supporting arm is fully extended without hyperextension");
+        for (std::size_t side = 0; side < 2; ++side) {
+            const auto hip = static_cast<types::BoneIndex>(Count + side * 3);
+            const auto thigh = glm::vec3(global(fixture.model, fixture.animation, hip + 1)[3] -
+                                         global(fixture.model, fixture.animation, hip)[3]);
+            const auto shin = glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3] -
+                                        global(fixture.model, fixture.animation, hip + 1)[3]);
+            check(glm::dot(glm::normalize(thigh), glm::normalize(shin)) > 0.999f &&
+                      glm::normalize(thigh).y < -0.99f,
+                "Captured crouching knees are released and both legs hang downward");
+        }
+    }
+
     void hanging_drag() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
         auto fixture = leg_fixture();
+        constexpr float CROUCH_DEGREES = 45;
+        fixture.animation.animation[Count + 1].rotation =
+            glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
+        fixture.animation.animation[Count + 4].rotation =
+            glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
         core::CursorPoseConfig config;
         config.jump_enabled = false;
         core::CursorPose pose(fixture.model, config);
         check(!pose.pick_hand(fixture.animation, cursor(0, 10)).has_value(),
             "An idle hand cannot start a hanging drag");
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(3, 7), DT);
+            for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        const auto low_hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        check(!pose.pick_hand(fixture.animation, cursor(low_hand.x, low_hand.y)).has_value(),
+            "Dragging a hand below the head must not start suspension");
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
             for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
@@ -904,8 +941,11 @@ namespace {
                     "Suspended hand stays at the cursor while the body moves");
                 check(global(fixture.model, fixture.animation, Root)[3].y < destination.y,
                     "The body hangs below the grabbed hand");
+                check_hanging_limbs(fixture, hit->first, wrist);
                 for (const auto& ik : fixture.model.iks) {
                     const auto& ccd = std::get<types::CCDIK>(ik.method);
+                    check(pose.suppress_hanging_ik(ccd.ik_bone),
+                        "Foot IK is suppressed while the dangling pose is active");
                     check(glm::length(glm::vec3(
                               global(fixture.model, fixture.animation, ccd.target)[3] -
                               global(fixture.model, fixture.animation, ccd.ik_bone)[3])) < 0.001f,
@@ -918,6 +958,16 @@ namespace {
                           fixture.animation.animation[bone].rotation == source[bone].rotation,
                     "Hanging never accumulates edits into the source animation");
             }
+        }
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(hand.x, 7), DT);
+            if (frame == FRAMES - 1) {
+                check(glm::length(fixture.animation.animation[Root].position -
+                                  source[Root].position) < 0.001f,
+                    "Lowering the cursor below the head fades out suspension during the drag");
+                check(!pose.suppress_hanging_ik(Count + 6), "Foot IK resumes below the head");
+            }
+            pose.restore(fixture.animation);
         }
         pose.end_hanging();
         check(!pose.is_hanging(), "Release ends the drag");

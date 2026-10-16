@@ -227,6 +227,9 @@ namespace enishi::core {
             if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
                 continue;
             }
+            if (bones.cursor_pose != nullptr && bones.cursor_pose->suppress_hanging_ik(bone_index)) {
+                continue;
+            }
             ik::IKSolver::apply_ik(ik.iks[found->second],
                 bones.ik_cache.get(),
                 bones.ik_updater.get(),
