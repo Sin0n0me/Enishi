@@ -871,6 +871,67 @@ namespace {
         }
     }
 
+    void hanging_drag() {
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        auto fixture = leg_fixture();
+        core::CursorPoseConfig config;
+        config.jump_enabled = false;
+        core::CursorPose pose(fixture.model, config);
+        check(!pose.pick_hand(fixture.animation, cursor(0, 10)).has_value(),
+            "An idle hand cannot start a hanging drag");
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+            for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto grab = cursor(hand.x, hand.y);
+        const auto hit = pose.pick_hand(fixture.animation, grab);
+        check(hit.has_value(), "The extended hand can be grabbed");
+        pose.begin_hanging(hit->first, fixture.animation, grab);
+        check(pose.is_hanging(), "Drag starts suspension");
+        const auto source = fixture.animation.animation;
+        const auto wrist = hit->first == 0 ? Wrist : OtherWrist;
+        const glm::vec3 destination(hand.x + 2, hand.y + 3, hand.z);
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(destination.x, destination.y), DT);
+            if (frame == FRAMES - 1) {
+                check(glm::length(glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
+                                  destination) < 0.001f,
+                    "Suspended hand stays at the cursor while the body moves");
+                check(global(fixture.model, fixture.animation, Root)[3].y < destination.y,
+                    "The body hangs below the grabbed hand");
+                for (const auto& ik : fixture.model.iks) {
+                    const auto& ccd = std::get<types::CCDIK>(ik.method);
+                    check(glm::length(glm::vec3(
+                              global(fixture.model, fixture.animation, ccd.target)[3] -
+                              global(fixture.model, fixture.animation, ccd.ik_bone)[3])) < 0.001f,
+                        "Foot IK follows the dangling foot instead of holding it on the ground");
+                }
+            }
+            pose.restore(fixture.animation);
+            for (std::size_t bone = 0; bone < source.size(); ++bone) {
+                check(fixture.animation.animation[bone].position == source[bone].position &&
+                          fixture.animation.animation[bone].rotation == source[bone].rotation,
+                    "Hanging never accumulates edits into the source animation");
+            }
+        }
+        pose.end_hanging();
+        check(!pose.is_hanging(), "Release ends the drag");
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+            if (frame == FRAMES - 1) {
+                check(glm::length(fixture.animation.animation[Root].position -
+                                  source[Root].position) < 0.001f,
+                    "Released body returns smoothly to its authored position");
+            }
+            pose.restore(fixture.animation);
+        }
+    }
+
     void reachable_cursor_does_not_jump() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 100;
@@ -1202,6 +1263,7 @@ int main(int argc, char** argv) {
     configurable_limits();
     stationary_jump();
     reachable_cursor_does_not_jump();
+    hanging_drag();
     jump_knee_bend();
     reach_after_landing();
     experimental_collision_setting();

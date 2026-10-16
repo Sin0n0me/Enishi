@@ -18,8 +18,9 @@ namespace enishi::core {
         glm::vec3 plane_normal;
     };
 
-    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(
-        const platform::IWindow& window, const types::UniformCamera& camera);
+    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(const platform::IWindow& window,
+        const types::UniformCamera& camera,
+        bool allow_outside = false);
 
     // A temporary local-pose layer. Restore after skinning captures the pose, so an idle
     // animation or a stopped clip never accumulates last frame's cursor correction.
@@ -73,6 +74,15 @@ namespace enishi::core {
         std::vector<types::BoneIndex> traversal;
         std::array<bool, 2> active_arms{};
         bool applied = false;
+        bool hanging = false;
+        float hanging_weight = 0;
+        std::size_t hanging_side = 0;
+        glm::vec3 hanging_anchor{};
+        glm::vec3 hanging_normal{0, 0, 1};
+        glm::vec3 hanging_target{};
+        glm::vec3 hanging_lag{};
+        std::vector<component::AnimationBuffer> hanging_pose;
+        std::vector<component::AnimationBuffer> hanging_originals;
         CursorPoseConfig config;
         std::vector<types::BoneIndex> roots;
         std::vector<glm::vec3> original_root_positions;
@@ -113,8 +123,23 @@ namespace enishi::core {
             const std::optional<CursorRay>& cursor,
             float seconds);
         void restore(component::AnimationComponent& animation);
+        [[nodiscard]] std::optional<std::pair<std::size_t, float>> pick_hand(
+            const component::AnimationComponent& animation, const CursorRay& cursor) const;
+        void begin_hanging(std::size_t side,
+            const component::AnimationComponent& animation,
+            const CursorRay& cursor);
+        void end_hanging();
+        [[nodiscard]] bool is_hanging() const;
 
       private:
+        bool apply_hanging(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::optional<CursorRay>& cursor,
+            float seconds);
+        void hang_limb(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            types::BoneIndex start,
+            types::BoneIndex end);
         void initialize_legs(const component::ModelComponent& model);
         void crouch(const component::ModelComponent& model,
             component::AnimationComponent& animation,

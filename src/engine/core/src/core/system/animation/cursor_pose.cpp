@@ -325,6 +325,10 @@ namespace enishi::core {
             this->collision_physics_globals = animation.global;
         }
         this->update_globals(model, animation);
+        if (this->apply_hanging(model, animation, cursor, seconds)) {
+            this->applied = true;
+            return;
+        }
         auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         this->apply_jump(model, animation, point, seconds);
         if (this->jump_height > 0 && cursor.has_value()) {
@@ -368,6 +372,12 @@ namespace enishi::core {
 
     void CursorPose::restore(component::AnimationComponent& animation) {
         if (!this->applied) {
+            return;
+        }
+        if (!this->hanging_originals.empty()) {
+            animation.animation = this->hanging_originals;
+            this->hanging_originals.clear();
+            this->applied = false;
             return;
         }
         for (std::size_t index = 0; index < this->roots.size(); ++index) {

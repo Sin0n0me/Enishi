@@ -3,7 +3,7 @@
 
 namespace enishi::core {
     std::optional<CursorRay> read_cursor_ray(
-        const platform::IWindow& window, const types::UniformCamera& camera) {
+        const platform::IWindow& window, const types::UniformCamera& camera, bool allow_outside) {
         const auto input = window.get_input();
         const auto position = window.get_position();
         const auto size = window.get_size();
@@ -11,8 +11,8 @@ namespace enishi::core {
             return std::nullopt;
         }
         const auto cursor = input.unwrap()->get_client_mouse_position(position.unwrap());
-        if (cursor.x < 0 || cursor.y < 0 || !(cursor.x < size.unwrap().width) ||
-            !(cursor.y < size.unwrap().height)) {
+        if (!allow_outside && (cursor.x < 0 || cursor.y < 0 || !(cursor.x < size.unwrap().width) ||
+                                  !(cursor.y < size.unwrap().height))) {
             return std::nullopt;
         }
         const auto ray = types::Ray::make_ray_from_screen(size.unwrap(), cursor, camera);
