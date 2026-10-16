@@ -30,6 +30,9 @@ namespace enishi::core {
         // Exponential blending w'=w+(target-w)*(1-exp(-rate*dt)) avoids abrupt pose switches.
         const float target = enabled ? 1.0f : 0.0f;
         this->idle_weight += (target - this->idle_weight) * (1 - std::exp(-BLEND_RATE * dt));
+        if (this->transition_initializing) {
+            this->idle_weight = target;
+        }
         if (animation.motion_playing) {
             this->idle_weight = 0;
         }

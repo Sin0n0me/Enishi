@@ -12,6 +12,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     external_transform_tests.cpp
     ${SKINNING_SOURCES}
     ${CURSOR_SOURCES}
+    "${CORE_ROOT}/system/animation/pose_transition.cpp"
     ${COLLIDER_SOURCES}
     "${ENGINE_ROOT}/engine_types/src/engine_types/collider/ray.cpp"
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"

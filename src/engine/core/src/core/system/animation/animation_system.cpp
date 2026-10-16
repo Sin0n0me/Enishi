@@ -9,6 +9,7 @@ namespace enishi::core {
 
     void AnimationSystem::set_controller(
         const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
+        this->playback_states.erase(entity);
         if (controller != nullptr) {
             auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
             if (bodies.is_some()) {
@@ -22,6 +23,7 @@ namespace enishi::core {
 
     void AnimationSystem::remove_controller(const types::HandleId& entity) {
         this->controllers.erase(entity);
+        this->playback_states.erase(entity);
     }
 
     std::shared_ptr<animation::IAnimationController> AnimationSystem::get_controller(
@@ -52,9 +54,22 @@ namespace enishi::core {
                 continue;
             }
 
-            controller->update(delta_time.to_float_second());
+            auto& playback = this->playback_states[entity];
+            const bool changed = !playback.initialized ||
+                                 playback.clip != controller->get_active_clip() ||
+                                 controller->get_time() < playback.time ||
+                                 (controller->is_playing() && !playback.playing);
+            if (changed) {
+                ++animation.motion_revision;
+            }
+            // Sample the new clip's initial pose before advancing it. Skinning holds the
+            // controller clock until its pose transition has reached that sample.
+            if (!changed && !animation.pose_transition_active) {
+                controller->update(delta_time.to_float_second());
+            }
             const auto* clip = controller->get_active_clip();
             animation.motion_playing = clip != nullptr && controller->is_playing();
+            playback = {clip, controller->get_time(), controller->is_playing(), true};
             if (clip == nullptr) {
                 continue;
             }

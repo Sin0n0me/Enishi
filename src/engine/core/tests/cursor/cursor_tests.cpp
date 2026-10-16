@@ -1,6 +1,8 @@
+#include <animation/animation_controller.h>
 #include <chrono>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
+#include <core/system/animation/animation_system.h>
 #include <core/system/animation/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
@@ -764,6 +766,139 @@ namespace {
         return fixture;
     }
 
+    void linear_pose_transition() {
+        std::vector<component::AnimationBuffer> from(1);
+        auto to = from;
+        to[0].position = {4, 8, 12};
+        to[0].scale = {3, 3, 3};
+        to[0].rotation = glm::angleAxis(glm::half_pi<float>(), glm::vec3(1, 0, 0));
+        core::PoseTransition transition;
+        transition.begin(from, to);
+        auto output = from;
+        transition.apply(0.25f, output);
+        check(output[0].position == to[0].position * 0.5f && output[0].scale == glm::vec3(2),
+            "Pose transition linearly interpolates translation and scale at half time");
+        check(std::abs(glm::angle(output[0].rotation) - glm::quarter_pi<float>()) < TOLERANCE,
+            "Pose transition interpolates normalized shortest-arc rotation");
+        transition.apply(0.25f, output);
+        check(!transition.active() && output[0].position == to[0].position &&
+                  output[0].rotation == to[0].rotation,
+            "Pose transition reaches the captured initial pose at exactly half a second");
+        transition.begin(from, to);
+        transition.apply(0.25f, output);
+        const auto interrupted = output;
+        transition.begin(output, from);
+        transition.apply(0, output);
+        check(output[0].position == interrupted[0].position,
+            "Interrupted transitions start from the currently displayed pose");
+        to = from;
+        to[0].rotation = -from[0].rotation;
+        transition.begin(from, to);
+        transition.apply(0.25f, output);
+        check(std::abs(glm::dot(output[0].rotation, from[0].rotation)) > 1 - TOLERANCE,
+            "Equivalent quaternion signs do not produce invalid intermediate rotations");
+    }
+
+    void procedural_pose_transition() {
+        Fixture fixture;
+        core::CursorPose pose(fixture.model);
+        constexpr float DT = 1.0f / 60;
+        for (int frame = 0; frame < 180; ++frame) {
+            pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, true);
+            pose.restore(fixture.animation);
+        }
+        pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, true);
+        const auto start = fixture.animation.animation;
+        pose.restore(fixture.animation);
+        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), DT, true);
+        check(fixture.animation.pose_transition_active &&
+                  glm::length(fixture.animation.animation[Arm].rotation - start[Arm].rotation) <
+                      TOLERANCE,
+            "Reaching starts its transition from the displayed idle pose");
+        pose.restore(fixture.animation);
+        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), 0.25f, true);
+        const auto middle = fixture.animation.animation;
+        pose.restore(fixture.animation);
+        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), 0.25f, true);
+        const auto end = fixture.animation.animation;
+        check(!fixture.animation.pose_transition_active,
+            "Reaching transition completes in half a second");
+        const auto target = glm::dot(start[Arm].rotation, end[Arm].rotation) < 0
+                                ? -end[Arm].rotation
+                                : end[Arm].rotation;
+        const auto expected = glm::normalize(start[Arm].rotation + target);
+        check(std::abs(glm::dot(expected, middle[Arm].rotation)) > 1 - TOLERANCE,
+            "Procedural transition holds its destination while interpolating linearly");
+        pose.restore(fixture.animation);
+    }
+
+    void file_pose_transition() {
+        Fixture fixture;
+        fixture.animation.bind_pose = fixture.animation.animation;
+        auto registry = std::make_shared<ecs::Registry>();
+        const auto entity = registry->create();
+        check(registry->emplace<component::ModelComponent>(entity, fixture.model).is_ok(),
+            "Insert transition model");
+        check(registry->emplace<component::AnimationComponent>(entity, fixture.animation).is_ok(),
+            "Insert transition animation");
+        check(registry->emplace<component::SkinningComponent>(entity).is_ok(),
+            "Insert transition skinning");
+        core::AnimationSystem animation_system(registry);
+        core::SkinningSystem skinning(registry, nullptr);
+        auto& pose = registry->get<component::AnimationComponent>(entity).unwrap_mut();
+        skinning.update(types::DeltaTime(0.0f));
+        auto clip = std::make_shared<animation::AnimationClipData>();
+        clip->duration = 1;
+        animation::BoneTrack root{};
+        root.positions.times = {0, 1};
+        root.positions.values = {{10, 0, 0}, {11, 0, 0}};
+        clip->bone_tracks.push_back(root);
+        auto controller = std::make_shared<animation::AnimationController>();
+        controller->add_clip("test", clip);
+        check(controller->play("test"), "Start synthetic file motion");
+        animation_system.set_controller(entity, controller);
+        const types::DeltaTime quarter(0.25f);
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(controller->get_time() == 0 && pose.pose_transition_active &&
+                  pose.global[Root][3].x == 0,
+            "File motion initially holds playback and preserves the preceding pose");
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(controller->get_time() == 0 && std::abs(pose.global[Root][3].x - 5) < TOLERANCE,
+            "File transition reaches the midpoint without advancing its controller");
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(controller->get_time() == 0 && !pose.pose_transition_active &&
+                  std::abs(pose.global[Root][3].x - 10) < TOLERANCE,
+            "File transition reaches time zero after half a second");
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(controller->get_time() == 0.25f &&
+                  std::abs(pose.global[Root][3].x - 10.25f) < TOLERANCE,
+            "File playback begins only after the transition completes");
+        for (int frame = 0; frame < 3; ++frame) {
+            animation_system.update(quarter);
+            skinning.update(quarter);
+        }
+        check(!pose.motion_playing && pose.pose_transition_active,
+            "Finishing a file motion starts the outgoing pose transition");
+        const float displayed = pose.global[Root][3].x;
+        auto replacement = std::make_shared<animation::AnimationClipData>(*clip);
+        replacement->bone_tracks[0].positions.values = {{20, 0, 0}, {21, 0, 0}};
+        controller->add_clip("replacement", replacement);
+        check(controller->play("replacement"), "Switch to a new clip during interpolation");
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(
+            controller->get_time() == 0 && std::abs(pose.global[Root][3].x - displayed) < TOLERANCE,
+            "Replacing a clip mid-transition preserves the displayed pose");
+        animation_system.update(quarter);
+        skinning.update(quarter);
+        check(std::abs(pose.global[Root][3].x - (displayed + 20) * 0.5f) < TOLERANCE,
+            "Replacement clip uses a new linear transition from the interrupted pose");
+    }
+
     Fixture idle_fixture() {
         auto fixture = leg_fixture();
         const auto torso = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
@@ -782,6 +917,79 @@ namespace {
             fixture.model.bone_node[torso].children.push_back(child);
         }
         return fixture;
+    }
+
+    void procedural_transition_lifecycle(bool jumping) {
+        auto fixture = idle_fixture();
+        core::CursorPoseConfig config;
+        config.jump_enabled = jumping;
+        config.jump_delay = 0;
+        core::CursorPose pose(fixture.model, config);
+        const auto source = fixture.animation.animation;
+        constexpr float DT = 1.0f / 60;
+        int transitions = 0;
+        int held_frames = 0;
+        bool blending = false;
+        const auto step = [&](const std::optional<core::CursorRay>& ray) {
+            pose.apply_transitioned(fixture.model, fixture.animation, ray, DT, true);
+            if (fixture.animation.pose_transition_active && !blending) {
+                ++transitions;
+                held_frames = 0;
+            }
+            if (blending) {
+                ++held_frames;
+            }
+            if (blending && !fixture.animation.pose_transition_active) {
+                check(std::abs(static_cast<float>(held_frames) * DT - 0.5f) < TOLERANCE,
+                    "Each procedural stage holds playback for exactly half a second");
+            }
+            blending = fixture.animation.pose_transition_active;
+            for (types::BoneIndex bone = 0; bone < source.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+            for (std::size_t bone = 0; bone < source.size(); ++bone) {
+                check(fixture.animation.animation[bone].position == source[bone].position &&
+                          fixture.animation.animation[bone].rotation == source[bone].rotation,
+                    "Transition poses do not accumulate into authored animation");
+            }
+        };
+        constexpr int WARMUP = 120;
+        for (int frame = 0; frame < WARMUP; ++frame) {
+            step(std::nullopt);
+        }
+        if (jumping) {
+            constexpr int JUMP_FRAMES = 240;
+            for (int frame = 0; frame < JUMP_FRAMES; ++frame) {
+                step(cursor(0, 11.5f));
+            }
+            check(transitions > 2, "Jump preparation, flight and landing use pose transitions");
+            return;
+        }
+        for (int frame = 0; frame < WARMUP; ++frame) {
+            step(cursor(2, 10));
+        }
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
+        for (int frame = 0; frame < WARMUP; ++frame) {
+            step(cursor(hand.x + 3, hand.y + 3));
+        }
+        const int before_release = transitions;
+        pose.end_hanging();
+        constexpr int RETURN_FRAMES = 600;
+        for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
+            step(std::nullopt);
+        }
+        check(transitions > before_release + 2,
+            "Release, landing, return walking and idle use the shared transition");
+        check(!fixture.animation.pose_transition_active,
+            "Hanging recovery eventually completes all transitions");
+        fixture.animation.motion_playing = true;
+        ++fixture.animation.motion_revision;
+        pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, false);
+        check(!pose.suppress_hanging_ik(Count + 6) && !pose.suppress_hanging_ik(Count + 7),
+            "File transitions retain authored foot IK instead of enabling it abruptly afterward");
+        pose.restore(fixture.animation);
     }
 
     void procedural_idle_pose() {
@@ -1840,6 +2048,11 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
     look_and_reach();
+    linear_pose_transition();
+    procedural_pose_transition();
+    file_pose_transition();
+    procedural_transition_lifecycle(false);
+    procedural_transition_lifecycle(true);
     smoothing_and_return();
     limits_and_missing_bones();
     animated_pose();

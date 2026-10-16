@@ -23,5 +23,7 @@ namespace enishi::component {
         float elapsed_time{}; // 経過時間
         std::vector<AnimationBuffer> bind_pose;
         bool motion_playing = false;
+        std::uint64_t motion_revision = 0;
+        bool pose_transition_active = false;
     };
 } // namespace enishi::component

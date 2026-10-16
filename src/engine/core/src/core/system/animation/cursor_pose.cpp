@@ -373,9 +373,12 @@ namespace enishi::core {
         }
         const auto previous = this->offsets;
         // Exponential smoothing alpha=1-exp(-rate*dt) is independent of frame rate.
-        const float alpha = std::isfinite(seconds)
-                                ? 1.0f - std::exp(-RESPONSE_RATE * (std::max)(0.0f, seconds))
-                                : 0.0f;
+        float alpha = std::isfinite(seconds)
+                          ? 1.0f - std::exp(-RESPONSE_RATE * (std::max)(0.0f, seconds))
+                          : 0.0f;
+        if (this->transition_initializing) {
+            alpha = 1;
+        }
         for (std::size_t joint = 0; joint < Count; ++joint) {
             const auto index = this->joints[joint];
             if (!(index < animation.animation.size())) {
@@ -388,7 +391,9 @@ namespace enishi::core {
                 glm::normalize(this->originals[joint] * this->offsets[joint]);
         }
         this->protect_arms(model, animation);
-        this->limit_arm_speed(model, animation, previous, seconds);
+        if (!this->transition_initializing) {
+            this->limit_arm_speed(model, animation, previous, seconds);
+        }
         // Limiting each arm changes the obstacle seen by the other arm. Recheck the pair
         // together; clearance takes precedence if the two limited trajectories intersect.
         this->protect_arms(model, animation);

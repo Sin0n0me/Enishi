@@ -1,5 +1,6 @@
 #pragma once
 #include "cursor_pose_config.h"
+#include "pose_transition.h"
 #include <array>
 #include <component/animation_component.h>
 #include <component/model_component.h>
@@ -26,6 +27,30 @@ namespace enishi::core {
     // animation or a stopped clip never accumulates last frame's cursor correction.
     class CursorPose {
       private:
+        enum class PoseStage {
+            Idle,
+            Reach,
+            JumpPreparation,
+            Jump,
+            JumpLanding,
+            Hanging,
+            Drop,
+            Landing,
+            Walk,
+            File
+        };
+        static constexpr float HANGING_DROP_SECONDS = 0.3f;
+        static constexpr float HANGING_LANDING_SECONDS = 0.3f;
+        PoseTransition transition;
+        std::vector<component::AnimationBuffer> transition_display;
+        PoseStage transition_stage = PoseStage::Idle;
+        std::uint64_t transition_revision = 0;
+        bool transition_frame = false;
+        bool transition_initializing = false;
+        void prepare_transition_stage(PoseStage stage);
+        [[nodiscard]] PoseStage pose_stage(const component::AnimationComponent& animation,
+            const std::optional<CursorRay>& cursor) const;
+        void remember_transition_pose(const component::AnimationComponent& animation);
         void apply_idle_legs(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             float sway);
@@ -136,6 +161,11 @@ namespace enishi::core {
         std::vector<glm::mat4> collision_physics_globals;
 
       public:
+        void apply_transitioned(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::optional<CursorRay>& cursor,
+            float seconds,
+            bool idle_enabled);
         explicit CursorPose(const component::ModelComponent& model, CursorPoseConfig config = {});
         void apply(const component::ModelComponent& model,
             component::AnimationComponent& animation,

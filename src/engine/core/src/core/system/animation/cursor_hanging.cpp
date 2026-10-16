@@ -9,8 +9,6 @@ namespace enishi::core {
         constexpr float RESPONSE = 8.0f;
         constexpr float ENTRY_SECONDS = 0.5f;
         constexpr float LIFT_ARM_RATIO = 0.12f;
-        constexpr float DROP_SECONDS = 0.3f;
-        constexpr float LANDING_SECONDS = 0.3f;
         constexpr float WALK_CYCLE_SECONDS = 0.5f;
         constexpr float WALK_STRIDE_RATIO = 0.8f;
         constexpr float WALK_STANCE_RATIO = 2.0f;
@@ -102,6 +100,9 @@ namespace enishi::core {
                     this->hanging_pose[this->joints[joint]].rotation * this->offsets[joint]);
             }
         }
+        if (!this->transition_display.empty()) {
+            this->hanging_pose = this->transition_display;
+        }
         this->hanging_anchor = glm::vec3(animation.global[this->wrists[side]][3]);
         this->hanging_normal = cursor.plane_normal;
         this->hanging_target = this->hanging_anchor;
@@ -144,7 +145,10 @@ namespace enishi::core {
     }
 
     bool CursorPose::suppress_hanging_ik(types::BoneIndex bone) const {
-        return (this->hanging_weight > EPSILON || this->idle_applied) &&
+        // File poses still need their authored IK to resolve the interpolated goal positions.
+        const bool procedural_transition =
+            this->transition_frame && this->transition_stage != PoseStage::File;
+        return (this->hanging_weight > EPSILON || this->idle_applied || procedural_transition) &&
                std::ranges::find(this->leg_ik_goals, bone) != this->leg_ik_goals.end();
     }
 
@@ -308,7 +312,8 @@ namespace enishi::core {
                 std::ceil(glm::length(this->hanging_return_offset) / (std::max)(stride, EPSILON));
         }
         this->hanging_landing_time += dt;
-        const float walk_time = this->hanging_landing_time - DROP_SECONDS - LANDING_SECONDS;
+        const float walk_time =
+            this->hanging_landing_time - HANGING_DROP_SECONDS - HANGING_LANDING_SECONDS;
         if (!(walk_time < this->hanging_return_cycles * WALK_CYCLE_SECONDS)) {
             this->hanging_landing = false;
             this->hanging_weight = 0;
@@ -335,7 +340,8 @@ namespace enishi::core {
             return true;
         }
         this->translate_hanging_roots(animation, this->hanging_return_offset);
-        const float phase = std::clamp(this->hanging_landing_time / DROP_SECONDS, 0.0f, 1.0f);
+        const float phase =
+            std::clamp(this->hanging_landing_time / HANGING_DROP_SECONDS, 0.0f, 1.0f);
         const float rotation_weight = glm::smoothstep(0.0f, 1.0f, phase);
         // Falling displacement grows as t^2; preserve release X/Z until the walking phase.
         const float position_weight = phase * phase;
@@ -352,10 +358,11 @@ namespace enishi::core {
         sweep.y = 0;
         this->translate_hanging_roots(animation, sweep);
         this->update_globals(model, animation);
-        if (this->hanging_landing_time > DROP_SECONDS) {
+        if (this->hanging_landing_time > HANGING_DROP_SECONDS) {
             // sin^2(pi*t/T) bends the knees on contact and smoothly returns to standing.
-            const float bend = std::sin(
-                glm::pi<float>() * (this->hanging_landing_time - DROP_SECONDS) / LANDING_SECONDS);
+            const float bend =
+                std::sin(glm::pi<float>() * (this->hanging_landing_time - HANGING_DROP_SECONDS) /
+                         HANGING_LANDING_SECONDS);
             this->crouch(model, animation, bend * bend);
         }
         this->update_hanging_ik_targets(model, animation);

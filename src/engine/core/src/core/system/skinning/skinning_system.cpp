@@ -64,6 +64,7 @@ namespace enishi::core {
                     found->second->cursor_pose.reset();
                     found->second->pending_after_physics = false;
                 }
+                animation.pose_transition_active = false;
                 continue;
             }
 
@@ -98,13 +99,13 @@ namespace enishi::core {
                     ? std::span<const types::SkinningCommand>(SkinningSystem::DEFAULT_ORDER)
                     : std::span<const types::SkinningCommand>(skinning.order);
 
-            if (bones.cursor_pose == nullptr && window != nullptr) {
+            if (bones.cursor_pose == nullptr) {
                 bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
             }
             if (bones.cursor_pose != nullptr) {
-                bones.cursor_pose->apply(model, animation,
+                bones.cursor_pose->apply_transitioned(model, animation,
                     bones.cursor_pose->is_hanging() ? drag_cursor : cursor,
-                    delta_time.to_float_second(), !animation.motion_playing);
+                    delta_time.to_float_second(), window != nullptr && !animation.motion_playing);
             }
             for (const auto command : order) {
                 this->execute_command(command, bones, opt_ik);
