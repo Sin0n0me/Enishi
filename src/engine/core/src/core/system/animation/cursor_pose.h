@@ -26,6 +26,11 @@ namespace enishi::core {
     // animation or a stopped clip never accumulates last frame's cursor correction.
     class CursorPose {
       private:
+        void apply_idle_legs(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float sway);
+        void apply_idle_arms(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
         enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
         std::array<types::BoneIndex, Count> joints;
         std::array<types::BoneIndex, 2> wrists;
@@ -74,6 +79,11 @@ namespace enishi::core {
         std::vector<types::BoneIndex> traversal;
         std::array<bool, 2> active_arms{};
         bool applied = false;
+        float idle_time = 0;
+        float idle_weight = 0;
+        bool idle_applied = false;
+        types::BoneIndex idle_torso = types::INVALID_BONE_INDEX;
+        std::vector<component::AnimationBuffer> idle_originals;
         bool hanging = false;
         float hanging_weight = 0;
         float hanging_entry_time = 0;
@@ -129,7 +139,8 @@ namespace enishi::core {
         void apply(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
-            float seconds);
+            float seconds,
+            bool idle_enabled = false);
         void restore(component::AnimationComponent& animation);
         [[nodiscard]] std::optional<std::pair<std::size_t, float>> pick_hand(
             const component::AnimationComponent& animation, const CursorRay& cursor) const;
@@ -141,6 +152,10 @@ namespace enishi::core {
         [[nodiscard]] bool suppress_hanging_ik(types::BoneIndex bone) const;
 
       private:
+        void apply_idle(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            bool enabled,
+            float seconds);
         void blend_hanging_pose(component::AnimationComponent& animation) const;
         bool apply_hanging_landing(const component::ModelComponent& model,
             component::AnimationComponent& animation,

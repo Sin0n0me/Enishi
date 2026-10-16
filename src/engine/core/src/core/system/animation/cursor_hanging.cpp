@@ -144,7 +144,7 @@ namespace enishi::core {
     }
 
     bool CursorPose::suppress_hanging_ik(types::BoneIndex bone) const {
-        return this->hanging_weight > EPSILON &&
+        return (this->hanging_weight > EPSILON || this->idle_applied) &&
                std::ranges::find(this->leg_ik_goals, bone) != this->leg_ik_goals.end();
     }
 

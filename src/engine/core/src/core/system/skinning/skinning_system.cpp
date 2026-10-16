@@ -104,7 +104,7 @@ namespace enishi::core {
             if (bones.cursor_pose != nullptr) {
                 bones.cursor_pose->apply(model, animation,
                     bones.cursor_pose->is_hanging() ? drag_cursor : cursor,
-                    delta_time.to_float_second());
+                    delta_time.to_float_second(), !animation.motion_playing);
             }
             for (const auto command : order) {
                 this->execute_command(command, bones, opt_ik);

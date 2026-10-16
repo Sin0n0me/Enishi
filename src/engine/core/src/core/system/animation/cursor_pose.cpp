@@ -89,6 +89,18 @@ namespace enishi::core {
             }
         }
         this->initialize_legs(model);
+        this->idle_torso = find_bone(model, {"上半身", "spine", "Spine", "chest", "Chest"});
+        for (const auto& body : model.rigid_bodies) {
+            if (body.relate_bone_index == this->idle_torso &&
+                body.kind != types::RigidBodyKind::Kinematic) {
+                this->idle_torso = types::INVALID_BONE_INDEX;
+            }
+        }
+        for (const auto& constraint : model.bone_constraints.constraints) {
+            if (constraint.bone == this->idle_torso && constraint.rotation_axis.has_value()) {
+                this->idle_torso = types::INVALID_BONE_INDEX;
+            }
+        }
         if (this->config.experimental_obb_collision) {
             this->initialize_collision(model);
         }
@@ -297,11 +309,13 @@ namespace enishi::core {
     void CursorPose::apply(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::optional<CursorRay>& cursor,
-        float seconds) {
+        float seconds,
+        bool idle_enabled) {
         if (this->applied || animation.animation.size() != this->globals.size() ||
             this->traversal.size() != this->globals.size()) {
             return;
         }
+        this->idle_applied = false;
         this->reach_ray = cursor.has_value() ? std::optional(cursor->ray) : std::nullopt;
         for (std::size_t joint = 0; joint < Count; ++joint) {
             if (this->joints[joint] < animation.animation.size()) {
@@ -330,7 +344,11 @@ namespace enishi::core {
             return;
         }
         auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
+        if (idle_enabled || this->idle_weight > EPSILON) {
+            this->idle_originals = animation.animation;
+        }
         this->apply_jump(model, animation, point, seconds);
+        this->apply_idle(model, animation, idle_enabled && !point.has_value(), seconds);
         if (this->jump_height > 0 && cursor.has_value()) {
             point = this->target(*cursor);
         }
@@ -372,6 +390,12 @@ namespace enishi::core {
 
     void CursorPose::restore(component::AnimationComponent& animation) {
         if (!this->applied) {
+            return;
+        }
+        if (!this->idle_originals.empty()) {
+            animation.animation = this->idle_originals;
+            this->idle_originals.clear();
+            this->applied = false;
             return;
         }
         if (!this->hanging_originals.empty()) {
