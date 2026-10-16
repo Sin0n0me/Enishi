@@ -982,6 +982,98 @@ namespace {
         }
     }
 
+    void repeated_hanging_release() {
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        constexpr int REPETITIONS = 5;
+        auto fixture = leg_fixture();
+        const auto source = fixture.animation.animation;
+        core::CursorPoseConfig config;
+        config.jump_enabled = false;
+        core::CursorPose pose(fixture.model, config);
+        for (int repeat = 0; repeat < REPETITIONS; ++repeat) {
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+                for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                    fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+                }
+                pose.restore(fixture.animation);
+            }
+            const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+            const auto grab = cursor(hand.x, hand.y);
+            const auto hit = pose.pick_hand(fixture.animation, grab);
+            check(hit.has_value(), "A released hand can be grabbed again without accumulated tilt");
+            if (!hit.has_value()) {
+                return;
+            }
+            pose.begin_hanging(hit->first, fixture.animation, grab);
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
+                pose.restore(fixture.animation);
+            }
+            pose.end_hanging();
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+                if (frame == FRAMES - 1) {
+                    check(glm::length(fixture.animation.animation[Root].rotation -
+                                      source[Root].rotation) < 0.001f,
+                        "Release restores the displayed root rotation on every repetition");
+                }
+                pose.restore(fixture.animation);
+                for (std::size_t bone = 0; bone < source.size(); ++bone) {
+                    check(fixture.animation.animation[bone].position == source[bone].position &&
+                              fixture.animation.animation[bone].rotation == source[bone].rotation,
+                        "Repeated suspension preserves every source bone");
+                }
+            }
+        }
+    }
+
+    void hanging_restart_does_not_capture_temporary_pose() {
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 120;
+        constexpr int REPETITIONS = 5;
+        auto fixture = leg_fixture();
+        core::CursorPoseConfig config;
+        config.jump_enabled = false;
+        core::CursorPose pose(fixture.model, config);
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+            for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto grab = cursor(hand.x, hand.y);
+        auto expected = IDENTITY;
+        // A clip can update authored bones after the last cursor evaluation.
+        constexpr float AUTHORED_TWIST_DEGREES = 10;
+        const auto authored_twist =
+            glm::angleAxis(glm::radians(AUTHORED_TWIST_DEGREES), glm::vec3(1, 0, 0));
+        fixture.animation.animation[Twist].rotation = authored_twist;
+        for (int repeat = 0; repeat < REPETITIONS; ++repeat) {
+            // Exercise the pose lifecycle independently of the window's drag hit-test gate.
+            // Restore leaves temporary globals cached; a new drag must not capture them.
+            pose.begin_hanging(0, fixture.animation, grab);
+            for (int frame = 0; frame < FRAMES; ++frame) {
+                pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
+                if (frame == FRAMES - 1) {
+                    const auto actual = fixture.animation.animation[Root].rotation;
+                    check(fixture.animation.animation[Twist].rotation == authored_twist,
+                        "Suspension must start from current animation, not the cached pose");
+                    if (repeat == 0) {
+                        expected = actual;
+                    }
+                    check(glm::length(actual - expected) < 0.001f,
+                        "Restarting suspension must not accumulate the cached body rotation");
+                }
+                pose.restore(fixture.animation);
+            }
+            pose.end_hanging();
+        }
+    }
+
     void reachable_cursor_does_not_jump() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 100;
@@ -1314,6 +1406,8 @@ int main(int argc, char** argv) {
     stationary_jump();
     reachable_cursor_does_not_jump();
     hanging_drag();
+    repeated_hanging_release();
+    hanging_restart_does_not_capture_temporary_pose();
     jump_knee_bend();
     reach_after_landing();
     experimental_collision_setting();

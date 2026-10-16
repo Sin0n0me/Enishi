@@ -81,7 +81,15 @@ namespace enishi::core {
             return;
         }
         this->hanging_side = side;
-        this->hanging_pose = this->cached_local;
+        // The transform cache may still contain a temporary suspension/jump pose. Rebuild
+        // the entry pose from authored animation: q_entry = q_source * q_cursor_offset.
+        this->hanging_pose = animation.animation;
+        for (std::size_t joint = 0; joint < Count; ++joint) {
+            if (this->joints[joint] < this->hanging_pose.size()) {
+                this->hanging_pose[this->joints[joint]].rotation = glm::normalize(
+                    this->hanging_pose[this->joints[joint]].rotation * this->offsets[joint]);
+            }
+        }
         this->hanging_anchor = glm::vec3(animation.global[this->wrists[side]][3]);
         this->hanging_normal = cursor.plane_normal;
         this->hanging_target = this->hanging_anchor;
@@ -97,6 +105,14 @@ namespace enishi::core {
 
     void CursorPose::end_hanging() {
         this->hanging = false;
+        if (!(this->hanging_weight > EPSILON)) {
+            this->hanging_weight = 0;
+            this->hanging_pose.clear();
+            this->hanging_anchor = glm::vec3(0);
+            this->hanging_target = glm::vec3(0);
+            this->hanging_lag = glm::vec3(0);
+            this->hanging_min_height = 0;
+        }
     }
     bool CursorPose::is_hanging() const {
         return this->hanging;
@@ -186,6 +202,10 @@ namespace enishi::core {
         this->hanging_weight = above_head ? (std::min)(1.0f, this->hanging_weight + RESPONSE * dt)
                                           : this->hanging_weight * (1 - alpha);
         if (!(this->hanging_weight > EPSILON)) {
+            this->hanging_weight = 0;
+            if (!this->hanging) {
+                this->end_hanging();
+            }
             return false;
         }
         this->hanging_originals = animation.animation;
