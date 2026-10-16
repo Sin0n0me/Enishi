@@ -7,6 +7,7 @@
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_render_pass.h>
 #include <platform/renderer/interface_renderer.h>
+#include <sub_system/camera/interface_camera_controller.h>
 #include <sub_system/ui/interface_ui.h>
 #include <unordered_map>
 
@@ -18,6 +19,7 @@ namespace enishi::core {
         std::shared_ptr<platform::IRenderCommandEncoder> encoder;
         std::vector<std::shared_ptr<platform::IRenderPass>> render_passes;
         std::shared_ptr<sub_system::IUI> ui;
+        std::shared_ptr<sub_system::ICameraController> camera;
 
         explicit RenderSystem(void) = delete;
 
@@ -29,6 +31,7 @@ namespace enishi::core {
       public:
         void set_render_passes(std::vector<std::shared_ptr<platform::IRenderPass>>&& render_passes);
         void set_ui(std::shared_ptr<sub_system::IUI> ui);
+        void set_camera(std::shared_ptr<sub_system::ICameraController> camera);
         [[nodiscard]] types::RenderPass& get_render_pass(const foundation::UTF8& pass_name);
 
         [[nodiscard]] std::shared_ptr<platform::IRenderer> get_renderer(void) const;

@@ -18,7 +18,8 @@ namespace enishi::core {
         glm::vec3 plane_normal;
     };
 
-    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(const platform::IWindow& window);
+    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(
+        const platform::IWindow& window, const types::UniformCamera& camera);
 
     // A temporary local-pose layer. Restore after skinning captures the pose, so an idle
     // animation or a stopped clip never accumulates last frame's cursor correction.
@@ -27,6 +28,8 @@ namespace enishi::core {
         enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
         std::array<types::BoneIndex, Count> joints;
         std::array<types::BoneIndex, 2> wrists;
+        std::array<std::vector<types::BoneIndex>, 2> hand_reach_bones;
+        std::optional<types::Ray> reach_ray;
         std::array<types::BoneIndex, 2> eyes;
         std::array<glm::quat, Count> offsets;
         std::array<glm::quat, Count> originals;
@@ -125,6 +128,7 @@ namespace enishi::core {
             const std::optional<glm::vec3>& point,
             float seconds);
         [[nodiscard]] float desired_jump_height(const glm::vec3& point) const;
+        [[nodiscard]] bool cursor_in_arm_reach(std::size_t side) const;
         void update_globals(
             const component::ModelComponent& model, const component::AnimationComponent& animation);
         [[nodiscard]] std::optional<glm::vec3> target(const CursorRay& cursor) const;

@@ -1,4 +1,5 @@
 #include "sdl_input.h"
+#include <cmath>
 
 namespace enishi::platform_impl {
     bool SDL3Input::is_key_down(const types::KeyCode key) const noexcept {
@@ -45,7 +46,15 @@ namespace enishi::platform_impl {
     }
 
     types::MouseWheel SDL3Input::get_mouse_wheel(void) const noexcept {
-        return types::MouseWheel();
+        return this->mouse_wheel;
+    }
+
+    void SDL3Input::on_mouse_wheel(types::MouseWheel delta) {
+        // Frame delta = sum(event deltas), preserving fractional touchpad ticks.
+        const types::MouseWheel total{this->mouse_wheel.x + delta.x, this->mouse_wheel.y + delta.y};
+        if (std::isfinite(total.x) && std::isfinite(total.y)) {
+            this->mouse_wheel = total;
+        }
     }
     bool SDL3Input::is_mouse_button_down(const types::MouseButton button) const noexcept {
         const auto index = static_cast<std::size_t>(button);
@@ -110,6 +119,7 @@ namespace enishi::platform_impl {
     }
 
     void SDL3Input::begin_frame(void) {
+        this->mouse_wheel = {};
         this->mouse_pressed.fill(false);
         this->mouse_released.fill(false);
     }

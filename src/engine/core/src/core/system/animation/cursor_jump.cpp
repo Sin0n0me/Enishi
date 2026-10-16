@@ -11,9 +11,48 @@ namespace enishi::core {
         constexpr float LANDING_SECONDS = 0.20f;
     } // namespace
 
+    bool CursorPose::cursor_in_arm_reach(std::size_t side) const {
+        if (!this->reach_ray.has_value()) {
+            return false;
+        }
+        const auto& ray = *this->reach_ray;
+        const float direction_squared = glm::dot(ray.direction, ray.direction);
+        if (!(direction_squared > EPSILON)) {
+            return false;
+        }
+        if (!(this->wrists[side] < this->globals.size())) {
+            return false;
+        }
+        const auto shoulder =
+            glm::vec3(this->globals[this->joints[side == 0 ? LeftArm : RightArm]][3]);
+        const auto elbow =
+            glm::vec3(this->globals[this->joints[side == 0 ? LeftElbow : RightElbow]][3]);
+        const auto wrist = glm::vec3(this->globals[this->wrists[side]][3]);
+        const float upper = glm::length(elbow - shoulder);
+        const float lower = glm::length(wrist - elbow);
+        if (!(upper > EPSILON) || !(lower > EPSILON)) {
+            return false;
+        }
+        float hand = 0;
+        for (const auto bone : this->hand_reach_bones[side]) {
+            hand = (std::max)(hand, glm::length(glm::vec3(this->globals[bone][3]) - wrist));
+        }
+        // Cap attachments below the wrist so an accessory cannot enlarge the hand indefinitely.
+        constexpr float MAX_HAND_FOREARM_RATIO = 0.5f;
+        const float radius = upper + lower + (std::min)(hand, lower * MAX_HAND_FOREARM_RATIO);
+        // The mouse has no depth. Test its ray against the fully extended arm sphere:
+        // t=max(0,dot(shoulder-origin,d)/dot(d,d)), distance=|origin+t*d-shoulder|.
+        // This avoids treating the arbitrary target-plane depth as a reason to jump.
+        const float along =
+            (std::max)(0.0f, glm::dot(shoulder - ray.origin, ray.direction) / direction_squared);
+        const float distance = glm::length(ray.origin + ray.direction * along - shoulder);
+        return !(distance > radius + EPSILON);
+    }
+
     float CursorPose::desired_jump_height(const glm::vec3& point) const {
         if (!this->config.jump_enabled || this->globals.empty() || this->can_reach(0, point) ||
-            this->can_reach(1, point)) {
+            this->can_reach(1, point) || this->cursor_in_arm_reach(0) ||
+            this->cursor_in_arm_reach(1)) {
             return 0;
         }
         float low = this->globals.front()[3].y;

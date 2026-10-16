@@ -81,6 +81,13 @@ namespace enishi::core {
             }
         }
         this->initialize_arms(model);
+        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+            for (types::BoneIndex bone = 0; bone < model.bone_node.size(); ++bone) {
+                if (descendant(model, bone, this->wrists[side])) {
+                    this->hand_reach_bones[side].push_back(bone);
+                }
+            }
+        }
         this->initialize_legs(model);
         if (this->config.experimental_obb_collision) {
             this->initialize_collision(model);
@@ -256,8 +263,8 @@ namespace enishi::core {
         const bool stretch =
             this->jump_wait > 0 || this->jump_height > 0 || this->desired_jump_height(target) > 0;
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            if (!stretch || !(this->wrists[side] < this->globals.size()) ||
-                this->can_reach(side, target)) {
+            if ((!stretch && !this->cursor_in_arm_reach(side)) ||
+                !(this->wrists[side] < this->globals.size()) || this->can_reach(side, target)) {
                 continue;
             }
             const auto shoulder =
@@ -295,6 +302,7 @@ namespace enishi::core {
             this->traversal.size() != this->globals.size()) {
             return;
         }
+        this->reach_ray = cursor.has_value() ? std::optional(cursor->ray) : std::nullopt;
         for (std::size_t joint = 0; joint < Count; ++joint) {
             if (this->joints[joint] < animation.animation.size()) {
                 this->originals[joint] = animation.animation[this->joints[joint]].rotation;
