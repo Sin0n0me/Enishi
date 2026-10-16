@@ -1182,6 +1182,87 @@ namespace {
         }
     }
 
+    void offset_knees_do_not_twist_at_small_bends(bool helper_bones) {
+        auto fixture = leg_fixture();
+        constexpr float KNEE_LATERAL_OFFSET = 0.2f;
+        fixture.animation.animation[Count + 1].position.x = KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[Count + 2].position.x = -KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[Count + 4].position.x = -KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[Count + 5].position.x = KNEE_LATERAL_OFFSET;
+        if (helper_bones) {
+            constexpr float HELPER_YAW_DEGREES = 45;
+            const auto rotation =
+                glm::angleAxis(glm::radians(HELPER_YAW_DEGREES), glm::vec3(0, 1, 0));
+            for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                const auto helper = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
+                fixture.model.bone_names.emplace_back("legHelper");
+                fixture.model.bone_node.emplace_back();
+                fixture.model.bone_node.back().parent = hip;
+                fixture.model.bone_node.back().children = {hip + 1};
+                fixture.model.bone_node[hip].children = {helper};
+                fixture.model.bone_node[hip + 1].parent = helper;
+                fixture.animation.animation.emplace_back();
+                fixture.animation.animation.back().rotation = rotation;
+                fixture.animation.animation[hip + 1].position =
+                    glm::inverse(rotation) * fixture.animation.animation[hip + 1].position;
+                fixture.animation.animation[hip + 1].rotation = glm::inverse(rotation);
+                fixture.model.bind_bone.emplace_back();
+                fixture.animation.global.emplace_back(1.0f);
+            }
+        }
+        for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
+            fixture.model.bind_bone[bone].local =
+                glm::translate(glm::mat4(1), fixture.animation.animation[bone].position) *
+                glm::mat4_cast(fixture.animation.animation[bone].rotation);
+            const auto matrix = global(fixture.model, fixture.animation, bone);
+            fixture.animation.global[bone] = matrix;
+            fixture.model.bind_bone[bone].global = matrix;
+            fixture.model.bind_bone[bone].global_inverse = glm::inverse(matrix);
+        }
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(fixture.model, config);
+        constexpr float DT = 1.0f / 60.0f;
+        pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
+        pose.restore(fixture.animation);
+        constexpr float SMALL_DT = 0.001f;
+        pose.apply(fixture.model, fixture.animation, std::nullopt, SMALL_DT);
+        check(fixture.animation.animation[Root].position.y < 0,
+            "The offset-knee regression must exercise the shared landing crouch solver");
+        constexpr float MAX_INITIAL_HIP_DEGREES = 5;
+        for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+            check(glm::angle(fixture.animation.animation[hip].rotation) <
+                      glm::radians(MAX_INITIAL_HIP_DEGREES),
+                "A tiny knee bend must not yaw a leg with a lateral bind offset");
+            const auto foot = glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3]);
+            check(
+                glm::length(foot - glm::vec3(fixture.model.bind_bone[hip + 2].global[3])) < 0.001f,
+                "Removing hip twist must preserve the planted ankle target");
+        }
+        pose.restore(fixture.animation);
+        constexpr int LANDING_FRAMES = 100;
+        constexpr float MAX_HIP_DEGREES = 45;
+        for (int frame = 0; frame < LANDING_FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+            for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                const auto bind = glm::quat_cast(glm::mat3(fixture.model.bind_bone[hip + 1].local));
+                const auto bend =
+                    glm::inverse(bind) * fixture.animation.animation[hip + 1].rotation;
+                check(std::abs(bend.y) < 0.0001f && std::abs(bend.z) < 0.0001f && bend.x < 0.0001f,
+                    "Offset knees keep their signed local-X hinge through landing");
+                check(glm::angle(fixture.animation.animation[hip].rotation) <
+                          glm::radians(MAX_HIP_DEGREES),
+                    "Offset legs must not gain a large hip rotation during landing");
+                auto expected = glm::vec3(fixture.model.bind_bone[hip + 2].global[3]);
+                expected.y += (std::max)(0.0f, fixture.animation.animation[Root].position.y);
+                check(glm::length(glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3]) -
+                                  expected) < 0.001f,
+                    "Offset legs keep both ankles at their targets throughout flight and landing");
+            }
+            pose.restore(fixture.animation);
+        }
+    }
+
     void landing_respects_rotated_leg_hinge() {
         auto fixture = leg_fixture();
         constexpr float HIP_YAW_DEGREES = 90;
@@ -1607,6 +1688,8 @@ int main(int argc, char** argv) {
     repeated_hanging_release();
     hanging_landing_keeps_hips_position();
     landing_respects_rotated_leg_hinge();
+    offset_knees_do_not_twist_at_small_bends(false);
+    offset_knees_do_not_twist_at_small_bends(true);
     hanging_restart_does_not_capture_temporary_pose();
     jump_knee_bend();
     reach_after_landing();
