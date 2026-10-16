@@ -917,8 +917,10 @@ namespace {
         const auto low_hand = glm::vec3(fixture.animation.global[Wrist][3]);
         check(!pose.pick_hand(fixture.animation, cursor(low_hand.x, low_hand.y)).has_value(),
             "Dragging a hand below the head must not start suspension");
+        auto entry_pose = fixture.animation.animation;
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
+            entry_pose = fixture.animation.animation;
             for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
                 fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
             }
@@ -933,9 +935,29 @@ namespace {
         const auto source = fixture.animation.animation;
         const auto wrist = hit->first == 0 ? Wrist : OtherWrist;
         const glm::vec3 destination(hand.x + 2, hand.y + 3, hand.z);
+        glm::quat halfway_rotation = IDENTITY;
+        glm::quat completed_rotation = IDENTITY;
+        constexpr int HALF_SECOND_FRAMES = 30;
+        constexpr int ONE_SECOND_FRAMES = 60;
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(destination.x, destination.y), DT);
+            if (frame == 0) {
+                check(glm::length(fixture.animation.animation[Arm].rotation -
+                                  entry_pose[Arm].rotation) < 0.01f,
+                    "Hanging entry starts smoothly from the reached arm pose");
+            }
+            if (frame == HALF_SECOND_FRAMES - 1) {
+                halfway_rotation = fixture.animation.animation[Root].rotation;
+            }
+            if (frame == ONE_SECOND_FRAMES - 1) {
+                completed_rotation = fixture.animation.animation[Root].rotation;
+            }
             if (frame == FRAMES - 1) {
+                const auto final_rotation = fixture.animation.animation[Root].rotation;
+                check(glm::length(halfway_rotation - final_rotation) > 0.01f,
+                    "Hanging entry is still transitioning at half a second");
+                check(glm::length(completed_rotation - final_rotation) < 0.005f,
+                    "Hanging entry completes in approximately one second");
                 check(glm::length(glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
                                   destination) < 0.001f,
                     "Suspended hand stays at the cursor while the body moves");

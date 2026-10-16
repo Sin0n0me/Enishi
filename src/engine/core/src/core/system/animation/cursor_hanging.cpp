@@ -7,6 +7,7 @@ namespace enishi::core {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float RESPONSE = 8.0f;
+        constexpr float ENTRY_SECONDS = 1.0f;
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
@@ -95,6 +96,7 @@ namespace enishi::core {
         this->hanging_target = this->hanging_anchor;
         this->hanging_lag = this->hanging_anchor;
         this->hanging_weight = 0;
+        this->hanging_entry_time = 0;
         // Keep the entry threshold fixed; moving the suspended head must not move the threshold.
         this->hanging_min_height = animation.global[this->joints[Head]][3].y +
                                    this->arm_frame(side).length * HEAD_CLEARANCE_RATIO;
@@ -107,6 +109,7 @@ namespace enishi::core {
         this->hanging = false;
         if (!(this->hanging_weight > EPSILON)) {
             this->hanging_weight = 0;
+            this->hanging_entry_time = 0;
             this->hanging_pose.clear();
             this->hanging_anchor = glm::vec3(0);
             this->hanging_target = glm::vec3(0);
@@ -175,6 +178,24 @@ namespace enishi::core {
         }
     }
 
+    void CursorPose::blend_hanging_pose(component::AnimationComponent& animation) const {
+        // smoothstep(t)=t*t*(3-2*t) has zero slope at both ends of the one-second entry.
+        const float weight = glm::smoothstep(0.0f, 1.0f, this->hanging_weight);
+        const float entry = 1 - glm::smoothstep(0.0f, ENTRY_SECONDS, this->hanging_entry_time);
+        for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
+            auto& pose = animation.animation[bone];
+            const auto& original = this->hanging_originals[bone];
+            const auto& start = this->hanging_pose[bone];
+            // Retain the reached pose at entry, fading its contribution even if released early.
+            const auto position = glm::mix(original.position, start.position, entry);
+            const auto scale = glm::mix(original.scale, start.scale, entry);
+            const auto rotation = glm::slerp(original.rotation, start.rotation, entry);
+            pose.position = glm::mix(position, pose.position, weight);
+            pose.scale = glm::mix(scale, pose.scale, weight);
+            pose.rotation = glm::slerp(rotation, pose.rotation, weight);
+        }
+    }
+
     bool CursorPose::apply_hanging(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::optional<CursorRay>& cursor,
@@ -199,8 +220,11 @@ namespace enishi::core {
             }
         }
         const bool above_head = this->hanging && this->hanging_target.y > this->hanging_min_height;
-        this->hanging_weight = above_head ? (std::min)(1.0f, this->hanging_weight + RESPONSE * dt)
-                                          : this->hanging_weight * (1 - alpha);
+        // Entry progress t=min(1, elapsed/ENTRY_SECONDS); release retains exponential damping.
+        this->hanging_entry_time = (std::min)(ENTRY_SECONDS, this->hanging_entry_time + dt);
+        this->hanging_weight = above_head
+                                   ? (std::min)(1.0f, this->hanging_weight + dt / ENTRY_SECONDS)
+                                   : this->hanging_weight * (1 - alpha);
         if (!(this->hanging_weight > EPSILON)) {
             this->hanging_weight = 0;
             if (!this->hanging) {
@@ -255,13 +279,7 @@ namespace enishi::core {
                 animation.animation[root].position += glm::inverse(axes) * delta;
             }
         }
-        for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
-            auto& pose = animation.animation[bone];
-            const auto& original = this->hanging_originals[bone];
-            pose.position = glm::mix(original.position, pose.position, this->hanging_weight);
-            pose.scale = glm::mix(original.scale, pose.scale, this->hanging_weight);
-            pose.rotation = glm::slerp(original.rotation, pose.rotation, this->hanging_weight);
-        }
+        this->blend_hanging_pose(animation);
         this->update_globals(model, animation);
         this->update_hanging_ik_targets(model, animation);
         return true;
