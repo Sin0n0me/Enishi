@@ -45,7 +45,8 @@ namespace enishi::platform_impl {
                 this->begin_model_drag(types::to_client(*this->model_press, this->drag_origin));
         }
         this->model_dragging = true;
-        if (this->model_drag_claimed) {
+        // Only a hand drag accepted by the hanging motion may move the window.
+        if (!this->model_drag_claimed) {
             return;
         }
         const auto result = this->set_position({this->drag_origin.x + static_cast<std::int32_t>(dx),
