@@ -47,12 +47,14 @@ namespace enishi::core {
         for (auto [entity, animation, model] :
             this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
             const auto controller = this->get_controller(entity);
+            animation.motion_playing = false;
             if (controller == nullptr) {
                 continue;
             }
 
             controller->update(delta_time.to_float_second());
             const auto* clip = controller->get_active_clip();
+            animation.motion_playing = clip != nullptr && controller->is_playing();
             if (clip == nullptr) {
                 continue;
             }
