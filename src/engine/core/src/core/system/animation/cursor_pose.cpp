@@ -339,16 +339,23 @@ namespace enishi::core {
             this->collision_physics_globals = animation.global;
         }
         this->update_globals(model, animation);
+        if (idle_enabled || this->idle_weight > EPSILON) {
+            this->idle_originals = animation.animation;
+        }
         if (this->apply_hanging(model, animation, cursor, seconds)) {
+            this->apply_idle(model, animation, idle_enabled, seconds);
+            if (this->hanging) {
+                const auto hips = this->body_bones[BodyHips];
+                const auto center = hips < this->globals.size() ? hips : this->roots.front();
+                this->hanging_display_center = glm::vec3(this->globals[center][3]);
+                this->hanging_display_pose = animation.animation;
+            }
             this->applied = true;
             return;
         }
         auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
-        if (idle_enabled || this->idle_weight > EPSILON) {
-            this->idle_originals = animation.animation;
-        }
         this->apply_jump(model, animation, point, seconds);
-        this->apply_idle(model, animation, idle_enabled && !point.has_value(), seconds);
+        this->apply_idle(model, animation, idle_enabled, seconds);
         if (this->jump_height > 0 && cursor.has_value()) {
             point = this->target(*cursor);
         }
@@ -395,6 +402,7 @@ namespace enishi::core {
         if (!this->idle_originals.empty()) {
             animation.animation = this->idle_originals;
             this->idle_originals.clear();
+            this->hanging_originals.clear();
             this->applied = false;
             return;
         }

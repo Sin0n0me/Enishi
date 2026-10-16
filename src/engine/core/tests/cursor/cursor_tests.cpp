@@ -764,7 +764,7 @@ namespace {
         return fixture;
     }
 
-    void procedural_idle_pose() {
+    Fixture idle_fixture() {
         auto fixture = leg_fixture();
         const auto torso = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
         fixture.model.bone_names.emplace_back("spine");
@@ -775,6 +775,18 @@ namespace {
         fixture.model.bind_bone.back().local = glm::mat4(1);
         fixture.animation.animation.emplace_back();
         fixture.animation.global.emplace_back(1.0f);
+        for (const auto child : {Neck, Arm, OtherArm}) {
+            auto& children = fixture.model.bone_node[Root].children;
+            children.erase(std::remove(children.begin(), children.end(), child), children.end());
+            fixture.model.bone_node[child].parent = torso;
+            fixture.model.bone_node[torso].children.push_back(child);
+        }
+        return fixture;
+    }
+
+    void procedural_idle_pose() {
+        auto fixture = idle_fixture();
+        const auto torso = fixture.animation.animation.size() - 1;
         const auto source = fixture.animation.animation;
         core::CursorPose pose(fixture.model);
         constexpr float DT = 1.0f / 60.0f;
@@ -797,6 +809,15 @@ namespace {
                     "Idle lowers both hands from the T pose toward the thighs");
                 check(glm::length(fixture.animation.animation[Root].position) < 0.2f,
                     "Idle weight shifts remain small and do not walk away");
+                const auto upper =
+                    glm::normalize(glm::vec3(global(fixture.model, fixture.animation, Elbow)[3] -
+                                             global(fixture.model, fixture.animation, Arm)[3]));
+                const auto lower =
+                    glm::normalize(glm::vec3(global(fixture.model, fixture.animation, Wrist)[3] -
+                                             global(fixture.model, fixture.animation, Elbow)[3]));
+                constexpr float MAX_IDLE_FLEX = 15.0f;
+                check(glm::dot(upper, lower) > std::cos(glm::radians(MAX_IDLE_FLEX)),
+                    "Idle elbows retain only a slight bend");
             }
             pose.restore(fixture.animation);
             for (std::size_t bone = 0; bone < source.size(); ++bone) {
@@ -815,6 +836,8 @@ namespace {
             if (frame == REACH_FRAMES - 1) {
                 check(global(fixture.model, fixture.animation, Wrist)[3].y > 8,
                     "Cursor reaching takes priority after the idle arms have settled");
+                check(glm::angle(fixture.animation.animation[torso].rotation) > glm::radians(0.1f),
+                    "Idle torso animation continues while reaching for the cursor");
             }
             pose.restore(fixture.animation);
         }
@@ -829,6 +852,64 @@ namespace {
                     "Motion playback takes priority over idle animation");
             }
             pose.restore(fixture.animation);
+        }
+    }
+
+    void idle_during_jump_and_hanging() {
+        auto fixture = idle_fixture();
+        const auto source = fixture.animation.animation;
+        const auto torso = source.size() - 1;
+        core::CursorPoseConfig config;
+        config.jump_delay = 0;
+        core::CursorPose pose(fixture.model, config);
+        constexpr float DT = 1.0f / 60.0f;
+        constexpr int FRAMES = 180;
+        bool airborne_idle = false;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT, true);
+            airborne_idle =
+                airborne_idle ||
+                (fixture.animation.animation[Root].position.y > TOLERANCE &&
+                    glm::angle(fixture.animation.animation[torso].rotation) > glm::radians(0.1f));
+            for (types::BoneIndex bone = 0; bone < source.size(); ++bone) {
+                fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
+            }
+            pose.restore(fixture.animation);
+        }
+        check(airborne_idle, "Idle torso animation continues in flight");
+        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
+        constexpr float LIFT = 0.48f;
+        const glm::vec3 destination(hand.x, hand.y + 3, hand.z);
+        glm::quat first_sway = IDENTITY;
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(
+                fixture.model, fixture.animation, cursor(destination.x, destination.y), DT, true);
+            constexpr int SETTLED = 60;
+            if (frame == SETTLED) {
+                first_sway = fixture.animation.animation[torso].rotation;
+            }
+            if (frame > SETTLED) {
+                const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
+                check(glm::length(wrist - destination - glm::vec3(0, LIFT, 0)) < TOLERANCE,
+                    "Idle sway keeps the suspended hand anchored");
+            }
+            if (frame == FRAMES - 1) {
+                check(glm::length(first_sway - fixture.animation.animation[torso].rotation) >
+                          TOLERANCE,
+                    "Idle torso animation continues while hanging");
+            }
+            pose.restore(fixture.animation);
+        }
+        pose.end_hanging();
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply(fixture.model, fixture.animation, std::nullopt, DT, true);
+            pose.restore(fixture.animation);
+            for (std::size_t bone = 0; bone < source.size(); ++bone) {
+                check(fixture.animation.animation[bone].position == source[bone].position &&
+                          fixture.animation.animation[bone].rotation == source[bone].rotation,
+                    "Hanging and landing idle overlays restore the authored pose");
+            }
         }
     }
 
@@ -1761,6 +1842,7 @@ int main(int argc, char** argv) {
     hanging_restart_does_not_capture_temporary_pose();
     jump_knee_bend();
     procedural_idle_pose();
+    idle_during_jump_and_hanging();
     reach_after_landing();
     experimental_collision_setting();
     bounded_reach_speed();
