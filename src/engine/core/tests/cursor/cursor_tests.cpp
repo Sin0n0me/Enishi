@@ -937,8 +937,9 @@ namespace {
         const glm::vec3 destination(hand.x + 2, hand.y + 3, hand.z);
         glm::quat halfway_rotation = IDENTITY;
         glm::quat completed_rotation = IDENTITY;
+        constexpr int QUARTER_SECOND_FRAMES = 15;
         constexpr int HALF_SECOND_FRAMES = 30;
-        constexpr int ONE_SECOND_FRAMES = 60;
+        constexpr float SUSPENSION_LIFT = 0.48f;
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(destination.x, destination.y), DT);
             if (frame == 0) {
@@ -946,21 +947,21 @@ namespace {
                                   entry_pose[Arm].rotation) < 0.01f,
                     "Hanging entry starts smoothly from the reached arm pose");
             }
-            if (frame == HALF_SECOND_FRAMES - 1) {
+            if (frame == QUARTER_SECOND_FRAMES - 1) {
                 halfway_rotation = fixture.animation.animation[Root].rotation;
             }
-            if (frame == ONE_SECOND_FRAMES - 1) {
+            if (frame == HALF_SECOND_FRAMES - 1) {
                 completed_rotation = fixture.animation.animation[Root].rotation;
             }
             if (frame == FRAMES - 1) {
                 const auto final_rotation = fixture.animation.animation[Root].rotation;
                 check(glm::length(halfway_rotation - final_rotation) > 0.01f,
-                    "Hanging entry is still transitioning at half a second");
+                    "Hanging entry is still transitioning at a quarter second");
                 check(glm::length(completed_rotation - final_rotation) < 0.005f,
-                    "Hanging entry completes in approximately one second");
+                    "Hanging entry completes in approximately half a second");
                 check(glm::length(glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
-                                  destination) < 0.001f,
-                    "Suspended hand stays at the cursor while the body moves");
+                                  (destination + glm::vec3(0, SUSPENSION_LIFT, 0))) < 0.001f,
+                    "Suspension adds a small model-relative lift above the cursor");
                 check(global(fixture.model, fixture.animation, Root)[3].y < destination.y,
                     "The body hangs below the grabbed hand");
                 check_hanging_limbs(fixture, hit->first, wrist);
@@ -1029,13 +1030,35 @@ namespace {
                 return;
             }
             pose.begin_hanging(hit->first, fixture.animation, grab);
+            glm::vec3 suspended_position{};
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
+                suspended_position = fixture.animation.animation[Root].position;
                 pose.restore(fixture.animation);
             }
             pose.end_hanging();
+            bool bent_on_landing = false;
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
+                if (frame == 0) {
+                    constexpr float MAX_INITIAL_DROP_RATIO = 0.05f;
+                    check(glm::length(
+                              fixture.animation.animation[Root].position - suspended_position) <
+                              MAX_INITIAL_DROP_RATIO *
+                                  glm::length(suspended_position - source[Root].position),
+                        "Release descends from the displayed position without teleporting");
+                }
+                constexpr int CONTACT_FRAME = 18;
+                constexpr int RECOVERY_FRAME = 36;
+                if (frame > CONTACT_FRAME && frame < RECOVERY_FRAME) {
+                    bent_on_landing = bent_on_landing ||
+                                      glm::length(fixture.animation.animation[Count + 1].rotation -
+                                                  source[Count + 1].rotation) > 0.01f;
+                    check(glm::length(
+                              glm::vec3(global(fixture.model, fixture.animation, Count + 2)[3]) -
+                              glm::vec3(fixture.model.bind_bone[Count + 2].global[3])) < 0.001f,
+                        "Landing keeps the foot planted while bending the knee");
+                }
                 if (frame == FRAMES - 1) {
                     check(glm::length(fixture.animation.animation[Root].rotation -
                                       source[Root].rotation) < 0.001f,
@@ -1048,6 +1071,7 @@ namespace {
                         "Repeated suspension preserves every source bone");
                 }
             }
+            check(bent_on_landing, "Releasing suspension bends the knees on landing");
         }
     }
 

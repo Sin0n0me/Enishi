@@ -7,7 +7,10 @@ namespace enishi::core {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float RESPONSE = 8.0f;
-        constexpr float ENTRY_SECONDS = 1.0f;
+        constexpr float ENTRY_SECONDS = 0.5f;
+        constexpr float LIFT_ARM_RATIO = 0.12f;
+        constexpr float DROP_SECONDS = 0.3f;
+        constexpr float LANDING_SECONDS = 0.3f;
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
@@ -82,6 +85,9 @@ namespace enishi::core {
             return;
         }
         this->hanging_side = side;
+        this->hanging_landing = false;
+        this->hanging_landing_time = 0;
+        this->hanging_display_pose.clear();
         // The transform cache may still contain a temporary suspension/jump pose. Rebuild
         // the entry pose from authored animation: q_entry = q_source * q_cursor_offset.
         this->hanging_pose = animation.animation;
@@ -106,11 +112,19 @@ namespace enishi::core {
     }
 
     void CursorPose::end_hanging() {
+        if (this->hanging && this->hanging_weight > EPSILON &&
+            !this->hanging_display_pose.empty()) {
+            this->hanging_landing = true;
+            this->hanging_landing_time = 0;
+        }
         this->hanging = false;
         if (!(this->hanging_weight > EPSILON)) {
             this->hanging_weight = 0;
             this->hanging_entry_time = 0;
+            this->hanging_landing = false;
+            this->hanging_landing_time = 0;
             this->hanging_pose.clear();
+            this->hanging_display_pose.clear();
             this->hanging_anchor = glm::vec3(0);
             this->hanging_target = glm::vec3(0);
             this->hanging_lag = glm::vec3(0);
@@ -179,7 +193,7 @@ namespace enishi::core {
     }
 
     void CursorPose::blend_hanging_pose(component::AnimationComponent& animation) const {
-        // smoothstep(t)=t*t*(3-2*t) has zero slope at both ends of the one-second entry.
+        // smoothstep(t)=t*t*(3-2*t) has zero slope at both ends of entry.
         const float weight = glm::smoothstep(0.0f, 1.0f, this->hanging_weight);
         const float entry = 1 - glm::smoothstep(0.0f, ENTRY_SECONDS, this->hanging_entry_time);
         for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
@@ -196,10 +210,48 @@ namespace enishi::core {
         }
     }
 
+    bool CursorPose::apply_hanging_landing(const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        float seconds) {
+        const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
+        this->hanging_landing_time += dt;
+        if (!(this->hanging_landing_time < DROP_SECONDS + LANDING_SECONDS)) {
+            this->hanging_landing = false;
+            this->hanging_weight = 0;
+            this->end_hanging();
+            this->jump_rest = this->config.jump_cooldown;
+            return false;
+        }
+        this->hanging_originals = animation.animation;
+        const float phase = std::clamp(this->hanging_landing_time / DROP_SECONDS, 0.0f, 1.0f);
+        const float rotation_weight = glm::smoothstep(0.0f, 1.0f, phase);
+        // Falling displacement grows as t^2; land at the current authored ground pose.
+        const float position_weight = phase * phase;
+        for (std::size_t bone = 0; bone < animation.animation.size(); ++bone) {
+            auto& pose = animation.animation[bone];
+            const auto& start = this->hanging_display_pose[bone];
+            pose.position = glm::mix(start.position, pose.position, position_weight);
+            pose.rotation = glm::slerp(start.rotation, pose.rotation, rotation_weight);
+            pose.scale = glm::mix(start.scale, pose.scale, rotation_weight);
+        }
+        this->update_globals(model, animation);
+        if (this->hanging_landing_time > DROP_SECONDS) {
+            // sin^2(pi*t/T) bends the knees on contact and smoothly returns to standing.
+            const float bend = std::sin(
+                glm::pi<float>() * (this->hanging_landing_time - DROP_SECONDS) / LANDING_SECONDS);
+            this->crouch(model, animation, bend * bend);
+        }
+        this->update_hanging_ik_targets(model, animation);
+        return true;
+    }
+
     bool CursorPose::apply_hanging(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::optional<CursorRay>& cursor,
         float seconds) {
+        if (this->hanging_landing) {
+            return this->apply_hanging_landing(model, animation, seconds);
+        }
         if (!this->hanging && !(this->hanging_weight > EPSILON)) {
             return false;
         }
@@ -270,7 +322,9 @@ namespace enishi::core {
         for (const auto& leg : this->legs) {
             this->hang_limb(model, animation, leg[0], leg[2]);
         }
-        const auto delta = this->hanging_target - glm::vec3(this->globals[wrist][3]);
+        // Scale the small suspension lift to the arm length, independent of model units.
+        const glm::vec3 lift(0, this->arm_frame(this->hanging_side).length * LIFT_ARM_RATIO, 0);
+        const auto delta = this->hanging_target + lift - glm::vec3(this->globals[wrist][3]);
         for (const auto root : this->roots) {
             const auto axes = glm::mat3(this->external[root]);
             if (std::abs(glm::determinant(axes)) > EPSILON) {
@@ -282,6 +336,7 @@ namespace enishi::core {
         this->blend_hanging_pose(animation);
         this->update_globals(model, animation);
         this->update_hanging_ik_targets(model, animation);
+        this->hanging_display_pose = animation.animation;
         return true;
     }
 } // namespace enishi::core

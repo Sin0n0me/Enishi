@@ -77,6 +77,9 @@ namespace enishi::core {
         bool hanging = false;
         float hanging_weight = 0;
         float hanging_entry_time = 0;
+        bool hanging_landing = false;
+        float hanging_landing_time = 0;
+        std::vector<component::AnimationBuffer> hanging_display_pose;
         float hanging_min_height = 0;
         std::size_t hanging_side = 0;
         glm::vec3 hanging_anchor{};
@@ -136,6 +139,9 @@ namespace enishi::core {
 
       private:
         void blend_hanging_pose(component::AnimationComponent& animation) const;
+        bool apply_hanging_landing(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float seconds);
         bool apply_hanging(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
