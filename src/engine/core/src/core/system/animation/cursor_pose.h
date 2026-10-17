@@ -194,7 +194,8 @@ namespace enishi::core {
         void hang_limb(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             types::BoneIndex start,
-            types::BoneIndex end);
+            types::BoneIndex end,
+            const glm::vec3& target_direction);
         void initialize_legs(const component::ModelComponent& model);
         void crouch(const component::ModelComponent& model,
             component::AnimationComponent& animation,

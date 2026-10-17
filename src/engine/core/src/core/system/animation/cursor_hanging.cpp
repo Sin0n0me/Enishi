@@ -175,14 +175,16 @@ namespace enishi::core {
     void CursorPose::hang_limb(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         types::BoneIndex start,
-        types::BoneIndex end) {
+        types::BoneIndex end,
+        const glm::vec3& target_direction) {
         if (!(start < this->globals.size()) || !(end < this->globals.size())) {
             return;
         }
         const auto direction = glm::vec3(this->globals[end][3] - this->globals[start][3]);
         const auto q = rotation(this->globals[start]);
-        // Convert a world-space gravity alignment into the bone's local rotation.
-        animation.animation[start].rotation *= glm::inverse(q) * align(direction, DOWN) * q;
+        // Convert model-space alignment A into the bone frame: q_local'=q_local*q^-1*A*q.
+        animation.animation[start].rotation *=
+            glm::inverse(q) * align(direction, target_direction) * q;
         this->update_globals(model, animation);
     }
 
@@ -447,12 +449,20 @@ namespace enishi::core {
         }
         this->update_globals(model, animation);
         const auto free_side = 1 - this->hanging_side;
+        // Straightening the elbow alone preserves the captured sideways shoulder direction.
+        // Align the support upward independently of the bounded torso lean before anchoring it.
+        this->hang_limb(model,
+            animation,
+            this->joints[this->hanging_side == 0 ? LeftArm : RightArm],
+            wrist,
+            -DOWN);
         this->hang_limb(model,
             animation,
             this->joints[free_side == 0 ? LeftArm : RightArm],
-            this->wrists[free_side]);
+            this->wrists[free_side],
+            DOWN);
         for (const auto& leg : this->legs) {
-            this->hang_limb(model, animation, leg[0], leg[2]);
+            this->hang_limb(model, animation, leg[0], leg[2], DOWN);
         }
         // Scale the small suspension lift to the arm length, independent of model units.
         const glm::vec3 lift(0, this->arm_frame(this->hanging_side).length * LIFT_ARM_RATIO, 0);

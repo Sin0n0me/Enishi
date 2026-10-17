@@ -1253,6 +1253,8 @@ namespace {
                                      global(fixture.model, fixture.animation, elbow)[3]);
         check(glm::dot(glm::normalize(upper), glm::normalize(lower)) > 0.999f,
             "The supporting arm is fully extended without hyperextension");
+        check(glm::normalize(upper).y > 0.99f && glm::normalize(lower).y > 0.99f,
+            "The supporting arm extends upward rather than sideways");
         for (std::size_t side = 0; side < 2; ++side) {
             const auto hip = static_cast<types::BoneIndex>(Count + side * 3);
             const auto thigh = glm::vec3(global(fixture.model, fixture.animation, hip + 1)[3] -
