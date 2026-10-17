@@ -1265,6 +1265,93 @@ namespace {
         }
     }
 
+    Fixture hanging_lean_fixture() {
+        auto fixture = idle_fixture();
+        const auto torso = fixture.animation.animation.size() - 1;
+        // Put the torso pivot at the hips while preserving the existing global bind pose.
+        const auto pivot = fixture.animation.animation[Count].position * glm::vec3(0, 1, 0);
+        fixture.animation.animation[torso].position = pivot;
+        fixture.model.bind_bone[torso].local = glm::translate(glm::mat4(1), pivot);
+        fixture.model.bind_bone[torso].global = fixture.model.bind_bone[torso].local;
+        fixture.model.bind_bone[torso].global_inverse =
+            glm::inverse(fixture.model.bind_bone[torso].global);
+        for (const auto child : fixture.model.bone_node[torso].children) {
+            fixture.animation.animation[child].position -= pivot;
+            fixture.model.bind_bone[child].local =
+                glm::translate(glm::mat4(1), fixture.animation.animation[child].position);
+        }
+        return fixture;
+    }
+
+    void hanging_body_lean_limit() {
+        constexpr float DT = 1.0f / 60;
+        constexpr int FRAMES = 120;
+        constexpr int ENTRY_FRAMES = 30;
+        constexpr float MAX_BODY_DEGREES = 10;
+        constexpr float MAX_TORSO_LEG_DEGREES = 12;
+        constexpr float SUSPENSION_LIFT = 0.48f;
+        for (const std::size_t side : {std::size_t(0), std::size_t(1)}) {
+            for (const float distance : {1.0f, 2.0f, 3.5f}) {
+                auto fixture = hanging_lean_fixture();
+                const auto source = fixture.animation.animation;
+                core::CursorPoseConfig config;
+                config.jump_enabled = false;
+                core::CursorPose pose(fixture.model, config);
+                const float sign = side == 0 ? 1.0f : -1.0f;
+                const auto wrist = side == 0 ? Wrist : OtherWrist;
+                for (int frame = 0; frame < FRAMES; ++frame) {
+                    pose.apply_transitioned(
+                        fixture.model, fixture.animation, cursor(sign * distance, 9.8f), DT, true);
+                    for (types::BoneIndex bone = 0; bone < source.size(); ++bone) {
+                        fixture.animation.global[bone] =
+                            global(fixture.model, fixture.animation, bone);
+                    }
+                    pose.restore(fixture.animation);
+                }
+                const auto hand = glm::vec3(fixture.animation.global[wrist][3]);
+                check(hand.y > fixture.animation.global[Head][3].y,
+                    "Lean regression starts with an extended hand above the head");
+                pose.begin_hanging(side, fixture.animation, cursor(hand.x, hand.y));
+                for (int frame = 0; frame < FRAMES; ++frame) {
+                    const float sweep = frame < FRAMES / 2 ? 5.0f : -5.0f;
+                    const glm::vec3 destination(hand.x + sweep, hand.y + 3, hand.z);
+                    pose.apply_transitioned(fixture.model,
+                        fixture.animation,
+                        cursor(destination.x, destination.y),
+                        DT,
+                        true);
+                    if (!(frame < ENTRY_FRAMES)) {
+                        check(glm::angle(fixture.animation.animation[Root].rotation) <
+                                  glm::radians(MAX_BODY_DEGREES) + TOLERANCE,
+                            "Lateral grasp and drag cannot produce excessive body lean");
+                        const auto pelvis =
+                            (glm::vec3(global(fixture.model, fixture.animation, Count)[3]) +
+                                glm::vec3(global(fixture.model, fixture.animation, Count + 3)[3])) *
+                            0.5f;
+                        const auto down = glm::normalize(
+                            pelvis - glm::vec3(global(fixture.model, fixture.animation, Neck)[3]));
+                        for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                            const auto leg = glm::normalize(
+                                glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3] -
+                                          global(fixture.model, fixture.animation, hip)[3]));
+                            check(
+                                glm::dot(down, leg) > std::cos(glm::radians(MAX_TORSO_LEG_DEGREES)),
+                                "Upper and lower body stay nearly aligned during suspension");
+                        }
+                        check(glm::length(
+                                  glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
+                                  destination - glm::vec3(0, SUSPENSION_LIFT, 0)) < TOLERANCE,
+                            "Limiting body lean preserves the fixed supporting hand");
+                        check_hanging_limbs(fixture, side, wrist);
+                    }
+                    pose.restore(fixture.animation);
+                    check(fixture.animation.animation[Root].rotation == source[Root].rotation,
+                        "Limited hanging corrections never accumulate into the source pose");
+                }
+            }
+        }
+    }
+
     void hanging_drag() {
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
@@ -2072,6 +2159,7 @@ int main(int argc, char** argv) {
     stationary_jump();
     reachable_cursor_does_not_jump();
     hanging_drag();
+    hanging_body_lean_limit();
     repeated_hanging_release();
     hanging_landing_keeps_hips_position();
     landing_respects_rotated_leg_hinge();

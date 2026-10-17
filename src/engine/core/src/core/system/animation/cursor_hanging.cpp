@@ -17,6 +17,7 @@ namespace enishi::core {
         constexpr float MAX_DT = 0.05f;
         constexpr float HAND_RADIUS_RATIO = 0.18f;
         constexpr float SWAY_RATIO = 0.3f;
+        constexpr float MAX_BODY_LEAN_DEGREES = 10.0f;
         constexpr float HEAD_CLEARANCE_RATIO = 0.05f;
         const glm::vec3 DOWN(0, -1, 0);
 
@@ -424,7 +425,14 @@ namespace enishi::core {
         if (glm::length(sway) > length * SWAY_RATIO) {
             sway = glm::normalize(sway) * length * SWAY_RATIO;
         }
-        const auto correction = align(lever, DOWN * length + sway);
+        auto correction = align(lever, DOWN * length + sway);
+        // Legs are aligned to gravity below. Bound the torso correction so a lateral
+        // grasp cannot create a large torso/leg angle: theta=2*acos(|q.w|), t=limit/theta.
+        const float angle = 2 * std::acos(std::clamp(std::abs(correction.w), 0.0f, 1.0f));
+        const float limit = glm::radians(MAX_BODY_LEAN_DEGREES);
+        if (angle > limit) {
+            correction = glm::slerp(glm::quat(1, 0, 0, 0), correction, limit / angle);
+        }
         const auto origin = glm::vec3(this->globals[this->roots.front()][3]);
         for (const auto root : this->roots) {
             const auto axes = glm::mat3(this->external[root]);
