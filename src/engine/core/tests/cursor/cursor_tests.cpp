@@ -1515,13 +1515,9 @@ namespace {
             const glm::vec3 landing_offset(suspended_position.x - source[Root].position.x,
                 0,
                 suspended_position.z - source[Root].position.z);
-            constexpr float EXPECTED_STRIDE = 4.0f;
             constexpr int LANDING_FRAMES = 36;
-            constexpr int WALK_CYCLE_FRAMES = 30;
-            const int expected_return_frame =
-                LANDING_FRAMES +
-                WALK_CYCLE_FRAMES *
-                    static_cast<int>(std::ceil(glm::length(landing_offset) / EXPECTED_STRIDE));
+            constexpr int WALK_RETURN_FRAMES = 60;
+            constexpr int expected_return_frame = LANDING_FRAMES + WALK_RETURN_FRAMES;
             for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
                 if (frame == 0) {
@@ -1588,10 +1584,16 @@ namespace {
                         stepped_right ||
                         global(fixture.model, fixture.animation, Count + 5)[3].y > 0.05f;
                 }
+                if (frame == LANDING_FRAMES + WALK_RETURN_FRAMES / 2) {
+                    const auto position = fixture.animation.animation[Root].position;
+                    check(glm::length(glm::vec2(position.x - source[Root].position.x,
+                              position.z - source[Root].position.z)) > 0.001f,
+                        "Return walking is still in progress after half a second");
+                }
                 if (frame == expected_return_frame) {
                     check(glm::length(fixture.animation.animation[Root].position -
                                       source[Root].position) < 0.001f,
-                        "The doubled stride returns in the expected number of steps");
+                        "Return walking reaches the original position after one second");
                 }
                 if (frame == RETURN_FRAMES - 1) {
                     check(glm::length(fixture.animation.animation[Root].rotation -

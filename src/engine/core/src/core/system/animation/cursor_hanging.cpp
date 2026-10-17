@@ -9,7 +9,7 @@ namespace enishi::core {
         constexpr float RESPONSE = 8.0f;
         constexpr float ENTRY_SECONDS = 0.5f;
         constexpr float LIFT_ARM_RATIO = 0.12f;
-        constexpr float WALK_CYCLE_SECONDS = 0.5f;
+        constexpr float WALK_RETURN_SECONDS = 1.0f;
         constexpr float WALK_STRIDE_RATIO = 0.8f;
         constexpr float WALK_STANCE_RATIO = 2.0f;
         constexpr float WALK_FOOT_LIFT_RATIO = 0.06f;
@@ -239,7 +239,8 @@ namespace enishi::core {
     void CursorPose::apply_hanging_walk(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         float seconds) {
-        const float cycle = seconds / WALK_CYCLE_SECONDS;
+        // Fit all distance-dependent gait cycles into the fixed return duration: c=t*N/T.
+        const float cycle = seconds * this->hanging_return_cycles / WALK_RETURN_SECONDS;
         const float whole = std::floor(cycle);
         const float phase = cycle - whole;
         const float progress =
@@ -317,7 +318,8 @@ namespace enishi::core {
         this->hanging_landing_time += dt;
         const float walk_time =
             this->hanging_landing_time - HANGING_DROP_SECONDS - HANGING_LANDING_SECONDS;
-        if (!(walk_time < this->hanging_return_cycles * WALK_CYCLE_SECONDS)) {
+        const float walk_duration = this->hanging_return_cycles > 0 ? WALK_RETURN_SECONDS : 0;
+        if (!(walk_time < walk_duration)) {
             this->hanging_landing = false;
             this->hanging_weight = 0;
             this->end_hanging();
