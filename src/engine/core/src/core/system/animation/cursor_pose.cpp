@@ -89,6 +89,18 @@ namespace enishi::core {
             }
         }
         this->initialize_legs(model);
+        this->idle_torso = find_bone(model, {"上半身", "spine", "Spine", "chest", "Chest"});
+        for (const auto& body : model.rigid_bodies) {
+            if (body.relate_bone_index == this->idle_torso &&
+                body.kind != types::RigidBodyKind::Kinematic) {
+                this->idle_torso = types::INVALID_BONE_INDEX;
+            }
+        }
+        for (const auto& constraint : model.bone_constraints.constraints) {
+            if (constraint.bone == this->idle_torso && constraint.rotation_axis.has_value()) {
+                this->idle_torso = types::INVALID_BONE_INDEX;
+            }
+        }
         if (this->config.experimental_obb_collision) {
             this->initialize_collision(model);
         }
@@ -297,11 +309,13 @@ namespace enishi::core {
     void CursorPose::apply(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::optional<CursorRay>& cursor,
-        float seconds) {
+        float seconds,
+        bool idle_enabled) {
         if (this->applied || animation.animation.size() != this->globals.size() ||
             this->traversal.size() != this->globals.size()) {
             return;
         }
+        this->idle_applied = false;
         this->reach_ray = cursor.has_value() ? std::optional(cursor->ray) : std::nullopt;
         for (std::size_t joint = 0; joint < Count; ++joint) {
             if (this->joints[joint] < animation.animation.size()) {
@@ -325,8 +339,23 @@ namespace enishi::core {
             this->collision_physics_globals = animation.global;
         }
         this->update_globals(model, animation);
+        if (idle_enabled || this->idle_weight > EPSILON) {
+            this->idle_originals = animation.animation;
+        }
+        if (this->apply_hanging(model, animation, cursor, seconds)) {
+            this->apply_idle(model, animation, idle_enabled, seconds);
+            if (this->hanging) {
+                const auto hips = this->body_bones[BodyHips];
+                const auto center = hips < this->globals.size() ? hips : this->roots.front();
+                this->hanging_display_center = glm::vec3(this->globals[center][3]);
+                this->hanging_display_pose = animation.animation;
+            }
+            this->applied = true;
+            return;
+        }
         auto point = cursor.has_value() ? this->target(*cursor) : std::nullopt;
         this->apply_jump(model, animation, point, seconds);
+        this->apply_idle(model, animation, idle_enabled, seconds);
         if (this->jump_height > 0 && cursor.has_value()) {
             point = this->target(*cursor);
         }
@@ -344,9 +373,12 @@ namespace enishi::core {
         }
         const auto previous = this->offsets;
         // Exponential smoothing alpha=1-exp(-rate*dt) is independent of frame rate.
-        const float alpha = std::isfinite(seconds)
-                                ? 1.0f - std::exp(-RESPONSE_RATE * (std::max)(0.0f, seconds))
-                                : 0.0f;
+        float alpha = std::isfinite(seconds)
+                          ? 1.0f - std::exp(-RESPONSE_RATE * (std::max)(0.0f, seconds))
+                          : 0.0f;
+        if (this->transition_initializing) {
+            alpha = 1;
+        }
         for (std::size_t joint = 0; joint < Count; ++joint) {
             const auto index = this->joints[joint];
             if (!(index < animation.animation.size())) {
@@ -359,7 +391,9 @@ namespace enishi::core {
                 glm::normalize(this->originals[joint] * this->offsets[joint]);
         }
         this->protect_arms(model, animation);
-        this->limit_arm_speed(model, animation, previous, seconds);
+        if (!this->transition_initializing) {
+            this->limit_arm_speed(model, animation, previous, seconds);
+        }
         // Limiting each arm changes the obstacle seen by the other arm. Recheck the pair
         // together; clearance takes precedence if the two limited trajectories intersect.
         this->protect_arms(model, animation);
@@ -368,6 +402,19 @@ namespace enishi::core {
 
     void CursorPose::restore(component::AnimationComponent& animation) {
         if (!this->applied) {
+            return;
+        }
+        if (!this->idle_originals.empty()) {
+            animation.animation = this->idle_originals;
+            this->idle_originals.clear();
+            this->hanging_originals.clear();
+            this->applied = false;
+            return;
+        }
+        if (!this->hanging_originals.empty()) {
+            animation.animation = this->hanging_originals;
+            this->hanging_originals.clear();
+            this->applied = false;
             return;
         }
         for (std::size_t index = 0; index < this->roots.size(); ++index) {

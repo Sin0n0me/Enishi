@@ -6,11 +6,18 @@ set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 set(CORE_ROOT "${ENGINE_ROOT}/core/src/core")
 set(PMX_ROOT "${ENGINE_ROOT}/assets_system/src/assets_system/model/model_loader/pmx")
 file(GLOB SKINNING_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/skinning_system/src/skinning_system/*/*.cpp")
+file(GLOB CURSOR_SOURCES CONFIGURE_DEPENDS "${CORE_ROOT}/system/animation/cursor*.cpp")
+file(GLOB COLLIDER_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/collider/src/collider/*.cpp")
 add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp bone_morph_tests.cpp
     external_transform_tests.cpp
     ${SKINNING_SOURCES}
+    ${CURSOR_SOURCES}
+    "${CORE_ROOT}/system/animation/pose_transition.cpp"
+    ${COLLIDER_SOURCES}
+    "${ENGINE_ROOT}/engine_types/src/engine_types/collider/ray.cpp"
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"
     "${CORE_ROOT}/system/skinning/skinning_physics.cpp"
+    "${CORE_ROOT}/system/skinning/skinning_drag.cpp"
     "${CORE_ROOT}/system/skinning/bone_inheritance.cpp"
     "${CORE_ROOT}/system/animation/bone_morph.cpp"
     "${CORE_ROOT}/system/animation/morph_weights.cpp"
@@ -31,7 +38,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     "${PMX_ROOT}/pmx_to_model_data.cpp" "${PMX_ROOT}/pmx_validation.cpp"
     "${PMX_ROOT}/pmx_runtime_support.cpp")
 target_compile_features(bone_layer_tests PRIVATE cxx_std_23)
-foreach(module core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
+foreach(module collider core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
     target_include_directories(bone_layer_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(bone_layer_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

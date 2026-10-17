@@ -126,41 +126,41 @@ namespace enishi::core {
         if (!(upper > EPSILON) || !(lower > EPSILON) || !(distance > EPSILON)) {
             return;
         }
-        const auto direction = delta / distance;
-        const auto basis =
-            this->body_anchor < this->globals.size()
-                ? glm::mat3(this->globals[this->body_anchor]) * this->body_bind_inverse
-                : glm::mat3(1);
-        auto forward = basis * glm::vec3(0, 0, -1);
-        if (glm::length(foot - hip) > EPSILON) {
-            const auto authored_axis = glm::normalize(foot - hip);
-            // Preserve the source bend plane: pole = upper - axis*dot(upper,axis).
-            const auto authored_pole =
-                knee - hip - authored_axis * glm::dot(knee - hip, authored_axis);
-            if (glm::length(authored_pole) > upper * EPSILON) {
-                forward = authored_pole;
-            }
-        }
-        const auto pole = forward - direction * glm::dot(forward, direction);
-        if (!(glm::length(pole) > EPSILON)) {
+        const auto bind = orientation(model.bind_bone[leg[1]].local);
+        const auto hip_rotation = orientation(this->globals[leg[0]]);
+        const auto knee_rotation = orientation(this->globals[leg[1]]);
+        // Q_knee = Q_parent * Q_local. Remove the current local rotation before applying bind;
+        // Q_parent may include helper bones, so it is not necessarily Q_hip.
+        const auto knee_base =
+            knee_rotation * glm::inverse(animation.animation[leg[1]].rotation) * bind;
+        const auto upper_local = glm::inverse(knee_base) * (knee - hip);
+        const auto lower_local = glm::inverse(knee_rotation) * (foot - knee);
+        // For an X hinge, dot(u,Rx(theta)*v)=A*cos(theta)+B*sin(theta)+C.
+        // The law of cosines gives that dot product as (distance^2-upper^2-lower^2)/2.
+        const float a = upper_local.y * lower_local.y + upper_local.z * lower_local.z;
+        const float b = upper_local.z * lower_local.y - upper_local.y * lower_local.z;
+        const float c = upper_local.x * lower_local.x;
+        const float radius = std::sqrt(a * a + b * b);
+        if (!(radius > EPSILON)) {
             return;
         }
-        // Triangle projection x=(a²-b²+d²)/(2d), h=sqrt(a²-x²); straight knees bend forward (-Z).
-        const float along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
-        const float height = std::sqrt((std::max)(0.0f, upper * upper - along * along));
-        const auto desired_knee = hip + direction * along + glm::normalize(pole) * height;
-        const auto hip_rotation = orientation(this->globals[leg[0]]);
+        const float cosine =
+            std::clamp(((distance * distance - upper * upper - lower * lower) * 0.5f - c) / radius,
+                -1.0f,
+                1.0f);
+        const float angle =
+            std::clamp(std::atan2(b, a) - std::acos(cosine), -glm::pi<float>(), 0.0f);
+        animation.animation[leg[1]].rotation = bind * glm::angleAxis(angle, glm::vec3(1, 0, 0));
+        this->update_globals(model, animation);
+        // Aim the whole bent leg at the ankle; all sideways adjustment belongs to the hip.
+        const auto bent_leg = glm::vec3(this->globals[leg[2]][3]) - hip;
         animation.animation[leg[0]].rotation *=
-            glm::inverse(hip_rotation) * align(knee - hip, desired_knee - hip) * hip_rotation;
+            glm::inverse(hip_rotation) * align(bent_leg, delta) * hip_rotation;
         this->update_globals(model, animation);
-        const auto moved_knee = glm::vec3(this->globals[leg[1]][3]);
-        const auto knee_rotation = orientation(this->globals[leg[1]]);
-        animation.animation[leg[1]].rotation *=
-            glm::inverse(knee_rotation) *
-            align(glm::vec3(this->globals[leg[2]][3]) - moved_knee,
-                glm::vec3(ankle[3]) - moved_knee) *
-            knee_rotation;
-        this->update_globals(model, animation);
+        // Do not align the knee's positional projection to an extra pole. A bind leg can have
+        // lateral offsets: its projection is then nonzero even at zero flex. Forcing that
+        // projection into a chosen plane adds an arbitrary (up to 180-degree) hip twist.
+        // The hinge angle fixes length and the shortest hip swing already reaches the ankle.
         // Preserve the authored foot orientation while the hip and knee flex.
         animation.animation[leg[2]].rotation *=
             glm::inverse(orientation(this->globals[leg[2]])) * orientation(ankle);

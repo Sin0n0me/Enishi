@@ -126,6 +126,17 @@ namespace enishi {
                 this->registry, animation_system, std::move(motion_rules).unwrap(),
                 this->click_settings, physics_engine->get_shared_world()));
         }
+        root_window->set_model_drag_handler(
+            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](types::ClientMousePosition cursor) {
+                const auto system = weak.lock();
+                return system != nullptr && system->begin_model_drag(cursor);
+            },
+            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)]() {
+                const auto system = weak.lock();
+                if (system != nullptr) {
+                    system->end_model_drag();
+                }
+            });
         root_window->set_interactive_hit_test(
             [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
                 const auto system = weak.lock();

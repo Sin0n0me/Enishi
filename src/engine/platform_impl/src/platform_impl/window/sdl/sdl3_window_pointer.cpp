@@ -2,6 +2,12 @@
 #include <foundation/log/logger.h>
 
 namespace enishi::platform_impl {
+    void SDL3Window::set_model_drag_handler(
+        std::function<bool(types::ClientMousePosition)> begin, std::function<void()> end) {
+        this->begin_model_drag = std::move(begin);
+        this->end_model_drag = std::move(end);
+    }
+
     void SDL3Window::refresh_mouse_position(void) {
         float mouse_x = 0.0f;
         float mouse_y = 0.0f;
@@ -12,6 +18,10 @@ namespace enishi::platform_impl {
     }
 
     void SDL3Window::cancel_model_drag(void) {
+        if (this->model_drag_claimed && this->end_model_drag != nullptr) {
+            this->end_model_drag();
+        }
+        this->model_drag_claimed = false;
         this->model_press.reset();
         this->model_dragging = false;
         if (!SDL_CaptureMouse(false)) {
@@ -30,7 +40,15 @@ namespace enishi::platform_impl {
         if (!this->model_dragging && dx * dx + dy * dy < DRAG_DISTANCE * DRAG_DISTANCE) {
             return;
         }
+        if (!this->model_dragging && this->begin_model_drag != nullptr) {
+            this->model_drag_claimed =
+                this->begin_model_drag(types::to_client(*this->model_press, this->drag_origin));
+        }
         this->model_dragging = true;
+        // Only a hand drag accepted by the hanging motion may move the window.
+        if (!this->model_drag_claimed) {
+            return;
+        }
         const auto result = this->set_position({this->drag_origin.x + static_cast<std::int32_t>(dx),
             this->drag_origin.y + static_cast<std::int32_t>(dy)});
         if (result.is_err()) {

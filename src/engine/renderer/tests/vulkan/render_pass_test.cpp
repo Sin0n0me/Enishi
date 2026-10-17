@@ -30,6 +30,8 @@ namespace {
         void close() override;
         bool should_close() const override;
         void poll_events() override;
+        void set_model_drag_handler(std::function<bool(enishi::types::ClientMousePosition)>,
+            std::function<void()>) override;
         void set_interactive_hit_test(
             std::function<bool(enishi::types::ClientMousePosition)>) override;
     };
@@ -77,6 +79,8 @@ namespace {
     }
     void SizeWindow::poll_events() {
     }
+    void SizeWindow::set_model_drag_handler(
+        std::function<bool(types::ClientMousePosition)>, std::function<void()>) {}
     void SizeWindow::set_interactive_hit_test(std::function<bool(types::ClientMousePosition)>) {
     }
 } // namespace

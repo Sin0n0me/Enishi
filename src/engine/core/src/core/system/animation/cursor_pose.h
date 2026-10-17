@@ -1,5 +1,6 @@
 #pragma once
 #include "cursor_pose_config.h"
+#include "pose_transition.h"
 #include <array>
 #include <component/animation_component.h>
 #include <component/model_component.h>
@@ -18,13 +19,31 @@ namespace enishi::core {
         glm::vec3 plane_normal;
     };
 
-    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(
-        const platform::IWindow& window, const types::UniformCamera& camera);
+    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(const platform::IWindow& window,
+        const types::UniformCamera& camera,
+        bool allow_outside = false);
 
     // A temporary local-pose layer. Restore after skinning captures the pose, so an idle
     // animation or a stopped clip never accumulates last frame's cursor correction.
     class CursorPose {
       private:
+        enum class PoseStage { Cursor, Jump, Hanging, File };
+        static constexpr float HANGING_DROP_SECONDS = 0.3f;
+        static constexpr float HANGING_LANDING_SECONDS = 0.3f;
+        PoseTransition transition;
+        std::vector<component::AnimationBuffer> transition_display;
+        PoseStage transition_stage = PoseStage::Cursor;
+        std::uint64_t transition_revision = 0;
+        bool transition_frame = false;
+        bool transition_initializing = false;
+        [[nodiscard]] PoseStage pose_stage(const component::AnimationComponent& animation) const;
+        void remember_transition_pose(const component::AnimationComponent& animation);
+        void apply_idle_legs(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float sway);
+        void apply_idle_arms(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float weight);
         enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
         std::array<types::BoneIndex, Count> joints;
         std::array<types::BoneIndex, 2> wrists;
@@ -73,6 +92,28 @@ namespace enishi::core {
         std::vector<types::BoneIndex> traversal;
         std::array<bool, 2> active_arms{};
         bool applied = false;
+        float idle_time = 0;
+        float idle_weight = 0;
+        bool idle_applied = false;
+        types::BoneIndex idle_torso = types::INVALID_BONE_INDEX;
+        std::vector<component::AnimationBuffer> idle_originals;
+        bool hanging = false;
+        float hanging_weight = 0;
+        float hanging_entry_time = 0;
+        bool hanging_landing = false;
+        float hanging_landing_time = 0;
+        glm::vec3 hanging_return_offset{};
+        glm::vec3 hanging_display_center{};
+        float hanging_return_cycles = 1;
+        std::vector<component::AnimationBuffer> hanging_display_pose;
+        float hanging_min_height = 0;
+        std::size_t hanging_side = 0;
+        glm::vec3 hanging_anchor{};
+        glm::vec3 hanging_normal{0, 0, 1};
+        glm::vec3 hanging_target{};
+        glm::vec3 hanging_lag{};
+        std::vector<component::AnimationBuffer> hanging_pose;
+        std::vector<component::AnimationBuffer> hanging_originals;
         CursorPoseConfig config;
         std::vector<types::BoneIndex> roots;
         std::vector<glm::vec3> original_root_positions;
@@ -107,14 +148,54 @@ namespace enishi::core {
         std::vector<glm::mat4> collision_physics_globals;
 
       public:
+        void apply_transitioned(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::optional<CursorRay>& cursor,
+            float seconds,
+            bool idle_enabled);
         explicit CursorPose(const component::ModelComponent& model, CursorPoseConfig config = {});
         void apply(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
-            float seconds);
+            float seconds,
+            bool idle_enabled = false);
         void restore(component::AnimationComponent& animation);
+        [[nodiscard]] std::optional<std::pair<std::size_t, float>> pick_hand(
+            const component::AnimationComponent& animation, const CursorRay& cursor) const;
+        void begin_hanging(std::size_t side,
+            const component::AnimationComponent& animation,
+            const CursorRay& cursor);
+        void end_hanging();
+        [[nodiscard]] bool is_hanging() const;
+        [[nodiscard]] bool suppress_hanging_ik(types::BoneIndex bone) const;
 
       private:
+        void apply_idle(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            bool enabled,
+            float seconds);
+        void blend_hanging_pose(component::AnimationComponent& animation) const;
+        bool apply_hanging_landing(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float seconds);
+        void apply_hanging_walk(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            float seconds);
+        void translate_hanging_roots(
+            component::AnimationComponent& animation, const glm::vec3& offset) const;
+        bool apply_hanging(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            const std::optional<CursorRay>& cursor,
+            float seconds);
+        void update_hanging_ik_targets(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
+        void prepare_hanging_limbs(
+            const component::ModelComponent& model, component::AnimationComponent& animation);
+        void hang_limb(const component::ModelComponent& model,
+            component::AnimationComponent& animation,
+            types::BoneIndex start,
+            types::BoneIndex end,
+            const glm::vec3& target_direction);
         void initialize_legs(const component::ModelComponent& model);
         void crouch(const component::ModelComponent& model,
             component::AnimationComponent& animation,
