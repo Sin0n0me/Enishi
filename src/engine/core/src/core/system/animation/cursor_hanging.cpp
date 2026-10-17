@@ -467,6 +467,15 @@ namespace enishi::core {
         }
         this->blend_hanging_pose(animation);
         this->update_globals(model, animation);
+        if (above_head) {
+            // Blending joint rotations moves the wrist off its anchor. Correct translation
+            // after blending: delta=target+smoothstep(weight)*lift-blended_wrist.
+            // Only the lift eases in; dragging must follow the pointer from the first frame.
+            const float weight = glm::smoothstep(0.0f, 1.0f, this->hanging_weight);
+            this->translate_hanging_roots(animation,
+                this->hanging_target + weight * lift - glm::vec3(this->globals[wrist][3]));
+            this->update_globals(model, animation);
+        }
         this->hanging_display_center =
             glm::vec3(this->globals[hips < this->globals.size() ? hips : this->roots.front()][3]);
         this->update_hanging_ik_targets(model, animation);

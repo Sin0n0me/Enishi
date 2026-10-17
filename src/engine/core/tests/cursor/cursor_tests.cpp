@@ -1320,6 +1320,14 @@ namespace {
                         cursor(destination.x, destination.y),
                         DT,
                         true);
+                    // Lift follows entry weight, but pointer displacement must not be damped.
+                    const float entry = (std::min)(
+                        1.0f, static_cast<float>(frame + 1) / static_cast<float>(ENTRY_FRAMES));
+                    const float lift = SUSPENSION_LIFT * glm::smoothstep(0.0f, 1.0f, entry);
+                    check(
+                        glm::length(glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
+                                    destination - glm::vec3(0, lift, 0)) < TOLERANCE,
+                        "Supporting hand follows the pointer throughout hanging entry");
                     if (!(frame < ENTRY_FRAMES)) {
                         check(glm::angle(fixture.animation.animation[Root].rotation) <
                                   glm::radians(MAX_BODY_DEGREES) + TOLERANCE,
