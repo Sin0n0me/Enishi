@@ -1,59 +1,21 @@
 #include "cursor_pose.h"
 
 namespace enishi::core {
-    void CursorPose::prepare_transition_stage(PoseStage stage) {
-        switch (stage) {
-            case PoseStage::Hanging:
-                this->hanging_weight = 1;
-                this->hanging_entry_time = static_cast<float>(PoseTransition::DURATION);
-                break;
-            case PoseStage::Drop:
-                this->hanging_landing_time = 0;
-                break;
-            case PoseStage::Landing:
-                this->hanging_landing_time = HANGING_DROP_SECONDS;
-                break;
-            case PoseStage::Walk:
-                this->hanging_landing_time = HANGING_DROP_SECONDS + HANGING_LANDING_SECONDS;
-                break;
-            case PoseStage::Jump:
-                this->jump_time = 0;
-                break;
-            case PoseStage::JumpLanding:
-                this->jump_time = this->config.jump_duration;
-                break;
-            default:
-                break;
-        }
-    }
-
-    CursorPose::PoseStage CursorPose::pose_stage(const component::AnimationComponent& animation,
-        const std::optional<CursorRay>& cursor) const {
+    CursorPose::PoseStage CursorPose::pose_stage(
+        const component::AnimationComponent& animation) const {
         if (animation.motion_playing) {
             return PoseStage::File;
         }
-        if (this->hanging_landing) {
-            if (this->hanging_landing_time < HANGING_DROP_SECONDS) {
-                return PoseStage::Drop;
-            }
-            return this->hanging_landing_time < HANGING_DROP_SECONDS + HANGING_LANDING_SECONDS
-                       ? PoseStage::Landing
-                       : PoseStage::Walk;
-        }
-        if (this->hanging && this->hanging_weight > 0) {
+        // Suspension, falling, landing and walking form one continuous action.
+        // Likewise, preparation and landing belong to the same jump as its flight.
+        if (this->hanging || this->hanging_landing || this->hanging_weight > 0) {
             return PoseStage::Hanging;
         }
         if (this->jump_height > 0) {
-            if (this->jump_time < 0) {
-                return PoseStage::JumpPreparation;
-            }
-            return this->jump_time < this->config.jump_duration ? PoseStage::Jump
-                                                                : PoseStage::JumpLanding;
+            return PoseStage::Jump;
         }
-        return cursor.has_value() && this->target(*cursor).has_value() ? PoseStage::Reach
-                                                                       : PoseStage::Idle;
+        return PoseStage::Cursor;
     }
-
     void CursorPose::remember_transition_pose(const component::AnimationComponent& animation) {
         this->transition_display = animation.animation;
         if (this->hanging && !this->roots.empty()) {
@@ -75,19 +37,26 @@ namespace enishi::core {
             return;
         }
         const auto source = animation.animation;
-        const auto requested = this->pose_stage(animation, cursor);
+        const auto requested = this->pose_stage(animation);
         const bool interrupted = requested != this->transition_stage ||
                                  animation.motion_revision != this->transition_revision;
         this->transition_frame = false;
         bool started = false;
         if (!this->transition.active() || interrupted) {
             this->apply(model, animation, cursor, seconds, idle_enabled);
-            const auto next = this->pose_stage(animation, cursor);
-            if (!this->transition_display.empty() &&
-                (next != this->transition_stage ||
-                    animation.motion_revision != this->transition_revision)) {
+            const auto next = this->pose_stage(animation);
+            const bool changed = next != this->transition_stage ||
+                                 animation.motion_revision != this->transition_revision;
+            // New interactive actions have their own continuous entry motion. Blend only
+            // completed actions back to cursor posing, or switches involving a file clip.
+            const bool blend = next == PoseStage::Cursor || next == PoseStage::File ||
+                               this->transition_stage == PoseStage::File;
+            if (changed) {
+                this->transition.cancel();
+            }
+            if (!this->transition_display.empty() && changed && blend) {
                 this->restore(animation);
-                this->prepare_transition_stage(next);
+
                 this->transition_initializing = true;
                 this->apply(model, animation, cursor, 0, idle_enabled);
                 this->transition_initializing = false;

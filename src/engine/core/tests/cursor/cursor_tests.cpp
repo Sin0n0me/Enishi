@@ -797,41 +797,35 @@ namespace {
         transition.apply(0.25f, output);
         check(std::abs(glm::dot(output[0].rotation, from[0].rotation)) > 1 - TOLERANCE,
             "Equivalent quaternion signs do not produce invalid intermediate rotations");
+        transition.cancel();
+        check(!transition.active(), "An interactive action can cancel a pending transition");
     }
 
     void procedural_pose_transition() {
         Fixture fixture;
         core::CursorPose pose(fixture.model);
         constexpr float DT = 1.0f / 60;
-        for (int frame = 0; frame < 180; ++frame) {
+        constexpr int FRAMES = 180;
+        for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, true);
             pose.restore(fixture.animation);
         }
-        pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, true);
-        const auto start = fixture.animation.animation;
-        pose.restore(fixture.animation);
-        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), DT, true);
-        check(fixture.animation.pose_transition_active &&
-                  glm::length(fixture.animation.animation[Arm].rotation - start[Arm].rotation) <
-                      TOLERANCE,
-            "Reaching starts its transition from the displayed idle pose");
-        pose.restore(fixture.animation);
-        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), 0.25f, true);
-        const auto middle = fixture.animation.animation;
-        pose.restore(fixture.animation);
-        pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), 0.25f, true);
-        const auto end = fixture.animation.animation;
-        check(!fixture.animation.pose_transition_active,
-            "Reaching transition completes in half a second");
-        const auto target = glm::dot(start[Arm].rotation, end[Arm].rotation) < 0
-                                ? -end[Arm].rotation
-                                : end[Arm].rotation;
-        const auto expected = glm::normalize(start[Arm].rotation + target);
-        check(std::abs(glm::dot(expected, middle[Arm].rotation)) > 1 - TOLERANCE,
-            "Procedural transition holds its destination while interpolating linearly");
-        pose.restore(fixture.animation);
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            const auto ray = frame % 2 == 0 ? std::optional(cursor(2, 10)) : std::nullopt;
+            pose.apply_transitioned(fixture.model, fixture.animation, ray, DT, true);
+            check(!fixture.animation.pose_transition_active,
+                "Cursor entry and exit never freeze the continuous tracking animation");
+            pose.restore(fixture.animation);
+        }
+        for (int frame = 0; frame < FRAMES; ++frame) {
+            pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), DT, true);
+            if (frame == FRAMES - 1) {
+                check(global(fixture.model, fixture.animation, Wrist)[3].y > 8,
+                    "Removing cursor transitions preserves the reach motion");
+            }
+            pose.restore(fixture.animation);
+        }
     }
-
     void file_pose_transition() {
         Fixture fixture;
         fixture.animation.bind_pose = fixture.animation.animation;
@@ -941,7 +935,7 @@ namespace {
             }
             if (blending && !fixture.animation.pose_transition_active) {
                 check(std::abs(static_cast<float>(held_frames) * DT - 0.5f) < TOLERANCE,
-                    "Each procedural stage holds playback for exactly half a second");
+                    "Completed actions blend back to cursor posing for half a second");
             }
             blending = fixture.animation.pose_transition_active;
             for (types::BoneIndex bone = 0; bone < source.size(); ++bone) {
@@ -959,11 +953,23 @@ namespace {
             step(std::nullopt);
         }
         if (jumping) {
+            auto reference = fixture;
+            core::CursorPose reference_pose(reference.model, config);
             constexpr int JUMP_FRAMES = 240;
             for (int frame = 0; frame < JUMP_FRAMES; ++frame) {
-                step(cursor(0, 11.5f));
+                const auto ray = frame == 0 ? std::optional(cursor(0, 11.5f)) : std::nullopt;
+                step(ray);
+                reference_pose.apply(reference.model, reference.animation, ray, DT, true);
+                if (transitions == 0) {
+                    check(glm::length(
+                              glm::vec3(fixture.animation.global[Root][3]) -
+                              glm::vec3(global(reference.model, reference.animation, Root)[3])) <
+                              TOLERANCE,
+                        "Preparation, flight and landing retain the uninterrupted jump trajectory");
+                }
+                reference_pose.restore(reference.animation);
             }
-            check(transitions > 2, "Jump preparation, flight and landing use pose transitions");
+            check(transitions == 1, "Only jump completion starts the shared pose transition");
             return;
         }
         for (int frame = 0; frame < WARMUP; ++frame) {
@@ -975,13 +981,14 @@ namespace {
             step(cursor(hand.x + 3, hand.y + 3));
         }
         const int before_release = transitions;
+        check(before_release == 0, "Reaching and hanging entry retain their native blending");
         pose.end_hanging();
         constexpr int RETURN_FRAMES = 600;
         for (int frame = 0; frame < RETURN_FRAMES; ++frame) {
             step(std::nullopt);
         }
-        check(transitions > before_release + 2,
-            "Release, landing, return walking and idle use the shared transition");
+        check(transitions == before_release + 1,
+            "Falling, landing and walking stay continuous; only recovery completion blends");
         check(!fixture.animation.pose_transition_active,
             "Hanging recovery eventually completes all transitions");
         fixture.animation.motion_playing = true;

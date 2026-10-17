@@ -43,4 +43,8 @@ namespace enishi::core {
     bool PoseTransition::active() const {
         return this->running;
     }
+
+    void PoseTransition::cancel() {
+        this->running = false;
+    }
 } // namespace enishi::core

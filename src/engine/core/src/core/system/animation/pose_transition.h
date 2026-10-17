@@ -15,6 +15,7 @@ namespace enishi::core {
         void begin(std::span<const component::AnimationBuffer> from,
             std::span<const component::AnimationBuffer> to);
         void apply(float seconds, std::vector<component::AnimationBuffer>& output);
+        void cancel();
         [[nodiscard]] bool active() const;
     };
 } // namespace enishi::core
