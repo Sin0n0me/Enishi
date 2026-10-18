@@ -28,6 +28,7 @@ namespace enishi::platform_impl {
         bool is_closing;
         std::optional<types::ScreenMousePosition> model_press;
         types::WindowPosition drag_origin{};
+        glm::vec2 applied_drag_offset{0};
         bool model_dragging = false;
         bool model_drag_claimed = false;
         std::function<bool(types::ClientMousePosition)> begin_model_drag;

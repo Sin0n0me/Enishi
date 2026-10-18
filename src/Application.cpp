@@ -10,6 +10,7 @@
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
+#include <core/system/window/window_animation_sync.h>
 #include <core/system/ui/selection_ui.h>
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
@@ -66,6 +67,10 @@ namespace enishi {
         return this->camera;
     }
 
+    std::shared_ptr<sub_system::IWindowAnimationSync> Application::get_window_animation_sync() const {
+        return this->window_animation_sync;
+    }
+
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
         this->click_settings = std::make_shared<core::ModelClickSettings>();
@@ -95,7 +100,13 @@ namespace enishi {
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
-        skinning_system->set_camera(this->camera);
+        // Final bone matrices are ready after physics (90); camera uploads occur at 100.
+        constexpr core::Priority WINDOW_ANIMATION_PRIORITY = 95;
+        const auto window_sync = this->system_scheduler.register_system<core::WindowAnimationSync>(
+            WINDOW_ANIMATION_PRIORITY, this->registry, root_window, this->camera);
+        this->window_animation_sync = window_sync;
+        this->display_camera = window_sync;
+        skinning_system->set_camera(this->display_camera);
         core::CameraZoomConfig zoom_config;
         auto zoom_settings = core::load_camera_zoom_config("config/camera.cfg");
         if (zoom_settings.is_err()) {
@@ -116,7 +127,8 @@ namespace enishi {
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings, this->camera);
+            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings,
+            this->display_camera);
         auto motion_rules = core::load_model_event_motions(
             "config/model_event_motions.cfg", this->click_settings.get());
         if (motion_rules.is_err()) {
@@ -289,7 +301,7 @@ namespace enishi {
             //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
         });
         render_system->set_render_passes(this->orchestra->get_passes());
-        render_system->set_camera(this->camera);
+        render_system->set_camera(this->display_camera);
 
         const auto model_render_pass = this->orchestra->get_render_pass(
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);

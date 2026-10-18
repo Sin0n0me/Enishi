@@ -1,4 +1,5 @@
 #include "sdl3_window.h"
+#include <cmath>
 #include <foundation/log/logger.h>
 
 namespace enishi::platform_impl {
@@ -36,7 +37,7 @@ namespace enishi::platform_impl {
         const auto dx = mouse_x - static_cast<float>(this->model_press->x);
         const auto dy = mouse_y - static_cast<float>(this->model_press->y);
         constexpr float DRAG_DISTANCE = 5.0f;
-        // Distance squared = dx^2 + dy^2; window = initial window + cursor displacement.
+        // Distance squared = dx^2 + dy^2.
         if (!this->model_dragging && dx * dx + dy * dy < DRAG_DISTANCE * DRAG_DISTANCE) {
             return;
         }
@@ -49,10 +50,21 @@ namespace enishi::platform_impl {
         if (!this->model_drag_claimed) {
             return;
         }
-        const auto result = this->set_position({this->drag_origin.x + static_cast<std::int32_t>(dx),
-            this->drag_origin.y + static_cast<std::int32_t>(dy)});
+        const auto position = this->get_position();
+        if (position.is_none()) {
+            return;
+        }
+        // Incremental dragging preserves window movement submitted by animation since the
+        // previous pointer event: p_new=p_current+(drag_total-drag_applied).
+        const glm::vec2 total(std::trunc(dx), std::trunc(dy));
+        const auto delta = total - this->applied_drag_offset;
+        const auto result =
+            this->set_position({position.unwrap().x + static_cast<std::int32_t>(delta.x),
+                position.unwrap().y + static_cast<std::int32_t>(delta.y)});
         if (result.is_err()) {
             foundation::Logger::warning(result.unwrap_err().get_message());
+        } else {
+            this->applied_drag_offset = total;
         }
     }
 
@@ -70,6 +82,7 @@ namespace enishi::platform_impl {
             }
             this->model_press = types::to_screen(cursor, this->position);
             this->drag_origin = this->position;
+            this->applied_drag_offset = glm::vec2(0);
             this->model_dragging = false;
             if (!SDL_CaptureMouse(true)) {
                 foundation::Logger::warning(SDL_GetError());
