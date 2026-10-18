@@ -16,7 +16,7 @@ namespace enishi::types {
 
     using BoneIndex = std::size_t;
 
-    constexpr BoneIndex INVALID_BONE_INDEX = std::numeric_limits<BoneIndex>::max();
+    constexpr BoneIndex INVALID_BONE_INDEX = (std::numeric_limits<BoneIndex>::max)();
 
     struct BindBone {
         glm::mat4 local;          // ローカル

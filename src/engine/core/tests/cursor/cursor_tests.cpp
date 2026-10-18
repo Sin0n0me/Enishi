@@ -14,6 +14,8 @@
 
 using namespace enishi;
 
+void window_animation_sync_tests();
+
 namespace {
     constexpr float TOLERANCE = 0.001f;
     constexpr float SETTLE_SECONDS = 3.0f;
@@ -2149,6 +2151,7 @@ namespace {
 } // namespace
 
 int main(int argc, char** argv) {
+    window_animation_sync_tests();
     if (argc == 2 && std::string_view(argv[1]) == "--benchmark") {
         benchmark_cursor();
         return EXIT_SUCCESS;
