@@ -130,7 +130,7 @@ RWStructuredBuffer<Output> results : register(u0);
             this->context->UpdateSubresource(this->palette.Get(), 0, nullptr, bones.data(), 0, 0);
             this->context->UpdateSubresource(this->input.Get(), 0, nullptr, &vertex, 0, 0);
             this->context->CSSetShader(this->shader.Get(), nullptr, 0);
-            this->context->CSSetConstantBuffers(0, 1, this->palette.GetAddressOf());
+            this->context->CSSetConstantBuffers(1, 1, this->palette.GetAddressOf());
             this->context->CSSetShaderResources(0, 1, this->input_view.GetAddressOf());
             this->context->CSSetUnorderedAccessViews(
                 0, 1, this->output_view.GetAddressOf(), nullptr);

@@ -17,3 +17,18 @@ endif()
 target_link_libraries(skinning_tests PRIVATE d3d11 d3dcompiler dxguid)
 enable_testing()
 add_test(NAME skinning_tests COMMAND skinning_tests)
+
+add_executable(shadow_tests shadow_tests.cpp
+    "${ENGINE_ROOT}/renderer/src/renderer/directx/directx11/d3d11_converter.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow.cpp")
+target_compile_features(shadow_tests PRIVATE cxx_std_23)
+target_include_directories(shadow_tests PRIVATE
+    "${ENGINE_ROOT}/renderer/src" "${ENGINE_ROOT}/engine_types/src"
+    "${ENGINE_ROOT}/foundation/src" "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")
+target_compile_definitions(shadow_tests PRIVATE NOMINMAX
+    SHADER_ROOT="${ENGINE_ROOT}/../shader")
+target_link_libraries(shadow_tests PRIVATE d3d11 d3dcompiler dxguid)
+if(MSVC)
+    target_compile_options(shadow_tests PRIVATE /utf-8 /W4)
+endif()
+add_test(NAME shadow_tests COMMAND shadow_tests)
