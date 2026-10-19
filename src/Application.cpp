@@ -284,7 +284,7 @@ namespace enishi {
             std::make_shared<render_pass::ModelRenderPassConstructor>());
         this->orchestra->add_constructor(
             std::make_shared<render_pass::BackgroundRenderPassConstructor>());
-#if defined(USE_DIRECTX_11)
+#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40)
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
 #endif
@@ -299,7 +299,7 @@ namespace enishi {
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
             render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-#if defined(USE_DIRECTX_11)
+#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40)
             render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
 #endif
         });

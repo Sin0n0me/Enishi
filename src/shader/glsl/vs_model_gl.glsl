@@ -21,6 +21,11 @@ layout(std140) uniform Bones {
     mat4 bone_matrices[512];
 };
 
+layout(std140) uniform ShadowMap {
+    mat4 light_view_proj;
+};
+
+out vec4 shadow_position;
 out vec2 uv;
 out vec3 view_position;
 out vec3 view_normal;
@@ -144,14 +149,22 @@ DeformedVertex deform_vertex(vec3 position, vec3 normal, uvec4 bones, vec4 weigh
     return output;
 }
 void main() {
-    const vec3 light_direction = normalize(vec3(0.0, 0.0, -10.0));
+    // Same world-space surface-to-light direction as types::shadow_light_view().
+    const vec3 light_direction = normalize(vec3(-0.35, 0.8, -1.0));
     DeformedVertex deformed = deform_vertex(in_position, in_normal, in_bone_indices,
         in_bone_weights, in_skinning_method, in_blend_center, in_blend_anchor0, in_blend_anchor1);
     vec4 position = vec4(deformed.position, 1.0);
     mat4 model_view = view * world;
+    shadow_position = light_view_proj * world * position;
+#ifdef ENISHI_SHADOW_PASS
+    gl_Position = shadow_position;
+    // Shared light projection produces z in [0,w]; OpenGL clip space requires [-w,w].
+    gl_Position.z = 2.0 * shadow_position.z - shadow_position.w;
+#else
     gl_Position = mvp * position;
+#endif
     uv = in_uv;
     view_position = (model_view * position).xyz;
     view_normal = normalize(mat3(model_view) * deformed.normal);
-    view_light = mat3(model_view) * light_direction;
+    view_light = mat3(view) * light_direction;
 }

@@ -135,6 +135,15 @@ if(USE_DIRECTX_11)
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
 endif()
 
+if(USE_OPENGL40)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/PrepareOpenGLShaders.cmake")
+    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/glsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    target_compile_definitions(core PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+endif()
+
 if(USE_VULKAN)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
     enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"

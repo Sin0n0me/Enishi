@@ -166,7 +166,7 @@ namespace enishi::renderer {
                 });
         }
 
-#if defined(USE_DIRECTX_11)
+#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40)
         std::vector<std::byte> shadow;
         append_bytes(shadow, types::UniformShadow{});
         uniforms.emplace(types::UniformShadow::UNIFORM_NAME,

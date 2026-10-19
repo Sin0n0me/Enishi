@@ -6,6 +6,9 @@ namespace enishi::render_pass {
 #if defined(USE_VULKAN)
     constexpr char VS_FILE_NAME[] = "vs_clear_wall_vk";
     constexpr char PS_FILE_NAME[] = "ps_clear_wall_vk";
+#elif defined(USE_OPENGL40)
+    constexpr char VS_FILE_NAME[] = "vs_clear_wall_gl";
+    constexpr char PS_FILE_NAME[] = "ps_clear_wall_gl";
 #else
     constexpr char VS_FILE_NAME[] = "vs_clear_wall";
     constexpr char PS_FILE_NAME[] = "ps_clear_wall";
