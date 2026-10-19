@@ -30,12 +30,18 @@ namespace enishi::renderer::directx {
             .Count = description.samples,
         };
 
+        auto format = D3D11Converter::to_dxgi_format(description.format);
+        if (description.format == types::ImageFormat::D32_FLOAT &&
+            description.contains(types::ImageUsage::ShaderResource)) {
+            format = DXGI_FORMAT_R32_TYPELESS;
+        }
+
         return D3D11_TEXTURE2D_DESC{
             .Width = static_cast<UINT>(description.size.x),
             .Height = static_cast<UINT>(description.size.y),
             .MipLevels = description.mip_levels,
             .ArraySize = description.array_layers,
-            .Format = D3D11Converter::to_dxgi_format(description.format),
+            .Format = format,
             .SampleDesc = sample,
             .Usage = D3D11Converter::to_usage(description.usage),
             .BindFlags = to_d3d11_bind_flags(description.usage),

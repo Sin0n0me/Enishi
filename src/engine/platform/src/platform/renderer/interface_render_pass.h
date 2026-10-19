@@ -29,6 +29,8 @@ namespace enishi::platform {
             foundation::DependencyNode&& node,
             foundation::DependencyBounds&& dependencies) noexcept = 0;
 
+        [[nodiscard]] virtual types::RenderHandle get_sampled_depth(void) const noexcept = 0;
+
         virtual void add_shader(const types::RenderHandle& shader) noexcept = 0;
 
         virtual void add_mesh(const types::RenderHandle& mesh) noexcept = 0;

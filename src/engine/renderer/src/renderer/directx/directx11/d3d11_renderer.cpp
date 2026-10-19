@@ -6,6 +6,23 @@
 #include <renderer/common/converter/model_to_mesh.h>
 
 namespace enishi::renderer::directx {
+    namespace {
+        void set_attachment_viewport(ID3D11DeviceContext* context, ID3D11View* view) {
+            Microsoft::WRL::ComPtr<ID3D11Resource> resource;
+            view->GetResource(resource.GetAddressOf());
+            Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+            if (FAILED(resource.As(&texture))) {
+                return;
+            }
+            D3D11_TEXTURE2D_DESC description{};
+            texture->GetDesc(&description);
+            const D3D11_VIEWPORT viewport{
+                0, 0, static_cast<float>(description.Width),
+                static_cast<float>(description.Height), 0, 1};
+            context->RSSetViewports(1, &viewport);
+        }
+    } // namespace
+
     D3D11Renderer::D3D11Renderer(std::unique_ptr<D3D11> d3d11)
         : d3d11(std::move(d3d11))
         , updater_pool(std::make_unique<UpdaterPool>()) {
@@ -282,6 +299,11 @@ namespace enishi::renderer::directx {
     }
 
     void D3D11Renderer::setup_views(void) const {
+        // The previous frame sampled the shadow depth; detach SRVs before clearing/writing it.
+        ID3D11ShaderResourceView* empty_views[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT]{};
+        this->d3d11->get_context()->PSSetShaderResources(
+            0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, empty_views);
+
         // レンダーターゲットのクリア
         const auto& context = this->d3d11->get_context();
         const auto& view_accessor =
@@ -322,7 +344,8 @@ namespace enishi::renderer::directx {
             const auto& native_depth_stencil_view = opt_depth_stencil_view.unwrap();
 
             context->ClearDepthStencilView(native_depth_stencil_view.Get(),
-                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                depth_stnencil->get_description().format == types::ImageFormat::D24_UNORM_S8_UINT
+                    ? D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL : D3D11_CLEAR_DEPTH,
                 depth_stnencil->clear_depth(),
                 depth_stnencil->clear_stencil());
         }
@@ -649,9 +672,6 @@ namespace enishi::renderer::directx {
             case types::ImageViewType::DepthStencil: {
                 const auto opt_rtv_index =
                     this->resource_manager->get_render_handle_mapper()->get(render_target_handle);
-                if (opt_rtv_index.is_none()) {
-                    return;
-                }
                 const auto opt_dsv = view_accessor->get_native_depth_stencil_view(index.resource);
                 if (opt_dsv.is_none()) {
                     return;
@@ -662,6 +682,11 @@ namespace enishi::renderer::directx {
                 }
                 const auto& dsv = opt_dsv.unwrap();
 
+                set_attachment_viewport(context.Get(), dsv.Get());
+                if (opt_rtv_index.is_none()) {
+                    context->OMSetRenderTargets(0, nullptr, dsv.Get());
+                    break;
+                }
                 const auto& rtv_index = opt_rtv_index.unwrap();
                 const auto opt_rtv =
                     view_accessor->get_native_render_target_view(rtv_index.resource);
@@ -684,6 +709,7 @@ namespace enishi::renderer::directx {
                 const auto& view = opt_view.unwrap();
 
                 context->OMSetRenderTargets(1, view.GetAddressOf(), nullptr);
+                set_attachment_viewport(context.Get(), view.Get());
             } break;
             case types::ImageViewType::ShaderResource: {
                 const auto opt_view =
