@@ -1,4 +1,4 @@
-cbuffer Bones {
+cbuffer Bones : register(b1) {
     column_major matrix bone_matrices[512];
 };
 

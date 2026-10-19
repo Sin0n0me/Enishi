@@ -5,6 +5,7 @@
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
+#include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/str/string_builder.h>
 
@@ -165,6 +166,12 @@ namespace enishi::renderer {
                 });
         }
 
+#if defined(USE_DIRECTX_11)
+        std::vector<std::byte> shadow;
+        append_bytes(shadow, types::UniformShadow{});
+        uniforms.emplace(types::UniformShadow::UNIFORM_NAME,
+            types::OwnedRenderData{std::move(shadow), sizeof(types::UniformShadow)});
+#endif
         auto&& addon_result = ModelToMesh::to_uniforms_from_addon(model_data, uniforms);
         if (addon_result.is_err()) {
             return std::move(addon_result).unwrap_err();

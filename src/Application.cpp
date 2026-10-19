@@ -284,10 +284,10 @@ namespace enishi {
             std::make_shared<render_pass::ModelRenderPassConstructor>());
         this->orchestra->add_constructor(
             std::make_shared<render_pass::BackgroundRenderPassConstructor>());
-        /*
+#if defined(USE_DIRECTX_11)
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
-        */
+#endif
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
@@ -299,7 +299,9 @@ namespace enishi {
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
             render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-            //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+#if defined(USE_DIRECTX_11)
+            render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+#endif
         });
         render_system->set_render_passes(this->orchestra->get_passes());
         render_system->set_camera(this->display_camera);
@@ -311,7 +313,9 @@ namespace enishi {
             return {};
         }
         const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(
-            95, this->registry, asset_system, renderer, model_render_pass.unwrap());
+            95, this->registry, asset_system, renderer, model_render_pass.unwrap(),
+            this->orchestra->get_render_pass(render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME)
+                .unwrap_or(nullptr));
 
         if (!this->init_ui(root_window, render_system, models)) {
             return {};

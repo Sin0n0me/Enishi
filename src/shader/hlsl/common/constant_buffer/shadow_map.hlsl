@@ -1,4 +1,4 @@
-cbuffer ShadowMap {
+cbuffer ShadowMap : register(b2) {
     column_major matrix light_view_proj;
 };
 

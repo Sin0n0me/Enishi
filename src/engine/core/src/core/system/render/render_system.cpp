@@ -1,8 +1,10 @@
 #include "render_system.h"
 #include "bone_matrix_upload.h"
 #include "camera_upload.h"
+#include "shadow_upload.h"
 #include "material_morph_upload.h"
 #include "vertex_morph_upload.h"
+#include <algorithm>
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <foundation/log/logger.h>
@@ -39,6 +41,15 @@ namespace enishi::core {
     void RenderSystem::update(const types::DeltaTime& delta_time) {
         if (this->camera != nullptr) {
             const auto snapshot = this->camera->get_camera();
+            const bool has_shadow = std::ranges::any_of(this->render_passes, [](const auto& pass) {
+                return pass->get_sampled_depth().is_valid();
+            });
+            if (has_shadow) {
+                const auto result = upload_shadow(*this->renderer, *this->registry, snapshot);
+                if (result.is_err()) {
+                    foundation::Logger::warning(result.unwrap_err().get_message());
+                }
+            }
             for (auto [entity, model] : this->registry->view<component::ModelComponent>()) {
                 if (!model.visible) {
                     continue;

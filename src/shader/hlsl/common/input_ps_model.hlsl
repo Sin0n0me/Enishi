@@ -5,4 +5,5 @@ struct PSInput {
     float3 view_position : VIEW_POSITION;
     float3 view_normal : VIEW_NORMAL;
     float3 view_light : VIEW_LIGHT;
+    float4 shadow_position : TEXCOORD1;
 };

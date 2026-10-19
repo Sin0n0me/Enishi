@@ -125,6 +125,16 @@ target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
 
+if(USE_DIRECTX_11)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_DIRECTX_11)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileHLSL.cmake")
+    enishi_compile_hlsl_shaders(enishi_hlsl_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+    add_dependencies(${PROJECT_NAME} enishi_hlsl_shaders)
+    target_compile_definitions(core PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+endif()
+
 if(USE_VULKAN)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
     enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"
