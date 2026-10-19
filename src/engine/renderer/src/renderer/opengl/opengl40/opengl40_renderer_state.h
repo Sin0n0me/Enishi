@@ -24,6 +24,9 @@ namespace enishi::renderer::opengl {
             std::vector<std::unordered_map<std::uint32_t, std::uint32_t>>>
             mesh_texture_bindings;
         std::unordered_map<types::RenderHandle, types::ImageDescription> images;
+        std::unordered_map<types::RenderHandle, std::uint32_t> view_texture_units;
+        std::unordered_map<types::RenderHandle, std::uint32_t> depth_framebuffers;
+        bool active_framebuffer_complete = true;
         std::unordered_set<types::RenderHandle> back_buffer_images;
         std::unordered_map<types::RenderHandle, types::RasterizerStateDescription> rasterizers;
         std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depth_stencils;
