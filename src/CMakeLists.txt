@@ -149,6 +149,7 @@ endif()
 option(ENISHI_CURSOR_TESTS "Build asset-free procedural cursor pose validation" OFF)
 if(ENISHI_CURSOR_TESTS)
     enable_testing()
+    add_subdirectory(engine/animation/tests/procedural)
     add_subdirectory(engine/core/tests/cursor)
 endif()
 

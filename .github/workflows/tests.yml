@@ -102,13 +102,13 @@ jobs:
       - name: Build tests
         run: |
           cmake --build build/tests/visualstudio --config ${{ matrix.config }} `
-            --target enishi_script_tests enishi_cursor_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+            --target enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests
         run: |
           ctest --test-dir build/tests/visualstudio -C ${{ matrix.config }} `
-            -R '^enishi_(script|cursor)_tests$' --output-on-failure --no-tests=error `
+            -R '^enishi_(script|cursor|animation_pose)_tests$' --output-on-failure --no-tests=error `
             --output-junit "$env:GITHUB_WORKSPACE/build/tests/test-results.xml"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

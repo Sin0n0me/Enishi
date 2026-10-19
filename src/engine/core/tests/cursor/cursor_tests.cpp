@@ -769,41 +769,6 @@ namespace {
         return fixture;
     }
 
-    void linear_pose_transition() {
-        std::vector<component::AnimationBuffer> from(1);
-        auto to = from;
-        to[0].position = {4, 8, 12};
-        to[0].scale = {3, 3, 3};
-        to[0].rotation = glm::angleAxis(glm::half_pi<float>(), glm::vec3(1, 0, 0));
-        animation::PoseTransition transition;
-        transition.begin(from, to);
-        auto output = from;
-        transition.apply(0.25f, output);
-        check(output[0].position == to[0].position * 0.5f && output[0].scale == glm::vec3(2),
-            "Pose transition linearly interpolates translation and scale at half time");
-        check(std::abs(glm::angle(output[0].rotation) - glm::quarter_pi<float>()) < TOLERANCE,
-            "Pose transition interpolates normalized shortest-arc rotation");
-        transition.apply(0.25f, output);
-        check(!transition.active() && output[0].position == to[0].position &&
-                  output[0].rotation == to[0].rotation,
-            "Pose transition reaches the captured initial pose at exactly half a second");
-        transition.begin(from, to);
-        transition.apply(0.25f, output);
-        const auto interrupted = output;
-        transition.begin(output, from);
-        transition.apply(0, output);
-        check(output[0].position == interrupted[0].position,
-            "Interrupted transitions start from the currently displayed pose");
-        to = from;
-        to[0].rotation = -from[0].rotation;
-        transition.begin(from, to);
-        transition.apply(0.25f, output);
-        check(std::abs(glm::dot(output[0].rotation, from[0].rotation)) > 1 - TOLERANCE,
-            "Equivalent quaternion signs do not produce invalid intermediate rotations");
-        transition.cancel();
-        check(!transition.active(), "An interactive action can cancel a pending transition");
-    }
-
     void procedural_pose_transition() {
         Fixture fixture;
         animation::CursorPose pose(fixture.model);
@@ -2158,7 +2123,6 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
     look_and_reach();
-    linear_pose_transition();
     procedural_pose_transition();
     file_pose_transition();
     procedural_transition_lifecycle(false);
