@@ -16,6 +16,9 @@ jobs:
   test:
     runs-on: windows-2022
     timeout-minutes: 45
+    env:
+      UseMultiToolTask: 'true'
+      EnforceProcessCountAcrossBuilds: 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +27,12 @@ jobs:
       run:
         shell: pwsh
     steps:
+      - name: Configure parallel builds
+        run: |
+          $jobs = [Environment]::ProcessorCount
+          "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" >> $env:GITHUB_ENV
+          "MultiProcMaxCount=$jobs" >> $env:GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -93,7 +102,7 @@ jobs:
       - name: Build tests
         run: |
           cmake --build build/tests/visualstudio --config ${{ matrix.config }} `
-            --target enishi_script_tests enishi_cursor_tests --parallel 2
+            --target enishi_script_tests enishi_cursor_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests
