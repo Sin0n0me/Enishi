@@ -142,6 +142,11 @@ if(USE_OPENGL40)
         "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
     target_compile_definitions(core PRIVATE
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
+    if(ENISHI_OPENGL_TESTS)
+        enable_testing()
+        add_subdirectory(engine/renderer/tests/opengl)
+    endif()
 endif()
 
 if(USE_VULKAN)

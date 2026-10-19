@@ -166,21 +166,26 @@ def run_tests():
     print("Production GLSL transform feedback tests passed")
 
 
-window = user.CreateWindowExW(0, "STATIC", "", 0, 0, 0, 1, 1, None, None, None, None)
-check(window is not None, "hidden window creation failed")
-dc = user.GetDC(window)
-context = None
-try:
-    pixel = PixelFormat()
-    pixel.size, pixel.version, pixel.flags, pixel.color_bits, pixel.depth = c.sizeof(pixel), 1, 0x24, 32, 24
-    index = gdi.ChoosePixelFormat(dc, c.byref(pixel))
-    check(index != 0 and gdi.SetPixelFormat(dc, index, c.byref(pixel)) != 0, "pixel format failed")
-    context = opengl.wglCreateContext(dc)
-    check(context is not None and opengl.wglMakeCurrent(dc, context) != 0, "WGL context failed")
-    run_tests()
-finally:
-    opengl.wglMakeCurrent(None, None)
-    if context is not None:
-        opengl.wglDeleteContext(context)
-    user.ReleaseDC(window, dc)
-    user.DestroyWindow(window)
+def run_with_context(test):
+    window = user.CreateWindowExW(0, "STATIC", "", 0, 0, 0, 1, 1, None, None, None, None)
+    check(window is not None, "hidden window creation failed")
+    dc = user.GetDC(window)
+    context = None
+    try:
+        pixel = PixelFormat()
+        pixel.size, pixel.version, pixel.flags, pixel.color_bits, pixel.depth = c.sizeof(pixel), 1, 0x24, 32, 24
+        index = gdi.ChoosePixelFormat(dc, c.byref(pixel))
+        check(index != 0 and gdi.SetPixelFormat(dc, index, c.byref(pixel)) != 0, "pixel format failed")
+        context = opengl.wglCreateContext(dc)
+        check(context is not None and opengl.wglMakeCurrent(dc, context) != 0, "WGL context failed")
+        test()
+    finally:
+        opengl.wglMakeCurrent(None, None)
+        if context is not None:
+            opengl.wglDeleteContext(context)
+        user.ReleaseDC(window, dc)
+        user.DestroyWindow(window)
+
+
+if __name__ == "__main__":
+    run_with_context(run_tests)
