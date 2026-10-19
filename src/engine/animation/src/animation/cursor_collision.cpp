@@ -5,7 +5,7 @@
 #include <collider/obb_maker.h>
 #include <foundation/log/logger.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         bool belongs_to(
             const component::ModelComponent& model, types::BoneIndex bone, types::BoneIndex root) {
@@ -211,4 +211,4 @@ namespace enishi::core {
         }
         return true;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

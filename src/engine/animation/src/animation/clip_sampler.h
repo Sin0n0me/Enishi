@@ -4,10 +4,10 @@
 #include <component/ik_component.h>
 #include <component/morph_component.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     void sample_model_clip(const animation::AnimationClipData& clip,
         float time,
         component::AnimationComponent& pose,
         component::MorphComponent* morph,
         component::IKComponent* ik);
-} // namespace enishi::core
+} // namespace enishi::animation

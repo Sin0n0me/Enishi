@@ -1,7 +1,7 @@
 #include "morph_weights.h"
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         bool is_selection(const types::MorphTarget& target) {
             return target.weight_mode == types::MorphWeightMode::DiscreteSelection;
@@ -148,4 +148,4 @@ namespace enishi::core {
         }
         return effective;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

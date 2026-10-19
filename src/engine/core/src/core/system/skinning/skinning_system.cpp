@@ -1,4 +1,5 @@
 #include "skinning_system.h"
+#include <core/system/animation/cursor_ray.h>
 #include "bone_inheritance.h"
 #include "bone_view_factory.h"
 #include <component/animation_component.h>
@@ -34,7 +35,7 @@ namespace enishi::core {
         this->camera = std::move(camera);
     }
 
-    void SkinningSystem::set_cursor_config(const CursorPoseConfig& config) {
+    void SkinningSystem::set_cursor_config(const animation::CursorPoseConfig& config) {
         this->cursor_config = config;
         for (auto& [entity, bones] : this->model_bones) {
             bones->cursor_pose.reset();
@@ -84,7 +85,7 @@ namespace enishi::core {
             bones.morph_delta.clear();
             const auto morph = this->registry->get<component::MorphComponent>(entity);
             if (morph.is_some()) {
-                auto deltas = evaluate_bone_morphs(
+                auto deltas = animation::evaluate_bone_morphs(
                     model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
                 if (deltas.is_err()) {
                     foundation::Logger::warning(deltas.unwrap_err().get_message());
@@ -100,7 +101,7 @@ namespace enishi::core {
                     : std::span<const types::SkinningCommand>(skinning.order);
 
             if (bones.cursor_pose == nullptr) {
-                bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
+                bones.cursor_pose = std::make_unique<animation::CursorPose>(model, this->cursor_config);
             }
             if (bones.cursor_pose != nullptr) {
                 bones.cursor_pose->apply_transitioned(model, animation,

@@ -1,5 +1,5 @@
 #include "impulse_morph_application.h"
-#include <core/system/animation/impulse_morph.h>
+#include <animation/impulse_morph.h>
 
 namespace enishi::core {
     foundation::Result<void, sub_system::PhysicsError> apply_impulse_morphs(
@@ -7,7 +7,7 @@ namespace enishi::core {
         const component::ModelComponent& model,
         const component::MorphComponent& morph,
         const component::PhysicsBodiesComponent& bodies) {
-        const auto impulses = evaluate_impulse_morphs(
+        const auto impulses = animation::evaluate_impulse_morphs(
             bodies.rigid_bodies.size(), model.morph_targets.targets, morph.weights);
         if (impulses.is_err()) {
             return impulses.propagation(sub_system::PhysicsError::MakeError);

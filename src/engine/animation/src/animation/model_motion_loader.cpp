@@ -4,7 +4,7 @@
 #include <assets_system/model/bone/bone_resolver.h>
 #include <assets_system/model/morph/morph_resolver.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     foundation::Result<animation::AnimationClipData, animation::AnimationError> bind_model_motion(
         const component::ModelComponent& model, const assets_system::VMDData& data) {
         assets_system::BoneNameMapConstructor bone_names;
@@ -33,4 +33,4 @@ namespace enishi::core {
         clip.unwrap_mut().name = path.stem().string();
         return clip;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

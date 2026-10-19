@@ -4,7 +4,7 @@
 #include <initializer_list>
 #include <string_view>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
@@ -542,4 +542,4 @@ namespace enishi::core {
                                animation.animation[this->joints[elbow]].rotation);
         }
     }
-} // namespace enishi::core
+} // namespace enishi::animation

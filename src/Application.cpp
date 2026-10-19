@@ -1,6 +1,7 @@
 #include "application.h"
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
+#include <core/system/animation/cursor_pose_config.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
 #include <core/system/animation/model_event_motion_handler.h>

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float REACH_MARGIN = 0.95f;
@@ -151,4 +151,4 @@ namespace enishi::core {
         // sin²(pi*t/T) gives zero bend and zero bend velocity at both ends of each phase.
         this->crouch(model, animation, bend * bend);
     }
-} // namespace enishi::core
+} // namespace enishi::animation

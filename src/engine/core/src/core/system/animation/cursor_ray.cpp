@@ -1,8 +1,8 @@
-#include "cursor_pose.h"
+#include "cursor_ray.h"
 #include <platform/window/interface_window.h>
 
 namespace enishi::core {
-    std::optional<CursorRay> read_cursor_ray(
+    std::optional<animation::CursorRay> read_cursor_ray(
         const platform::IWindow& window, const types::UniformCamera& camera, bool allow_outside) {
         const auto input = window.get_input();
         const auto position = window.get_position();
@@ -18,7 +18,7 @@ namespace enishi::core {
         const auto ray = types::Ray::make_ray_from_screen(size.unwrap(), cursor, camera);
         const auto inverse_world = glm::inverse(camera.world);
         // Convert both the picking ray and the camera-facing target plane to model space.
-        return CursorRay{{glm::vec3(inverse_world * glm::vec4(ray.origin, 1)),
+        return animation::CursorRay{{glm::vec3(inverse_world * glm::vec4(ray.origin, 1)),
                              glm::normalize(glm::mat3(inverse_world) * ray.direction)},
             glm::normalize(glm::mat3(inverse_world) * glm::vec3(glm::inverse(camera.view)[2]))};
     }

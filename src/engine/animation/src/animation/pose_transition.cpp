@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     void PoseTransition::begin(std::span<const component::AnimationBuffer> from,
         std::span<const component::AnimationBuffer> to) {
         assert(from.size() == to.size());
@@ -47,4 +47,4 @@ namespace enishi::core {
     void PoseTransition::cancel() {
         this->running = false;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

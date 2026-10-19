@@ -4,7 +4,7 @@
 #include <initializer_list>
 #include <string_view>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float KNEE_BEND_DEGREES = 25.0f;
@@ -231,4 +231,4 @@ namespace enishi::core {
             this->update_globals(model, animation);
         }
     }
-} // namespace enishi::core
+} // namespace enishi::animation

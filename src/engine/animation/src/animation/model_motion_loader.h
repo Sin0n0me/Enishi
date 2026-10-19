@@ -6,9 +6,9 @@
 #include <filesystem>
 #include <foundation/result/result.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     [[nodiscard]] foundation::Result<animation::AnimationClipData, animation::AnimationError>
     bind_model_motion(const component::ModelComponent& model, const assets_system::VMDData& data);
     [[nodiscard]] foundation::Result<animation::AnimationClipData, animation::AnimationError>
     load_model_motion(const component::ModelComponent& model, const std::filesystem::path& path);
-} // namespace enishi::core
+} // namespace enishi::animation

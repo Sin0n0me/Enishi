@@ -1,7 +1,7 @@
 #include "bone_morph.h"
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     foundation::Result<std::vector<BoneMorphDelta>, MorphError> evaluate_bone_morphs(
         std::size_t bone_count,
         std::span<const types::MorphTarget> targets,
@@ -45,4 +45,4 @@ namespace enishi::core {
         }
         return pose;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

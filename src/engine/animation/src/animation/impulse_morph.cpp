@@ -1,7 +1,7 @@
 #include "impulse_morph.h"
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         bool finite(glm::vec3 value) {
             return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
@@ -49,4 +49,4 @@ namespace enishi::core {
         }
         return result;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

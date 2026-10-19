@@ -17,6 +17,10 @@
 #include <unordered_map>
 #include <variant>
 
+namespace enishi::platform {
+    class IWindow;
+}
+
 namespace enishi::core {
     /**
      * モデルが持つ各ボーンデータを適切な順序で計算し
@@ -40,7 +44,7 @@ namespace enishi::core {
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
         std::weak_ptr<platform::IWindow> cursor_window;
         std::shared_ptr<sub_system::ICameraController> camera;
-        CursorPoseConfig cursor_config;
+        animation::CursorPoseConfig cursor_config;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
@@ -53,7 +57,7 @@ namespace enishi::core {
         void update_after_physics(void);
         void set_cursor_window(const std::shared_ptr<platform::IWindow>& window);
         void set_camera(std::shared_ptr<sub_system::ICameraController> camera);
-        void set_cursor_config(const CursorPoseConfig& config);
+        void set_cursor_config(const animation::CursorPoseConfig& config);
         bool begin_model_drag(types::ClientMousePosition cursor);
         void end_model_drag();
         void post_update(void) override;

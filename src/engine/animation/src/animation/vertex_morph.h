@@ -3,7 +3,7 @@
 #include <foundation/result/result.h>
 #include <span>
 
-namespace enishi::core {
+namespace enishi::animation {
     enum class MorphError {
         InvalidWeight,
         InvalidVertex,
@@ -16,4 +16,4 @@ namespace enishi::core {
         std::span<const glm::vec3> base_positions,
         std::span<const types::MorphTarget> targets,
         std::span<const float> weights);
-} // namespace enishi::core
+} // namespace enishi::animation

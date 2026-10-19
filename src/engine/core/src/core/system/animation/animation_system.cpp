@@ -1,5 +1,5 @@
 #include "animation_system.h"
-#include "clip_sampler.h"
+#include <animation/clip_sampler.h>
 #include <component/physics_bodies_component.h>
 
 namespace enishi::core {
@@ -81,7 +81,7 @@ namespace enishi::core {
             }
             auto morph = this->registry->get<component::MorphComponent>(entity);
             auto ik = this->registry->get<component::IKComponent>(entity);
-            sample_model_clip(*clip,
+            animation::sample_model_clip(*clip,
                 controller->get_time(),
                 animation,
                 morph.is_some() ? &morph.unwrap_mut() : nullptr,

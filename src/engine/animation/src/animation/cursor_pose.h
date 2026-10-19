@@ -9,19 +9,11 @@
 #include <optional>
 #include <utility>
 
-namespace enishi::platform {
-    class IWindow;
-}
-
-namespace enishi::core {
+namespace enishi::animation {
     struct CursorRay {
         types::Ray ray;
         glm::vec3 plane_normal;
     };
-
-    [[nodiscard]] std::optional<CursorRay> read_cursor_ray(const platform::IWindow& window,
-        const types::UniformCamera& camera,
-        bool allow_outside = false);
 
     // A temporary local-pose layer. Restore after skinning captures the pose, so an idle
     // animation or a stopped clip never accumulates last frame's cursor correction.
@@ -248,4 +240,4 @@ namespace enishi::core {
             const std::array<glm::quat, Count>& previous,
             float seconds);
     };
-} // namespace enishi::core
+} // namespace enishi::animation

@@ -3,7 +3,8 @@
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <core/system/animation/animation_system.h>
-#include <core/system/animation/cursor_pose.h>
+#include <core/system/animation/cursor_pose_config.h>
+#include <animation/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
 #include <engine_types/renderer/uniform_buffer/camera.h>
@@ -100,13 +101,13 @@ namespace {
         }
     }
 
-    core::CursorRay cursor(float x, float y) {
+    animation::CursorRay cursor(float x, float y) {
         return {{{x, y, -20}, {0, 0, 1}}, {0, 0, 1}};
     }
 
     void look_and_reach() {
         Fixture fixture;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         const auto before = fixture.animation.animation;
         const glm::vec3 target(3, 7, -1.08f);
         const auto original_hand = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
@@ -128,7 +129,7 @@ namespace {
             "Only the near arm should reach");
         const auto neck_forward = fixture.animation.animation[Neck].rotation * glm::vec3(0, 0, -1);
         check(std::abs(std::atan2(-neck_forward.x, -neck_forward.z)) <
-                  glm::radians(core::CursorPoseConfig{}.neck_yaw) + TOLERANCE,
+                  glm::radians(animation::CursorPoseConfig{}.neck_yaw) + TOLERANCE,
             "Neck yaw must stay within its limit");
         check(fixture.animation.animation[Twist].rotation == IDENTITY,
             "Do not write intermediate or unrelated bones");
@@ -143,8 +144,8 @@ namespace {
     void smoothing_and_return() {
         Fixture fine;
         Fixture coarse;
-        core::CursorPose fine_pose(fine.model);
-        core::CursorPose coarse_pose(coarse.model);
+        animation::CursorPose fine_pose(fine.model);
+        animation::CursorPose coarse_pose(coarse.model);
         for (int frame = 0; frame < 60; ++frame) {
             fine_pose.apply(fine.model, fine.animation, cursor(3, 8), 1.0f / 60.0f);
             if (frame + 1 < 60) {
@@ -168,7 +169,7 @@ namespace {
 
     void limits_and_missing_bones() {
         Fixture fixture;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(6, 8), SETTLE_SECONDS);
         const auto shoulder = glm::vec3(global(fixture.model, fixture.animation, Arm)[3]);
         const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
@@ -183,7 +184,7 @@ namespace {
         body.relate_bone_index = Head;
         body.kind = types::RigidBodyKind::Dynamic;
         fixture.model.rigid_bodies.push_back(body);
-        core::CursorPose unsupported(fixture.model);
+        animation::CursorPose unsupported(fixture.model);
         unsupported.apply(fixture.model, fixture.animation, cursor(3, 8), SETTLE_SECONDS);
         check(fixture.animation.animation[Head].rotation == IDENTITY,
             "Physics-owned head must be untouched");
@@ -198,7 +199,7 @@ namespace {
         unsupported.restore(fixture.animation);
         Fixture zero;
         zero.animation.animation[Wrist].position = glm::vec3(0);
-        core::CursorPose degenerate(zero.model);
+        animation::CursorPose degenerate(zero.model);
         degenerate.apply(zero.model, zero.animation, cursor(3, 8), SETTLE_SECONDS);
         for (const auto& bone : zero.animation.animation) {
             check(std::isfinite(bone.rotation.w), "Zero-length links must not produce NaNs");
@@ -213,7 +214,7 @@ namespace {
         fixture.animation.animation[Arm].rotation =
             glm::angleAxis(glm::radians(-25.0f), glm::vec3(0, 0, 1));
         const auto before = fixture.animation.animation;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(5, 7), SETTLE_SECONDS);
         check(fixture.animation.animation[Root].rotation == before[Root].rotation,
             "Animated root must be preserved");
@@ -245,9 +246,9 @@ namespace {
             "Insert physics pose");
         auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
         auto& model = registry->get<component::ModelComponent>(entity).unwrap_mut();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(model, config);
+        animation::CursorPose pose(model, config);
         core::SkinningSystem skinning(registry, nullptr);
         if (jumping) {
             pose.apply(model, animation, cursor(0, 11.5f), 0.05f);
@@ -349,7 +350,7 @@ namespace {
         constexpr int FRAMES = 180;
         constexpr float FRAME_SECONDS = 1.0f / 60.0f;
         Fixture fixture;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         int moving_frames = 0;
         for (int frame = 0; frame < FRAMES; ++frame) {
             // Cross the chest, face and centerline repeatedly, forcing arm switches and blending.
@@ -380,7 +381,7 @@ namespace {
         fixture.animation.animation[Root].rotation =
             glm::angleAxis(glm::radians(35.0f), glm::vec3(0, 0, 1)) *
             glm::angleAxis(glm::radians(25.0f), glm::vec3(0, 1, 0));
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         for (const auto point : {glm::vec2(-3, 6), glm::vec2(-4, 8), glm::vec2(0, 6)}) {
             pose.apply(fixture.model, fixture.animation, cursor(point.x, point.y), SETTLE_SECONDS);
             check_arm_safety(fixture);
@@ -392,7 +393,7 @@ namespace {
         Fixture fixture;
         const auto authored = glm::angleAxis(glm::radians(15.0f), glm::vec3(1, 0, 0));
         fixture.animation.animation[Elbow].rotation = authored;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(3, 7), SETTLE_SECONDS);
         pose.restore(fixture.animation);
         constexpr int RETURN_FRAMES = 180;
@@ -433,7 +434,7 @@ namespace {
         check(defaults.is_ok() && defaults.unwrap().neck_yaw == 10,
             "Omitted settings must use stricter defaults");
         Fixture fixture;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         pose.apply(fixture.model, fixture.animation, cursor(5, 3), SETTLE_SECONDS);
         for (const auto bone : {Neck, Head}) {
             const auto direction = fixture.animation.animation[bone].rotation * glm::vec3(0, 0, -1);
@@ -454,9 +455,9 @@ namespace {
         constexpr int FRAMES = 240;
         for (const float seconds : {1.0f / 30.0f, 1.0f / 60.0f, 1.0f / 120.0f}) {
             Fixture fixture;
-            core::CursorPoseConfig config;
+            animation::CursorPoseConfig config;
             config.arm_speed = SPEED;
-            core::CursorPose pose(fixture.model, config);
+            animation::CursorPose pose(fixture.model, config);
             std::array<glm::quat, 4> previous{IDENTITY, IDENTITY, IDENTITY, IDENTITY};
             constexpr std::array<Bone, 4> ARMS{Arm, Elbow, OtherArm, OtherElbow};
             float total_motion = 0;
@@ -493,7 +494,7 @@ namespace {
         constexpr float TARGET_HEIGHT = 7.0f;
         for (const float side : {-1.0f, 1.0f}) {
             Fixture fixture;
-            core::CursorPose pose(fixture.model);
+            animation::CursorPose pose(fixture.model);
             const auto first = side > 0 ? Arm : OtherArm;
             const auto other = side > 0 ? OtherArm : Arm;
             pose.apply(fixture.model,
@@ -592,15 +593,15 @@ namespace {
             check(bounds.is_some(), "Synthetic clothing and hand OBBs must be valid");
             local[index] = bounds.unwrap();
         }
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.experimental_obb_collision = true;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         constexpr int FRAMES = 240;
         constexpr float FRAME_SECONDS = 1.0f / 60.0f;
         int both_reaching = 0;
         for (int frame = 0; frame < FRAMES; ++frame) {
             const bool release = frame > FRAMES / 2;
-            const auto target = release ? std::optional<core::CursorRay>{} : cursor(0, 7);
+            const auto target = release ? std::optional<animation::CursorRay>{} : cursor(0, 7);
             pose.apply(fixture.model, fixture.animation, target, FRAME_SECONDS);
             std::array<types::OBB, 3> world;
             for (std::size_t index = 0; index < BONES.size(); ++index) {
@@ -668,9 +669,9 @@ namespace {
             const auto origin = glm::vec3(inverse_view[3]);
             const auto normal = glm::normalize(glm::vec3(inverse_view[2]));
             const auto ray_at = [&](const glm::vec3& point) {
-                return core::CursorRay{{origin, glm::normalize(point - origin)}, normal};
+                return animation::CursorRay{{origin, glm::normalize(point - origin)}, normal};
             };
-            core::CursorPose pose(fixture.model);
+            animation::CursorPose pose(fixture.model);
             // First establish a non-neutral gaze; returning to center must release it even
             // though the cursor is still inside the model's activation region.
             pose.apply(fixture.model,
@@ -709,7 +710,7 @@ namespace {
             const types::ClientMousePosition pixel{
                 static_cast<int>(std::lround((ndc.x + 1.0f) * 0.5f * size.width)),
                 static_cast<int>(std::lround((1.0f - ndc.y) * 0.5f * size.height))};
-            const core::CursorRay screen_ray{
+            const animation::CursorRay screen_ray{
                 types::Ray::make_ray_from_screen(size, pixel, camera), normal};
             pose.apply(fixture.model, fixture.animation, screen_ray, SETTLE_SECONDS);
             check(glm::length(fixture.animation.animation[Head].rotation - IDENTITY) <
@@ -774,7 +775,7 @@ namespace {
         to[0].position = {4, 8, 12};
         to[0].scale = {3, 3, 3};
         to[0].rotation = glm::angleAxis(glm::half_pi<float>(), glm::vec3(1, 0, 0));
-        core::PoseTransition transition;
+        animation::PoseTransition transition;
         transition.begin(from, to);
         auto output = from;
         transition.apply(0.25f, output);
@@ -805,7 +806,7 @@ namespace {
 
     void procedural_pose_transition() {
         Fixture fixture;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         constexpr float DT = 1.0f / 60;
         constexpr int FRAMES = 180;
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -917,16 +918,16 @@ namespace {
 
     void procedural_transition_lifecycle(bool jumping) {
         auto fixture = idle_fixture();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = jumping;
         config.jump_delay = 0;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         const auto source = fixture.animation.animation;
         constexpr float DT = 1.0f / 60;
         int transitions = 0;
         int held_frames = 0;
         bool blending = false;
-        const auto step = [&](const std::optional<core::CursorRay>& ray) {
+        const auto step = [&](const std::optional<animation::CursorRay>& ray) {
             pose.apply_transitioned(fixture.model, fixture.animation, ray, DT, true);
             if (fixture.animation.pose_transition_active && !blending) {
                 ++transitions;
@@ -956,7 +957,7 @@ namespace {
         }
         if (jumping) {
             auto reference = fixture;
-            core::CursorPose reference_pose(reference.model, config);
+            animation::CursorPose reference_pose(reference.model, config);
             constexpr int JUMP_FRAMES = 240;
             for (int frame = 0; frame < JUMP_FRAMES; ++frame) {
                 const auto ray = frame == 0 ? std::optional(cursor(0, 11.5f)) : std::nullopt;
@@ -1005,7 +1006,7 @@ namespace {
         auto fixture = idle_fixture();
         const auto torso = fixture.animation.animation.size() - 1;
         const auto source = fixture.animation.animation;
-        core::CursorPose pose(fixture.model);
+        animation::CursorPose pose(fixture.model);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 720;
         float max_sway = 0;
@@ -1076,9 +1077,9 @@ namespace {
         auto fixture = idle_fixture();
         const auto source = fixture.animation.animation;
         const auto torso = source.size() - 1;
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 180;
         bool airborne_idle = false;
@@ -1159,9 +1160,9 @@ namespace {
         check(registry->emplace<component::IKComponent>(entity, ik).is_ok(), "Insert leg IK");
         auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
         auto& model = registry->get<component::ModelComponent>(entity).unwrap_mut();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(model, config);
+        animation::CursorPose pose(model, config);
         core::SkinningSystem skinning(registry, nullptr);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 100;
@@ -1205,12 +1206,12 @@ namespace {
     void reach_after_landing() {
         auto jumping = leg_fixture();
         auto waiting = leg_fixture();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
         config.jump_cooldown = 10;
-        core::CursorPose jump_pose(jumping.model, config);
+        animation::CursorPose jump_pose(jumping.model, config);
         config.jump_delay = 10;
-        core::CursorPose waiting_pose(waiting.model, config);
+        animation::CursorPose waiting_pose(waiting.model, config);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int TRACK_FRAMES = 180;
         constexpr int SETTLED_FRAME = 120;
@@ -1298,9 +1299,9 @@ namespace {
             for (const float distance : {1.0f, 2.0f, 3.5f}) {
                 auto fixture = hanging_lean_fixture();
                 const auto source = fixture.animation.animation;
-                core::CursorPoseConfig config;
+                animation::CursorPoseConfig config;
                 config.jump_enabled = false;
-                core::CursorPose pose(fixture.model, config);
+                animation::CursorPose pose(fixture.model, config);
                 const float sign = side == 0 ? 1.0f : -1.0f;
                 const auto wrist = side == 0 ? Wrist : OtherWrist;
                 for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1373,9 +1374,9 @@ namespace {
             glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
         fixture.animation.animation[Count + 4].rotation =
             glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = false;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         check(!pose.pick_hand(fixture.animation, cursor(0, 10)).has_value(),
             "An idle hand cannot start a hanging drag");
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1482,9 +1483,9 @@ namespace {
         constexpr int REPETITIONS = 5;
         auto fixture = leg_fixture();
         const auto source = fixture.animation.animation;
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = false;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         for (int repeat = 0; repeat < REPETITIONS; ++repeat) {
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
@@ -1633,9 +1634,9 @@ namespace {
         fixture.model.bind_bone.back().local = matrix;
         fixture.model.bind_bone.back().global = matrix;
         fixture.model.bind_bone.back().global_inverse = glm::inverse(matrix);
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = false;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1702,9 +1703,9 @@ namespace {
             fixture.model.bind_bone[bone].global = matrix;
             fixture.model.bind_bone[bone].global_inverse = glm::inverse(matrix);
         }
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         constexpr float DT = 1.0f / 60.0f;
         pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
         pose.restore(fixture.animation);
@@ -1752,9 +1753,9 @@ namespace {
         const auto hip_rotation = glm::angleAxis(glm::radians(HIP_YAW_DEGREES), glm::vec3(0, 1, 0));
         fixture.animation.animation[Count].rotation = hip_rotation;
         fixture.animation.animation[Count + 3].rotation = hip_rotation;
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = false;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         constexpr float DT = 1.0f / 60.0f;
         constexpr int FRAMES = 120;
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1796,9 +1797,9 @@ namespace {
         constexpr int FRAMES = 120;
         constexpr int REPETITIONS = 5;
         auto fixture = leg_fixture();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_enabled = false;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT);
             for (types::BoneIndex bone = 0; bone < fixture.model.bone_node.size(); ++bone) {
@@ -1842,15 +1843,15 @@ namespace {
         for (const float camera_distance : {15.0f, 25.0f, 40.0f}) {
             for (const bool frontal : {false, true}) {
                 Fixture fixture;
-                core::CursorPoseConfig config;
+                animation::CursorPoseConfig config;
                 config.jump_delay = 0;
-                core::CursorPose pose(fixture.model, config);
+                animation::CursorPose pose(fixture.model, config);
                 const auto origin = frontal ? glm::vec3(1, 10.95f, -camera_distance)
                                             : glm::vec3(0, 18.5f, -camera_distance);
                 const auto normal =
                     frontal ? glm::vec3(0, 0, 1) : glm::normalize(glm::vec3(0, 11, 0) - origin);
                 const glm::vec3 reachable(1, 10.95f, 0);
-                const core::CursorRay ray{{origin, glm::normalize(reachable - origin)}, normal};
+                const animation::CursorRay ray{{origin, glm::normalize(reachable - origin)}, normal};
                 for (int frame = 0; frame < FRAMES; ++frame) {
                     pose.apply(fixture.model, fixture.animation, ray, DT);
                     check(fixture.animation.animation[Root].position == glm::vec3(0),
@@ -1874,9 +1875,9 @@ namespace {
         fixture.animation.global.push_back(global(fixture.model, fixture.animation, Count));
         fixture.model.bind_bone.emplace_back();
         fixture.model.bind_bone.back().global = fixture.animation.global.back();
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(1, 11.5f), DT);
             check(fixture.animation.animation[Root].position == glm::vec3(0),
@@ -1900,11 +1901,11 @@ namespace {
             fixture.model.bind_bone.back().global_inverse = glm::mat4(1);
             fixture.animation.animation.emplace_back();
             fixture.animation.global.emplace_back(1.0f);
-            core::CursorPoseConfig config;
+            animation::CursorPoseConfig config;
             config.jump_enabled = enabled;
             config.jump_delay = 0.2f;
             config.jump_duration = 0.6f;
-            core::CursorPose pose(fixture.model, config);
+            animation::CursorPose pose(fixture.model, config);
             float peak = 0;
             int takeoffs = 0;
             float previous = 0;
@@ -1936,7 +1937,7 @@ namespace {
         }
         for (const auto target : {cursor(3, 7), cursor(50, 40), cursor(0, 2)}) {
             Fixture fixture;
-            core::CursorPose pose(fixture.model);
+            animation::CursorPose pose(fixture.model);
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, target, DT);
                 check(fixture.animation.animation[Root].position == glm::vec3(0),
@@ -1945,9 +1946,9 @@ namespace {
             }
         }
         Fixture fixture;
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.jump_delay = 0;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
         pose.restore(fixture.animation);
         float peak = 0;
@@ -1981,7 +1982,7 @@ namespace {
     }
 
     void experimental_collision_setting() {
-        check(!core::CursorPoseConfig{}.experimental_obb_collision,
+        check(!animation::CursorPoseConfig{}.experimental_obb_collision,
             "Experimental collision must default to off");
         std::istringstream empty;
         auto defaults = core::parse_cursor_pose_config(empty);
@@ -2015,8 +2016,8 @@ namespace {
                 }
             }
         }
-        core::CursorPose plain_pose(plain.model);
-        core::CursorPose bounds_pose(bounds.model);
+        animation::CursorPose plain_pose(plain.model);
+        animation::CursorPose bounds_pose(bounds.model);
         constexpr int FRAMES = 60;
         // dt = 1 second / frame count.
         constexpr float FRAME_SECONDS = 1.0f / FRAMES;
@@ -2063,7 +2064,7 @@ namespace {
 
     void cached_pose_changes() {
         Fixture fixture;
-        core::CursorPose warm(fixture.model);
+        animation::CursorPose warm(fixture.model);
         constexpr int FRAMES = 12;
         constexpr float MOVE_STEP = 0.03f;
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -2072,7 +2073,7 @@ namespace {
             fixture.animation.animation[Root].rotation = glm::angleAxis(phase, glm::vec3(0, 1, 0));
             fixture.animation.animation[Root].scale = {1 + phase, 1, 1};
             auto fresh_animation = fixture.animation;
-            core::CursorPose fresh(fixture.model);
+            animation::CursorPose fresh(fixture.model);
             const auto target = cursor(0, 7);
             warm.apply(fixture.model, fixture.animation, target, SETTLE_SECONDS);
             fresh.apply(fixture.model, fresh_animation, target, SETTLE_SECONDS);
@@ -2124,9 +2125,9 @@ namespace {
         for (const auto hand : {Wrist, OtherWrist}) {
             fixture.model.collision_vertices[hand] = fixture.model.collision_vertices[Count];
         }
-        core::CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         config.experimental_obb_collision = true;
-        core::CursorPose pose(fixture.model, config);
+        animation::CursorPose pose(fixture.model, config);
         std::chrono::steady_clock::time_point start;
         float movement = 0;
         for (int frame = -WARMUP_FRAMES; frame < MEASURED_FRAMES; ++frame) {

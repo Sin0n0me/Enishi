@@ -5,7 +5,7 @@
 #include <cstring>
 #include <string_view>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         struct Property {
             std::string_view name;
@@ -163,4 +163,4 @@ namespace enishi::core {
         }
         return result;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

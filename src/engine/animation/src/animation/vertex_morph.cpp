@@ -2,7 +2,7 @@
 #include "morph_weights.h"
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     foundation::Result<std::vector<glm::vec3>, MorphError> evaluate_vertex_morphs(
         std::span<const glm::vec3> base_positions,
         std::span<const types::MorphTarget> targets,
@@ -35,4 +35,4 @@ namespace enishi::core {
         }
         return positions;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

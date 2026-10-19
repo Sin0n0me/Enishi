@@ -5,7 +5,7 @@
 #include <initializer_list>
 #include <string_view>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
         constexpr float EPSILON = 0.00001f;
@@ -430,4 +430,4 @@ namespace enishi::core {
         }
         this->applied = false;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

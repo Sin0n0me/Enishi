@@ -1,7 +1,7 @@
 #include "uv_morph.h"
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     foundation::Result<UVChannels, MorphError> evaluate_uv_morphs(const UVChannels& base,
         std::span<const types::MorphTarget> targets,
         std::span<const float> weights) {
@@ -37,4 +37,4 @@ namespace enishi::core {
         }
         return channels;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

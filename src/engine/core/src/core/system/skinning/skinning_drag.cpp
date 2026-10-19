@@ -14,10 +14,10 @@ namespace enishi::core {
         const auto camera = this->camera->get_camera();
         const auto ray = types::Ray::make_ray_from_screen(size.unwrap(), cursor, camera);
         const auto inverse = glm::inverse(camera.world);
-        const CursorRay local{{glm::vec3(inverse * glm::vec4(ray.origin, 1)),
+        const animation::CursorRay local{{glm::vec3(inverse * glm::vec4(ray.origin, 1)),
                                   glm::normalize(glm::mat3(inverse) * ray.direction)},
             glm::normalize(glm::mat3(inverse) * glm::vec3(glm::inverse(camera.view)[2]))};
-        CursorPose* selected = nullptr;
+        animation::CursorPose* selected = nullptr;
         const component::AnimationComponent* pose = nullptr;
         std::size_t side = 0;
         float distance = 0;

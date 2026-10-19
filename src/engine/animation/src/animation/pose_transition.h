@@ -2,7 +2,7 @@
 #include <component/animation_component.h>
 #include <span>
 
-namespace enishi::core {
+namespace enishi::animation {
     class PoseTransition {
       private:
         std::vector<component::AnimationBuffer> source;
@@ -18,4 +18,4 @@ namespace enishi::core {
         void cancel();
         [[nodiscard]] bool active() const;
     };
-} // namespace enishi::core
+} // namespace enishi::animation

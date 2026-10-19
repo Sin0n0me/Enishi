@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float MAX_DT = 0.05f;
@@ -130,4 +130,4 @@ namespace enishi::core {
             this->update_globals(model, animation);
         }
     }
-} // namespace enishi::core
+} // namespace enishi::animation

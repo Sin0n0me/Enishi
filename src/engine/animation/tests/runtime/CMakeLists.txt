@@ -6,12 +6,12 @@ find_library(ICU_UC_LIBRARY NAMES icuuc REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expression_tests.cpp vmd_loader_tests.cpp clip_sampler_tests.cpp model_motion_tests.cpp
     "${ENGINE_ROOT}/core/src/core/system/animation/animation_system.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/model_motion_loader.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/model_motion_loader.cpp"
     "${ENGINE_ROOT}/core/src/core/system/animation/model_motion_playback.cpp"
     "${ENGINE_ROOT}/ecs/src/ecs/registry.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/handle_allocator.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/renderer/render_handle.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/clip_sampler.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/clip_sampler.cpp"
     "${ENGINE_ROOT}/animation/src/animation/animation_controller.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/animation/vmd/vmd_loader.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/utility/binary_reader.cpp"

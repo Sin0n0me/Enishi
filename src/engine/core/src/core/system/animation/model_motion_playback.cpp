@@ -1,5 +1,5 @@
 #include "animation_system.h"
-#include "model_motion_loader.h"
+#include <animation/model_motion_loader.h>
 #include <animation/animation_controller.h>
 
 namespace enishi::core {
@@ -10,7 +10,7 @@ namespace enishi::core {
             return foundation::Error(
                 animation::AnimationError::FailedConvert, "Model entity is missing");
         }
-        auto loaded = load_model_motion(model.unwrap(), path);
+        auto loaded = animation::load_model_motion(model.unwrap(), path);
         if (loaded.is_err()) {
             return loaded.propagation(animation::AnimationError::FailedConvert);
         }

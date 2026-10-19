@@ -7,9 +7,9 @@
 #include <string_view>
 
 namespace enishi::core {
-    foundation::Result<CursorPoseConfig, CursorConfigError> parse_cursor_pose_config(
+    foundation::Result<animation::CursorPoseConfig, CursorConfigError> parse_cursor_pose_config(
         std::istream& stream) {
-        CursorPoseConfig config;
+        animation::CursorPoseConfig config;
         std::set<std::string> seen;
         std::string line;
         std::size_t line_number = 0;
@@ -95,7 +95,7 @@ namespace enishi::core {
         return config;
     }
 
-    foundation::Result<CursorPoseConfig, CursorConfigError> load_cursor_pose_config(
+    foundation::Result<animation::CursorPoseConfig, CursorConfigError> load_cursor_pose_config(
         const std::filesystem::path& path) {
         std::ifstream stream(path);
         if (!stream.is_open()) {

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <animation/keyframe_interpolator.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         template <typename T> bool has_keys(const animation::Keyframes<T>& keys) {
             return !keys.times.empty() && keys.times.size() == keys.values.size();
@@ -88,4 +88,4 @@ namespace enishi::core {
         }
         pose.elapsed_time = time;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

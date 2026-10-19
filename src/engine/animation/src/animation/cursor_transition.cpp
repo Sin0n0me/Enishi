@@ -1,6 +1,6 @@
 #include "cursor_pose.h"
 
-namespace enishi::core {
+namespace enishi::animation {
     CursorPose::PoseStage CursorPose::pose_stage(
         const component::AnimationComponent& animation) const {
         if (animation.motion_playing) {
@@ -77,4 +77,4 @@ namespace enishi::core {
         this->update_globals(model, animation);
         this->remember_transition_pose(animation);
     }
-} // namespace enishi::core
+} // namespace enishi::animation

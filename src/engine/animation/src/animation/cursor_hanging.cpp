@@ -3,7 +3,7 @@
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace enishi::core {
+namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float RESPONSE = 8.0f;
@@ -494,4 +494,4 @@ namespace enishi::core {
         this->hanging_display_pose = animation.animation;
         return true;
     }
-} // namespace enishi::core
+} // namespace enishi::animation

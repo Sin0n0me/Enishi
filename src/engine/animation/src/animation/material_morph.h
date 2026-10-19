@@ -2,7 +2,7 @@
 #include "morph_weights.h"
 #include <engine_types/renderer/uniform_buffer/material.h>
 
-namespace enishi::core {
+namespace enishi::animation {
     [[nodiscard]] foundation::Result<std::vector<types::UniformMaterial>, MorphError>
     evaluate_material_morphs(std::span<const types::Material> materials,
         std::span<const types::MorphTarget> targets,
