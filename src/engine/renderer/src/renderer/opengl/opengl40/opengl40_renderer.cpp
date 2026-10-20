@@ -861,6 +861,7 @@ namespace enishi::renderer::opengl {
         glDepthRange(viewport->second.min_depth, viewport->second.max_depth);
     }
     void OpenGL40Renderer::setup_views(void) const {
+        this->state->back_buffer_cleared = false;
         // Detach the previous frame's sampled depth before rendering into it again.
         glActiveTexture(GL_TEXTURE0 + SHADOW_TEXTURE_UNIT);
         glBindTexture(GL_TEXTURE_2D, NO_GL_OBJECT);
@@ -925,15 +926,19 @@ namespace enishi::renderer::opengl {
             this->state->textures.emplace_back(this->state->back_buffer_color);
         }
         glBindTexture(GL_TEXTURE_2D, this->state->back_buffer_color);
-        glTexImage2D(GL_TEXTURE_2D,
-            TEXTURE_IMAGE_BORDER_WIDTH,
-            helpers::to_gl_image_internal_format(image->second.format),
-            image->second.size.x,
-            image->second.size.y,
-            TEXTURE_IMAGE_BORDER_WIDTH,
-            helpers::to_gl_image_format(image->second.format),
-            helpers::to_gl_image_type(image->second.format),
-            nullptr);
+        // Rebinding the main target for another pass must preserve the background shadow.
+        if (this->state->back_buffer_width != image->second.size.x ||
+            this->state->back_buffer_height != image->second.size.y) {
+            glTexImage2D(GL_TEXTURE_2D,
+                TEXTURE_IMAGE_BORDER_WIDTH,
+                helpers::to_gl_image_internal_format(image->second.format),
+                image->second.size.x,
+                image->second.size.y,
+                TEXTURE_IMAGE_BORDER_WIDTH,
+                helpers::to_gl_image_format(image->second.format),
+                helpers::to_gl_image_type(image->second.format),
+                nullptr);
+        }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindFramebuffer(GL_FRAMEBUFFER, this->state->back_buffer_framebuffer);
@@ -1093,7 +1098,12 @@ namespace enishi::renderer::opengl {
                     return;
                 }
                 this->state->is_back_buffer_framebuffer_complete = true;
-                clear_framebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+                GLbitfield clear_mask = GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+                if (!this->state->back_buffer_cleared) {
+                    clear_mask |= GL_COLOR_BUFFER_BIT;
+                    this->state->back_buffer_cleared = true;
+                }
+                clear_framebuffer(clear_mask);
             }
             return;
         }

@@ -141,6 +141,16 @@ namespace {
         float cleared_depth = 0;
         glReadPixels(1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &cleared_depth);
         require(cleared_depth > 0.999f, "model depth must clear after the background pass");
+        constexpr float WALL_ALPHA = 0.25f;
+        glClearColor(0, 0, 0, WALL_ALPHA);
+        glClear(GL_COLOR_BUFFER_BIT);
+        renderer.submit_command_view(bind(target->get_handle()), target->get_handle());
+        renderer.submit_command_view(bind(depth->get_handle()), target->get_handle());
+        float preserved[4]{};
+        glReadPixels(1, 1, 1, 1, GL_RGBA, GL_FLOAT, preserved);
+        require(preserved[3] > 0.24f && preserved[3] < 0.26f,
+            "rebinding the model target must preserve the background shadow");
+        glClearColor(0, 0, 0, 0);
         renderer.submit_command_view(bind(shadow.get_sampled_depth()), target->get_handle());
         glActiveTexture(GL_TEXTURE3);
         GLint texture = 0;
