@@ -214,6 +214,7 @@ namespace {
         ImGui::Render();
         renderer.setup_views();
         require(device->recording, "UI frame not acquired");
+        device->begin_main_pass();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
         auto pixels = take(device->make_buffer(
             static_cast<VkDeviceSize>(device->extent.width) * device->extent.height * CHANNELS,

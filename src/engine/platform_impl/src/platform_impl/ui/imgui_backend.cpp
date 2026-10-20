@@ -146,6 +146,7 @@ namespace enishi::platform_impl {
         if (vk_renderer != nullptr) {
             const auto device = vk_renderer->get_native_context();
             if (device->recording) {
+                device->begin_main_pass();
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
             }
         }

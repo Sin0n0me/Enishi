@@ -251,6 +251,25 @@ namespace enishi::renderer::vulkan {
         VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         ENISHI_VK_TRY(vkBeginCommandBuffer(this->command, &begin));
+        this->frame_clear_color = clear_color;
+        this->recording = true;
+        this->main_recording = false;
+        this->shadow_recording = false;
+        return {};
+    }
+    void VulkanDevice::end_active_pass() {
+        if (this->main_recording || this->shadow_recording) {
+            vkCmdEndRenderPass(this->command);
+        }
+        this->main_recording = false;
+        this->shadow_recording = false;
+    }
+    void VulkanDevice::begin_main_pass() {
+        if (!this->recording || this->main_recording) {
+            return;
+        }
+        this->end_active_pass();
+        const auto clear_color = this->frame_clear_color;
         std::array<VkClearValue, 2> clear{};
         clear[0].color = {{clear_color.r, clear_color.g, clear_color.b, clear_color.a}};
         clear[1].depthStencil = {1.0f, 0};
@@ -270,16 +289,16 @@ namespace enishi::renderer::vulkan {
         const VkRect2D scissor{{0, 0}, this->extent};
         vkCmdSetViewport(this->command, 0, 1, &viewport);
         vkCmdSetScissor(this->command, 0, 1, &scissor);
-        this->recording = true;
-        return {};
+        this->main_recording = true;
     }
     platform::RenderResult<void> VulkanDevice::end_frame(
         const std::shared_ptr<VulkanBuffer>& readback) {
         if (!this->recording) {
             return {};
         }
+        this->begin_main_pass();
+        this->end_active_pass();
         this->recording = false;
-        vkCmdEndRenderPass(this->command);
         if (readback != nullptr) {
             auto result = this->record_readback(*readback);
             if (result.is_err()) {

@@ -26,6 +26,17 @@ namespace enishi::renderer::vulkan {
         ~VulkanImage();
     };
 
+    struct VulkanShadowTarget final {
+        std::shared_ptr<VulkanDevice> owner;
+        std::shared_ptr<VulkanImage> image;
+        VkRenderPass render_pass = VK_NULL_HANDLE;
+        VkFramebuffer framebuffer = VK_NULL_HANDLE;
+        VkDescriptorPool pool = VK_NULL_HANDLE;
+        VkDescriptorSet descriptors = VK_NULL_HANDLE;
+        VkExtent2D extent{};
+        ~VulkanShadowTarget();
+    };
+
     // One frame in flight: present waits for the queue before CPU-side morph/bone updates.
     class VulkanDevice final : public std::enable_shared_from_this<VulkanDevice> {
       public:
@@ -39,6 +50,7 @@ namespace enishi::renderer::vulkan {
         VkExtent2D extent{};
         std::uint32_t image_count = 0;
         bool recording = false;
+        bool shadow_recording = false;
 
         VulkanDevice();
         ~VulkanDevice();
@@ -49,12 +61,21 @@ namespace enishi::renderer::vulkan {
             VkDeviceSize size, VkBufferUsageFlags usage);
         platform::RenderResult<std::shared_ptr<VulkanImage>> make_texture(
             const types::TextureData& texture);
+        platform::RenderResult<std::shared_ptr<VulkanShadowTarget>> make_shadow_target(
+            VkExtent2D size);
         platform::RenderResult<void> begin_frame(glm::vec4 clear_color);
+        platform::RenderResult<void> begin_shadow_pass(
+            const VulkanShadowTarget& target, float clear_depth);
+        void begin_main_pass();
+        void end_active_pass();
         platform::RenderResult<void> end_frame(const std::shared_ptr<VulkanBuffer>& readback = {});
         platform::RenderResult<void> wait_idle();
         std::uint32_t validation_error_count() const noexcept;
 
       private:
+        bool main_recording = false;
+        glm::vec4 frame_clear_color{};
+        platform::RenderResult<void> make_shadow_render_pass(VulkanShadowTarget& target);
         SDL_Window* window = nullptr; // Borrowed; the application owns the window.
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;

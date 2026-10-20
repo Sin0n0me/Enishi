@@ -62,9 +62,9 @@ namespace enishi::renderer::vulkan {
                     platform::RenderError::MakeError, "Unsupported Vulkan descriptor type");
             }
             const auto name = uniform ? binding.type_description->type_name : binding.name;
-            if (name == nullptr || binding.set != 0 || binding.count != 1) {
+            if (name == nullptr || binding.set > 1 || binding.count != 1) {
                 return foundation::Error(platform::RenderError::MakeError,
-                    "Vulkan expects named scalar descriptors in set zero");
+                    "Vulkan expects named scalar descriptors in model or shadow sets");
             }
             this->input.add_resource({.name = name,
                 .type = uniform ? types::ShaderInputResourceType::UniformBuffer

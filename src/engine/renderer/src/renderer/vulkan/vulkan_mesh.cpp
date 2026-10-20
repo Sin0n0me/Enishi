@@ -71,7 +71,7 @@ namespace enishi::renderer::vulkan {
         constexpr std::uint32_t TEXTURE_COUNT = 3;
         const auto count = static_cast<std::uint32_t>(data.materials.size());
         const std::array<VkDescriptorPoolSize, 2> sizes{
-            {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count * UNIFORM_COUNT},
+            {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count * (UNIFORM_COUNT + 1)},
                 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count * TEXTURE_COUNT}}};
         VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
         pool.maxSets = count;
@@ -155,6 +155,16 @@ namespace enishi::renderer::vulkan {
                 writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 writes[binding].pImageInfo = &image_infos[index];
             }
+            constexpr std::uint32_t SHADOW_BINDING = 6;
+            const auto& shadow_buffer = mesh.uniforms.at("ShadowMap");
+            const VkDescriptorBufferInfo shadow_info{shadow_buffer->buffer, 0, shadow_buffer->size};
+            VkWriteDescriptorSet shadow_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            shadow_write.dstSet = target.descriptors;
+            shadow_write.dstBinding = SHADOW_BINDING;
+            shadow_write.descriptorCount = 1;
+            shadow_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            shadow_write.pBufferInfo = &shadow_info;
+            vkUpdateDescriptorSets(this->context->device, 1, &shadow_write, 0, nullptr);
             vkUpdateDescriptorSets(this->context->device,
                 static_cast<std::uint32_t>(writes.size()),
                 writes.data(),
