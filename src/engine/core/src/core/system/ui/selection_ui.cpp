@@ -5,10 +5,12 @@
 namespace enishi::core {
     SelectionUI::SelectionUI(std::shared_ptr<sub_system::IModelSelection> models,
         std::shared_ptr<ModelClickSettings> click_settings,
-        std::shared_ptr<sub_system::IScriptEngine> scripts)
+        std::shared_ptr<sub_system::IScriptEngine> scripts,
+        std::shared_ptr<sub_system::RenderSettings> render_settings)
         : models(std::move(models))
         , click_settings(std::move(click_settings))
-        , scripts(std::move(scripts)) {
+        , scripts(std::move(scripts))
+        , render_settings(std::move(render_settings)) {
     }
 
     bool SelectionUI::should_close(void) const {
@@ -17,7 +19,7 @@ namespace enishi::core {
 
     void SelectionUI::update(sub_system::IUI& ui) {
         constexpr float ACTION_WIDTH = 240.0f;
-        constexpr float ACTION_HEIGHT = 180.0f;
+        constexpr float ACTION_HEIGHT = 220.0f;
         constexpr float SETTINGS_WIDTH = 560.0f;
         constexpr float SETTINGS_HEIGHT = 360.0f;
         constexpr float SCRIPT_WIDTH = 640.0f;
@@ -45,6 +47,9 @@ namespace enishi::core {
             case Page::ClickSettings:
                 this->draw_click_settings(ui);
                 break;
+            case Page::Settings:
+                this->draw_settings(ui);
+                break;
             case Page::Script:
                 this->draw_script(ui);
                 break;
@@ -65,9 +70,31 @@ namespace enishi::core {
         if (ui.button("スクリプト")) {
             this->page = Page::Script;
         }
+        if (ui.button("設定")) {
+            this->page = Page::Settings;
+        }
         if (ui.button("終了")) {
             this->exit_requested = true;
         }
+    }
+
+    void SelectionUI::draw_settings(sub_system::IUI& ui) {
+        if (ui.button("戻る")) {
+            this->page = Page::Actions;
+            return;
+        }
+        ui.text("設定");
+        ui.text("体の影（モデル自身に落ちる影）");
+        const auto draw_toggle = [this, &ui](const char* label, bool enabled) {
+            ui.begin_disabled(this->render_settings->self_shadow_enabled == enabled);
+            if (ui.button(label)) {
+                this->render_settings->self_shadow_enabled = enabled;
+            }
+            ui.end_disabled();
+        };
+        draw_toggle("オン", true);
+        ui.same_line();
+        draw_toggle("オフ", false);
     }
 
     void SelectionUI::draw_script(sub_system::IUI& ui) {

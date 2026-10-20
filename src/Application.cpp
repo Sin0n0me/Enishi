@@ -335,8 +335,10 @@ namespace enishi {
         const auto ui = result.unwrap();
         constexpr core::Priority UI_PRIORITY = 99;
         const auto scripts = std::make_shared<script::ScriptEngine>();
-        const auto selection =
-            std::make_shared<core::SelectionUI>(std::move(models), this->click_settings, scripts);
+        const auto render_settings = std::make_shared<sub_system::RenderSettings>();
+        render_system->set_settings(render_settings);
+        const auto selection = std::make_shared<core::SelectionUI>(
+            std::move(models), this->click_settings, scripts, render_settings);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,
