@@ -23,6 +23,7 @@ layout(set = 0, binding = 1, std140) uniform Bones {
 
 layout(set = 0, binding = 6, std140) uniform ShadowMap {
     mat4 light_view_proj;
+    vec4 shadow_options;
 };
 layout(location = 4) out vec4 shadow_position;
 layout(location = 0) out vec2 uv;
@@ -160,6 +161,12 @@ void main() {
     vec4 position = vec4(deformed.position, 1.0);
     mat4 model_view = view * world;
     shadow_position = light_view_proj * world * position;
+#ifndef ENISHI_SHADOW_PASS
+    // Out-of-map coordinates bypass shadow lookup without changing caster geometry.
+    if (shadow_options.x > 0.5) {
+        shadow_position = vec4(0, 0, -1, 1);
+    }
+#endif
 #ifdef ENISHI_SHADOW_PASS
     // Shared light projection already has Vulkan's [0,w] depth range.
     gl_Position = shadow_position;

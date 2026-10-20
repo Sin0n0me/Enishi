@@ -60,7 +60,8 @@ namespace enishi::core {
     foundation::Result<void, platform::RenderError> upload_shadow(platform::IRenderer& renderer,
         ecs::Registry& registry,
         const types::UniformCamera& camera,
-        std::span<const types::RenderHandle> receivers) {
+        std::span<const types::RenderHandle> receivers,
+        bool self_shadow_enabled) {
         types::ShadowBounds light_bounds;
         types::ShadowBounds world_bounds;
         const auto light_world = types::shadow_light_view() * camera.world;
@@ -103,7 +104,9 @@ namespace enishi::core {
             if (!model.visible) {
                 continue;
             }
-            auto result = upload_model_shadow(renderer, model.render_handle, shadow);
+            auto model_shadow = shadow;
+            model_shadow.options.x = self_shadow_enabled ? 0.0f : 1.0f;
+            auto result = upload_model_shadow(renderer, model.render_handle, model_shadow);
             if (result.is_err()) {
                 return result;
             }

@@ -5,6 +5,7 @@ layout(std140) uniform Camera {
 };
 layout(std140) uniform ShadowMap {
     mat4 light_view_proj;
+    vec4 shadow_options;
 };
 out vec4 shadow_position;
 out vec3 world_normal;

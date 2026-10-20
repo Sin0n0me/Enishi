@@ -24,6 +24,10 @@ PSInput main(const VSInput input) {
     
     output.position = clip_pos;
     output.shadow_position = apply_shadow_map_light(mul(world, skinned_pos));
+    // Out-of-map coordinates disable reception while the shadow pass still casts normally.
+    if (shadow_options.x > 0.5f) {
+        output.shadow_position = float4(0, 0, -1, 1);
+    }
     output.normal = skinned_nor;
     output.uv = input.uv;
     output.view_position = view_pos;

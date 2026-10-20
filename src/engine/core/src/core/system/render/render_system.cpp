@@ -23,6 +23,10 @@ namespace enishi::core {
         this->render_passes = std::move(render_passes);
     }
 
+    void RenderSystem::set_settings(std::shared_ptr<sub_system::RenderSettings> settings) {
+        this->settings = std::move(settings);
+    }
+
     void RenderSystem::set_camera(std::shared_ptr<sub_system::ICameraController> camera) {
         this->camera = std::move(camera);
     }
@@ -50,8 +54,11 @@ namespace enishi::core {
                         receivers.push_back(pass->get_shadow_receiver());
                     }
                 }
-                const auto result =
-                    upload_shadow(*this->renderer, *this->registry, snapshot, receivers);
+                const auto result = upload_shadow(*this->renderer,
+                    *this->registry,
+                    snapshot,
+                    receivers,
+                    this->settings == nullptr || this->settings->self_shadow_enabled);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());
                 }

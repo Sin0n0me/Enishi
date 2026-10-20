@@ -203,6 +203,20 @@ namespace {
             check_pixels(*pixels, device->extent, expected_shadow, narrow_viewport, wall);
         };
         frame(true, true);
+        for (const auto mesh : {caster, receiver}) {
+            const auto buffer = uniform(renderer, mesh, "ShadowMap");
+            types::UniformShadow disabled{};
+            disabled.options.x = 1;
+            buffer->get_resource().update(disabled, 0);
+            buffer->on_update();
+        }
+        frame(true, wall); // Self-shadow reception toggles; wall reception and casting continue.
+        for (const auto mesh : {caster, receiver}) {
+            const auto buffer = uniform(renderer, mesh, "ShadowMap");
+            buffer->get_resource().update(types::UniformShadow{}, 0);
+            buffer->on_update();
+        }
+        frame(true, true);
         const auto material = uniform(renderer, caster, "Material", true);
         types::UniformMaterial value{};
         const auto bytes = material->get_resource().get_render_data();

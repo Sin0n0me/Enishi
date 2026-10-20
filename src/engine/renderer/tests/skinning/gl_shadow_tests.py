@@ -102,7 +102,7 @@ class Runner:
             else:
                 gl("glVertexAttribPointer", None, U, I, U, c.c_ubyte, I, P)(location, count, FLOAT, 0, 172, offset)
         self.uniform(0, identity() * 4)
-        self.uniform(2, identity())
+        self.uniform(2, identity() + [0.0] * 4)
         self.depth = texture(0x8CAC, 0x1902, SIZE, SIZE)  # D32F
         self.shadow_fbo = framebuffer(self.depth, 0x8D00, False)
         self.color = texture(0x8814, 0x1908, SIZE, SIZE)  # RGBA32F
@@ -204,6 +204,11 @@ def run_tests(directory):
         upper, lower = runner.receiver()
         check(upper[0] < 0.3 and lower[0] > 0.7, f"shadow/Y orientation: {upper}, {lower}")
         check(abs(upper[3] - 1) < 0.0001, "shadow must preserve receiver alpha")
+        runner.uniform(2, identity() + [1.0, 0.0, 0.0, 0.0])
+        check(runner.receiver()[0][0] > 0.7, "disabled self shadow must stay lit")
+        check(abs(runner.receiver(wall=True)[0][3] - 0.25) < 0.0001, "wall shadow must remain enabled")
+        check(abs(runner.shadow() - 0.25) < 0.0001, "disabled self shadow must still cast")
+        runner.uniform(2, identity() + [0.0] * 4)
         check(abs(runner.shadow(alpha=0) - 1) < 0.0001, "transparent caster is discarded")
         check(runner.receiver()[0][0] > 0.7, "transparent caster must not shadow receiver")
         check(abs(runner.receiver(wall=True)[0][3]) < 0.0001, "wall must not retain old shadow")
