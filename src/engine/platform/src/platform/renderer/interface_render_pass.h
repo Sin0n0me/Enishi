@@ -31,6 +31,9 @@ namespace enishi::platform {
 
         [[nodiscard]] virtual types::RenderHandle get_sampled_depth(void) const noexcept = 0;
 
+        [[nodiscard]] virtual types::RenderHandle get_shadow_receiver(void) const noexcept = 0;
+        virtual void set_shadow_receiver(types::RenderHandle mesh) = 0;
+
         virtual void add_shader(const types::RenderHandle& shader) noexcept = 0;
 
         virtual void add_mesh(const types::RenderHandle& mesh) noexcept = 0;

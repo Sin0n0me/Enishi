@@ -15,6 +15,7 @@ namespace enishi::render_pass {
         foundation::UTF8 name;
         types::RenderHandle render_target;
         types::RenderHandle sampled_depth;
+        types::RenderHandle shadow_receiver;
         std::vector<types::RenderHandle> shader_reflections;
         std::vector<types::DrawCommand> commands;
         std::unordered_map<foundation::UTF8, std::size_t> mesh_name_to_index;
@@ -36,6 +37,8 @@ namespace enishi::render_pass {
         types::RenderHandle get_render_target(void) const noexcept override;
         std::span<const types::RenderHandle> get_shader_reflections(void) const noexcept override;
         types::RenderHandle get_sampled_depth(void) const noexcept override;
+        types::RenderHandle get_shadow_receiver(void) const noexcept override;
+        void set_shadow_receiver(types::RenderHandle mesh) override;
         void update(void) override;
 
         void add_updater(std::shared_ptr<platform::IResourceUpdater> updater) noexcept override;

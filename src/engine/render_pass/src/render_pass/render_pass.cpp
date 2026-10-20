@@ -18,6 +18,14 @@ namespace enishi::render_pass {
         return this->sampled_depth;
     }
 
+    types::RenderHandle RenderPass::get_shadow_receiver(void) const noexcept {
+        return this->shadow_receiver;
+    }
+    void RenderPass::set_shadow_receiver(types::RenderHandle mesh) {
+        this->remove_mesh(this->shadow_receiver);
+        this->shadow_receiver = mesh;
+        this->add_mesh(mesh);
+    }
     void RenderPass::update(void) {
         for (auto& updater : this->resource_updater) {
             updater->on_update();

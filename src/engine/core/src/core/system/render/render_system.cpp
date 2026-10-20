@@ -1,8 +1,8 @@
 #include "render_system.h"
 #include "bone_matrix_upload.h"
 #include "camera_upload.h"
-#include "shadow_upload.h"
 #include "material_morph_upload.h"
+#include "shadow_upload.h"
 #include "vertex_morph_upload.h"
 #include <algorithm>
 #include <component/animation_component.h>
@@ -41,11 +41,17 @@ namespace enishi::core {
     void RenderSystem::update(const types::DeltaTime& delta_time) {
         if (this->camera != nullptr) {
             const auto snapshot = this->camera->get_camera();
-            const bool has_shadow = std::ranges::any_of(this->render_passes, [](const auto& pass) {
-                return pass->get_sampled_depth().is_valid();
-            });
+            const bool has_shadow = std::ranges::any_of(this->render_passes,
+                [](const auto& pass) { return pass->get_sampled_depth().is_valid(); });
             if (has_shadow) {
-                const auto result = upload_shadow(*this->renderer, *this->registry, snapshot);
+                std::vector<types::RenderHandle> receivers;
+                for (const auto& pass : this->render_passes) {
+                    if (pass->get_shadow_receiver().is_valid()) {
+                        receivers.push_back(pass->get_shadow_receiver());
+                    }
+                }
+                const auto result =
+                    upload_shadow(*this->renderer, *this->registry, snapshot, receivers);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());
                 }
@@ -55,7 +61,7 @@ namespace enishi::core {
                     continue;
                 }
                 // Upload every visible mesh, including newly loaded or re-shown models.
-                const auto result = upload_camera(*this->renderer, model, snapshot);
+                const auto result = upload_camera(*this->renderer, model.render_handle, snapshot);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());
                 }

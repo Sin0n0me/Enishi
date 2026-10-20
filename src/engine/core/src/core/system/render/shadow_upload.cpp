@@ -1,6 +1,8 @@
 #include "shadow_upload.h"
+#include "camera_upload.h"
 #include <component/model_component.h>
 #include <component/skinning_component.h>
+#include <engine_types/renderer/uniform_buffer/shadow_receiver.h>
 
 namespace enishi::core {
     namespace {
@@ -20,9 +22,9 @@ namespace enishi::core {
 
         foundation::Result<void, platform::RenderError> upload_model_shadow(
             platform::IRenderer& renderer,
-            const component::ModelComponent& model,
+            types::RenderHandle mesh_handle,
             const types::UniformShadow& shadow) {
-            const auto mapped = renderer.get_handle_mapper()->get(model.render_handle);
+            const auto mapped = renderer.get_handle_mapper()->get(mesh_handle);
             if (mapped.is_none()) {
                 return foundation::Error(
                     platform::RenderError::ResolveError, "Model mesh handle is missing");
@@ -57,8 +59,10 @@ namespace enishi::core {
 
     foundation::Result<void, platform::RenderError> upload_shadow(platform::IRenderer& renderer,
         ecs::Registry& registry,
-        const types::UniformCamera& camera) {
+        const types::UniformCamera& camera,
+        std::span<const types::RenderHandle> receivers) {
         types::ShadowBounds light_bounds;
+        types::ShadowBounds world_bounds;
         const auto light_world = types::shadow_light_view() * camera.world;
         for (auto [entity, model] : registry.view<component::ModelComponent>()) {
             if (!model.visible) {
@@ -67,6 +71,7 @@ namespace enishi::core {
             const auto skinning = registry.get<component::SkinningComponent>(entity);
             if (skinning.is_none() || model.shadow_bone_bounds.empty()) {
                 light_bounds.include(model.shadow_model_bounds, light_world);
+                world_bounds.include(model.shadow_model_bounds, camera.world);
                 continue;
             }
             const auto& matrices = skinning.unwrap().skinning_matrices;
@@ -77,14 +82,28 @@ namespace enishi::core {
                 // bone-local -> world = world * skinning * bind_global.
                 light_bounds.include(model.shadow_bone_bounds[bone],
                     light_world * matrices[bone] * model.bind_bone[bone].global);
+                world_bounds.include(model.shadow_bone_bounds[bone],
+                    camera.world * matrices[bone] * model.bind_bone[bone].global);
             }
         }
-        const auto shadow = types::fit_shadow_projection(light_bounds);
+        const auto receiver = types::fit_shadow_receiver(world_bounds, light_bounds, camera);
+        const auto shadow =
+            receivers.empty() ? types::fit_shadow_projection(light_bounds) : receiver.shadow;
+        for (const auto mesh : receivers) {
+            auto result = upload_camera(renderer, mesh, receiver.camera);
+            if (result.is_err()) {
+                return result;
+            }
+            result = upload_model_shadow(renderer, mesh, shadow);
+            if (result.is_err()) {
+                return result;
+            }
+        }
         for (auto [entity, model] : registry.view<component::ModelComponent>()) {
             if (!model.visible) {
                 continue;
             }
-            auto result = upload_model_shadow(renderer, model, shadow);
+            auto result = upload_model_shadow(renderer, model.render_handle, shadow);
             if (result.is_err()) {
                 return result;
             }

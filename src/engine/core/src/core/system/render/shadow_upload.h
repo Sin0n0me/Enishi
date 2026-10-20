@@ -4,6 +4,8 @@
 #include <platform/renderer/interface_renderer.h>
 
 namespace enishi::core {
-    foundation::Result<void, platform::RenderError> upload_shadow(
-        platform::IRenderer& renderer, ecs::Registry& registry, const types::UniformCamera& camera);
+    foundation::Result<void, platform::RenderError> upload_shadow(platform::IRenderer& renderer,
+        ecs::Registry& registry,
+        const types::UniformCamera& camera,
+        std::span<const types::RenderHandle> receivers = {});
 }
