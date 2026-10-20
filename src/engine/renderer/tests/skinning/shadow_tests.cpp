@@ -7,6 +7,7 @@
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <engine_types/renderer/uniform_buffer/shadow.h>
+#include <engine_types/renderer/uniform_buffer/shadow_receiver.h>
 #include <filesystem>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
@@ -352,6 +353,49 @@ RWStructuredBuffer<float4> results : register(u0);
         }
     }
 
+    void receiver_projection_tests() {
+        types::ShadowBounds bounds;
+        bounds.include({-2, -3, -1});
+        bounds.include({2, 3, 1});
+        types::ShadowBounds light;
+        light.include(bounds, types::shadow_light_view());
+        for (const auto eye : {glm::vec3(0, 0, -10), glm::vec3(3, 2, -15)}) {
+            types::UniformCamera camera{};
+            camera.world = glm::mat4(1);
+            camera.view = glm::lookAtLH(eye, glm::vec3(0), glm::vec3(0, 1, 0));
+            camera.projection = glm::mat4(1);
+            const auto receiver = types::fit_shadow_receiver(bounds, light, camera);
+            const auto wall_view = camera.view * receiver.camera.world;
+            types::ShadowBounds view_bounds;
+            view_bounds.include(bounds, camera.view);
+            check(wall_view[3].z > view_bounds.maximum.z, "wall must remain behind the model");
+            check(std::abs(wall_view[0].z) < TOLERANCE && std::abs(wall_view[1].z) < TOLERANCE,
+                "wall must face the current camera");
+            const auto ray = glm::vec3(glm::inverse(types::shadow_light_view())[2]);
+            const auto inverse_wall = glm::inverse(receiver.camera.world);
+            for (unsigned corner = 0; corner < 8; ++corner) {
+                const glm::vec3 point{(corner & 1u) != 0 ? 2 : -2,
+                    (corner & 2u) != 0 ? 3 : -3,
+                    (corner & 4u) != 0 ? 1 : -1};
+                const auto local = glm::vec3(inverse_wall * glm::vec4(point, 1));
+                const auto direction = glm::mat3(inverse_wall) * ray;
+                // Intersection with receiver-local z=0: p - d * p.z/d.z.
+                const auto hit = local - direction * (local.z / direction.z);
+                check(std::abs(hit.x) < 1 + TOLERANCE && std::abs(hit.y) < 1 + TOLERANCE,
+                    "projected model must fit the wall");
+                const auto clip =
+                    receiver.shadow.light_view_proj * receiver.camera.world * glm::vec4(hit, 1);
+                check(std::abs(clip.x) < 1 && std::abs(clip.y) < 1 && clip.z > 0 && clip.z < 1,
+                    "wall shadow must fit the shared light clip volume");
+            }
+        }
+        const auto empty = types::fit_shadow_receiver({}, {}, types::UniformCamera{});
+        check(glm::length(glm::vec3(empty.camera.world[0])) == 0,
+            "no visible models must produce a zero-area wall");
+        compile("vs_clear_wall.hlsl", "vs_5_0");
+        compile("ps_clear_wall.hlsl", "ps_5_0");
+    }
+
     void projection_tests() {
         types::ShadowBounds local;
         local.include({-2, -3, -1});
@@ -371,6 +415,7 @@ RWStructuredBuffer<float4> results : register(u0);
 int main() {
     binding_tests();
     projection_tests();
+    receiver_projection_tests();
     ShadowRunner runner;
     check(std::abs(runner.draw(0, 1) - 0.25f) < TOLERANCE,
         "opaque skinned triangle writes shadow depth");

@@ -87,7 +87,8 @@ def framebuffer(texture_id, attachment, color):
 class Runner:
     def __init__(self, directory):
         self.programs = [program(directory, "vs_shadow_map_gl.glsl", "ps_shadow_map_gl.glsl"),
-                         program(directory, "vs_model_gl.glsl", "ps_model_gl.glsl")]
+                         program(directory, "vs_model_gl.glsl", "ps_model_gl.glsl"),
+                         program(directory, "vs_clear_wall_gl.glsl", "ps_clear_wall_gl.glsl")]
         self.buffers = [object_id("glGenBuffers") for _ in range(5)]
         self.vao = object_id("glGenVertexArrays")
         gl("glBindVertexArray", None, U)(self.vao)
@@ -158,10 +159,10 @@ class Runner:
         check(gl("glGetError", U)() == 0, "shadow draw GL error")
         return depth.value
 
-    def receiver(self):
+    def receiver(self, wall=False):
         gl("glBindFramebuffer", None, U, U)(FRAMEBUFFER, self.color_fbo)
         gl("glDisable", None, U)(0x0B71)
-        gl("glUseProgram", None, U)(self.programs[1])
+        gl("glUseProgram", None, U)(self.programs[2 if wall else 1])
         bind_texture(3, self.depth)
         self.uniform(1, identity() * 512)
         self.material(1)
@@ -196,11 +197,16 @@ def run_tests(directory):
     runner = Runner(directory)
     try:
         check(abs(runner.shadow() - 0.25) < 0.0001, "GL clip depth conversion")
+        wall_upper, wall_lower = runner.receiver(wall=True)
+        check(abs(wall_upper[3] - 0.25) < 0.0001 and abs(wall_lower[3]) < 0.0001,
+              f"wall shadow coverage/transparent background: {wall_upper}, {wall_lower}")
+        check(max(abs(x) for x in wall_upper[:3]) < 0.0001, "wall shadow must be black")
         upper, lower = runner.receiver()
         check(upper[0] < 0.3 and lower[0] > 0.7, f"shadow/Y orientation: {upper}, {lower}")
         check(abs(upper[3] - 1) < 0.0001, "shadow must preserve receiver alpha")
         check(abs(runner.shadow(alpha=0) - 1) < 0.0001, "transparent caster is discarded")
         check(runner.receiver()[0][0] > 0.7, "transparent caster must not shadow receiver")
+        check(abs(runner.receiver(wall=True)[0][3]) < 0.0001, "wall must not retain old shadow")
         check(abs(runner.shadow(offset=2) - 1) < 0.0001, "skinned caster moves out of view")
         check(runner.receiver()[0][0] > 0.7, "moved caster must not leave a stale shadow")
         runner.shadow()

@@ -120,10 +120,12 @@ namespace {
             }
         }
     }
-    std::vector<types::RenderHandle> model_shaders(
-        renderer::vulkan::VulkanRenderer& renderer, core::ShaderDataProvider& provider) {
+    std::vector<types::RenderHandle> model_shaders(renderer::vulkan::VulkanRenderer& renderer,
+        core::ShaderDataProvider& provider,
+        bool wall = false) {
         const std::vector<std::tuple<types::ShaderKind, std::filesystem::path>> paths{
-            {types::ShaderKind::Vertex, "vs_model_vk"}, {types::ShaderKind::Pixel, "ps_model_vk"}};
+            {types::ShaderKind::Vertex, wall ? "vs_clear_wall_vk" : "vs_model_vk"},
+            {types::ShaderKind::Pixel, wall ? "ps_clear_wall_vk" : "ps_model_vk"}};
         std::vector<types::RenderHandle> shaders;
         for (const auto& entry : take(provider.get(paths))) {
             take(renderer.create_shader_reflection(*entry.data));
@@ -134,12 +136,22 @@ namespace {
     void check_pixels(const renderer::vulkan::VulkanBuffer& pixels,
         VkExtent2D size,
         bool shadowed,
-        bool narrow_viewport) {
+        bool narrow_viewport,
+        bool wall) {
         const auto data = static_cast<const std::uint8_t*>(pixels.mapped);
         // Pixel coordinates = ((ndc.x+1)/2*width, (1-ndc.y)/2*height).
         const auto sample_x = narrow_viewport ? size.width / 4 : size.width / 2;
         const auto upper = ((size.height / 4) * size.width + sample_x) * CHANNELS;
         const auto lower = ((size.height * 3 / 4) * size.width + sample_x) * CHANNELS;
+        if (wall) {
+            require(data[lower + 3] == 0, "unshadowed wall must be transparent");
+            require(
+                shadowed ? (data[upper + 3] > 60 && data[upper + 3] < 68) : data[upper + 3] == 0,
+                "wall shadow alpha or clearing is wrong");
+            require(data[upper] == 0 && data[upper + 1] == 0 && data[upper + 2] == 0,
+                "wall must only draw black shadow");
+            return;
+        }
         require(
             data[lower] > LIT_LIMIT, "Shadow image Y orientation or receiver viewport is wrong");
         require(shadowed ? data[upper] < DARK_LIMIT : data[upper] > LIT_LIMIT,
@@ -153,7 +165,8 @@ namespace {
     void run_case(renderer::vulkan::VulkanRenderer& renderer,
         const platform::IRenderPass& pass,
         const std::vector<types::RenderHandle>& shaders,
-        types::SkinningMethod method) {
+        types::SkinningMethod method,
+        bool wall = false) {
         const auto device = renderer.get_native_context();
         const auto caster = make_mesh(renderer, true, method);
         const auto receiver = make_mesh(renderer, false, types::SkinningMethod::LinearBlend);
@@ -187,7 +200,7 @@ namespace {
             }
             renderer.submit_command_mesh(bind(receiver), {});
             success(device->end_frame(pixels));
-            check_pixels(*pixels, device->extent, expected_shadow, narrow_viewport);
+            check_pixels(*pixels, device->extent, expected_shadow, narrow_viewport, wall);
         };
         frame(true, true);
         const auto material = uniform(renderer, caster, "Material", true);
@@ -226,6 +239,11 @@ void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer) {
              types::SkinningMethod::SphericalBlend}) {
         run_case(renderer, *pass, shaders, method);
     }
+    run_case(renderer,
+        *pass,
+        model_shaders(renderer, provider, true),
+        types::SkinningMethod::LinearBlend,
+        true);
     require(renderer.get_native_context()->validation_error_count() == 0,
         "Vulkan validation reported errors in shadow passes");
     std::cout

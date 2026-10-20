@@ -20,7 +20,8 @@ add_test(NAME skinning_tests COMMAND skinning_tests)
 
 add_executable(shadow_tests shadow_tests.cpp
     "${ENGINE_ROOT}/renderer/src/renderer/directx/directx11/d3d11_converter.cpp"
-    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow.cpp")
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow_receiver.cpp")
 target_compile_features(shadow_tests PRIVATE cxx_std_23)
 target_include_directories(shadow_tests PRIVATE
     "${ENGINE_ROOT}/renderer/src" "${ENGINE_ROOT}/engine_types/src"
