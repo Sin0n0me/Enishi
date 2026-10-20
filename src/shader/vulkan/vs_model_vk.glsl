@@ -21,6 +21,11 @@ layout(set = 0, binding = 1, std140) uniform Bones {
     mat4 bone_matrices[1024];
 };
 
+layout(set = 0, binding = 6, std140) uniform ShadowMap {
+    mat4 light_view_proj;
+    vec4 shadow_options;
+};
+layout(location = 4) out vec4 shadow_position;
 layout(location = 0) out vec2 uv;
 layout(location = 1) out vec3 view_position;
 layout(location = 2) out vec3 view_normal;
@@ -150,17 +155,30 @@ DeformedVertex deform_vertex(vec3 position, vec3 normal, uvec4 bones, vec4 weigh
     return deformed;
 }
 void main() {
-    const vec3 light_direction = normalize(vec3(0.0, 0.0, -10.0));
+    const vec3 light_direction = normalize(vec3(-0.35, 0.8, -1.0));
     DeformedVertex deformed = deform_vertex(in_position, in_normal, in_bone_indices,
         in_bone_weights, in_skinning_method, in_blend_center, in_blend_anchor0, in_blend_anchor1);
     vec4 position = vec4(deformed.position, 1.0);
     mat4 model_view = view * world;
+    shadow_position = light_view_proj * world * position;
+#ifndef ENISHI_SHADOW_PASS
+    // Out-of-map coordinates bypass shadow lookup without changing caster geometry.
+    if (shadow_options.x > 0.5) {
+        shadow_position = vec4(0, 0, -1, 1);
+    }
+#endif
+#ifdef ENISHI_SHADOW_PASS
+    // Shared light projection already has Vulkan's [0,w] depth range.
+    gl_Position = shadow_position;
+    gl_Position.y = -gl_Position.y;
+#else
     gl_Position = mvp * position;
     // Vulkan clip coordinates: y_vk = -y_gl, z_vk = (z_gl + w_gl) / 2.
     gl_Position.y = -gl_Position.y;
     gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;
+#endif
     uv = in_uv;
     view_position = (model_view * position).xyz;
     view_normal = normalize(mat3(model_view) * deformed.normal);
-    view_light = mat3(model_view) * light_direction;
+    view_light = mat3(view) * light_direction;
 }

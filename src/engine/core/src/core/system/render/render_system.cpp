@@ -2,7 +2,9 @@
 #include "bone_matrix_upload.h"
 #include "camera_upload.h"
 #include "material_morph_upload.h"
+#include "shadow_upload.h"
 #include "vertex_morph_upload.h"
+#include <algorithm>
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <foundation/log/logger.h>
@@ -19,6 +21,10 @@ namespace enishi::core {
     void RenderSystem::set_render_passes(
         std::vector<std::shared_ptr<platform::IRenderPass>>&& render_passes) {
         this->render_passes = std::move(render_passes);
+    }
+
+    void RenderSystem::set_settings(std::shared_ptr<sub_system::RenderSettings> settings) {
+        this->settings = std::move(settings);
     }
 
     void RenderSystem::set_camera(std::shared_ptr<sub_system::ICameraController> camera) {
@@ -39,12 +45,30 @@ namespace enishi::core {
     void RenderSystem::update(const types::DeltaTime& delta_time) {
         if (this->camera != nullptr) {
             const auto snapshot = this->camera->get_camera();
+            const bool has_shadow = std::ranges::any_of(this->render_passes,
+                [](const auto& pass) { return pass->get_sampled_depth().is_valid(); });
+            if (has_shadow) {
+                std::vector<types::RenderHandle> receivers;
+                for (const auto& pass : this->render_passes) {
+                    if (pass->get_shadow_receiver().is_valid()) {
+                        receivers.push_back(pass->get_shadow_receiver());
+                    }
+                }
+                const auto result = upload_shadow(*this->renderer,
+                    *this->registry,
+                    snapshot,
+                    receivers,
+                    this->settings == nullptr || this->settings->self_shadow_enabled);
+                if (result.is_err()) {
+                    foundation::Logger::warning(result.unwrap_err().get_message());
+                }
+            }
             for (auto [entity, model] : this->registry->view<component::ModelComponent>()) {
                 if (!model.visible) {
                     continue;
                 }
                 // Upload every visible mesh, including newly loaded or re-shown models.
-                const auto result = upload_camera(*this->renderer, model, snapshot);
+                const auto result = upload_camera(*this->renderer, model.render_handle, snapshot);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());
                 }

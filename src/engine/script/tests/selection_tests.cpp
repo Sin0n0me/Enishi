@@ -99,8 +99,9 @@ void selection_tests() {
     auto engine = std::make_shared<script::ScriptEngine>();
     auto receiver = std::make_shared<Receiver>();
     engine->add_result_receiver(receiver);
+    auto settings = std::make_shared<sub_system::RenderSettings>();
     core::SelectionUI selection(
-        std::make_shared<Models>(), std::make_shared<core::ModelClickSettings>(), engine);
+        std::make_shared<Models>(), std::make_shared<core::ModelClickSettings>(), engine, settings);
     UI ui;
     ui.clicked = "スクリプト";
     selection.update(ui);
@@ -123,4 +124,14 @@ void selection_tests() {
     ui.saw_script_button = false;
     selection.update(ui);
     require(ui.saw_script_button, "Back button did not restore selection page");
+    ui.clicked = "設定";
+    selection.update(ui);
+    ui.clicked = "オフ";
+    selection.update(ui);
+    require(!settings->self_shadow_enabled, "Settings must disable self shadows");
+    ui.clicked = "オン";
+    selection.update(ui);
+    require(settings->self_shadow_enabled, "Settings must restore self shadows");
+    ui.clicked = "戻る";
+    selection.update(ui);
 }

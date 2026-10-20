@@ -1,4 +1,4 @@
-cbuffer Camera {
+cbuffer Camera : register(b0) {
     column_major matrix world;
     column_major matrix view;
     column_major matrix proj;

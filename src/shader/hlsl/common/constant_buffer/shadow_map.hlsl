@@ -1,5 +1,6 @@
-cbuffer ShadowMap {
+cbuffer ShadowMap : register(b2) {
     column_major matrix light_view_proj;
+    float4 shadow_options;
 };
 
 float4 apply_shadow_map_light(float4 position) {    

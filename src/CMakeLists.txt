@@ -125,6 +125,30 @@ target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
 
+if(USE_DIRECTX_11)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_DIRECTX_11)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileHLSL.cmake")
+    enishi_compile_hlsl_shaders(enishi_hlsl_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+    add_dependencies(${PROJECT_NAME} enishi_hlsl_shaders)
+    target_compile_definitions(core PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+endif()
+
+if(USE_OPENGL40)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/PrepareOpenGLShaders.cmake")
+    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/glsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    target_compile_definitions(core PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
+    if(ENISHI_OPENGL_TESTS)
+        enable_testing()
+        add_subdirectory(engine/renderer/tests/opengl)
+    endif()
+endif()
+
 if(USE_VULKAN)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
     enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"
@@ -149,6 +173,7 @@ endif()
 option(ENISHI_CURSOR_TESTS "Build asset-free procedural cursor pose validation" OFF)
 if(ENISHI_CURSOR_TESTS)
     enable_testing()
+    add_subdirectory(engine/animation/tests/procedural)
     add_subdirectory(engine/core/tests/cursor)
 endif()
 

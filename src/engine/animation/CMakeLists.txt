@@ -25,11 +25,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ASSETS_SYSTEM)
 
+FetchContent_Declare(COMPONENT SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../component)
+FetchContent_MakeAvailable(COMPONENT)
+FetchContent_Declare(COLLIDER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../collider)
+FetchContent_MakeAvailable(COLLIDER)
+
 set(DEPENDENCIES
-    glm
-    engine_types
-    foundation
-    assets_system
+    collider
 )
 
 #
@@ -53,6 +55,7 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
     DEPENDENCIES ${DEPENDENCIES}
+    PUBLIC_DEPENDENCIES glm engine_types foundation assets_system component
 )
 
 # MSVCコンパイラのホットリロードを有効に

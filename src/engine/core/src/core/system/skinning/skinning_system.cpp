@@ -1,4 +1,5 @@
 #include "skinning_system.h"
+#include <core/system/animation/cursor_ray.h>
 #include "bone_inheritance.h"
 #include "bone_view_factory.h"
 #include <component/animation_component.h>
@@ -34,7 +35,7 @@ namespace enishi::core {
         this->camera = std::move(camera);
     }
 
-    void SkinningSystem::set_cursor_config(const CursorPoseConfig& config) {
+    void SkinningSystem::set_cursor_config(const animation::CursorPoseConfig& config) {
         this->cursor_config = config;
         for (auto& [entity, bones] : this->model_bones) {
             bones->cursor_pose.reset();
@@ -46,6 +47,9 @@ namespace enishi::core {
         const auto cursor = window != nullptr && this->camera != nullptr
                                 ? read_cursor_ray(*window, this->camera->get_camera())
                                 : std::nullopt;
+        const auto drag_cursor = window != nullptr && this->camera != nullptr
+                                     ? read_cursor_ray(*window, this->camera->get_camera(), true)
+                                     : std::nullopt;
         for (auto [entity, animation, model, skinning] :
             this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
@@ -61,6 +65,7 @@ namespace enishi::core {
                     found->second->cursor_pose.reset();
                     found->second->pending_after_physics = false;
                 }
+                animation.pose_transition_active = false;
                 continue;
             }
 
@@ -80,7 +85,7 @@ namespace enishi::core {
             bones.morph_delta.clear();
             const auto morph = this->registry->get<component::MorphComponent>(entity);
             if (morph.is_some()) {
-                auto deltas = evaluate_bone_morphs(
+                auto deltas = animation::evaluate_bone_morphs(
                     model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
                 if (deltas.is_err()) {
                     foundation::Logger::warning(deltas.unwrap_err().get_message());
@@ -95,11 +100,13 @@ namespace enishi::core {
                     ? std::span<const types::SkinningCommand>(SkinningSystem::DEFAULT_ORDER)
                     : std::span<const types::SkinningCommand>(skinning.order);
 
-            if (bones.cursor_pose == nullptr && window != nullptr) {
-                bones.cursor_pose = std::make_unique<CursorPose>(model, this->cursor_config);
+            if (bones.cursor_pose == nullptr) {
+                bones.cursor_pose = std::make_unique<animation::CursorPose>(model, this->cursor_config);
             }
             if (bones.cursor_pose != nullptr) {
-                bones.cursor_pose->apply(model, animation, cursor, delta_time.to_float_second());
+                bones.cursor_pose->apply_transitioned(model, animation,
+                    bones.cursor_pose->is_hanging() ? drag_cursor : cursor,
+                    delta_time.to_float_second(), window != nullptr && !animation.motion_playing);
             }
             for (const auto command : order) {
                 this->execute_command(command, bones, opt_ik);
@@ -222,6 +229,9 @@ namespace enishi::core {
             if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
                 continue;
             }
+            if (bones.cursor_pose != nullptr && bones.cursor_pose->suppress_hanging_ik(bone_index)) {
+                continue;
+            }
             ik::IKSolver::apply_ik(ik.iks[found->second],
                 bones.ik_cache.get(),
                 bones.ik_updater.get(),
@@ -256,8 +266,10 @@ namespace enishi::core {
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         auto* const animation_view = bones.animation_cache->at(i);
                         auto* const physics_view = bones.physics_cache->at(i);
-                        physics_view->set_physics_global(
-                            animation_view->get_animation_global_transform());
+                        const auto& global = animation_view->get_animation_global_transform();
+                        if (physics_view->get_physics_global() != global) {
+                            physics_view->set_physics_global(global);
+                        }
                     }
                     for (types::BoneIndex i = 0; i < bone_count; ++i) {
                         bones.physics_updater->update_local(i);

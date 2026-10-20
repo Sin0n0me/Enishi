@@ -696,8 +696,16 @@ namespace enishi::renderer::directx {
         const auto [resource_handle, dsv] =
             this->native_resource->get_native_view_accessor()->make_native_depth_stencil_view();
         const auto device = this->context->get_device();
+        D3D11_DEPTH_STENCIL_VIEW_DESC view_desc{};
+        view_desc.Format = D3D11Converter::to_dxgi_format(description.format);
+        view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        view_desc.Texture2D.MipSlice = description.base_mip_level;
+        D3D11_TEXTURE2D_DESC texture_desc{};
+        texture->GetDesc(&texture_desc);
+        const auto* explicit_desc = texture_desc.Format == DXGI_FORMAT_R32_TYPELESS
+                                        ? &view_desc : nullptr;
         const HRESULT hr =
-            device->CreateDepthStencilView(texture.Get(), nullptr, dsv.GetAddressOf());
+            device->CreateDepthStencilView(texture.Get(), explicit_desc, dsv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "深度ステンシルの作成に失敗しました")
@@ -744,8 +752,15 @@ namespace enishi::renderer::directx {
         const auto [resource_handle, srv] =
             this->native_resource->get_native_view_accessor()->make_native_shader_resource_view();
         const auto device = this->context->get_device();
+        D3D11_SHADER_RESOURCE_VIEW_DESC depth_desc{};
+        depth_desc.Format = DXGI_FORMAT_R32_FLOAT;
+        depth_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        depth_desc.Texture2D.MostDetailedMip = description.base_mip_level;
+        depth_desc.Texture2D.MipLevels = description.mip_Level_count;
+        const auto* view_desc = description.format == types::ImageFormat::D32_FLOAT
+                                    ? &depth_desc : nullptr;
         const HRESULT hr =
-            device->CreateShaderResourceView(texture.Get(), nullptr, srv.GetAddressOf());
+            device->CreateShaderResourceView(texture.Get(), view_desc, srv.GetAddressOf());
         if (FAILED(hr)) {
             return foundation::Error(
                 platform::RenderError::MakeError, "シェーダーリソースの作成に失敗しました")
@@ -754,7 +769,10 @@ namespace enishi::renderer::directx {
 
         // バインド時のパラメータ用
         const auto [binding_index, binding] = this->resource_binder->make_view_binding();
-        binding.parameter = types::ShaderResourceParameter{};
+        binding.parameter = types::ShaderResourceParameter{
+            .target_shader = types::ShaderKind::Pixel,
+            .target = description.shader_resource_slot,
+        };
 
         const auto render_handle = this->handle_mapper->make(types::RenderHandleType::View,
             types::ResourceHandles{

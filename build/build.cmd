@@ -10,6 +10,8 @@ set "TOOLCHAIN=%~3"
 if "%BACKEND%"=="" goto :usage
 if "%CONFIG%"=="" set "CONFIG=Debug"
 if "%TOOLCHAIN%"=="" set "TOOLCHAIN=auto"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=2"
 if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS=-DPython_EXECUTABLE=%PYTHON_EXECUTABLE% -DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%"
 if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON -DUSE_VULKAN=OFF"
 if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF"
@@ -85,14 +87,15 @@ call :configure_packages
 if errorlevel 1 exit /b %errorlevel%
 cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G "%GENERATOR%" %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %PYTHON_OPTIONS%
 if errorlevel 1 exit /b %errorlevel%
-cmake --build "%BUILD_DIR%" --config "%CONFIG%"
+@rem Share the compiler process limit across projects as well as parallelizing projects.
+cmake --build "%BUILD_DIR%" --config "%CONFIG%" --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%" -- /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true /p:MultiProcMaxCount=%CMAKE_BUILD_PARALLEL_LEVEL%
 exit /b %errorlevel%
 :build_ninja
 call :configure_packages
 if errorlevel 1 exit /b %errorlevel%
 cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %COMPILER_OPTIONS% %PYTHON_OPTIONS% -DCMAKE_BUILD_TYPE=%CONFIG%
 if errorlevel 1 exit /b %errorlevel%
-cmake --build "%BUILD_DIR%"
+cmake --build "%BUILD_DIR%" --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%"
 exit /b %errorlevel%
 :usage
 echo Usage: %~nx0 ^<opengl^|directx^|vulkan^> [config] [auto^|visualstudio^|clang^|gcc]

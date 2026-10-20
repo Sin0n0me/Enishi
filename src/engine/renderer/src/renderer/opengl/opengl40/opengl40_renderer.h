@@ -85,5 +85,6 @@ namespace enishi::renderer::opengl {
             const types::RenderData& data, std::uint32_t target);
         [[nodiscard]] bool prepare_back_buffer_framebuffer(const types::RenderHandle&) const;
         [[nodiscard]] bool use_active_program(void) const;
+        void bind_depth_only_view(const types::RenderHandle& view) const;
     };
 } // namespace enishi::renderer::opengl

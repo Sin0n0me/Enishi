@@ -34,6 +34,12 @@ namespace enishi::renderer::vulkan {
       public:
         std::shared_ptr<VulkanDevice> context;
         VkDescriptorSetLayout descriptors = VK_NULL_HANDLE;
+        VkDescriptorSetLayout shadow_descriptors = VK_NULL_HANDLE;
+        VkSampler shadow_sampler = VK_NULL_HANDLE;
+        std::shared_ptr<VulkanShadowTarget> fallback_shadow;
+        std::shared_ptr<VulkanShadowTarget> sampled_shadow;
+        std::shared_ptr<VulkanShadowTarget> active_shadow;
+        std::unordered_map<types::RenderHandle, std::shared_ptr<VulkanShadowTarget>> shadow_targets;
         VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
         VkSampler sampler = VK_NULL_HANDLE;
         std::unordered_map<types::RenderHandle, VkSampler> samplers;
@@ -45,7 +51,8 @@ namespace enishi::renderer::vulkan {
         std::unordered_map<types::RenderHandle, types::DepthStencilStateDescription> depths;
         std::unordered_map<types::RenderHandle, types::BlendStateDescription> blends;
         std::unordered_map<types::RenderHandle, types::ViewportRect> viewports;
-        std::map<std::array<std::uint32_t, 5>, VkPipeline> pipelines;
+        std::map<std::array<std::uint32_t, 6>, VkPipeline> pipelines;
+        types::RenderHandle main_viewport;
         types::RenderHandle vertex_shader;
         types::RenderHandle pixel_shader;
         types::RenderHandle rasterizer;

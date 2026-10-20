@@ -1,4 +1,4 @@
-#include <core/system/animation/vertex_morph.h>
+#include <animation/morph/vertex_morph.h>
 #include <core/system/render/vertex_morph_upload.h>
 #include <cstdlib>
 #include <cstring>
@@ -40,7 +40,7 @@ int main() {
     check(model.morph_targets.targets[0].name == "first", "model retains target names and indices");
     const std::vector<float> weights{0.5f, 0.25f};
     const auto evaluate = [&](const std::vector<float>& values) {
-        return core::evaluate_vertex_morphs(
+        return animation::evaluate_vertex_morphs(
             model.morph_base_positions, model.morph_targets.targets, values);
     };
     const auto blended = evaluate(weights);
@@ -82,7 +82,7 @@ int main() {
         "wrong vertex count must not upload");
     morphs.targets[0].offsets = {types::VertexMorphOffset{2, {1, 0, 0}}};
     check(
-        core::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights).is_err(),
+        animation::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights).is_err(),
         "invalid vertex must return an error");
     std::cout << "Vertex morph tests passed\n";
 }

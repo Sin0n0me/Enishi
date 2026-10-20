@@ -107,7 +107,8 @@ namespace enishi::renderer::vulkan {
             this->state->pixel_shader.id.handle_id,
             this->state->rasterizer.id.handle_id,
             this->state->depth.id.handle_id,
-            this->state->blend.id.handle_id};
+            this->state->blend.id.handle_id,
+            static_cast<std::uint32_t>(this->context->shadow_recording)};
         const auto cached = this->state->pipelines.find(key);
         if (cached != this->state->pipelines.end()) {
             return cached->second;
@@ -179,7 +180,7 @@ namespace enishi::renderer::vulkan {
         }
         VkPipelineColorBlendStateCreateInfo blend{
             VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-        blend.attachmentCount = 1;
+        blend.attachmentCount = this->context->shadow_recording ? 0 : 1;
         blend.pAttachments = &blend_attachment;
         const std::array dynamic_states{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
         VkPipelineDynamicStateCreateInfo dynamic{
@@ -198,7 +199,8 @@ namespace enishi::renderer::vulkan {
         info.pColorBlendState = &blend;
         info.pDynamicState = &dynamic;
         info.layout = this->state->pipeline_layout;
-        info.renderPass = this->context->render_pass;
+        info.renderPass = this->context->shadow_recording ? this->state->active_shadow->render_pass
+                                                          : this->context->render_pass;
         VkPipeline pipeline = VK_NULL_HANDLE;
         auto result =
             check_vk(vkCreateGraphicsPipelines(

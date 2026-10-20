@@ -1,5 +1,5 @@
 #include "material_morph_upload.h"
-#include <core/system/animation/material_morph.h>
+#include <animation/morph/material_morph.h>
 #include <cstring>
 
 namespace enishi::core {
@@ -21,7 +21,7 @@ namespace enishi::core {
         if (model.morph_base_materials.empty()) {
             return {};
         }
-        const auto materials = evaluate_material_morphs(
+        const auto materials = animation::evaluate_material_morphs(
             model.morph_base_materials, model.morph_targets.targets, morph.weights);
         if (materials.is_err()) {
             return materials.propagation(platform::RenderError::ResolveError);

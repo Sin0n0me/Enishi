@@ -24,6 +24,12 @@ namespace enishi::renderer::vulkan {
         for (const auto& [handle, shader] : this->shaders) {
             vkDestroyShaderModule(device, shader.module, nullptr);
         }
+        this->active_shadow.reset();
+        this->sampled_shadow.reset();
+        this->shadow_targets.clear();
+        this->fallback_shadow.reset();
+        vkDestroySampler(device, this->shadow_sampler, nullptr);
+        vkDestroyDescriptorSetLayout(device, this->shadow_descriptors, nullptr);
         vkDestroyPipelineLayout(device, this->pipeline_layout, nullptr);
         vkDestroyDescriptorSetLayout(device, this->descriptors, nullptr);
         for (const auto& [handle, sampler] : this->samplers) {
@@ -51,16 +57,18 @@ namespace enishi::renderer::vulkan {
         return handle;
     }
     platform::RenderResult<void> VulkanRenderer::init_resources() {
-        // Shared shader contract: Camera, Bones, Material, base/sphere/toon textures.
+        // Set zero: Camera, Bones, Material, base/sphere/toon textures, ShadowMap.
         constexpr std::uint32_t UNIFORM_COUNT = 3;
-        constexpr std::uint32_t DESCRIPTOR_COUNT = 6;
+        constexpr std::uint32_t DESCRIPTOR_COUNT = 7;
+        constexpr std::uint32_t SHADOW_UNIFORM_BINDING = 6;
         std::array<VkDescriptorSetLayoutBinding, DESCRIPTOR_COUNT> bindings{};
         for (std::uint32_t index = 0; index < bindings.size(); ++index) {
             bindings[index].binding = index;
             bindings[index].descriptorCount = 1;
-            bindings[index].descriptorType = index < UNIFORM_COUNT
-                                                 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                                                 : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            bindings[index].descriptorType =
+                (index < UNIFORM_COUNT || index == SHADOW_UNIFORM_BINDING)
+                    ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+                    : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             bindings[index].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         }
         VkDescriptorSetLayoutCreateInfo descriptor{
@@ -75,8 +83,13 @@ namespace enishi::renderer::vulkan {
             return result;
         }
         VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        layout.setLayoutCount = 1;
-        layout.pSetLayouts = &this->state->descriptors;
+        result = this->init_shadow_resources();
+        if (result.is_err()) {
+            return result;
+        }
+        const std::array layouts{this->state->descriptors, this->state->shadow_descriptors};
+        layout.setLayoutCount = static_cast<std::uint32_t>(layouts.size());
+        layout.pSetLayouts = layouts.data();
         result =
             check_vk(vkCreatePipelineLayout(
                          this->context->device, &layout, nullptr, &this->state->pipeline_layout),
@@ -104,16 +117,29 @@ namespace enishi::renderer::vulkan {
         if (result.is_err()) {
             return std::move(result).take_err();
         }
-        const std::array<std::string_view, 6> names{
-            "Camera", "Bones", "Material", "model_texture", "sphere_texture", "toon_texture"};
+        const std::array<std::string_view, 7> names{"Camera",
+            "Bones",
+            "Material",
+            "model_texture",
+            "sphere_texture",
+            "toon_texture",
+            "ShadowMap"};
         for (const auto& resource :
             reflection->get_shader_input_reflection()->get_input_resources()) {
+            constexpr std::uint32_t SHADOW_SET = 1;
+            if (resource.set == SHADOW_SET && resource.binding == 0 &&
+                resource.name == "shadow_texture" &&
+                resource.type == types::ShaderInputResourceType::Texture) {
+                continue;
+            }
+            constexpr std::uint32_t SHADOW_UNIFORM_BINDING = 6;
             constexpr std::uint32_t FIRST_TEXTURE_BINDING = 3;
-            const auto expected_type = resource.binding < FIRST_TEXTURE_BINDING
+            const auto expected_type = (resource.binding < FIRST_TEXTURE_BINDING ||
+                                           resource.binding == SHADOW_UNIFORM_BINDING)
                                            ? types::ShaderInputResourceType::UniformBuffer
                                            : types::ShaderInputResourceType::Texture;
-            if (!(resource.binding < names.size()) || resource.name != names[resource.binding] ||
-                resource.type != expected_type) {
+            if (resource.set != 0 || !(resource.binding < names.size()) ||
+                resource.name != names[resource.binding] || resource.type != expected_type) {
                 return foundation::Error(platform::RenderError::MakeError,
                     "SPIR-V descriptor does not match the model shader contract");
             }

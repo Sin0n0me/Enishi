@@ -1,6 +1,7 @@
 #include "application.h"
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
+#include <core/system/animation/cursor_pose_config.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
 #include <core/system/animation/model_event_motion_handler.h>
@@ -10,6 +11,7 @@
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
+#include <core/system/window/window_animation_sync.h>
 #include <core/system/ui/selection_ui.h>
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
@@ -66,6 +68,10 @@ namespace enishi {
         return this->camera;
     }
 
+    std::shared_ptr<sub_system::IWindowAnimationSync> Application::get_window_animation_sync() const {
+        return this->window_animation_sync;
+    }
+
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
         this->click_settings = std::make_shared<core::ModelClickSettings>();
@@ -95,7 +101,13 @@ namespace enishi {
         }
         foundation::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
-        skinning_system->set_camera(this->camera);
+        // Final bone matrices are ready after physics (90); camera uploads occur at 100.
+        constexpr core::Priority WINDOW_ANIMATION_PRIORITY = 95;
+        const auto window_sync = this->system_scheduler.register_system<core::WindowAnimationSync>(
+            WINDOW_ANIMATION_PRIORITY, this->registry, root_window, this->camera);
+        this->window_animation_sync = window_sync;
+        this->display_camera = window_sync;
+        skinning_system->set_camera(this->display_camera);
         core::CameraZoomConfig zoom_config;
         auto zoom_settings = core::load_camera_zoom_config("config/camera.cfg");
         if (zoom_settings.is_err()) {
@@ -116,7 +128,8 @@ namespace enishi {
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings, this->camera);
+            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings,
+            this->display_camera);
         auto motion_rules = core::load_model_event_motions(
             "config/model_event_motions.cfg", this->click_settings.get());
         if (motion_rules.is_err()) {
@@ -126,6 +139,17 @@ namespace enishi {
                 this->registry, animation_system, std::move(motion_rules).unwrap(),
                 this->click_settings, physics_engine->get_shared_world()));
         }
+        root_window->set_model_drag_handler(
+            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](types::ClientMousePosition cursor) {
+                const auto system = weak.lock();
+                return system != nullptr && system->begin_model_drag(cursor);
+            },
+            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)]() {
+                const auto system = weak.lock();
+                if (system != nullptr) {
+                    system->end_model_drag();
+                }
+            });
         root_window->set_interactive_hit_test(
             [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
                 const auto system = weak.lock();
@@ -260,10 +284,10 @@ namespace enishi {
             std::make_shared<render_pass::ModelRenderPassConstructor>());
         this->orchestra->add_constructor(
             std::make_shared<render_pass::BackgroundRenderPassConstructor>());
-        /*
+#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
         this->orchestra->add_constructor(
             std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
-        */
+#endif
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
@@ -275,10 +299,12 @@ namespace enishi {
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
             render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-            //  render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
+            render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
+#endif
         });
         render_system->set_render_passes(this->orchestra->get_passes());
-        render_system->set_camera(this->camera);
+        render_system->set_camera(this->display_camera);
 
         const auto model_render_pass = this->orchestra->get_render_pass(
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);
@@ -287,7 +313,9 @@ namespace enishi {
             return {};
         }
         const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(
-            95, this->registry, asset_system, renderer, model_render_pass.unwrap());
+            95, this->registry, asset_system, renderer, model_render_pass.unwrap(),
+            this->orchestra->get_render_pass(render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME)
+                .unwrap_or(nullptr));
 
         if (!this->init_ui(root_window, render_system, models)) {
             return {};
@@ -307,8 +335,10 @@ namespace enishi {
         const auto ui = result.unwrap();
         constexpr core::Priority UI_PRIORITY = 99;
         const auto scripts = std::make_shared<script::ScriptEngine>();
-        const auto selection =
-            std::make_shared<core::SelectionUI>(std::move(models), this->click_settings, scripts);
+        const auto render_settings = std::make_shared<sub_system::RenderSettings>();
+        render_system->set_settings(render_settings);
+        const auto selection = std::make_shared<core::SelectionUI>(
+            std::move(models), this->click_settings, scripts, render_settings);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,

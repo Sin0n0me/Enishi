@@ -27,7 +27,11 @@ namespace enishi::render_pass {
         const platform::IShaderDataProvider* shader_data_provider,
         std::span<platform::IRenderPass* const> dependency_render_passes) {
         types::RenderHandle render_target;
+        types::RenderHandle shadow_depth;
         for (auto& pass : dependency_render_passes) {
+            if (pass->get_name() == ShadowMapRenderPassConstructor::RENDER_PASS_NAME) {
+                shadow_depth = pass->get_sampled_depth();
+            }
             if (pass->get_name() == BackgroundRenderPassConstructor::RENDER_PASS_NAME) {
                 render_target = pass->get_render_target();
             }
@@ -36,6 +40,7 @@ namespace enishi::render_pass {
         return PipelineDescriptionConstructer{renderer, window}
             .add_topology(types::PrimitiveTopology::TriangleList)
             ->add_shaders(shader_data_provider, this->get_paths())
+            ->add_shader_resource(shadow_depth)
             ->add_render_target_view(render_target)
             ->add_depth_stencil_view(
 #if defined(USE_VULKAN)

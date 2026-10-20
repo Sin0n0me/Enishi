@@ -1,5 +1,5 @@
-#include <animation/animation_controller.h>
-#include <core/system/animation/clip_sampler.h>
+#include <animation/playback/animation_controller.h>
+#include <animation/sampling/clip_sampler.h>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -39,7 +39,7 @@ void clip_sampler_tests() {
     controller.add_clip("motion", clip);
     check(controller.play("motion"), "play clip");
     controller.update(1);
-    core::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
+    animation::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
     check(pose.animation[0].position == glm::vec3(1, 3, 0),
         "relative motion preserves bind translation");
     check(pose.animation[1].position == glm::vec3(0, 7, 0), "unkeyed bone retains rest pose");
@@ -47,15 +47,15 @@ void clip_sampler_tests() {
     check(ik.disabled_bones.contains(0), "IK switches off exactly at key time");
     controller.pause();
     controller.update(1);
-    core::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
+    animation::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
     check(pose.animation[0].position == glm::vec3(1, 3, 0),
         "paused sampling does not accumulate offsets");
     controller.stop();
-    core::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
+    animation::sample_model_clip(*clip, controller.get_time(), pose, &morph, &ik);
     check(morph.weights[0] == 0 && ik.disabled_bones.empty(),
         "rewind resets morph and pre-key IK state");
     clip->relative_to_bind_pose = false;
-    core::sample_model_clip(*clip, 1, pose, nullptr, nullptr);
+    animation::sample_model_clip(*clip, 1, pose, nullptr, nullptr);
     check(
         pose.animation[0].position == glm::vec3(1, 0, 0), "absolute local tracks remain supported");
     check(controller.play("motion"), "restart");

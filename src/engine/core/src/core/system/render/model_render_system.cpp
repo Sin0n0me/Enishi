@@ -16,8 +16,10 @@ namespace enishi::core {
     ModelRenderSystem::ModelRenderSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<platform::IAssetSystem> asset_system,
         std::shared_ptr<platform::IRenderer> renderer,
-        std::shared_ptr<platform::IRenderPass> model_render_pass)
+        std::shared_ptr<platform::IRenderPass> model_render_pass,
+        std::shared_ptr<platform::IRenderPass> shadow_render_pass)
         : model_render_pass(model_render_pass)
+        , shadow_render_pass(std::move(shadow_render_pass))
         , registry(std::move(registry))
         , model_controller(std::make_shared<model_controller::ModelController>(asset_system,
               std::make_shared<model_controller::ModelRenderDataBuilder>(renderer, asset_system)))
@@ -86,6 +88,9 @@ namespace enishi::core {
         if (loaded != this->loaded_models.end()) {
             if (!loaded->second.visible) {
                 this->model_render_pass->add_mesh(loaded->second.mesh);
+                if (this->shadow_render_pass != nullptr) {
+                    this->shadow_render_pass->add_mesh(loaded->second.mesh);
+                }
                 loaded->second.visible = true;
                 this->registry->get<component::ModelComponent>(loaded->second.entity)
                     .unwrap_mut().visible = true;
@@ -120,6 +125,9 @@ namespace enishi::core {
         const auto mesh = inserted.unwrap_mut().render_handle;
         this->loaded_models.emplace(id, LoadedModel{entity, mesh, true});
         this->model_render_pass->add_mesh(mesh);
+        if (this->shadow_render_pass != nullptr) {
+            this->shadow_render_pass->add_mesh(mesh);
+        }
         this->remember_model(id);
         return {};
     }
@@ -137,6 +145,9 @@ namespace enishi::core {
             return;
         }
         this->model_render_pass->remove_mesh(loaded->second.mesh);
+        if (this->shadow_render_pass != nullptr) {
+            this->shadow_render_pass->remove_mesh(loaded->second.mesh);
+        }
         loaded->second.visible = false;
         this->registry->get<component::ModelComponent>(loaded->second.entity)
             .unwrap_mut().visible = false;

@@ -1,5 +1,4 @@
 #pragma once
-#include <component/model_component.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <platform/renderer/interface_renderer.h>
 
@@ -8,6 +7,6 @@ namespace enishi::core {
         platform::IResourceUpdater& updater, const types::UniformCamera& camera);
     [[nodiscard]] foundation::Result<void, platform::RenderError> upload_camera(
         platform::IRenderer& renderer,
-        const component::ModelComponent& model,
+        types::RenderHandle mesh,
         const types::UniformCamera& camera);
 } // namespace enishi::core

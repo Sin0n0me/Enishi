@@ -1,4 +1,4 @@
-#include <core/system/animation/material_morph.h>
+#include <animation/morph/material_morph.h>
 #include <core/system/render/material_morph_upload.h>
 #include <cstdlib>
 #include <cstring>
@@ -36,7 +36,7 @@ void material_morph_tests() {
         {{"diffuse", {0.2f, 0.4f, 0.6f, -0.2f}}, {"base_color_texture_tint", glm::vec4(0.1f)}}}};
     targets[2].offsets = {types::MorphWeightOffset{0, 0.5f}};
     auto weights = std::vector<float>{0, 0.5f, 1};
-    auto result = core::evaluate_material_morphs(materials, targets, weights);
+    auto result = animation::evaluate_material_morphs(materials, targets, weights);
     check(result.is_ok(), "evaluate grouped material morphs");
     const auto& first = result.unwrap()[0];
     check(glm::length(first.diffuse - glm::vec4(0.4f, 0.8f, 1.2f, 1.1f)) < TOLERANCE,
@@ -67,26 +67,26 @@ void material_morph_tests() {
     check(core::write_material_uniform(small, first).is_err(), "reject short material buffer");
     weights = {0.5f, 0.5f, 0};
     const auto before =
-        core::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse;
+        animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse;
     std::swap(targets[0], targets[1]);
-    check(core::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse == before,
+    check(animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse == before,
         "additive and multiplicative morph order does not change the result");
     weights = {0, 0, 0};
-    result = core::evaluate_material_morphs(materials, targets, weights);
+    result = animation::evaluate_material_morphs(materials, targets, weights);
     check(result.is_ok() && result.unwrap()[0].diffuse == glm::vec4(0.2f, 0.4f, 0.6f, 0.8f),
         "zero weights restore original material");
     targets[0].offsets = {
         types::MaterialMorphOffset{2, types::MorphOperation::Add, {{"diffuse", glm::vec4(1)}}}};
     weights[0] = 1;
-    check(core::evaluate_material_morphs(materials, targets, weights).is_err(),
+    check(animation::evaluate_material_morphs(materials, targets, weights).is_err(),
         "out of range material rejected");
     targets[0].offsets = {
         types::MaterialMorphOffset{0, types::MorphOperation::Add, {{"unknown", glm::vec4(1)}}}};
-    check(core::evaluate_material_morphs(materials, targets, weights).is_err(),
+    check(animation::evaluate_material_morphs(materials, targets, weights).is_err(),
         "unknown material property rejected");
     targets[0].offsets = {types::MaterialMorphOffset{0,
         types::MorphOperation::Add,
         {{"diffuse", glm::vec4(std::numeric_limits<float>::quiet_NaN())}}}};
-    check(core::evaluate_material_morphs(materials, targets, weights).is_err(),
+    check(animation::evaluate_material_morphs(materials, targets, weights).is_err(),
         "non-finite material value rejected");
 }

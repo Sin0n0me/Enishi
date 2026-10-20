@@ -77,6 +77,9 @@ namespace enishi::renderer::vulkan {
         void present(void) const override;
 
       private:
+        platform::RenderResult<void> init_shadow_resources();
+        platform::RenderResult<void> make_shadow_descriptors(
+            VulkanShadowTarget& target, VkImageLayout layout);
         [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
         [[nodiscard]] platform::RenderResult<VkPipeline> active_pipeline() const;
         [[nodiscard]] platform::RenderResult<void> prepare_mesh_sampler(VulkanMesh& mesh) const;

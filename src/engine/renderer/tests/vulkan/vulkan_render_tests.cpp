@@ -16,6 +16,7 @@
 #include <renderer/vulkan/vulkan_render_initializer.h>
 
 using namespace enishi;
+void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer);
 bool render_pass_test(const std::shared_ptr<platform::IRenderer>& renderer);
 namespace {
     constexpr int WIDTH = 256;
@@ -214,6 +215,7 @@ namespace {
         ImGui::Render();
         renderer.setup_views();
         require(device->recording, "UI frame not acquired");
+        device->begin_main_pass();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
         auto pixels = take(device->make_buffer(
             static_cast<VkDeviceSize>(device->extent.width) * device->extent.height * CHANNELS,
@@ -271,6 +273,7 @@ int main() {
     resize_test(*renderer, window.get());
     model_test(*renderer, types::SkinningMethod::LinearBlend);
     ui_test(*renderer, window.get());
+    shadow_render_test(*renderer);
     auto device = renderer->get_native_context();
     renderer.reset();
     require(device->validation_error_count() == 0, "Vulkan validation reported errors");

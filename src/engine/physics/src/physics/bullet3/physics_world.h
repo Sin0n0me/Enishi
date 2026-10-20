@@ -10,6 +10,7 @@
 #include <sub_system/physics/interface_physics_world_config_writer.h>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace enishi::physics::bullet3 {
     class PhysicsWorld : public sub_system::IPhysicsWorld {
@@ -25,6 +26,14 @@ namespace enishi::physics::bullet3 {
         std::shared_ptr<PhysicsResourcePool> resource_pool;
         std::unique_ptr<PhysicsHandleMapper> handle_mapper;
         std::unordered_map<types::PhysicsHandle, std::pair<int, int>> disabled_body_filters;
+        struct BodyEntry {
+            btRigidBody* native;
+            sub_system::IRigidBody* wrapper;
+        };
+        // Non-owning heap-object addresses remain stable when the resource pools grow.
+        std::vector<BodyEntry> registered_bodies;
+        std::vector<sub_system::IRigidBody*> enabled_bodies;
+        bool enabled_bodies_dirty{false};
 
       public:
         explicit PhysicsWorld(std::shared_ptr<sub_system::IPhysicsWorldConfigWriter> config);
@@ -55,9 +64,11 @@ namespace enishi::physics::bullet3 {
             const types::PhysicsHandle& handle, const types::RigidBodyImpulse& impulse) override;
 
         sub_system::IPhysicsWorldConfigWriter* get_config_writer(void) noexcept override;
-        const sub_system::IPhysicsWorldConfigReader* get_config_reader(void) const noexcept override;
+        const sub_system::IPhysicsWorldConfigReader* get_config_reader(
+            void) const noexcept override;
 
       private:
+        void refresh_enabled_bodies();
         foundation::Option<types::PhysicsHandle> resolve_object(
             const types::PhysicsHandle& handle) const noexcept;
     };

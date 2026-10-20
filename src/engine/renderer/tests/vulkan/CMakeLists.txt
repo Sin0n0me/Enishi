@@ -1,4 +1,4 @@
-add_executable(vulkan_render_tests vulkan_render_tests.cpp render_pass_test.cpp)
+add_executable(vulkan_render_tests vulkan_render_tests.cpp render_pass_test.cpp shadow_render_test.cpp)
 target_compile_features(vulkan_render_tests PRIVATE cxx_std_23)
 target_compile_definitions(vulkan_render_tests PRIVATE NOMINMAX
     VULKAN_SHADER_DIRECTORY="${CMAKE_BINARY_DIR}/shader/vulkan")

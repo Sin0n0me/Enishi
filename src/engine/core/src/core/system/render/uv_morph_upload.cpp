@@ -5,7 +5,7 @@ namespace enishi::core {
     foundation::Result<void, platform::RenderError> stage_vertex_uvs(
         platform::IResourceUpdater& updater,
         std::span<const types::MeshHandles::UVStream> streams,
-        const UVChannels& channels) {
+        const animation::UVChannels& channels) {
         if (channels.size() > streams.size()) {
             return foundation::Error(platform::RenderError::ResolveError, "UV streams are missing");
         }

@@ -16,7 +16,16 @@ jobs:
         platform: [x64]
     env:
       VULKAN_SDK_VERSION: '1.4.363.0'
+      UseMultiToolTask: 'true'
+      EnforceProcessCountAcrossBuilds: 'true'
     steps:
+      - name: Configure parallel builds
+        shell: pwsh
+        run: |
+          $jobs = [Environment]::ProcessorCount
+          "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" >> $env:GITHUB_ENV
+          "MultiProcMaxCount=$jobs" >> $env:GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -147,7 +156,7 @@ jobs:
         run: |
           cmake -S src -B build/vulkan/visualstudio -DENISHI_VULKAN_TESTS=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build build/vulkan/visualstudio --config ${{ matrix.config }} --target vulkan_render_tests
+          cmake --build build/vulkan/visualstudio --config ${{ matrix.config }} --target vulkan_render_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Validate Vulkan shaders

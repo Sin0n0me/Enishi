@@ -88,12 +88,15 @@ namespace enishi::physics::bullet3 {
 
         auto&& bullet_rigid_body = std::make_unique<btRigidBody>(construct_info);
         bullet_rigid_body->setSleepingThresholds(0.01f, glm::radians(0.1f));
-        // bullet_rigid_body->setUserPointer();
-        bullet_rigid_body->setActivationState(DISABLE_DEACTIVATION);
+        // Sleeping is allowed for both simulated and stationary animation-driven bodies.
+        bullet_rigid_body->setActivationState(ACTIVE_TAG);
 
         if (is_kinematic) {
+            // Zero mass initially sets STATIC. Kinematic bodies must participate in Bullet's
+            // non-static activation updates so they can sleep and resume animation correctly.
             bullet_rigid_body->setCollisionFlags(
-                bullet_rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+                (bullet_rigid_body->getCollisionFlags() & ~btCollisionObject::CF_STATIC_OBJECT) |
+                btCollisionObject::CF_KINEMATIC_OBJECT);
         }
 
         return bullet_rigid_body;

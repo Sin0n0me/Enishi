@@ -16,9 +16,9 @@ namespace enishi::core {
     }
 
     foundation::Result<void, platform::RenderError> upload_camera(platform::IRenderer& renderer,
-        const component::ModelComponent& model,
+        types::RenderHandle mesh_handle,
         const types::UniformCamera& camera) {
-        const auto mapped = renderer.get_handle_mapper()->get(model.render_handle);
+        const auto mapped = renderer.get_handle_mapper()->get(mesh_handle);
         if (mapped.is_none()) {
             return foundation::Error(
                 platform::RenderError::ResolveError, "Model mesh handle is missing");

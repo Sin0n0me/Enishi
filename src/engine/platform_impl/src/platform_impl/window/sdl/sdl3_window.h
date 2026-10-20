@@ -28,7 +28,11 @@ namespace enishi::platform_impl {
         bool is_closing;
         std::optional<types::ScreenMousePosition> model_press;
         types::WindowPosition drag_origin{};
+        glm::vec2 applied_drag_offset{0};
         bool model_dragging = false;
+        bool model_drag_claimed = false;
+        std::function<bool(types::ClientMousePosition)> begin_model_drag;
+        std::function<void()> end_model_drag;
         std::weak_ptr<sub_system::IUI> ui;
         std::function<void(const SDL_Event&)> ui_event_handler;
         std::function<bool(types::ClientMousePosition)> interactive_hit_test;
@@ -68,6 +72,8 @@ namespace enishi::platform_impl {
         void close(void) override;
         bool should_close(void) const override;
         void poll_events(void) override;
+        void set_model_drag_handler(std::function<bool(types::ClientMousePosition)> begin,
+            std::function<void()> end) override;
         void set_interactive_hit_test(
             std::function<bool(types::ClientMousePosition)> hit_test) override;
 

@@ -18,6 +18,20 @@ namespace enishi::renderer::vulkan {
                 platform::RenderError::MakeError, "Vulkan swapchain depth format is D32_FLOAT");
         }
         const auto handle = this->make_handle(types::RenderHandleType::Image);
+        if (description.contains(types::ImageUsage::DepthStencil) &&
+            description.contains(types::ImageUsage::ShaderResource)) {
+            if (description.size.x < 1 || description.size.y < 1) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    "Sampled render images require positive depth dimensions");
+            }
+            auto target =
+                this->context->make_shadow_target({static_cast<std::uint32_t>(description.size.x),
+                    static_cast<std::uint32_t>(description.size.y)});
+            if (target.is_err()) {
+                return std::move(target).take_err();
+            }
+            this->state->shadow_targets.emplace(handle, target.unwrap());
+        }
         this->state->images.emplace(handle, description);
         return handle;
     }
@@ -45,15 +59,45 @@ namespace enishi::renderer::vulkan {
                 platform::RenderError::MakeError, "Vulkan depth view requires a depth image");
         }
         const auto handle = this->make_handle(types::RenderHandleType::View);
+        if (this->state->shadow_targets.contains(image)) {
+            if (description.format != types::ImageFormat::D32_FLOAT ||
+                description.base_mip_level != 0 || description.base_array_layer != 0 ||
+                description.mip_Level_count != 1 || description.array_layer_count != 1) {
+                return foundation::Error(
+                    platform::RenderError::MakeError, "Invalid sampled depth view");
+            }
+            this->state->shadow_targets.emplace(handle, this->state->shadow_targets.at(image));
+        }
         auto view = std::make_shared<VulkanDepthStencilView>(handle, description);
         this->resource_accessor->make_depth_stencil_view(handle.id, view);
         return view;
     }
     platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
     VulkanRenderer::create_shader_resource_view(
-        types::RenderHandle, const types::ImageViewDescription&) {
-        return foundation::Error(platform::RenderError::MakeError,
-            "Vulkan textures are bound through model material descriptors");
+        types::RenderHandle image, const types::ImageViewDescription& description) {
+        constexpr std::uint32_t SHADOW_TEXTURE_SLOT = 3;
+        const auto found = this->state->shadow_targets.find(image);
+        if (found == this->state->shadow_targets.end() ||
+            description.shader_resource_slot != SHADOW_TEXTURE_SLOT ||
+            description.format != types::ImageFormat::D32_FLOAT ||
+            description.aspect != types::ImageAspect::Depth || description.base_mip_level != 0 ||
+            description.base_array_layer != 0 || description.mip_Level_count != 1 ||
+            description.array_layer_count != 1) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Invalid Vulkan sampled depth view");
+        }
+        if (found->second->descriptors == VK_NULL_HANDLE) {
+            auto result = this->make_shadow_descriptors(
+                *found->second, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+            if (result.is_err()) {
+                return std::move(result).take_err();
+            }
+        }
+        const auto handle = this->make_handle(types::RenderHandleType::View);
+        this->state->shadow_targets.emplace(handle, found->second);
+        auto view = std::make_shared<VulkanShaderResourceView>(handle, description);
+        this->resource_accessor->make_shader_resource_view(handle.id, view);
+        return view;
     }
     platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
     VulkanRenderer::create_unordered_access_view(

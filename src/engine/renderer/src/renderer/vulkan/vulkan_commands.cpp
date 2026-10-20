@@ -23,6 +23,9 @@ namespace enishi::renderer::vulkan {
         if (!targets.empty()) {
             clear_color = targets.front()->get_clear_color();
         }
+        this->state->sampled_shadow = this->state->fallback_shadow;
+        this->state->active_shadow.reset();
+        this->state->main_viewport = {};
         auto result = this->context->begin_frame(clear_color);
         if (result.is_err()) {
             fail(*this->state, result.unwrap_err().get_message());
@@ -58,14 +61,40 @@ namespace enishi::renderer::vulkan {
         }
     }
     void VulkanRenderer::submit_command_view(
-        const types::DrawCommand&, const types::RenderHandle&) const {
-        // Color/depth views alias the attachments cleared once in begin_frame, preserving earlier
-        // draws.
+        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
+        if (!this->context->recording || this->state->failed ||
+            command.sub_command != types::SubCommand::Bind) {
+            return;
+        }
+        const auto found = this->state->shadow_targets.find(command.handle);
+        if (found == this->state->shadow_targets.end()) {
+            return; // Main attachments are opened lazily, after the shadow pass.
+        }
+        const auto depth = this->resource_accessor->get_depth_stencil_view(command.handle.id);
+        if (depth.is_some() && !render_target.is_valid()) {
+            auto result =
+                this->context->begin_shadow_pass(*found->second, depth.unwrap()->clear_depth());
+            if (result.is_err()) {
+                fail(*this->state, result.unwrap_err().get_message());
+                return;
+            }
+            this->state->active_shadow = found->second;
+        } else if (this->resource_accessor->get_shader_resource_view(command.handle.id).is_some()) {
+            if (this->state->active_shadow != found->second) {
+                fail(*this->state, "Sampled shadow must have been rendered in this frame");
+                return;
+            }
+            this->context->begin_main_pass();
+            this->state->sampled_shadow = found->second;
+        }
     }
     void VulkanRenderer::submit_command_viewport(const types::DrawCommand& command) const {
         const auto found = this->state->viewports.find(command.handle);
         if (!this->context->recording || found == this->state->viewports.end()) {
             return;
+        }
+        if (!this->context->shadow_recording) {
+            this->state->main_viewport = command.handle;
         }
         const auto& value = found->second;
         VkViewport viewport{value.left_top_x,
@@ -105,6 +134,14 @@ namespace enishi::renderer::vulkan {
             fail(*this->state, "Invalid Vulkan mesh handle");
             return;
         }
+        if (!this->context->shadow_recording) {
+            this->context->begin_main_pass();
+            // Opening the main pass restores its extent; preserve an explicitly submitted viewport.
+            if (this->state->main_viewport.is_valid()) {
+                this->submit_command_viewport(
+                    {.handle = this->state->main_viewport, .sub_command = types::SubCommand::Bind});
+            }
+        }
         auto pipeline = this->active_pipeline();
         if (pipeline.is_err()) {
             fail(*this->state, pipeline.unwrap_err().get_message());
@@ -119,6 +156,17 @@ namespace enishi::renderer::vulkan {
         const auto& descriptors = mesh.sampler_descriptors.at(this->state->sampler);
         const auto buffer = this->context->command;
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.unwrap());
+        const auto& shadow = this->context->shadow_recording ? this->state->fallback_shadow
+                                                             : this->state->sampled_shadow;
+        constexpr std::uint32_t SHADOW_SET = 1;
+        vkCmdBindDescriptorSets(buffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            this->state->pipeline_layout,
+            SHADOW_SET,
+            1,
+            &shadow->descriptors,
+            0,
+            nullptr);
         constexpr VkDeviceSize VERTEX_OFFSET = 0;
         vkCmdBindVertexBuffers(buffer, 0, 1, &mesh.vertices->buffer, &VERTEX_OFFSET);
         vkCmdBindIndexBuffer(buffer, mesh.indices->buffer, 0, mesh.index_type);
@@ -144,7 +192,7 @@ namespace enishi::renderer::vulkan {
                     indexed->first_instance);
             } else if (const auto plain =
                            std::get_if<types::DrawParameter>(&material.draw.parameter);
-                       plain != nullptr) {
+                plain != nullptr) {
                 vkCmdDraw(buffer,
                     plain->vertex_count,
                     (std::max)(MINIMUM_INSTANCE_COUNT, plain->instance_count),
@@ -160,11 +208,11 @@ namespace enishi::renderer::vulkan {
         // Keep sets immutable: updating a set already recorded invalidates that command buffer.
         constexpr std::uint32_t UNIFORM_COUNT = 3;
         constexpr std::uint32_t TEXTURE_COUNT = 3;
-        constexpr std::uint32_t DESCRIPTOR_COUNT = UNIFORM_COUNT + TEXTURE_COUNT;
+        constexpr std::uint32_t DESCRIPTOR_COUNT = UNIFORM_COUNT + TEXTURE_COUNT + 1;
         const auto count = static_cast<std::uint32_t>(mesh.materials.size());
-        // One set per material, each containing three uniforms and three sampled images.
+        // One set per material, including the shadow projection uniform.
         const std::array<VkDescriptorPoolSize, 2> sizes{
-            {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count * UNIFORM_COUNT},
+            {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count * (UNIFORM_COUNT + 1)},
                 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count * TEXTURE_COUNT}}};
         VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
         pool.maxSets = count;

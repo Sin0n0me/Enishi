@@ -1,6 +1,6 @@
 #include "vertex_morph_upload.h"
 #include "uv_morph_upload.h"
-#include <core/system/animation/vertex_morph.h>
+#include <animation/morph/vertex_morph.h>
 #include <cstring>
 
 namespace enishi::core {
@@ -26,7 +26,7 @@ namespace enishi::core {
     platform::RenderResult<void> upload_vertex_morphs(platform::IRenderer& renderer,
         const component::ModelComponent& model,
         const component::MorphComponent& morph) {
-        const auto positions = evaluate_vertex_morphs(
+        const auto positions = animation::evaluate_vertex_morphs(
             model.morph_base_positions, model.morph_targets.targets, morph.weights);
         if (positions.is_err()) {
             return positions.propagation(platform::RenderError::ResolveError);
@@ -49,7 +49,7 @@ namespace enishi::core {
                 platform::RenderError::ResolveError, "Morph vertex updater is missing");
         }
         const auto uvs =
-            evaluate_uv_morphs(model.morph_base_uvs, model.morph_targets.targets, morph.weights);
+            animation::evaluate_uv_morphs(model.morph_base_uvs, model.morph_targets.targets, morph.weights);
         if (uvs.is_err()) {
             return uvs.propagation(platform::RenderError::ResolveError);
         }

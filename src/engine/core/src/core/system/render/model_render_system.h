@@ -20,6 +20,7 @@ namespace enishi::core {
 
       private:
         std::shared_ptr<platform::IRenderPass> model_render_pass;
+        std::shared_ptr<platform::IRenderPass> shadow_render_pass;
         std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<model_controller::ModelController> model_controller;
         bool is_initial_models_registered;
@@ -29,7 +30,8 @@ namespace enishi::core {
         ModelRenderSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<platform::IAssetSystem> asset_system,
             std::shared_ptr<platform::IRenderer> renderer,
-            std::shared_ptr<platform::IRenderPass> model_render_pass);
+            std::shared_ptr<platform::IRenderPass> model_render_pass,
+            std::shared_ptr<platform::IRenderPass> shadow_render_pass = nullptr);
 
       public:
         std::vector<sub_system::ModelEntry> get_models(void) const override;
