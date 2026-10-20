@@ -4,6 +4,7 @@
 #include <platform/window/interface_window.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
+#include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 #include <render_pass/render_pass_orchestra.h>
 
 namespace {
@@ -92,10 +93,20 @@ bool render_pass_test(const std::shared_ptr<enishi::platform::IRenderer>& render
     orchestra.add_constructor(
         std::make_shared<enishi::render_pass::BackgroundRenderPassConstructor>());
     orchestra.add_constructor(std::make_shared<enishi::render_pass::ModelRenderPassConstructor>());
+    orchestra.add_constructor(
+        std::make_shared<enishi::render_pass::ShadowMapRenderPassConstructor>());
     SizeWindow window;
     auto result = orchestra.make_render_passes(&window);
     if (result.is_err()) {
         std::cerr << result.unwrap_err().get_message() << '\n';
+        return false;
+    }
+    orchestra.set_render_passes({enishi::render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
+        enishi::render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
+        enishi::render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME});
+    const auto shadow = orchestra.get_render_pass(
+        enishi::render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME);
+    if (shadow.is_none() || !shadow.unwrap()->get_sampled_depth().is_valid()) {
         return false;
     }
     std::cout << "Generated shader loading and application render-pass construction passed\n";
