@@ -2,7 +2,10 @@
 #include <render_pass/constructor/pipeline_description_builder.h>
 
 namespace enishi::render_pass {
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+    constexpr char VS_FILE_NAME[] = "vs_shadow_map_vk";
+    constexpr char PS_FILE_NAME[] = "ps_shadow_map_vk";
+#elif defined(USE_OPENGL40)
     constexpr char VS_FILE_NAME[] = "vs_shadow_map_gl";
     constexpr char PS_FILE_NAME[] = "ps_shadow_map_gl";
 #else
