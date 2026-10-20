@@ -1,5 +1,5 @@
 #pragma once
-#include <animation/cursor_pose.h>
+#include <animation/procedural/cursor/cursor_pose.h>
 #include <platform/window/interface_window.h>
 
 namespace enishi::core {

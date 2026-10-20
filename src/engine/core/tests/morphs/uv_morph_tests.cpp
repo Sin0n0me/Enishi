@@ -1,4 +1,4 @@
-#include <animation/uv_morph.h>
+#include <animation/morph/uv_morph.h>
 #include <core/system/render/uv_morph_upload.h>
 #include <cstdlib>
 #include <cstring>

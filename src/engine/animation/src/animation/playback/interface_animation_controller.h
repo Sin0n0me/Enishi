@@ -1,5 +1,5 @@
 #pragma once
-#include "clip_data/animation.h"
+#include "../clip_data/animation.h"
 #include <memory>
 #include <string>
 

@@ -1,5 +1,5 @@
 #include "material_morph_upload.h"
-#include <animation/material_morph.h>
+#include <animation/morph/material_morph.h>
 #include <cstring>
 
 namespace enishi::core {

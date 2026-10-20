@@ -1,4 +1,4 @@
-#include <animation/material_morph.h>
+#include <animation/morph/material_morph.h>
 #include <core/system/render/material_morph_upload.h>
 #include <cstdlib>
 #include <cstring>

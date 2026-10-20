@@ -1,5 +1,5 @@
-#include <animation/animation_controller.h>
-#include <animation/clip_sampler.h>
+#include <animation/playback/animation_controller.h>
+#include <animation/sampling/clip_sampler.h>
 #include <cstdlib>
 #include <iostream>
 #include <limits>

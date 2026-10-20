@@ -1,5 +1,5 @@
 #pragma once
-#include <animation/cursor_pose_config.h>
+#include <animation/procedural/cursor/cursor_pose_config.h>
 #include <filesystem>
 #include <foundation/result/result.h>
 #include <istream>

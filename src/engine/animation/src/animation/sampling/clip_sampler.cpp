@@ -1,6 +1,6 @@
 #include "clip_sampler.h"
 #include <algorithm>
-#include <animation/keyframe_interpolator.h>
+#include <animation/sampling/keyframe_interpolator.h>
 
 namespace enishi::animation {
     namespace {

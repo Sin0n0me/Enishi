@@ -1,5 +1,5 @@
 #include <cmath>
-#include <animation/morph_weights.h>
+#include <animation/morph/morph_weights.h>
 #include <cstdlib>
 #include <iostream>
 #include <limits>

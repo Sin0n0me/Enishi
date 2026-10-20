@@ -1,5 +1,5 @@
 #include "animation_system.h"
-#include <animation/clip_sampler.h>
+#include <animation/sampling/clip_sampler.h>
 #include <component/physics_bodies_component.h>
 
 namespace enishi::core {

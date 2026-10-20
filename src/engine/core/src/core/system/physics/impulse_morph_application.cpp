@@ -1,5 +1,5 @@
 #include "impulse_morph_application.h"
-#include <animation/impulse_morph.h>
+#include <animation/morph/impulse_morph.h>
 
 namespace enishi::core {
     foundation::Result<void, sub_system::PhysicsError> apply_impulse_morphs(

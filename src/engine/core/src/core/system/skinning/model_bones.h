@@ -1,6 +1,6 @@
 #pragma once
-#include <animation/bone_morph.h>
-#include <animation/cursor_pose.h>
+#include <animation/morph/bone_morph.h>
+#include <animation/procedural/cursor/cursor_pose.h>
 #include <engine_types/assets/model/addons/bone_constraints.h>
 #include <memory>
 #include <skinning_system/cache/animation_bone_cache.h>

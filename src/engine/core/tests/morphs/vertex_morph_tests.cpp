@@ -1,4 +1,4 @@
-#include <animation/vertex_morph.h>
+#include <animation/morph/vertex_morph.h>
 #include <core/system/render/vertex_morph_upload.h>
 #include <cstdlib>
 #include <cstring>

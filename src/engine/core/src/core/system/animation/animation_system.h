@@ -1,6 +1,6 @@
 #pragma once
 #include <animation/errors/errors.h>
-#include <animation/interface_animation_controller.h>
+#include <animation/playback/interface_animation_controller.h>
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <core/system/interface_system.h>

@@ -10,8 +10,8 @@ add_executable(material_tests material_tests.cpp
     "${ENGINE_ROOT}/foundation/src/foundation/str/string_builder.cpp")
 target_sources(material_tests PRIVATE
     "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp"
-    "${ENGINE_ROOT}/animation/src/animation/morph_weights.cpp"
-    "${ENGINE_ROOT}/animation/src/animation/material_morph.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/morph_weights.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/material_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/render/material_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
     material_morph_tests.cpp)

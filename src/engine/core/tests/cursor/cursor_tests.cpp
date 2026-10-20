@@ -1,10 +1,10 @@
-#include <animation/animation_controller.h>
+#include <animation/playback/animation_controller.h>
 #include <chrono>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/cursor_pose_config.h>
-#include <animation/cursor_pose.h>
+#include <animation/procedural/cursor/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
 #include <engine_types/renderer/uniform_buffer/camera.h>

@@ -1,6 +1,6 @@
 #pragma once
 #include "cursor_pose_config.h"
-#include "pose_transition.h"
+#include "../../transition/pose_transition.h"
 #include <array>
 #include <component/animation_component.h>
 #include <component/model_component.h>

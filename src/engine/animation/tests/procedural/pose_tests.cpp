@@ -1,5 +1,5 @@
-#include <animation/cursor_pose.h>
-#include <animation/pose_transition.h>
+#include <animation/procedural/cursor/cursor_pose.h>
+#include <animation/transition/pose_transition.h>
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>

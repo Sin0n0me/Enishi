@@ -1,6 +1,6 @@
 #include "vertex_morph_upload.h"
 #include "uv_morph_upload.h"
-#include <animation/vertex_morph.h>
+#include <animation/morph/vertex_morph.h>
 #include <cstring>
 
 namespace enishi::core {

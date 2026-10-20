@@ -1,6 +1,6 @@
 #include "animation_system.h"
-#include <animation/model_motion_loader.h>
-#include <animation/animation_controller.h>
+#include <animation/loading/model_motion_loader.h>
+#include <animation/playback/animation_controller.h>
 
 namespace enishi::core {
     foundation::Result<void, animation::AnimationError> AnimationSystem::play_vmd(

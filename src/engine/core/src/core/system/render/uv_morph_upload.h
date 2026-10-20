@@ -1,5 +1,5 @@
 #pragma once
-#include <animation/uv_morph.h>
+#include <animation/morph/uv_morph.h>
 #include <engine_types/handle/renderer/handles/mesh_handles.h>
 #include <platform/renderer/updater/interface_resource_updater.h>
 

@@ -1,5 +1,5 @@
 #include <animation/converter/vmd/vmd_converter.h>
-#include <animation/keyframe_interpolator.h>
+#include <animation/sampling/keyframe_interpolator.h>
 #include <assets_system/model/bone/bone_resolver.h>
 #include <cstdlib>
 #include <cstring>

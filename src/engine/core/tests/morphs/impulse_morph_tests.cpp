@@ -1,4 +1,4 @@
-#include <animation/impulse_morph.h>
+#include <animation/morph/impulse_morph.h>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
