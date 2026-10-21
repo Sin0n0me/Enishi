@@ -23,6 +23,7 @@ namespace enishi {
         std::shared_ptr<sub_system::ICameraController> camera;
         std::shared_ptr<sub_system::ICameraController> display_camera;
         std::shared_ptr<sub_system::IWindowAnimationSync> window_animation_sync;
+        std::shared_ptr<platform::IWindow> root_window;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;

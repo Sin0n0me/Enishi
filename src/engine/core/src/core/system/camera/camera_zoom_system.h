@@ -16,7 +16,6 @@ namespace enishi::core {
         CameraZoomSystem(std::shared_ptr<platform::IWindow> window,
             std::shared_ptr<sub_system::ICameraController> camera,
             CameraZoomConfig config);
-        bool should_close() override;
         void pre_update() override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update() override;

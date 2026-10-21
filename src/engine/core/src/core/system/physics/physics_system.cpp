@@ -14,10 +14,6 @@ namespace enishi::core {
         , skinning_system(std::move(skinning_system)) {
     }
 
-    bool PhysicsSystem::should_close(void) {
-        return false;
-    }
-
     void PhysicsSystem::pre_update(void) {
     }
 

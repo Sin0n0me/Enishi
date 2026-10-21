@@ -30,7 +30,7 @@ namespace enishi::core {
             std::shared_ptr<sub_system::IScriptEngine> scripts,
             std::shared_ptr<sub_system::RenderSettings> render_settings);
         void update(sub_system::IUI& ui);
-        [[nodiscard]] bool should_close(void) const;
+        [[nodiscard]] bool is_exit_requested(void) const;
 
       private:
         void draw_actions(sub_system::IUI& ui);

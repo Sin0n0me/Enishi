@@ -35,10 +35,6 @@ namespace enishi::core {
         return iter->second;
     }
 
-    bool AnimationSystem::should_close(void) {
-        return false;
-    }
-
     void AnimationSystem::pre_update(void) {
     }
 

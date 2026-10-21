@@ -84,9 +84,6 @@ namespace enishi::core {
         }
     }
 
-    bool ModelClickSystem::should_close(void) {
-        return false;
-    }
     void ModelClickSystem::post_update(void) {
     }
     void ModelClickSystem::render(void) const {

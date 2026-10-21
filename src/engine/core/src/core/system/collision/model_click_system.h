@@ -27,7 +27,6 @@ namespace enishi::core {
         void add_handler(std::shared_ptr<sub_system::IModelClickHandler> handler);
         [[nodiscard]] std::optional<types::ModelHit> pick(
             types::ClientMousePosition cursor, bool apply_click_mode = false) const;
-        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;

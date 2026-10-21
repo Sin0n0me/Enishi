@@ -38,9 +38,6 @@ namespace enishi::core {
         }
     }
 
-    bool CameraZoomSystem::should_close() {
-        return false;
-    }
     void CameraZoomSystem::update(const types::DeltaTime& delta_time) {
     }
     void CameraZoomSystem::post_update() {

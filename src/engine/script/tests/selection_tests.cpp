@@ -134,4 +134,8 @@ void selection_tests() {
     require(settings->self_shadow_enabled, "Settings must restore self shadows");
     ui.clicked = "戻る";
     selection.update(ui);
+    require(!selection.is_exit_requested(), "Exit must not be requested initially");
+    ui.clicked = "終了";
+    selection.update(ui);
+    require(selection.is_exit_requested(), "Exit button must request window closure");
 }

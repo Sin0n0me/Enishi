@@ -293,7 +293,7 @@ namespace enishi::platform_impl {
     }
 
     bool SDL3Window::should_close(void) const {
-        return !this->is_closing;
+        return this->is_closing;
     }
 
     void SDL3Window::poll_events(void) {

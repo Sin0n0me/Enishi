@@ -20,10 +20,6 @@ namespace enishi::core {
         : registry(std::move(registry)), physics_engine(std::move(physics_engine)) {
     }
 
-    bool SkinningSystem::should_close(void) {
-        return false;
-    }
-
     void SkinningSystem::pre_update(void) {
     }
 

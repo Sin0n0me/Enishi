@@ -35,10 +35,6 @@ namespace enishi::core {
         this->ui = std::move(ui);
     }
 
-    bool enishi::core::RenderSystem::should_close(void) {
-        return false;
-    }
-
     void enishi::core::RenderSystem::pre_update(void) {
     }
 

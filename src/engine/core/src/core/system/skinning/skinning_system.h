@@ -51,7 +51,6 @@ namespace enishi::core {
         explicit SkinningSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept;
 
-        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void update_after_physics(void);

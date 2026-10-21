@@ -16,7 +16,6 @@ namespace enishi::core {
       public:
         ModelCollisionSystem(
             std::shared_ptr<ecs::Registry> registry, std::shared_ptr<collider::Collider> collider);
-        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;

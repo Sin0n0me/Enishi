@@ -13,7 +13,7 @@ namespace enishi::core {
         , render_settings(std::move(render_settings)) {
     }
 
-    bool SelectionUI::should_close(void) const {
+    bool SelectionUI::is_exit_requested(void) const {
         return this->exit_requested;
     }
 

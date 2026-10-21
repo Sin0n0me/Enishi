@@ -26,10 +26,6 @@ namespace enishi::core {
         , is_initial_models_registered(false) {
     }
 
-    bool ModelRenderSystem::should_close(void) {
-        return false;
-    }
-
     void ModelRenderSystem::pre_update(void) {
         if (this->is_initial_models_registered) {
             return;

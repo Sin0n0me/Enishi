@@ -88,7 +88,8 @@ namespace enishi {
             COLLISION_PRIORITY, this->registry, collider);
 
         // ウィンドウの初期化
-        const auto root_window = this->init_window();
+        this->root_window = this->init_window();
+        const auto& root_window = this->root_window;
         if (!bool(root_window)) {
             return false;
         }
@@ -168,7 +169,7 @@ namespace enishi {
         const auto init_time = this->app_timer.tick_unclamp();
         foundation::Logger::info(std::format("初期化時間: {:%S}s", init_time.delta_time));
 
-        for (; !this->system_scheduler.should_close();) {
+        for (; !this->root_window->should_close();) {
             const auto dt = this->app_timer.tick();
 
             // 更新
@@ -303,8 +304,12 @@ namespace enishi {
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,
-            [selection](sub_system::IUI& ui) { selection->update(ui); },
-            [selection]() { return selection->should_close(); });
+            [selection, window](sub_system::IUI& ui) {
+                selection->update(ui);
+                if (selection->is_exit_requested()) {
+                    window->close();
+                }
+            });
         render_system->set_ui(ui);
         return true;
     }
