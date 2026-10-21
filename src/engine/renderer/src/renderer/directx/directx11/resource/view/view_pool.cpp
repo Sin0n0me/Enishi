@@ -1,10 +1,10 @@
 #include "view_pool.h"
-#include "depth_stencil_view.h"
-#include "render_target_view.h"
-#include "shader_resource_view.h"
-#include "unordered_access_view.h"
 
 namespace enishi::renderer::directx {
+    ViewPool::ViewPool(ResourceAccessor& interfaces)
+        : interfaces(interfaces) {
+    }
+
     std::tuple<types::HandleId, ViewPool::NativeDepthStencilView&>
     ViewPool::make_native_depth_stencil_view(void) noexcept {
         return this->handle_mapper.make_from(
@@ -65,29 +65,26 @@ namespace enishi::renderer::directx {
                 }
                 opt_native_resource.unwrap_mut().Reset();
 
-                auto opt_interface = this->depth_stencil.get(mapped_handle.interface_index);
-                opt_interface.unwrap_mut().reset();
             } break;
             case types::ImageViewType::RenderTarget: {
+                this->native_render_targets.get(mapped_handle.resource_index).unwrap_mut().Reset();
             } break;
             case types::ImageViewType::ShaderResource: {
+                this->native_shader_resources.get(mapped_handle.resource_index)
+                    .unwrap_mut()
+                    .Reset();
             } break;
             case types::ImageViewType::UnorderedAccess: {
+                this->native_unordered_accesses.get(mapped_handle.resource_index)
+                    .unwrap_mut()
+                    .Reset();
             } break;
             default:
                 return;
         }
 
+        this->interfaces.remove_view(handle);
         this->handle_mapper.remove(handle);
-    }
-
-    foundation::Option<types::ImageViewType> ViewPool::get_view_type(
-        const types::HandleId& handle) const noexcept {
-        const auto opt_view = this->handle_mapper.get(handle);
-        if (opt_view.is_none()) {
-            return {};
-        }
-        return opt_view.unwrap().type;
     }
 
     foundation::Option<const ViewPool::NativeDepthStencilView&>
@@ -154,124 +151,4 @@ namespace enishi::renderer::directx {
             });
     }
 
-    types::HandleId ViewPool::make_render_target_view(
-        const types::HandleId& handle, RenderTargetView&& rtv) noexcept {
-        auto opt_view_handle = this->handle_mapper.get(handle);
-        if (opt_view_handle.is_none()) {
-            return {};
-        }
-        auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] = this->render_targets.emplace(std::move(rtv));
-        view_handle.interface_index = interface_index;
-
-        return handle;
-    }
-    types::HandleId ViewPool::make_shader_resource_view(
-        const types::HandleId& handle, ShaderResourceView&& srv) noexcept {
-        auto opt_view_handle = this->handle_mapper.get(handle);
-        if (opt_view_handle.is_none()) {
-            return {};
-        }
-        auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] = this->shader_resources.emplace(std::move(srv));
-        view_handle.interface_index = interface_index;
-
-        return handle;
-    }
-    types::HandleId ViewPool::make_depth_stencil_view(
-        const types::HandleId& handle, DepthStencilView&& dsv) noexcept {
-        auto opt_view_handle = this->handle_mapper.get(handle);
-        if (opt_view_handle.is_none()) {
-            return {};
-        }
-        auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] = this->depth_stencil.emplace(std::move(dsv));
-        view_handle.interface_index = interface_index;
-
-        return handle;
-    }
-    types::HandleId ViewPool::make_unordered_access_view(
-        const types::HandleId& handle, UnorderedAccessView&& uav) noexcept {
-        auto opt_view_handle = this->handle_mapper.get(handle);
-        if (opt_view_handle.is_none()) {
-            return {};
-        }
-        auto& view_handle = opt_view_handle.unwrap_mut();
-        const auto [interface_index, _] = this->unordered_access.emplace(std::move(uav));
-        view_handle.interface_index = interface_index;
-
-        return handle;
-    }
-    foundation::Option<ViewPool::RenderTargetView&> ViewPool::get_render_target_view(
-        const types::HandleId handle) noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->render_targets.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<const ViewPool::RenderTargetView&> ViewPool::get_render_target_view(
-        const types::HandleId handle) const noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->render_targets.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<ViewPool::ShaderResourceView&> ViewPool::get_shader_resource_view(
-        const types::HandleId handle) noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->shader_resources.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<const ViewPool::ShaderResourceView&> ViewPool::get_shader_resource_view(
-        const types::HandleId handle) const noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->shader_resources.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<ViewPool::DepthStencilView&> ViewPool::get_depth_stencil_view(
-        const types::HandleId handle) noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->depth_stencil.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<const ViewPool::DepthStencilView&> ViewPool::get_depth_stencil_view(
-        const types::HandleId handle) const noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->depth_stencil.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<ViewPool::UnorderedAccessView&> ViewPool::get_unordered_access_view(
-        const types::HandleId handle) noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->unordered_access.get(mapped_handle.interface_index);
-            });
-    }
-    foundation::Option<const ViewPool::UnorderedAccessView&> ViewPool::get_unordered_access_view(
-        const types::HandleId handle) const noexcept {
-        return this->handle_mapper.get(handle).and_then(
-            [this](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return this->unordered_access.get(mapped_handle.interface_index);
-            });
-    }
-    std::span<const ViewPool::RenderTargetView> ViewPool::get_render_target_views(
-        void) const noexcept {
-        return this->render_targets.get_all();
-    }
-    std::span<const ViewPool::ShaderResourceView> ViewPool::get_shader_resource_views(
-        void) const noexcept {
-        return this->shader_resources.get_all();
-    }
-    std::span<const ViewPool::DepthStencilView> ViewPool::get_depth_stencil_views(
-        void) const noexcept {
-        return this->depth_stencil.get_all();
-    }
-    std::span<const ViewPool::UnorderedAccessView> ViewPool::get_unordered_access_views(
-        void) const noexcept {
-        return this->unordered_access.get_all();
-    }
 } // namespace enishi::renderer::directx

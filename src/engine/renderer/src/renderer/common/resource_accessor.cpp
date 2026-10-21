@@ -1,4 +1,5 @@
 #include "resource_accessor.h"
+#include <algorithm>
 #include <engine_types/handle/handle_allocator.h>
 
 namespace enishi::renderer {
@@ -219,5 +220,26 @@ namespace enishi::renderer {
     }
     void ResourceAccessor::remove_buffer(types::HandleId handle) noexcept {
         this->buffers.erase(handle);
+    }
+    void ResourceAccessor::remove_state(const types::HandleId handle) noexcept {
+        this->state_kinds.erase(handle);
+    }
+
+    void ResourceAccessor::remove_view(const types::HandleId handle) noexcept {
+        const auto remove = [handle](auto& views, auto& list) {
+            const auto entry = views.find(handle);
+            if (entry == views.end()) {
+                return;
+            }
+            const auto item = std::find(list.begin(), list.end(), entry->second);
+            if (item != list.end()) {
+                list.erase(item);
+            }
+            views.erase(entry);
+        };
+        remove(this->render_targets, this->render_target_list);
+        remove(this->shader_resources, this->shader_resource_list);
+        remove(this->depth_stencils, this->depth_stencil_list);
+        remove(this->unordered_accesses, this->unordered_access_list);
     }
 } // namespace enishi::renderer

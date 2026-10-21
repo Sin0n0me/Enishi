@@ -96,5 +96,7 @@ namespace enishi::renderer {
         foundation::Option<types::StateKind> get_state_kind(
             const types::HandleId& handle) const noexcept override;
         void add_state(types::HandleId handle, types::StateKind kind) noexcept;
+        void remove_state(types::HandleId handle) noexcept;
+        void remove_view(types::HandleId handle) noexcept;
     };
 } // namespace enishi::renderer
