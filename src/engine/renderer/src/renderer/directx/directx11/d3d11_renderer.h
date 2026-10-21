@@ -14,12 +14,10 @@ namespace enishi::renderer::directx {
       private:
         std::shared_ptr<D3D11> d3d11;
         std::unique_ptr<ResourceManager> resource_manager;
-        std::unique_ptr<UpdaterPool> updater_pool;
 
       public:
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
 
-        [[nodiscard]] platform::IUpdaterAccessor* get_updater_accessor(void) noexcept;
         [[nodiscard]] std::shared_ptr<ID3D11Context> get_native_context(void) const;
 
       public:

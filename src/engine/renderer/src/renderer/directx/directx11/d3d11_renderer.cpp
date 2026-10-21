@@ -24,13 +24,8 @@ namespace enishi::renderer::directx {
     } // namespace
 
     D3D11Renderer::D3D11Renderer(std::unique_ptr<D3D11> d3d11)
-        : d3d11(std::move(d3d11))
-        , updater_pool(std::make_unique<UpdaterPool>()) {
+        : d3d11(std::move(d3d11)) {
         this->resource_manager = std::make_unique<ResourceManager>(this->d3d11);
-    }
-
-    platform::IUpdaterAccessor* D3D11Renderer::get_updater_accessor(void) noexcept {
-        return this->updater_pool.get();
     }
 
     std::shared_ptr<ID3D11Context> D3D11Renderer::get_native_context(void) const {

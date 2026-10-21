@@ -11,7 +11,6 @@
 #include <platform/renderer/view/interface_image_view.h>
 #include <renderer/common/render_handle_mapper.h>
 #include <renderer/common/resource_binder.h>
-#include <renderer/common/updater/updater_pool.h>
 #include <renderer/errors/errors.h>
 #include <unordered_map>
 
