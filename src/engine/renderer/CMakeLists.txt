@@ -153,3 +153,9 @@ if(BUILD_TESTING)
     # CTestにテストケースを登録
     add_test(NAME RunAllTests COMMAND tests)
 endif()
+
+option(ENISHI_RENDERER_RESOURCE_TESTS "Build asset-free resource interface tests" OFF)
+if(ENISHI_RENDERER_RESOURCE_TESTS)
+    enable_testing()
+    add_subdirectory(tests/resources)
+endif()
