@@ -4,7 +4,7 @@
 #include <memory>
 #include <sub_system/physics/interface_physics_world_config_writer.h>
 
-namespace enishi::platform_impl {
+namespace enishi::physics {
     class PhysicsWorldConfig : public sub_system::IPhysicsWorldConfigWriter {
       private:
         bool updatable;
@@ -22,4 +22,4 @@ namespace enishi::platform_impl {
         void set_fixed_step_time(const float fixed_step_time) noexcept override;
         void set_max_step_count(const std::uint32_t max_step_count) noexcept override;
     };
-} // namespace enishi::platform_impl
+} // namespace enishi::physics

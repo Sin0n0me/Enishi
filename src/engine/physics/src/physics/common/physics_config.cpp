@@ -1,6 +1,6 @@
 #include "physics_config.h"
 
-namespace enishi::platform_impl {
+namespace enishi::physics {
     PhysicsWorldConfig::PhysicsWorldConfig(void)
         : updatable(true)
         , fixed_step_time(1.0f / 60.0f)
@@ -26,4 +26,4 @@ namespace enishi::platform_impl {
     void PhysicsWorldConfig::set_max_step_count(const std::uint32_t max_step_count) noexcept {
         this->max_step_count = max_step_count;
     }
-} // namespace enishi::platform_impl
+} // namespace enishi::physics

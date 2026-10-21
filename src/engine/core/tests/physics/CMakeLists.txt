@@ -17,11 +17,10 @@ add_executable(physics_runtime_tests physics_runtime_tests.cpp model_physics_tes
     physics_object_tests.cpp
     "${ENGINE_ROOT}/animation/src/animation/morph/impulse_morph.cpp"
     "${ENGINE_ROOT}/core/src/core/system/physics/impulse_morph_application.cpp"
-    "${ENGINE_ROOT}/platform_impl/src/platform_impl/physics/physics_config.cpp"
     "${ENGINE_ROOT}/core/src/core/system/physics/physics_system.cpp")
 target_compile_features(physics_runtime_tests PRIVATE cxx_std_23)
 target_include_directories(physics_runtime_tests PRIVATE ${BONE_INCLUDES} "${BULLET_INCLUDE_DIR}"
-    "${ENGINE_ROOT}/physics/src" "${ENGINE_ROOT}/platform_impl/src")
+    "${ENGINE_ROOT}/physics/src")
 target_link_libraries(physics_runtime_tests PRIVATE
     "${BULLET_DYNAMICS_LIBRARY}" "${BULLET_COLLISION_LIBRARY}" "${BULLET_MATH_LIBRARY}")
 if(MSVC)

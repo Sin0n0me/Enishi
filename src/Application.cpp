@@ -16,7 +16,7 @@
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
-#include <platform_impl/physics/physics_config.h>
+#include <physics/common/physics_config.h>
 #include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
@@ -76,7 +76,7 @@ namespace enishi {
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->registry);
 
         auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
-            std::make_shared<platform_impl::PhysicsWorldConfig>());
+            std::make_shared<physics::PhysicsWorldConfig>());
         auto skinning_system = this->system_scheduler.register_system<core::SkinningSystem>(
             85, this->registry, physics_engine);
 
