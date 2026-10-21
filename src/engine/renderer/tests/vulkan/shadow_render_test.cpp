@@ -245,7 +245,7 @@ namespace {
 } // namespace
 void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer) {
     core::AssetSystem assets;
-    core::ShaderDataProvider provider(assets.get_asset_system());
+    core::ShaderDataProvider provider(assets.get_asset_system(), platform_impl::shader_directory());
     const auto pass = take(render_pass::ShadowMapRenderPassConstructor{
         enishi::platform_impl::render_backend_description()}
             .make(&renderer, nullptr, &provider, {}));

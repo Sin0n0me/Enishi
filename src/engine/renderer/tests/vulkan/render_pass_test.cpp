@@ -94,7 +94,8 @@ namespace {
 
 bool render_pass_test(const std::shared_ptr<enishi::platform::IRenderer>& renderer) {
     enishi::core::AssetSystem assets;
-    auto provider = std::make_shared<enishi::core::ShaderDataProvider>(assets.get_asset_system());
+    auto provider = std::make_shared<enishi::core::ShaderDataProvider>(
+        assets.get_asset_system(), enishi::platform_impl::shader_directory());
     enishi::render_pass::RenderPassOrchestra orchestra(renderer, provider);
     orchestra.add_constructor(
         std::make_shared<enishi::render_pass::BackgroundRenderPassConstructor>(

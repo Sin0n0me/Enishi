@@ -235,7 +235,8 @@ namespace enishi {
             return {};
         }
 
-        auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(asset_system);
+        auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(
+            asset_system, platform_impl::shader_directory());
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->registry, renderer, instance.encoder);
 

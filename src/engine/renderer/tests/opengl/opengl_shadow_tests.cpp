@@ -190,7 +190,8 @@ namespace {
         const auto context = std::make_shared<Context>(window.get());
         renderer::opengl::OpenGL40Renderer renderer(context);
         core::AssetSystem assets;
-        core::ShaderDataProvider provider(assets.get_asset_system());
+        core::ShaderDataProvider provider(
+            assets.get_asset_system(), platform_impl::shader_directory());
         render_pass::ShadowMapRenderPassConstructor constructor{
             enishi::platform_impl::render_backend_description()};
         const auto shadow = take(constructor.make(&renderer, nullptr, &provider, {}));

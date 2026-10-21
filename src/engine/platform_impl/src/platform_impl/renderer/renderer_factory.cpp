@@ -10,6 +10,14 @@
 #endif
 
 namespace enishi::platform_impl {
+    std::filesystem::path shader_directory() {
+#if defined(ENISHI_GENERATED_SHADER_DIRECTORY)
+        return ENISHI_GENERATED_SHADER_DIRECTORY;
+#else
+        return "./assets/shader";
+#endif
+    }
+
     platform::RenderBackendDescription render_backend_description() {
 #if defined(USE_VULKAN)
         return {types::GraphicsAPI::Vulkan11, "_vk", types::ImageFormat::D32_FLOAT};
