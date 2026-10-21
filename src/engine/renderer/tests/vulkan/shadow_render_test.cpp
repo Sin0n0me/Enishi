@@ -9,6 +9,7 @@
 #include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 #include <renderer/vulkan/vulkan_renderer.h>
 
@@ -245,8 +246,9 @@ namespace {
 void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer) {
     core::AssetSystem assets;
     core::ShaderDataProvider provider(assets.get_asset_system());
-    const auto pass =
-        take(render_pass::ShadowMapRenderPassConstructor{}.make(&renderer, nullptr, &provider, {}));
+    const auto pass = take(render_pass::ShadowMapRenderPassConstructor{
+        enishi::platform_impl::render_backend_description()}
+            .make(&renderer, nullptr, &provider, {}));
     const auto shaders = model_shaders(renderer, provider);
     for (const auto method : {types::SkinningMethod::LinearBlend,
              types::SkinningMethod::DualQuaternion,

@@ -1,11 +1,16 @@
 #pragma once
 #include <foundation/constexpr/hash/char_array_to_hash.h>
+#include <platform/renderer/render_backend_description.h>
 #include <render_pass/constructor/interface_render_pass_constructor.h>
 #include <vector>
 
 namespace enishi::render_pass {
     class ShadowMapRenderPassConstructor : public IRenderPassConstructor {
+      private:
+        platform::RenderBackendDescription backend;
+
       public:
+        explicit ShadowMapRenderPassConstructor(platform::RenderBackendDescription backend);
         static constexpr char RENDER_PASS_NAME[] = "ShadowMap";
         static constexpr foundation::DependencyNode NODE{foundation::hash_size_t(RENDER_PASS_NAME)};
 

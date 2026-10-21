@@ -1,17 +1,12 @@
 #include "shadow_map_render_pass_constructor.h"
 #include <render_pass/constructor/pipeline_description_builder.h>
+#include <utility>
 
 namespace enishi::render_pass {
-#if defined(USE_VULKAN)
-    constexpr char VS_FILE_NAME[] = "vs_shadow_map_vk";
-    constexpr char PS_FILE_NAME[] = "ps_shadow_map_vk";
-#elif defined(USE_OPENGL40)
-    constexpr char VS_FILE_NAME[] = "vs_shadow_map_gl";
-    constexpr char PS_FILE_NAME[] = "ps_shadow_map_gl";
-#else
-    constexpr char VS_FILE_NAME[] = "vs_shadow_map";
-    constexpr char PS_FILE_NAME[] = "ps_shadow_map";
-#endif
+    ShadowMapRenderPassConstructor::ShadowMapRenderPassConstructor(
+        platform::RenderBackendDescription backend)
+        : backend(std::move(backend)) {
+    }
 
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     ShadowMapRenderPassConstructor::make(platform::IRenderer* const renderer,
@@ -75,8 +70,8 @@ namespace enishi::render_pass {
     std::vector<std::tuple<types::ShaderKind, std::filesystem::path>>
     ShadowMapRenderPassConstructor::get_paths(void) const noexcept {
         return {
-            {types::ShaderKind::Vertex, VS_FILE_NAME},
-            {types::ShaderKind::Pixel, PS_FILE_NAME},
+            {types::ShaderKind::Vertex, "vs_shadow_map" + this->backend.shader_suffix},
+            {types::ShaderKind::Pixel, "ps_shadow_map" + this->backend.shader_suffix},
         };
     }
 

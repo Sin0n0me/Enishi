@@ -26,15 +26,8 @@
 #include <physics/bullet3/physics_engine.h>
 
 #include <core/system/asset/shader/shader_data_provider.h>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
-#if defined(USE_VULKAN)
-#include <renderer/vulkan/vulkan_render_initializer.h>
-#elif defined(USE_OPENGL40)
-#include <renderer/opengl/opengl40/opengl40_render_initializer.h>
-#else
-#include <renderer/directx/directx11/d3d11_render_initializer.h>
-#include <renderer/directx/directx11/d3d11_renderer.h>
-#endif
 
 int main(void) {
     /*
@@ -193,13 +186,7 @@ namespace enishi {
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
                 platform::WindowSystem::Windows,
-#if defined(USE_VULKAN)
-                types::GraphicsAPI::Vulkan11));
-#elif defined(USE_OPENGL40)
-                types::GraphicsAPI::OpenGL40));
-#else
-                types::GraphicsAPI::DirectX11));
-#endif
+                platform_impl::render_backend_description().api));
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
@@ -224,38 +211,14 @@ namespace enishi {
             return {};
         }
 
-        const auto opt_window_handle = root_window->get_handle();
-        if (opt_window_handle.is_none()) {
-            foundation::Logger::error("ウィンドウハンドルを取得できませんでした");
-            return {};
-        }
-
-#if defined(USE_VULKAN)
-        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(root_window);
-        if (sdl_window == nullptr || sdl_window->get_window_handle().is_none()) {
-            foundation::Logger::error("Vulkan requires an SDL3 window");
-            return {};
-        }
-        auto initializer = renderer::vulkan::VulkanRenderInitializer{};
-        auto result_renderer = initializer.init(sdl_window->get_window_handle().unwrap());
-#elif defined(USE_OPENGL40)
-        auto context = root_window->create_opengl_context();
-        if (context.is_err()) {
-            foundation::Logger::error(context.unwrap_err().get_message());
-            return {};
-        }
-        auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
-        auto result_renderer = initializer.init(std::move(context.unwrap_mut()));
-#else
-        auto initializer = renderer::directx::D3D11RenderInitializer{true};
-        auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
-#endif
+        auto result_renderer = platform_impl::create_renderer(root_window, INIT_WINDOW_SIZE);
         if (result_renderer.is_err()) {
             foundation::Logger::error(result_renderer.unwrap_err().get_message());
             return {};
         }
 
-        auto&& renderer = result_renderer.unwrap();
+        const auto& instance = result_renderer.unwrap();
+        const auto& renderer = instance.renderer;
 
         const auto rect = types::ViewportRect{
             .left_top_x = 0.0,
@@ -274,20 +237,19 @@ namespace enishi {
 
         auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(asset_system);
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
-            100, this->registry, renderer, renderer);
+            100, this->registry, renderer, instance.encoder);
 
         this->orchestra = std::make_unique<render_pass::RenderPassOrchestra>(
             render_system->get_renderer(), shader_data_provider);
 
         // レンダーパスの作成
+        const auto backend = platform_impl::render_backend_description();
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::ModelRenderPassConstructor>());
+            std::make_shared<render_pass::ModelRenderPassConstructor>(backend));
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::BackgroundRenderPassConstructor>());
-#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
+            std::make_shared<render_pass::BackgroundRenderPassConstructor>(backend));
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
-#endif
+            std::make_shared<render_pass::ShadowMapRenderPassConstructor>(backend));
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
@@ -299,9 +261,7 @@ namespace enishi {
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
             render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
             render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
-#endif
         });
         render_system->set_render_passes(this->orchestra->get_passes());
         render_system->set_camera(this->display_camera);

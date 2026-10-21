@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <platform/window/interface_window.h>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -96,10 +97,12 @@ bool render_pass_test(const std::shared_ptr<enishi::platform::IRenderer>& render
     auto provider = std::make_shared<enishi::core::ShaderDataProvider>(assets.get_asset_system());
     enishi::render_pass::RenderPassOrchestra orchestra(renderer, provider);
     orchestra.add_constructor(
-        std::make_shared<enishi::render_pass::BackgroundRenderPassConstructor>());
-    orchestra.add_constructor(std::make_shared<enishi::render_pass::ModelRenderPassConstructor>());
-    orchestra.add_constructor(
-        std::make_shared<enishi::render_pass::ShadowMapRenderPassConstructor>());
+        std::make_shared<enishi::render_pass::BackgroundRenderPassConstructor>(
+            enishi::platform_impl::render_backend_description()));
+    orchestra.add_constructor(std::make_shared<enishi::render_pass::ModelRenderPassConstructor>(
+        enishi::platform_impl::render_backend_description()));
+    orchestra.add_constructor(std::make_shared<enishi::render_pass::ShadowMapRenderPassConstructor>(
+        enishi::platform_impl::render_backend_description()));
     SizeWindow window;
     auto result = orchestra.make_render_passes(&window);
     if (result.is_err()) {

@@ -5,6 +5,7 @@
 #include <glad/gl.h>
 #include <iostream>
 #include <memory>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 #include <renderer/opengl/opengl40/opengl40_renderer.h>
 #include <type_traits>
@@ -190,7 +191,8 @@ namespace {
         renderer::opengl::OpenGL40Renderer renderer(context);
         core::AssetSystem assets;
         core::ShaderDataProvider provider(assets.get_asset_system());
-        render_pass::ShadowMapRenderPassConstructor constructor;
+        render_pass::ShadowMapRenderPassConstructor constructor{
+            enishi::platform_impl::render_backend_description()};
         const auto shadow = take(constructor.make(&renderer, nullptr, &provider, {}));
         check_shadow_target(renderer, *shadow);
         check_model_target(renderer, *shadow, provider);
