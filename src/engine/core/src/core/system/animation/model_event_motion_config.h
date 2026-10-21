@@ -1,6 +1,6 @@
 #pragma once
 #include <array>
-#include <core/system/collision/model_click_settings.h>
+#include <engine_types/input/model_click_settings.h>
 #include <filesystem>
 #include <foundation/result/result.h>
 #include <string>
@@ -23,5 +23,5 @@ namespace enishi::core {
 
     [[nodiscard]] foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
     load_model_event_motions(
-        const std::filesystem::path& path, ModelClickSettings* settings = nullptr);
+        const std::filesystem::path& path, types::ModelClickSettings* settings = nullptr);
 } // namespace enishi::core

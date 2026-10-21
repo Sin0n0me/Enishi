@@ -1,5 +1,5 @@
 #pragma once
-#include "model_click_settings.h"
+#include <engine_types/input/model_click_settings.h>
 #include <collider/collider.h>
 #include <core/system/interface_system.h>
 #include <ecs/registry.h>
@@ -13,7 +13,7 @@ namespace enishi::core {
         std::shared_ptr<collider::Collider> collider;
         std::shared_ptr<platform::IWindow> window;
         std::shared_ptr<ecs::Registry> registry;
-        std::shared_ptr<ModelClickSettings> settings;
+        std::shared_ptr<types::ModelClickSettings> settings;
         std::shared_ptr<sub_system::ICameraController> camera;
         std::vector<std::shared_ptr<sub_system::IModelClickHandler>> handlers;
         std::optional<types::ModelClick> pending_click;
@@ -22,7 +22,7 @@ namespace enishi::core {
         ModelClickSystem(std::shared_ptr<collider::Collider> collider,
             std::shared_ptr<platform::IWindow> window,
             std::shared_ptr<ecs::Registry> registry,
-            std::shared_ptr<ModelClickSettings> settings,
+            std::shared_ptr<types::ModelClickSettings> settings,
             std::shared_ptr<sub_system::ICameraController> camera);
         void add_handler(std::shared_ptr<sub_system::IModelClickHandler> handler);
         [[nodiscard]] std::optional<types::ModelHit> pick(

@@ -1,5 +1,5 @@
 #pragma once
-#include <core/system/collision/model_click_settings.h>
+#include <engine_types/input/model_click_settings.h>
 #include <memory>
 #include <string>
 #include <sub_system/model/interface_model_selection.h>
@@ -7,14 +7,14 @@
 #include <sub_system/script/interface_script_engine.h>
 #include <sub_system/ui/interface_ui.h>
 
-namespace enishi::core {
+namespace enishi::ui {
     class SelectionUI {
       private:
         enum class Page { Actions, Models, ClickSettings, Script, Settings };
 
       private:
         std::shared_ptr<sub_system::IModelSelection> models;
-        std::shared_ptr<ModelClickSettings> click_settings;
+        std::shared_ptr<types::ModelClickSettings> click_settings;
         std::shared_ptr<sub_system::IScriptEngine> scripts;
         std::shared_ptr<sub_system::RenderSettings> render_settings;
         std::string script_source = "fn main() -> i32 {\n    42\n}\n";
@@ -26,7 +26,7 @@ namespace enishi::core {
 
       public:
         SelectionUI(std::shared_ptr<sub_system::IModelSelection> models,
-            std::shared_ptr<ModelClickSettings> click_settings,
+            std::shared_ptr<types::ModelClickSettings> click_settings,
             std::shared_ptr<sub_system::IScriptEngine> scripts,
             std::shared_ptr<sub_system::RenderSettings> render_settings);
         void update(sub_system::IUI& ui);
@@ -40,4 +40,4 @@ namespace enishi::core {
         void draw_models(sub_system::IUI& ui);
         void draw_model(sub_system::IUI& ui, const sub_system::ModelEntry& model);
     };
-} // namespace enishi::core
+} // namespace enishi::ui

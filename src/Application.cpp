@@ -12,7 +12,7 @@
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
 #include <core/system/window/window_animation_sync.h>
-#include <core/system/ui/selection_ui.h>
+#include <ui/selection/selection_ui.h>
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
@@ -67,7 +67,7 @@ namespace enishi {
 
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
-        this->click_settings = std::make_shared<core::ModelClickSettings>();
+        this->click_settings = std::make_shared<types::ModelClickSettings>();
         this->camera = std::make_shared<core::CameraController>();
 
         // システムの追加
@@ -299,7 +299,7 @@ namespace enishi {
         const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();
         render_system->set_settings(render_settings);
-        const auto selection = std::make_shared<core::SelectionUI>(
+        const auto selection = std::make_shared<ui::SelectionUI>(
             std::move(models), this->click_settings, scripts, render_settings);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,

@@ -4,7 +4,7 @@
 #include <string>
 #include <cstdint>
 
-namespace enishi::core {
+namespace enishi::types {
     enum class ModelClickMode { None, Touch, Push };
 
     struct ModelClickSettings {
@@ -17,4 +17,4 @@ namespace enishi::core {
         std::string last_result;
         [[nodiscard]] bool accepts_push(types::RigidBodyKind kind) const;
     };
-} // namespace enishi::core
+} // namespace enishi::types

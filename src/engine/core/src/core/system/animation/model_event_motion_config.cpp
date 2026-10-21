@@ -6,7 +6,7 @@
 
 namespace enishi::core {
     namespace {
-        bool read_push_states(std::istringstream& fields, ModelClickSettings& settings) {
+        bool read_push_states(std::istringstream& fields, types::ModelClickSettings& settings) {
             settings.push_states.clear();
             std::string state;
             bool exclusive = false;
@@ -24,7 +24,7 @@ namespace enishi::core {
                     }
                     exclusive = true;
                     if (state == "all") {
-                        settings.push_states = ModelClickSettings{}.push_states;
+                        settings.push_states = types::ModelClickSettings{}.push_states;
                     }
                 } else if (state == "Kinematic") {
                     settings.push_states.push_back(types::RigidBodyKind::Kinematic);
@@ -85,8 +85,8 @@ namespace enishi::core {
     } // namespace
 
     foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
-    load_model_event_motions(const std::filesystem::path& path, ModelClickSettings* settings) {
-        ModelClickSettings parsed_settings;
+    load_model_event_motions(const std::filesystem::path& path, types::ModelClickSettings* settings) {
+        types::ModelClickSettings parsed_settings;
         std::ifstream stream(path);
         if (!stream.is_open()) {
             return foundation::Error(MotionConfigError::ReadFailed,
