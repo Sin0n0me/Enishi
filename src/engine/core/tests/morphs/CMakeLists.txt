@@ -10,7 +10,6 @@ add_executable(vertex_morph_tests vertex_morph_tests.cpp morph_weight_tests.cpp 
     "${ENGINE_ROOT}/animation/src/animation/morph/morph_weights.cpp"
     "${ENGINE_ROOT}/animation/src/animation/morph/bone_morph.cpp"
     "${ENGINE_ROOT}/animation/src/animation/morph/uv_morph.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/render/uv_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ENGINE_ROOT}/core/src/core/system/render/vertex_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
@@ -27,3 +26,7 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME vertex_morph_tests COMMAND vertex_morph_tests)
+
+target_sources(vertex_morph_tests PRIVATE
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/buffer_upload.cpp"
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/mesh_uniform_upload.cpp")

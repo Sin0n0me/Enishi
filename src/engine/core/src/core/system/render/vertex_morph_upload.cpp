@@ -1,28 +1,10 @@
 #include "vertex_morph_upload.h"
-#include "uv_morph_upload.h"
+#include <animation/morph/uv_morph.h>
 #include <animation/morph/vertex_morph.h>
 #include <cstring>
+#include <renderer/common/upload/buffer_upload.h>
 
 namespace enishi::core {
-    platform::RenderResult<void> write_vertex_positions(platform::IResourceUpdater& updater,
-        std::size_t offset,
-        std::span<const glm::vec3> positions) {
-        auto& resource = updater.get_resource();
-        const auto data = resource.get_render_data();
-        if (data.stride < sizeof(glm::vec3) || offset > data.stride - sizeof(glm::vec3) ||
-            data.byte_width() % data.stride != 0 ||
-            data.byte_width() / data.stride != positions.size()) {
-            return foundation::Error(
-                platform::RenderError::ResolveError, "Vertex position layout or count mismatch");
-        }
-        for (std::size_t index = 0; index < positions.size(); ++index) {
-            std::memcpy(
-                &resource[index * data.stride + offset], &positions[index], sizeof(glm::vec3));
-        }
-        updater.on_update();
-        return {};
-    }
-
     platform::RenderResult<void> upload_vertex_morphs(platform::IRenderer& renderer,
         const component::ModelComponent& model,
         const component::MorphComponent& morph) {
@@ -60,11 +42,13 @@ namespace enishi::core {
                         "Morph UV and position buffers differ");
                 }
             }
-            auto staged = stage_vertex_uvs(*updater.unwrap(), mesh.unwrap().uvs, uvs.unwrap());
+            auto staged =
+                renderer::stage_vertex_uvs(*updater.unwrap(), mesh.unwrap().uvs, uvs.unwrap());
             if (staged.is_err()) {
                 return staged;
             }
         }
-        return write_vertex_positions(*updater.unwrap(), stream.offset, positions.unwrap());
+        return renderer::write_vertex_positions(
+            *updater.unwrap(), stream.offset, positions.unwrap());
     }
 } // namespace enishi::core

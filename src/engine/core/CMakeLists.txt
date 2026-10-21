@@ -70,7 +70,11 @@ FetchContent_MakeAvailable(PHYSICS)
 FetchContent_Declare(COLLIDER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../collider)
 FetchContent_MakeAvailable(COLLIDER)
 
+FetchContent_Declare(RENDERER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../renderer)
+FetchContent_MakeAvailable(RENDERER)
+
 set(DEPENDENCIES
+    PRIVATE renderer
     PUBLIC collider
     PUBLIC platform
     PUBLIC sub_system

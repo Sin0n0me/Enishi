@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iterator>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/vulkan/vulkan_render_initializer.h>
 
 using namespace enishi;
@@ -132,7 +133,7 @@ namespace {
         auto bones = uniform(renderer, mesh, "Bones");
         std::array<glm::mat4, types::HeavyModelBones::CAPACITY> palette;
         palette.fill(glm::mat4{1});
-        success(core::write_bone_matrices(*bones, palette));
+        success(renderer::write_bone_matrices(*bones, palette));
         auto pixels = take(device->make_buffer(
             static_cast<VkDeviceSize>(device->extent.width) * device->extent.height * CHANNELS,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT));
@@ -158,7 +159,7 @@ namespace {
         if (method == types::SkinningMethod::SphericalBlend) {
             palette[3] = glm::mat4{1};
         }
-        success(core::write_bone_matrices(*bones, palette));
+        success(renderer::write_bone_matrices(*bones, palette));
         const auto after = frame();
         // Two translated influences contribute (0.3 + 0.4) * translation; NDC spans two units.
         const auto expected = 0.7 * TRANSLATION * device->extent.width / 2.0;

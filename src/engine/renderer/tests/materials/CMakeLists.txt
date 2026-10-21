@@ -25,3 +25,7 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME material_tests COMMAND material_tests)
+
+target_sources(material_tests PRIVATE
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/buffer_upload.cpp"
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/mesh_uniform_upload.cpp")

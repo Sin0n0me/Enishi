@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/common/vertex_buffer_updater.h>
 
 using namespace enishi;
@@ -59,12 +60,12 @@ void material_morph_tests() {
             check(data.bytes.back() == std::byte{0x5a}, "material upload preserves buffer padding");
             uploaded = true;
         });
-    check(core::write_material_uniform(updater, first).is_ok() && uploaded,
+    check(renderer::write_material_uniform(updater, first).is_ok() && uploaded,
         "upload evaluated material");
     renderer::VertexBufferUpdater small(
         types::OwnedRenderData(std::vector<std::byte>(sizeof(first) - 1), sizeof(first) - 1),
         [&](const types::RenderData&) { check(false, "invalid material buffer must not upload"); });
-    check(core::write_material_uniform(small, first).is_err(), "reject short material buffer");
+    check(renderer::write_material_uniform(small, first).is_err(), "reject short material buffer");
     weights = {0.5f, 0.5f, 0};
     const auto before =
         animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse;

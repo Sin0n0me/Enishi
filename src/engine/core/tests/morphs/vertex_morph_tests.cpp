@@ -6,6 +6,7 @@
 #include <limits>
 #include <model_controller/model_component_builder.h>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/common/vertex_buffer_updater.h>
 
 using namespace enishi;
@@ -68,17 +69,18 @@ int main() {
                 "upload preserves normal and skin weights");
             uploaded = true;
         });
-    check(core::write_vertex_positions(
+    check(renderer::write_vertex_positions(
               updater, offsetof(renderer::SkinnedVertex, position), blended.unwrap())
                   .is_ok() &&
               uploaded,
         "vertex position upload");
     uploaded = false;
-    check(core::write_vertex_positions(updater, sizeof(renderer::SkinnedVertex), blended.unwrap())
-                  .is_err() &&
-              !uploaded,
+    check(
+        renderer::write_vertex_positions(updater, sizeof(renderer::SkinnedVertex), blended.unwrap())
+                .is_err() &&
+            !uploaded,
         "bad position offset must not upload");
-    check(core::write_vertex_positions(updater, 0, {}).is_err() && !uploaded,
+    check(renderer::write_vertex_positions(updater, 0, {}).is_err() && !uploaded,
         "wrong vertex count must not upload");
     morphs.targets[0].offsets = {types::VertexMorphOffset{2, {1, 0, 0}}};
     check(

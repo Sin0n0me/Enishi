@@ -11,6 +11,7 @@
 #include <iostream>
 #include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/vulkan/vulkan_renderer.h>
 
 using namespace enishi;
@@ -232,10 +233,10 @@ namespace {
         constexpr float OUTSIDE_LIGHT_VIEW = 2.0f;
         const auto moved = glm::translate(glm::mat4{1}, glm::vec3{OUTSIDE_LIGHT_VIEW, 0, 0});
         const std::array palette{moved, moved};
-        success(core::write_bone_matrices(*uniform(renderer, caster, "Bones"), palette));
+        success(renderer::write_bone_matrices(*uniform(renderer, caster, "Bones"), palette));
         frame(true, false);
         const std::array restored{glm::mat4{1}, glm::mat4{1}};
-        success(core::write_bone_matrices(*uniform(renderer, caster, "Bones"), restored));
+        success(renderer::write_bone_matrices(*uniform(renderer, caster, "Bones"), restored));
         frame(true, true);
         frame(false, false); // Hidden casters must not leave the previous frame's depth.
         frame(false, false, false);

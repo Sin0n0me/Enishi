@@ -41,7 +41,7 @@ add_executable(bone_layer_tests bone_layer_tests.cpp bone_inheritance_tests.cpp 
     "${PMX_ROOT}/pmx_to_model_data.cpp" "${PMX_ROOT}/pmx_validation.cpp"
     "${PMX_ROOT}/pmx_runtime_support.cpp")
 target_compile_features(bone_layer_tests PRIVATE cxx_std_23)
-foreach(module animation collider core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
+foreach(module renderer animation collider core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
     target_include_directories(bone_layer_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(bone_layer_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")
@@ -52,3 +52,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     enable_testing()
     add_test(NAME bone_layer_tests COMMAND bone_layer_tests)
 endif()
+
+target_sources(bone_layer_tests PRIVATE
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/buffer_upload.cpp"
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/mesh_uniform_upload.cpp")

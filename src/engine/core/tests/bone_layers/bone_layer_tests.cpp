@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <model_controller/model_component_builder.h>
+#include <renderer/common/upload/buffer_upload.h>
 
 using namespace enishi;
 
@@ -94,7 +95,7 @@ namespace {
                           expected) < TOLERANCE,
             "IK result must reach final skinning matrices");
         BufferUpdater updater(BONE_COUNT);
-        check(core::write_bone_matrices(updater, skinning.skinning_matrices).is_ok() &&
+        check(renderer::write_bone_matrices(updater, skinning.skinning_matrices).is_ok() &&
                   updater.uploaded,
             "final matrices must reach the renderer updater");
         glm::mat4 uploaded;
@@ -106,7 +107,7 @@ namespace {
         check(glm::length(glm::vec3(pose.global[tip][3]) - expected) < TOLERANCE,
             "IK corrections must not drift across frames");
         BufferUpdater too_small(1);
-        check(core::write_bone_matrices(too_small, skinning.skinning_matrices).is_err() &&
+        check(renderer::write_bone_matrices(too_small, skinning.skinning_matrices).is_err() &&
                   !too_small.uploaded,
             "undersized GPU buffer must not be uploaded");
         auto ik = registry->get<component::IKComponent>(entity);
