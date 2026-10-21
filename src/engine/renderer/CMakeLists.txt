@@ -132,28 +132,6 @@ if (POLICY CMP0141)
 endif()
 
 
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    #target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
-endif()
-
 option(ENISHI_RENDERER_RESOURCE_TESTS "Build asset-free resource interface tests" OFF)
 if(ENISHI_RENDERER_RESOURCE_TESTS)
     enable_testing()
