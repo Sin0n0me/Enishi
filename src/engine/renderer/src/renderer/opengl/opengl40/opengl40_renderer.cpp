@@ -97,7 +97,7 @@ namespace enishi::renderer::opengl {
     OpenGL40Renderer::OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context)
         : context(std::move(context))
         , handle_mapper(std::make_unique<RenderHandleMapper>())
-        , resource_accessor(std::make_unique<OpenGLResourceAccessor>())
+        , resource_accessor(std::make_unique<ResourceAccessor>())
         , state(std::make_unique<OpenGL40RendererState>()) {
         this->context->make_current();
         glEnable(GL_DEPTH_TEST);

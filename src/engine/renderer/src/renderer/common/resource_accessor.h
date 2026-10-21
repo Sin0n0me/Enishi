@@ -4,8 +4,8 @@
 #include <platform/renderer/interface_render_resource_accessor.h>
 #include <unordered_map>
 
-namespace enishi::renderer::vulkan {
-    class VulkanResourceAccessor final : public platform::IRenderResourceAccessor,
+namespace enishi::renderer {
+    class ResourceAccessor final : public platform::IRenderResourceAccessor,
                                          public platform::IGPUResourceAccessor,
                                          public platform::IViewAccessor,
                                          public platform::IBufferAccessor,
@@ -97,4 +97,4 @@ namespace enishi::renderer::vulkan {
             const types::HandleId& handle) const noexcept override;
         void add_state(types::HandleId handle, types::StateKind kind) noexcept;
     };
-} // namespace enishi::renderer::vulkan
+} // namespace enishi::renderer

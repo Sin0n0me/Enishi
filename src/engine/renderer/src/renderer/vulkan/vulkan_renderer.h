@@ -2,7 +2,7 @@
 
 #include "vulkan_device.h"
 #include "vulkan_renderer_state.h"
-#include "vulkan_resource_accessor.h"
+#include <renderer/common/resource_accessor.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/render_handle_mapper.h>
 
@@ -12,7 +12,7 @@ namespace enishi::renderer::vulkan {
       private:
         std::shared_ptr<VulkanDevice> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
-        std::unique_ptr<VulkanResourceAccessor> resource_accessor;
+        std::unique_ptr<ResourceAccessor> resource_accessor;
         std::unique_ptr<VulkanRendererState> state;
 
       public:

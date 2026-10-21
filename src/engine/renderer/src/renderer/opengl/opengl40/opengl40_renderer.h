@@ -5,7 +5,7 @@
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
 #include <renderer/common/render_handle_mapper.h>
-#include <renderer/opengl/common/opengl_resource_accessor.h>
+#include <renderer/common/resource_accessor.h>
 #include <renderer/opengl/opengl40/opengl40_renderer_state.h>
 #include <vector>
 
@@ -15,7 +15,7 @@ namespace enishi::renderer::opengl {
       private:
         std::shared_ptr<platform::IOpenGLContext> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
-        std::unique_ptr<OpenGLResourceAccessor> resource_accessor;
+        std::unique_ptr<ResourceAccessor> resource_accessor;
         std::unique_ptr<OpenGL40RendererState> state;
 
       public:

@@ -39,7 +39,7 @@ namespace enishi::renderer::vulkan {
     VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanDevice> context)
         : context(std::move(context))
         , handle_mapper(std::make_unique<RenderHandleMapper>())
-        , resource_accessor(std::make_unique<VulkanResourceAccessor>())
+        , resource_accessor(std::make_unique<ResourceAccessor>())
         , state(std::make_unique<VulkanRendererState>(this->context)) {
     }
     VulkanRenderer::~VulkanRenderer() noexcept {
