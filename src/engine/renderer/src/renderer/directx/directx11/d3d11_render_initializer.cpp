@@ -19,14 +19,14 @@ namespace enishi::renderer::directx {
 
         // RenderDocで確認するとき`make_no_dcomp`で作成しないとクラッシュする
         if (this->use_dcomp) {
-            auto result = D3D11::make(native_handle.hwnd, window_size)
+            auto result = D3D11::make(static_cast<HWND>(native_handle.hwnd), window_size)
                               .add_message("Rendererの初期化に失敗しました");
             if (result.is_err()) {
                 return result.propagation(platform::RenderError::MakeError);
             }
             d3d11 = std::move(result).unwrap_mut();
         } else {
-            auto result = D3D11::make_no_dcomp(native_handle.hwnd, window_size)
+            auto result = D3D11::make_no_dcomp(static_cast<HWND>(native_handle.hwnd), window_size)
                               .add_message("Rendererの初期化に失敗しました");
             if (result.is_err()) {
                 return result.propagation(platform::RenderError::MakeError);

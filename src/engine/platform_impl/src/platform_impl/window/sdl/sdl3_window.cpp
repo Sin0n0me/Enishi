@@ -167,12 +167,12 @@ namespace enishi::platform_impl {
                 };
             }
             case platform::WindowSystem::Windows: {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS) || defined(_WIN32)
                 const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                const HWND hwnd = (HWND)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
-                const HINSTANCE hinstance = (HINSTANCE)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+                void* const hwnd =
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+                void* const hinstance =
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
                 if (hwnd == nullptr || hinstance == nullptr) {
                     return {};
                 }
