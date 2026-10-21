@@ -2,6 +2,9 @@
 #include <SDL3/SDL_init.h>
 #include <foundation/log/logger.h>
 #include <platform/window/common_settings.h>
+#if defined(USE_WINDOWS) || defined(_WIN32)
+#include <Windows.h>
+#endif
 
 namespace enishi::platform_impl {
     namespace {
@@ -169,10 +172,10 @@ namespace enishi::platform_impl {
             case platform::WindowSystem::Windows: {
 #if defined(USE_WINDOWS) || defined(_WIN32)
                 const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                void* const hwnd =
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
-                void* const hinstance =
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+                const HWND hwnd = static_cast<HWND>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+                const HINSTANCE hinstance = static_cast<HINSTANCE>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr));
                 if (hwnd == nullptr || hinstance == nullptr) {
                     return {};
                 }
