@@ -99,7 +99,7 @@ namespace enishi::animation {
                     break;
                 }
             }
-            this->collision_bones.push_back(std::move(bounds));
+            this->collision.bones.push_back(std::move(bounds));
         }
         this->initialize_collision_queries(model);
     }
@@ -108,35 +108,35 @@ namespace enishi::animation {
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
             const int owner = static_cast<int>(side);
             const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-            for (std::size_t index = 0; index < this->collision_bones.size(); ++index) {
-                const auto& bounds = this->collision_bones[index];
+            for (std::size_t index = 0; index < this->collision.bones.size(); ++index) {
+                const auto& bounds = this->collision.bones[index];
                 if (bounds.arm == owner) {
                     if (bounds.hand) {
-                        this->hand_bounds[side].push_back(index);
+                        this->collision.hand_bounds[side].push_back(index);
                     }
                     continue;
                 }
-                CollisionQuery query{index,
+                CollisionQuery query{{},
+                    index,
                     !adjacent(model, elbow, bounds.bone),
-                    !adjacent(model, this->wrists[side], bounds.bone),
-                    {}};
-                for (std::size_t limb = 0; limb < this->collision_bones.size(); ++limb) {
-                    const auto& candidate = this->collision_bones[limb];
+                    !adjacent(model, this->wrists[side], bounds.bone)};
+                for (std::size_t limb = 0; limb < this->collision.bones.size(); ++limb) {
+                    const auto& candidate = this->collision.bones[limb];
                     if (candidate.arm == owner && candidate.distal &&
                         !adjacent(model, candidate.bone, bounds.bone)) {
                         query.limbs.push_back(limb);
                     }
                 }
-                this->collision_queries[side].push_back(std::move(query));
+                this->collision.queries[side].push_back(std::move(query));
             }
         }
     }
 
     const CursorPose::CollisionBone& CursorPose::collision_bound(std::size_t index) const {
-        auto& bounds = this->collision_bones[index];
-        const auto& matrix = bounds.physics && bounds.bone < this->collision_physics_globals.size()
-                                 ? this->collision_physics_globals[bounds.bone]
-                                 : this->globals[bounds.bone];
+        auto& bounds = this->collision.bones[index];
+        const auto& matrix = bounds.physics && bounds.bone < this->collision.physics_globals.size()
+                                 ? this->collision.physics_globals[bounds.bone]
+                                 : this->transforms.globals[bounds.bone];
         if (bounds.transform == matrix) {
             return bounds;
         }
@@ -160,8 +160,8 @@ namespace enishi::animation {
 
     float CursorPose::hand_radius(std::size_t side) const {
         float radius = this->arm_frame(side).hand_margin;
-        const auto wrist = glm::vec3(this->globals[this->wrists[side]][3]);
-        for (const auto index : this->hand_bounds[side]) {
+        const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
+        for (const auto index : this->collision.hand_bounds[side]) {
             const auto& bounds = this->collision_bound(index);
             if (!bounds.world.has_value()) {
                 continue;
@@ -178,14 +178,14 @@ namespace enishi::animation {
             return true;
         }
         const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto start = glm::vec3(this->globals[elbow][3]);
-        const auto end = glm::vec3(this->globals[this->wrists[side]][3]);
+        const auto start = glm::vec3(this->transforms.globals[elbow][3]);
+        const auto end = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
         const auto frame = this->arm_frame(side);
         const auto limb_low = (glm::min)(start, end) - glm::vec3(frame.arm_margin);
         const auto limb_high = (glm::max)(start, end) + glm::vec3(frame.arm_margin);
         const auto hand_low = end - glm::vec3(frame.hand_margin);
         const auto hand_high = end + glm::vec3(frame.hand_margin);
-        for (const auto& query : this->collision_queries[side]) {
+        for (const auto& query : this->collision.queries[side]) {
             const auto& obstacle = this->collision_bound(query.obstacle);
             if (!obstacle.world.has_value()) {
                 continue;

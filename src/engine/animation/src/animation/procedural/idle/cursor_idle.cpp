@@ -29,73 +29,79 @@ namespace enishi::animation {
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
         // Exponential blending w'=w+(target-w)*(1-exp(-rate*dt)) avoids abrupt pose switches.
         const float target = enabled ? 1.0f : 0.0f;
-        this->idle_weight += (target - this->idle_weight) * (1 - std::exp(-BLEND_RATE * dt));
-        if (this->transition_initializing) {
-            this->idle_weight = target;
+        this->idle.weight += (target - this->idle.weight) * (1 - std::exp(-BLEND_RATE * dt));
+        if (this->transition_state.initializing) {
+            this->idle.weight = target;
         }
         if (animation.motion_playing) {
-            this->idle_weight = 0;
+            this->idle.weight = 0;
         }
-        if (!(this->idle_weight > EPSILON)) {
-            this->idle_weight = 0;
+        if (!(this->idle.weight > EPSILON)) {
+            this->idle.weight = 0;
             return;
         }
-        this->idle_time = std::fmod(this->idle_time + dt, TIME_WRAP);
+        this->idle.time = std::fmod(this->idle.time + dt, TIME_WRAP);
         const bool suspended =
-            this->hanging && this->wrists[this->hanging_side] < this->globals.size();
-        const auto anchor = suspended
-                                ? glm::vec3(this->globals[this->wrists[this->hanging_side]][3])
-                                : glm::vec3(0);
+            this->hanging_state.active &&
+            this->wrists[this->hanging_state.side] < this->transforms.globals.size();
+        const auto anchor =
+            suspended
+                ? glm::vec3(this->transforms.globals[this->wrists[this->hanging_state.side]][3])
+                : glm::vec3(0);
         // Each oscillation is sin(2*pi*t/period); the common wrap preserves every phase.
-        const float sway = std::sin(glm::two_pi<float>() * this->idle_time / SWAY_SECONDS);
-        const float breath = std::sin(glm::two_pi<float>() * this->idle_time / BREATH_SECONDS);
-        if (this->idle_torso < animation.animation.size()) {
-            animation.animation[this->idle_torso].rotation *=
-                glm::angleAxis(glm::radians(TORSO_ROLL_DEGREES) * sway * this->idle_weight,
+        const float sway = std::sin(glm::two_pi<float>() * this->idle.time / SWAY_SECONDS);
+        const float breath = std::sin(glm::two_pi<float>() * this->idle.time / BREATH_SECONDS);
+        if (this->idle.torso < animation.animation.size()) {
+            animation.animation[this->idle.torso].rotation *=
+                glm::angleAxis(glm::radians(TORSO_ROLL_DEGREES) * sway * this->idle.weight,
                     glm::vec3(0, 0, 1)) *
                 glm::angleAxis(
-                    glm::radians(BREATH_DEGREES) * breath * this->idle_weight, glm::vec3(1, 0, 0));
+                    glm::radians(BREATH_DEGREES) * breath * this->idle.weight, glm::vec3(1, 0, 0));
             this->update_globals(model, animation);
         }
         if (suspended) {
             // Keep the grasp fixed: root_delta = wrist_before - wrist_after_sway.
-            this->translate_hanging_roots(
-                animation, anchor - glm::vec3(this->globals[this->wrists[this->hanging_side]][3]));
+            this->translate_hanging_roots(animation,
+                anchor -
+                    glm::vec3(this->transforms.globals[this->wrists[this->hanging_state.side]][3]));
             this->update_globals(model, animation);
             this->update_hanging_ik_targets(model, animation);
         }
         // Hanging, landing and walking own the limb poses; breathing continues above them.
-        if (this->hanging_weight > EPSILON || this->hanging_landing) {
+        if (this->hanging_state.weight > EPSILON || this->hanging_state.landing) {
             return;
         }
-        if (!(this->jump_height > 0)) {
+        if (!(this->locomotion.height > 0)) {
             this->apply_idle_legs(model, animation, sway);
         }
-        this->apply_idle_arms(model, animation, this->idle_weight);
+        this->apply_idle_arms(model, animation, this->idle.weight);
     }
 
     void CursorPose::apply_idle_legs(const component::ModelComponent& model,
         component::AnimationComponent& animation,
         float sway) {
-        if (this->legs[0][2] < this->globals.size() && this->legs[1][2] < this->globals.size()) {
-            this->idle_applied = true;
+        if (this->locomotion.legs[0][2] < this->transforms.globals.size() &&
+            this->locomotion.legs[1][2] < this->transforms.globals.size()) {
+            this->idle.applied = true;
             const std::array<glm::mat4, 2> feet{
-                this->globals[this->legs[0][2]], this->globals[this->legs[1][2]]};
-            const auto& leg = this->legs[0];
-            const float length =
-                glm::length(glm::vec3(this->globals[leg[0]][3] - this->globals[leg[1]][3])) +
-                glm::length(glm::vec3(this->globals[leg[1]][3] - this->globals[leg[2]][3]));
+                this->transforms.globals[this->locomotion.legs[0][2]],
+                this->transforms.globals[this->locomotion.legs[1][2]]};
+            const auto& leg = this->locomotion.legs[0];
+            const float length = glm::length(glm::vec3(this->transforms.globals[leg[0]][3] -
+                                                       this->transforms.globals[leg[1]][3])) +
+                                 glm::length(glm::vec3(this->transforms.globals[leg[1]][3] -
+                                                       this->transforms.globals[leg[2]][3]));
             this->translate_hanging_roots(
-                animation, glm::vec3(length * SHIFT_RATIO * sway * this->idle_weight, 0, 0));
+                animation, glm::vec3(length * SHIFT_RATIO * sway * this->idle.weight, 0, 0));
             this->update_globals(model, animation);
-            this->crouch(model, animation, CROUCH_WEIGHT * this->idle_weight);
-            for (std::size_t side = 0; side < this->legs.size(); ++side) {
+            this->crouch(model, animation, CROUCH_WEIGHT * this->idle.weight);
+            for (std::size_t side = 0; side < this->locomotion.legs.size(); ++side) {
                 auto foot = feet[side];
-                const float phase = glm::two_pi<float>() * this->idle_time / FOOT_SECONDS +
+                const float phase = glm::two_pi<float>() * this->idle.time / FOOT_SECONDS +
                                     static_cast<float>(side) * glm::pi<float>();
                 // Positive half-wave squared gives alternating, smooth foot adjustments.
                 const float wave = (std::max)(0.0f, std::sin(phase));
-                const float amount = wave * wave * this->idle_weight;
+                const float amount = wave * wave * this->idle.weight;
                 const float outward = side == 0 ? 1.0f : -1.0f;
                 foot[3].x += outward * length * FOOT_SHIFT_RATIO * amount;
                 foot[3].y += length * FOOT_LIFT_RATIO * amount;
@@ -109,7 +115,7 @@ namespace enishi::animation {
         component::AnimationComponent& animation,
         float weight) {
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-            if (!(this->wrists[side] < this->globals.size())) {
+            if (!(this->wrists[side] < this->transforms.globals.size())) {
                 continue;
             }
             const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
@@ -119,7 +125,7 @@ namespace enishi::animation {
             const auto frame = this->arm_frame(side);
             // |hand-shoulder|/length = sqrt(down^2+out^2+forward^2), keeping a slight elbow bend.
             const auto hand =
-                glm::vec3(this->globals[arm][3]) +
+                glm::vec3(this->transforms.globals[arm][3]) +
                 frame.length * (-frame.up * HAND_DOWN_RATIO + frame.outward * HAND_OUT_RATIO +
                                    frame.forward * HAND_FORWARD_RATIO);
             this->solve_arm(model, animation, side, hand, frame);

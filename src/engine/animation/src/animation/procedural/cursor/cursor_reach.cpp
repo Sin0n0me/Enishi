@@ -200,15 +200,16 @@ namespace enishi::animation {
     }
 
     bool CursorPose::can_reach(std::size_t side, const glm::vec3& target) const {
-        if (!(this->wrists[side] < this->globals.size())) {
+        if (!(this->wrists[side] < this->transforms.globals.size())) {
             return false;
         }
         const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
         const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->globals[arm][3]);
-        const auto joint = glm::vec3(this->globals[elbow][3]);
+        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
+        const auto joint = glm::vec3(this->transforms.globals[elbow][3]);
         const float upper = glm::length(joint - shoulder);
-        const float lower = glm::length(glm::vec3(this->globals[this->wrists[side]][3]) - joint);
+        const float lower =
+            glm::length(glm::vec3(this->transforms.globals[this->wrists[side]][3]) - joint);
         // Each arm owns its range: |target-shoulder| < upper+lower. A 5% release
         // margin avoids repeatedly entering/leaving when the cursor grazes the boundary.
         const float release = this->active_arms[side] ? REACH_RELEASE_RATIO : 1.0f;
@@ -216,10 +217,10 @@ namespace enishi::animation {
             !(glm::length(target - shoulder) < (upper + lower) * release)) {
             return false;
         }
-        if (this->body_bones[BodyLeft] < this->globals.size() &&
-            this->body_bones[BodyRight] < this->globals.size()) {
-            const auto left = glm::vec3(this->globals[this->body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(this->globals[this->body_bones[BodyRight]][3]);
+        if (this->body_bones[BodyLeft] < this->transforms.globals.size() &&
+            this->body_bones[BodyRight] < this->transforms.globals.size()) {
+            const auto left = glm::vec3(this->transforms.globals[this->body_bones[BodyLeft]][3]);
+            const auto right = glm::vec3(this->transforms.globals[this->body_bones[BodyRight]][3]);
             const auto across = left - right;
             const float width = glm::length(across);
             if (width > EPSILON) {
@@ -239,27 +240,27 @@ namespace enishi::animation {
     CursorPose::ArmFrame CursorPose::arm_frame(std::size_t side) const {
         const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
         const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->globals[arm][3]);
-        const float upper = glm::length(glm::vec3(this->globals[elbow][3]) - shoulder);
-        const float lower =
-            glm::length(glm::vec3(this->globals[this->wrists[side]][3] - this->globals[elbow][3]));
+        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
+        const float upper = glm::length(glm::vec3(this->transforms.globals[elbow][3]) - shoulder);
+        const float lower = glm::length(glm::vec3(
+            this->transforms.globals[this->wrists[side]][3] - this->transforms.globals[elbow][3]));
         const auto basis =
-            this->body_anchor < this->globals.size()
-                ? glm::mat3(this->globals[this->body_anchor]) * this->body_bind_inverse
+            this->body_anchor < this->transforms.globals.size()
+                ? glm::mat3(this->transforms.globals[this->body_anchor]) * this->body_bind_inverse
                 : glm::mat3(1);
-        ArmFrame frame{shoulder,
+        ArmFrame frame{{},
+            shoulder,
             glm::normalize(basis * glm::vec3(1, 0, 0)),
             glm::normalize(basis * glm::vec3(0, 1, 0)),
             glm::normalize(basis * glm::vec3(0, 0, -1)),
             upper + lower,
             lower * ARM_MARGIN_RATIO,
-            lower * HAND_MARGIN_RATIO,
-            {}};
+            lower * HAND_MARGIN_RATIO};
         float width = upper;
-        if (this->body_bones[BodyLeft] < this->globals.size() &&
-            this->body_bones[BodyRight] < this->globals.size()) {
-            const auto left = glm::vec3(this->globals[this->body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(this->globals[this->body_bones[BodyRight]][3]);
+        if (this->body_bones[BodyLeft] < this->transforms.globals.size() &&
+            this->body_bones[BodyRight] < this->transforms.globals.size()) {
+            const auto left = glm::vec3(this->transforms.globals[this->body_bones[BodyLeft]][3]);
+            const auto right = glm::vec3(this->transforms.globals[this->body_bones[BodyRight]][3]);
             frame.center = (left + right) * 0.5f;
             width = glm::length(left - right);
         } else {
@@ -267,17 +268,18 @@ namespace enishi::animation {
             frame.center -= frame.outward * sign * width * 0.5f;
         }
         frame.outward *= side == 0 ? 1.0f : -1.0f;
-        const auto hips = this->body_bones[BodyHips] < this->globals.size()
-                              ? glm::vec3(this->globals[this->body_bones[BodyHips]][3])
+        const auto hips = this->body_bones[BodyHips] < this->transforms.globals.size()
+                              ? glm::vec3(this->transforms.globals[this->body_bones[BodyHips]][3])
                               : frame.center - frame.up * frame.length * TORSO_HEIGHT_RATIO;
-        const auto neck = this->body_bones[BodyNeck] < this->globals.size()
-                              ? glm::vec3(this->globals[this->body_bones[BodyNeck]][3])
+        const auto neck = this->body_bones[BodyNeck] < this->transforms.globals.size()
+                              ? glm::vec3(this->transforms.globals[this->body_bones[BodyNeck]][3])
                               : frame.center;
         frame.obstacles.push_back({hips, neck, width * TORSO_RADIUS_RATIO});
-        if (this->body_bones[BodyHead] < this->globals.size()) {
-            const auto head = glm::vec3(this->globals[this->body_bones[BodyHead]][3]);
-            const auto head_up = glm::normalize(
-                glm::mat3(this->globals[this->body_bones[BodyHead]]) * this->head_local_up);
+        if (this->body_bones[BodyHead] < this->transforms.globals.size()) {
+            const auto head = glm::vec3(this->transforms.globals[this->body_bones[BodyHead]][3]);
+            const auto head_up =
+                glm::normalize(glm::mat3(this->transforms.globals[this->body_bones[BodyHead]]) *
+                               this->head_local_up);
             frame.obstacles.push_back({head,
                 head + head_up * lower * HEAD_HEIGHT_RATIO,
                 (std::max)(width, lower) * HEAD_RADIUS_RATIO});
@@ -288,9 +290,9 @@ namespace enishi::animation {
     bool CursorPose::arm_clear(std::size_t side, const ArmFrame& frame) const {
         const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
         const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->globals[arm][3]);
-        const auto joint = glm::vec3(this->globals[elbow][3]);
-        const auto wrist = glm::vec3(this->globals[this->wrists[side]][3]);
+        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
+        const auto joint = glm::vec3(this->transforms.globals[elbow][3]);
+        const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
         for (const auto& capsule : frame.obstacles) {
             // Inflate centerline tests by limb thickness, and the wrist by the hand's extent.
             const float squared =
@@ -304,10 +306,10 @@ namespace enishi::animation {
             }
         }
         const std::size_t other = 1 - side;
-        if (this->wrists[other] < this->globals.size()) {
+        if (this->wrists[other] < this->transforms.globals.size()) {
             const auto other_elbow = this->joints[other == 0 ? LeftElbow : RightElbow];
-            const auto other_joint = glm::vec3(this->globals[other_elbow][3]);
-            const auto other_wrist = glm::vec3(this->globals[this->wrists[other]][3]);
+            const auto other_joint = glm::vec3(this->transforms.globals[other_elbow][3]);
+            const auto other_wrist = glm::vec3(this->transforms.globals[this->wrists[other]][3]);
             const auto other_frame = this->arm_frame(other);
             const float limb_clearance = frame.arm_margin + other_frame.arm_margin;
             const float hand_clearance = frame.hand_margin + other_frame.hand_margin;
@@ -353,10 +355,11 @@ namespace enishi::animation {
         const ArmFrame& frame) {
         const auto arm = side == 0 ? LeftArm : RightArm;
         const auto elbow = side == 0 ? LeftElbow : RightElbow;
-        const auto shoulder = glm::vec3(this->globals[this->joints[arm]][3]);
-        const auto joint = glm::vec3(this->globals[this->joints[elbow]][3]);
+        const auto shoulder = glm::vec3(this->transforms.globals[this->joints[arm]][3]);
+        const auto joint = glm::vec3(this->transforms.globals[this->joints[elbow]][3]);
         const float upper = glm::length(joint - shoulder);
-        const float lower = glm::length(glm::vec3(this->globals[this->wrists[side]][3]) - joint);
+        const float lower =
+            glm::length(glm::vec3(this->transforms.globals[this->wrists[side]][3]) - joint);
         if (!(upper > EPSILON) || !(lower > EPSILON) ||
             !(glm::length(target - shoulder) > EPSILON)) {
             return;
@@ -390,9 +393,10 @@ namespace enishi::animation {
             this->bind_rotations[elbow] *
             glm::angleAxis(flex - this->bind_flex[side], this->hinge_axes[side]);
         this->update_globals(model, animation);
-        const auto current_upper = glm::vec3(this->globals[this->joints[elbow]][3]) - shoulder;
-        const auto current_lower =
-            glm::vec3(this->globals[this->wrists[side]][3] - this->globals[this->joints[elbow]][3]);
+        const auto current_upper =
+            glm::vec3(this->transforms.globals[this->joints[elbow]][3]) - shoulder;
+        const auto current_lower = glm::vec3(this->transforms.globals[this->wrists[side]][3] -
+                                             this->transforms.globals[this->joints[elbow]][3]);
         auto correction = between(current_upper, desired_upper);
         const auto axis = glm::normalize(desired_upper);
         const auto from = glm::cross(correction * current_upper, correction * current_lower);
@@ -404,7 +408,7 @@ namespace enishi::animation {
                     glm::dot(glm::normalize(from), glm::normalize(to)));
             correction = glm::angleAxis(twist, axis) * correction;
         }
-        const auto global_rotation = rotation_of(this->globals[this->joints[arm]]);
+        const auto global_rotation = rotation_of(this->transforms.globals[this->joints[arm]]);
         animation.animation[this->joints[arm]].rotation *=
             glm::inverse(global_rotation) * correction * global_rotation;
         this->constrain_arm(animation, side);
@@ -454,7 +458,7 @@ namespace enishi::animation {
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
             const auto arm = side == 0 ? LeftArm : RightArm;
             const auto elbow = side == 0 ? LeftElbow : RightElbow;
-            if (!(this->wrists[side] < this->globals.size())) {
+            if (!(this->wrists[side] < this->transforms.globals.size())) {
                 continue;
             }
             const auto desired_upper = this->offsets[arm];
@@ -513,7 +517,7 @@ namespace enishi::animation {
         for (std::size_t side = 0; side < this->wrists.size(); ++side) {
             const auto arm = side == 0 ? LeftArm : RightArm;
             const auto elbow = side == 0 ? LeftElbow : RightElbow;
-            if (!(this->wrists[side] < this->globals.size()) ||
+            if (!(this->wrists[side] < this->transforms.globals.size()) ||
                 (glm::length(this->offsets[arm] - IDENTITY) < EPSILON &&
                     glm::length(this->offsets[elbow] - IDENTITY) < EPSILON)) {
                 continue;
@@ -528,7 +532,7 @@ namespace enishi::animation {
             if (!this->arm_clear(side, frame)) {
                 // Interpolation between two safe poses can cut through the body. Re-solve its
                 // actual intermediate hand position and keep the corrected offset for next frame.
-                const auto wrist = glm::vec3(this->globals[this->wrists[side]][3]);
+                const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
                 if (!this->reach_side(model, animation, side, wrist)) {
                     animation.animation[this->joints[arm]].rotation = this->originals[arm];
                     animation.animation[this->joints[elbow]].rotation = this->originals[elbow];
