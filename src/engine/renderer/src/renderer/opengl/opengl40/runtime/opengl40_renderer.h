@@ -6,7 +6,7 @@
 #include <platform/renderer/interface_renderer.h>
 #include <renderer/common/render_handle_mapper.h>
 #include <renderer/common/resource_accessor.h>
-#include <renderer/opengl/opengl40/opengl40_renderer_state.h>
+#include <renderer/opengl/opengl40/runtime/opengl40_renderer_state.h>
 #include <vector>
 
 namespace enishi::renderer::opengl {
@@ -78,13 +78,5 @@ namespace enishi::renderer::opengl {
         void submit_command_image(const types::DrawCommand&) const override;
         void draw(const types::RenderHandle&) const override;
         void present(void) const override;
-
-      private:
-        [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
-        [[nodiscard]] platform::RenderResult<types::RenderHandle> make_buffer(
-            const types::RenderData& data, std::uint32_t target);
-        [[nodiscard]] bool prepare_back_buffer_framebuffer(const types::RenderHandle&) const;
-        [[nodiscard]] bool use_active_program(void) const;
-        void bind_depth_only_view(const types::RenderHandle& view) const;
     };
 } // namespace enishi::renderer::opengl

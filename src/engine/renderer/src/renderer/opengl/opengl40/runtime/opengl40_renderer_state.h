@@ -65,5 +65,8 @@ namespace enishi::renderer::opengl {
         std::vector<types::RenderHandle> viewport_order;
 
         OpenGL40RendererState(void);
+        // Both operations require the owning renderer's context to be current.
+        void initialize();
+        void release() noexcept;
     };
 } // namespace enishi::renderer::opengl

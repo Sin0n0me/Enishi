@@ -1,8 +1,8 @@
 #include "opengl40_render_initializer.h"
-#include "opengl40_helpers.h"
 #include <cstddef>
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <glad/gl.h>
+#include <renderer/opengl/opengl40/support/opengl40_helpers.h>
 
 namespace enishi::renderer::opengl {
     constexpr std::size_t MODEL_BONES_UNIFORM_BLOCK_SIZE = sizeof(types::MediumModelBones);

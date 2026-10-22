@@ -1,3 +1,4 @@
+#include "opengl_shadow_tests.h"
 #include <SDL3/SDL.h>
 #include <core/system/asset/asset_system.h>
 #include <core/system/asset/shader/shader_data_provider.h>
@@ -7,7 +8,7 @@
 #include <memory>
 #include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
-#include <renderer/opengl/opengl40/opengl40_renderer.h>
+#include <renderer/opengl/opengl40/runtime/opengl40_renderer.h>
 #include <type_traits>
 
 using namespace enishi;
@@ -201,10 +202,15 @@ namespace {
     }
 } // namespace
 
-int main() {
+int enishi::renderer::tests::run_opengl_shadow_tests() {
     require(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
     run();
     SDL_Quit();
     std::cout << "OpenGL render-pass creation, FBO clearing, viewport and texture bindings passed"
               << std::endl;
+    return EXIT_SUCCESS;
+}
+
+int main() {
+    return enishi::renderer::tests::run_opengl_shadow_tests();
 }
