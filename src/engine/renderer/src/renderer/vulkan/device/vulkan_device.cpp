@@ -1,4 +1,3 @@
-#include <renderer/vulkan/device/vulkan_device.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <algorithm>
@@ -6,6 +5,10 @@
 #include <cstring>
 #include <foundation/log/logger.h>
 #include <limits>
+#include <renderer/vulkan/device/vulkan_device.h>
+#include <renderer/vulkan/shadow/vulkan_shadow.h>
+#include <renderer/vulkan/swapchain/vulkan_swapchain.h>
+#include <renderer/vulkan/texture/vulkan_texture.h>
 
 // Preserve VkResult and operation names at every failing Vulkan call.
 #define ENISHI_VK_TRY(call)                                                                        \
@@ -17,40 +20,11 @@
     } while (false)
 
 namespace enishi::renderer::vulkan {
-    platform::RenderResult<void> check_vk(VkResult result, const char* operation) {
-        if (result != VK_SUCCESS) {
-            return foundation::Error(platform::RenderError::MakeError,
-                std::format("{} failed (VkResult {})", operation, static_cast<int>(result)));
-        }
-        return {};
-    }
     VulkanDevice::VulkanDevice() = default;
-    VulkanBuffer::~VulkanBuffer() {
-        if (this->owner == nullptr) {
-            return;
-        }
-        if (this->mapped != nullptr) {
-            vkUnmapMemory(this->owner->device, this->memory);
-        }
-        vkDestroyBuffer(this->owner->device, this->buffer, nullptr);
-        vkFreeMemory(this->owner->device, this->memory, nullptr);
-    }
-    VulkanImage::~VulkanImage() {
-        if (this->owner == nullptr) {
-            return;
-        }
-        vkDestroyImageView(this->owner->device, this->view, nullptr);
-        vkDestroyImage(this->owner->device, this->image, nullptr);
-        vkFreeMemory(this->owner->device, this->memory, nullptr);
-    }
     VulkanDevice::~VulkanDevice() {
         if (this->device != VK_NULL_HANDLE) {
             vkDeviceWaitIdle(this->device);
-            this->destroy_swapchain();
-            vkDestroyRenderPass(this->device, this->render_pass, nullptr);
-            vkDestroySemaphore(this->device, this->acquired, nullptr);
-            vkDestroySemaphore(this->device, this->finished, nullptr);
-            vkDestroyFence(this->device, this->submitted, nullptr);
+            this->swapchain.reset();
             vkDestroyCommandPool(this->device, this->command_pool, nullptr);
             vkDestroyDevice(this->device, nullptr);
         }
@@ -66,6 +40,104 @@ namespace enishi::renderer::vulkan {
             vkDestroyInstance(this->instance, nullptr);
         }
     }
+    platform::RenderResult<void> VulkanDevice::init(SDL_Window* window, bool validation) {
+        if (window == nullptr) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Vulkan requires an SDL window");
+        }
+        auto result = this->make_instance(validation);
+        if (result.is_err()) {
+            return result;
+        }
+        if (!SDL_Vulkan_CreateSurface(window, this->instance, nullptr, &this->surface)) {
+            return foundation::Error(platform::RenderError::MakeError, SDL_GetError());
+        }
+        result = this->select_device();
+        if (result.is_err()) {
+            return result;
+        }
+        result = this->make_commands();
+        if (result.is_err()) {
+            return result;
+        }
+        this->swapchain = std::make_unique<VulkanSwapchain>(*this, window, this->surface);
+        return this->swapchain->init();
+    }
+    platform::RenderResult<std::shared_ptr<VulkanBuffer>> VulkanDevice::make_buffer(
+        VkDeviceSize size, VkBufferUsageFlags usage) {
+        if (size == 0) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Vulkan buffer size must be positive");
+        }
+        auto buffer = std::make_shared<VulkanBuffer>();
+        buffer->owner = this->shared_from_this();
+        buffer->size = size;
+        VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        info.size = size;
+        info.usage = usage;
+        info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        ENISHI_VK_TRY(vkCreateBuffer(this->device, &info, nullptr, &buffer->buffer));
+        VkMemoryRequirements requirements{};
+        vkGetBufferMemoryRequirements(this->device, buffer->buffer, &requirements);
+        auto type = this->memory_type(requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (type.is_err()) {
+            return std::move(type).take_err();
+        }
+        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocation.allocationSize = requirements.size;
+        allocation.memoryTypeIndex = type.unwrap();
+        ENISHI_VK_TRY(vkAllocateMemory(this->device, &allocation, nullptr, &buffer->memory));
+        ENISHI_VK_TRY(vkBindBufferMemory(this->device, buffer->buffer, buffer->memory, 0));
+        ENISHI_VK_TRY(vkMapMemory(this->device, buffer->memory, 0, size, 0, &buffer->mapped));
+        return buffer;
+    }
+    platform::RenderResult<std::shared_ptr<VulkanImage>> VulkanDevice::make_texture(
+        const types::TextureData& texture) {
+        return VulkanTexture::make_texture(*this, texture);
+    }
+    platform::RenderResult<std::shared_ptr<VulkanShadowTarget>> VulkanDevice::make_shadow_target(
+        VkExtent2D size) {
+        return VulkanShadow::make_shadow_target(*this, size);
+    }
+    platform::RenderResult<void> VulkanDevice::begin_frame(glm::vec4 clear_color) {
+        return this->swapchain->begin_frame(clear_color);
+    }
+    platform::RenderResult<void> VulkanDevice::begin_shadow_pass(
+        const VulkanShadowTarget& target, float clear_depth) {
+        return this->swapchain->begin_shadow_pass(target, clear_depth);
+    }
+    void VulkanDevice::begin_main_pass() {
+        return this->swapchain->begin_main_pass();
+    }
+    void VulkanDevice::end_active_pass() {
+        return this->swapchain->end_active_pass();
+    }
+    platform::RenderResult<void> VulkanDevice::end_frame(
+        const std::shared_ptr<VulkanBuffer>& readback) {
+        return this->swapchain->end_frame(readback);
+    }
+    platform::RenderResult<void> VulkanDevice::wait_idle() {
+        return check_vk(vkDeviceWaitIdle(this->device), "vkDeviceWaitIdle");
+    }
+    std::uint32_t VulkanDevice::validation_error_count() const noexcept {
+        return this->validation_errors;
+    }
+    platform::RenderResult<void> VulkanDevice::allocate_image(
+        VkImage image, VkDeviceMemory& memory) {
+        VkMemoryRequirements requirements{};
+        vkGetImageMemoryRequirements(this->device, image, &requirements);
+        auto type =
+            this->memory_type(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (type.is_err()) {
+            return std::move(type).take_err();
+        }
+        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocation.allocationSize = requirements.size;
+        allocation.memoryTypeIndex = type.unwrap();
+        ENISHI_VK_TRY(vkAllocateMemory(this->device, &allocation, nullptr, &memory));
+        return check_vk(vkBindImageMemory(this->device, image, memory, 0), "vkBindImageMemory");
+    }
     VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDevice::debug_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT severity,
         VkDebugUtilsMessageTypeFlagsEXT,
@@ -78,9 +150,6 @@ namespace enishi::renderer::vulkan {
             foundation::Logger::warning(data->pMessage);
         }
         return VK_FALSE;
-    }
-    std::uint32_t VulkanDevice::validation_error_count() const noexcept {
-        return this->validation_errors;
     }
     platform::RenderResult<void> VulkanDevice::make_instance(bool validation) {
         Uint32 count = 0;
@@ -201,36 +270,7 @@ namespace enishi::renderer::vulkan {
         allocation.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocation.commandBufferCount = 1;
         ENISHI_VK_TRY(vkAllocateCommandBuffers(this->device, &allocation, &this->command));
-        VkSemaphoreCreateInfo semaphore{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        ENISHI_VK_TRY(vkCreateSemaphore(this->device, &semaphore, nullptr, &this->acquired));
-        ENISHI_VK_TRY(vkCreateSemaphore(this->device, &semaphore, nullptr, &this->finished));
-        VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        fence.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        ENISHI_VK_TRY(vkCreateFence(this->device, &fence, nullptr, &this->submitted));
         return {};
-    }
-    platform::RenderResult<void> VulkanDevice::init(SDL_Window* window, bool validation) {
-        if (window == nullptr) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "Vulkan requires an SDL window");
-        }
-        this->window = window;
-        auto result = this->make_instance(validation);
-        if (result.is_err()) {
-            return result;
-        }
-        if (!SDL_Vulkan_CreateSurface(window, this->instance, nullptr, &this->surface)) {
-            return foundation::Error(platform::RenderError::MakeError, SDL_GetError());
-        }
-        result = this->select_device();
-        if (result.is_err()) {
-            return result;
-        }
-        result = this->make_commands();
-        if (result.is_err()) {
-            return result;
-        }
-        return this->make_swapchain();
     }
     platform::RenderResult<std::uint32_t> VulkanDevice::memory_type(
         std::uint32_t mask, VkMemoryPropertyFlags flags) const {
@@ -244,52 +284,5 @@ namespace enishi::renderer::vulkan {
         }
         return foundation::Error(
             platform::RenderError::MakeError, "No compatible Vulkan memory type");
-    }
-    platform::RenderResult<std::shared_ptr<VulkanBuffer>> VulkanDevice::make_buffer(
-        VkDeviceSize size, VkBufferUsageFlags usage) {
-        if (size == 0) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "Vulkan buffer size must be positive");
-        }
-        auto buffer = std::make_shared<VulkanBuffer>();
-        buffer->owner = this->shared_from_this();
-        buffer->size = size;
-        VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        info.size = size;
-        info.usage = usage;
-        info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        ENISHI_VK_TRY(vkCreateBuffer(this->device, &info, nullptr, &buffer->buffer));
-        VkMemoryRequirements requirements{};
-        vkGetBufferMemoryRequirements(this->device, buffer->buffer, &requirements);
-        auto type = this->memory_type(requirements.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (type.is_err()) {
-            return std::move(type).take_err();
-        }
-        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-        allocation.allocationSize = requirements.size;
-        allocation.memoryTypeIndex = type.unwrap();
-        ENISHI_VK_TRY(vkAllocateMemory(this->device, &allocation, nullptr, &buffer->memory));
-        ENISHI_VK_TRY(vkBindBufferMemory(this->device, buffer->buffer, buffer->memory, 0));
-        ENISHI_VK_TRY(vkMapMemory(this->device, buffer->memory, 0, size, 0, &buffer->mapped));
-        return buffer;
-    }
-    platform::RenderResult<void> VulkanDevice::allocate_image(
-        VkImage image, VkDeviceMemory& memory) {
-        VkMemoryRequirements requirements{};
-        vkGetImageMemoryRequirements(this->device, image, &requirements);
-        auto type =
-            this->memory_type(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (type.is_err()) {
-            return std::move(type).take_err();
-        }
-        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-        allocation.allocationSize = requirements.size;
-        allocation.memoryTypeIndex = type.unwrap();
-        ENISHI_VK_TRY(vkAllocateMemory(this->device, &allocation, nullptr, &memory));
-        return check_vk(vkBindImageMemory(this->device, image, memory, 0), "vkBindImageMemory");
-    }
-    platform::RenderResult<void> VulkanDevice::wait_idle() {
-        return check_vk(vkDeviceWaitIdle(this->device), "vkDeviceWaitIdle");
     }
 } // namespace enishi::renderer::vulkan

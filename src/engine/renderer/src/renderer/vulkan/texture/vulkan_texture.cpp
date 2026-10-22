@@ -1,4 +1,4 @@
-#include <renderer/vulkan/device/vulkan_device.h>
+#include "vulkan_texture.h"
 #include <algorithm>
 #include <bit>
 #include <cstring>
@@ -91,16 +91,17 @@ namespace enishi::renderer::vulkan {
             return bytes;
         }
     } // namespace
-    platform::RenderResult<std::shared_ptr<VulkanImage>> VulkanDevice::make_texture(
-        const types::TextureData& texture) {
-        if (this->recording || texture.is_cubemap || texture.array_size != 1 || texture.depth > 1 ||
-            texture.width == 0 || texture.height == 0 || texture.mips.empty()) {
+    platform::RenderResult<std::shared_ptr<VulkanImage>> VulkanTexture::make_texture(
+        VulkanDevice& context, const types::TextureData& texture) {
+        if (context.recording || texture.is_cubemap || texture.array_size != 1 ||
+            texture.depth > 1 || texture.width == 0 || texture.height == 0 ||
+            texture.mips.empty()) {
             return foundation::Error(platform::RenderError::MakeError,
                 "Vulkan textures must be 2D and uploaded outside a frame");
         }
         const auto format = texture_format(texture.format);
         VkPhysicalDeviceProperties device_properties{};
-        vkGetPhysicalDeviceProperties(this->physical, &device_properties);
+        vkGetPhysicalDeviceProperties(context.physical, &device_properties);
         if (texture.width > device_properties.limits.maxImageDimension2D ||
             texture.height > device_properties.limits.maxImageDimension2D ||
             texture.mips.size() > std::bit_width((std::max)(texture.width, texture.height))) {
@@ -109,14 +110,14 @@ namespace enishi::renderer::vulkan {
         }
         if (types::TextureData::is_compressed(texture.format)) {
             VkPhysicalDeviceFeatures features{};
-            vkGetPhysicalDeviceFeatures(this->physical, &features);
+            vkGetPhysicalDeviceFeatures(context.physical, &features);
             if (features.textureCompressionBC != VK_TRUE) {
                 return foundation::Error(platform::RenderError::MakeError,
                     "Vulkan device does not support BC texture compression");
             }
         }
         VkFormatProperties properties{};
-        vkGetPhysicalDeviceFormatProperties(this->physical, format, &properties);
+        vkGetPhysicalDeviceFormatProperties(context.physical, format, &properties);
         constexpr auto REQUIRED =
             VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
         if ((properties.optimalTilingFeatures & REQUIRED) != REQUIRED) {
@@ -129,14 +130,14 @@ namespace enishi::renderer::vulkan {
             return std::move(packed).take_err();
         }
         auto staging_result =
-            this->make_buffer(packed.unwrap().size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            context.make_buffer(packed.unwrap().size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
         if (staging_result.is_err()) {
             return std::move(staging_result).take_err();
         }
         auto staging = staging_result.unwrap();
         std::memcpy(staging->mapped, packed.unwrap().data(), packed.unwrap().size());
         auto image = std::make_shared<VulkanImage>();
-        image->owner = this->shared_from_this();
+        image->owner = context.shared_from_this();
         VkImageCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         info.imageType = VK_IMAGE_TYPE_2D;
         info.format = format;
@@ -146,8 +147,8 @@ namespace enishi::renderer::vulkan {
         info.samples = VK_SAMPLE_COUNT_1_BIT;
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
         info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        ENISHI_VK_TRY(vkCreateImage(this->device, &info, nullptr, &image->image));
-        auto allocated = this->allocate_image(image->image, image->memory);
+        ENISHI_VK_TRY(vkCreateImage(context.device, &info, nullptr, &image->image));
+        auto allocated = context.allocate_image(image->image, image->memory);
         if (allocated.is_err()) {
             return std::move(allocated).take_err();
         }
@@ -156,22 +157,24 @@ namespace enishi::renderer::vulkan {
         view.viewType = VK_IMAGE_VIEW_TYPE_2D;
         view.format = format;
         view.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, info.mipLevels, 0, 1};
-        ENISHI_VK_TRY(vkCreateImageView(this->device, &view, nullptr, &image->view));
-        auto uploaded = this->upload_texture(*image, *staging, copies, view.subresourceRange);
+        ENISHI_VK_TRY(vkCreateImageView(context.device, &view, nullptr, &image->view));
+        auto uploaded =
+            VulkanTexture::upload_texture(context, *image, *staging, copies, view.subresourceRange);
         if (uploaded.is_err()) {
             return std::move(uploaded).take_err();
         }
         return image;
     }
-    platform::RenderResult<void> VulkanDevice::upload_texture(const VulkanImage& image,
+    platform::RenderResult<void> VulkanTexture::upload_texture(VulkanDevice& context,
+        const VulkanImage& image,
         const VulkanBuffer& staging,
         std::span<const VkBufferImageCopy> copies,
         const VkImageSubresourceRange& range) {
-        ENISHI_VK_TRY(vkQueueWaitIdle(this->queue));
-        ENISHI_VK_TRY(vkResetCommandBuffer(this->command, 0));
+        ENISHI_VK_TRY(vkQueueWaitIdle(context.queue));
+        ENISHI_VK_TRY(vkResetCommandBuffer(context.command, 0));
         VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        ENISHI_VK_TRY(vkBeginCommandBuffer(this->command, &begin));
+        ENISHI_VK_TRY(vkBeginCommandBuffer(context.command, &begin));
         VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -180,7 +183,7 @@ namespace enishi::renderer::vulkan {
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.image = image.image;
         barrier.subresourceRange = range;
-        vkCmdPipelineBarrier(this->command,
+        vkCmdPipelineBarrier(context.command,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT,
             0,
@@ -190,7 +193,7 @@ namespace enishi::renderer::vulkan {
             nullptr,
             1,
             &barrier);
-        vkCmdCopyBufferToImage(this->command,
+        vkCmdCopyBufferToImage(context.command,
             staging.buffer,
             image.image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -200,7 +203,7 @@ namespace enishi::renderer::vulkan {
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        vkCmdPipelineBarrier(this->command,
+        vkCmdPipelineBarrier(context.command,
             VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             0,
@@ -210,12 +213,12 @@ namespace enishi::renderer::vulkan {
             nullptr,
             1,
             &barrier);
-        ENISHI_VK_TRY(vkEndCommandBuffer(this->command));
+        ENISHI_VK_TRY(vkEndCommandBuffer(context.command));
         VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &this->command;
-        ENISHI_VK_TRY(vkQueueSubmit(this->queue, 1, &submit, VK_NULL_HANDLE));
-        ENISHI_VK_TRY(vkQueueWaitIdle(this->queue));
+        submit.pCommandBuffers = &context.command;
+        ENISHI_VK_TRY(vkQueueSubmit(context.queue, 1, &submit, VK_NULL_HANDLE));
+        ENISHI_VK_TRY(vkQueueWaitIdle(context.queue));
         return {};
     }
 } // namespace enishi::renderer::vulkan

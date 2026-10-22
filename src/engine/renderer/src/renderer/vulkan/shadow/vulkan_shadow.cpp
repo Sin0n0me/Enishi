@@ -1,15 +1,65 @@
+#include "vulkan_shadow.h"
 #include <array>
-#include <renderer/vulkan/runtime/vulkan_renderer.h>
 
 namespace enishi::renderer::vulkan {
-    VulkanShadowTarget::~VulkanShadowTarget() {
-        if (this->owner != nullptr) {
-            vkDestroyDescriptorPool(this->owner->device, this->pool, nullptr);
-            vkDestroyFramebuffer(this->owner->device, this->framebuffer, nullptr);
-            vkDestroyRenderPass(this->owner->device, this->render_pass, nullptr);
+    platform::RenderResult<std::shared_ptr<VulkanShadowTarget>> VulkanShadow::make_shadow_target(
+        VulkanDevice& context, VkExtent2D size) {
+        VkFormatProperties properties{};
+        vkGetPhysicalDeviceFormatProperties(context.physical, VK_FORMAT_D32_SFLOAT, &properties);
+        constexpr VkFormatFeatureFlags REQUIRED =
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+        VkPhysicalDeviceProperties limits{};
+        vkGetPhysicalDeviceProperties(context.physical, &limits);
+        if ((properties.optimalTilingFeatures & REQUIRED) != REQUIRED || size.width == 0 ||
+            size.height == 0 || size.width > limits.limits.maxFramebufferWidth ||
+            size.height > limits.limits.maxFramebufferHeight ||
+            size.width > limits.limits.maxImageDimension2D ||
+            size.height > limits.limits.maxImageDimension2D) {
+            return foundation::Error(
+                platform::RenderError::MakeError, "Unsupported Vulkan sampled depth image");
         }
+        auto target = std::make_shared<VulkanShadowTarget>();
+        target->owner = context.shared_from_this();
+        target->extent = size;
+        target->image = std::make_shared<VulkanImage>();
+        target->image->owner = context.shared_from_this();
+        VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+        image.imageType = VK_IMAGE_TYPE_2D;
+        image.format = VK_FORMAT_D32_SFLOAT;
+        image.extent = {size.width, size.height, 1};
+        image.mipLevels = 1;
+        image.arrayLayers = 1;
+        image.samples = VK_SAMPLE_COUNT_1_BIT;
+        image.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        auto result =
+            check_vk(vkCreateImage(context.device, &image, nullptr, &target->image->image),
+                "create shadow image");
+        if (result.is_err()) {
+            return std::move(result).take_err();
+        }
+        result = context.allocate_image(target->image->image, target->image->memory);
+        if (result.is_err()) {
+            return std::move(result).take_err();
+        }
+        VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        view.image = target->image->image;
+        view.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view.format = VK_FORMAT_D32_SFLOAT;
+        view.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+        result = check_vk(vkCreateImageView(context.device, &view, nullptr, &target->image->view),
+            "create shadow image view");
+        if (result.is_err()) {
+            return std::move(result).take_err();
+        }
+        result = VulkanShadow::make_shadow_render_pass(context, *target);
+        if (result.is_err()) {
+            return std::move(result).take_err();
+        }
+        return target;
     }
-    platform::RenderResult<void> VulkanDevice::make_shadow_render_pass(VulkanShadowTarget& target) {
+    platform::RenderResult<void> VulkanShadow::make_shadow_render_pass(
+        VulkanDevice& context, VulkanShadowTarget& target) {
         VkAttachmentDescription attachment{};
         attachment.format = VK_FORMAT_D32_SFLOAT;
         attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -48,7 +98,7 @@ namespace enishi::renderer::vulkan {
         pass.dependencyCount = static_cast<std::uint32_t>(dependencies.size());
         pass.pDependencies = dependencies.data();
         auto result =
-            check_vk(vkCreateRenderPass(this->device, &pass, nullptr, &target.render_pass),
+            check_vk(vkCreateRenderPass(context.device, &pass, nullptr, &target.render_pass),
                 "create shadow render pass");
         if (result.is_err()) {
             return result;
@@ -61,92 +111,7 @@ namespace enishi::renderer::vulkan {
         framebuffer.height = target.extent.height;
         framebuffer.layers = 1;
         return check_vk(
-            vkCreateFramebuffer(this->device, &framebuffer, nullptr, &target.framebuffer),
+            vkCreateFramebuffer(context.device, &framebuffer, nullptr, &target.framebuffer),
             "create shadow framebuffer");
-    }
-    platform::RenderResult<std::shared_ptr<VulkanShadowTarget>> VulkanDevice::make_shadow_target(
-        VkExtent2D size) {
-        VkFormatProperties properties{};
-        vkGetPhysicalDeviceFormatProperties(this->physical, VK_FORMAT_D32_SFLOAT, &properties);
-        constexpr VkFormatFeatureFlags REQUIRED =
-            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
-        VkPhysicalDeviceProperties limits{};
-        vkGetPhysicalDeviceProperties(this->physical, &limits);
-        if ((properties.optimalTilingFeatures & REQUIRED) != REQUIRED || size.width == 0 ||
-            size.height == 0 || size.width > limits.limits.maxFramebufferWidth ||
-            size.height > limits.limits.maxFramebufferHeight ||
-            size.width > limits.limits.maxImageDimension2D ||
-            size.height > limits.limits.maxImageDimension2D) {
-            return foundation::Error(
-                platform::RenderError::MakeError, "Unsupported Vulkan sampled depth image");
-        }
-        auto target = std::make_shared<VulkanShadowTarget>();
-        target->owner = this->shared_from_this();
-        target->extent = size;
-        target->image = std::make_shared<VulkanImage>();
-        target->image->owner = this->shared_from_this();
-        VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-        image.imageType = VK_IMAGE_TYPE_2D;
-        image.format = VK_FORMAT_D32_SFLOAT;
-        image.extent = {size.width, size.height, 1};
-        image.mipLevels = 1;
-        image.arrayLayers = 1;
-        image.samples = VK_SAMPLE_COUNT_1_BIT;
-        image.tiling = VK_IMAGE_TILING_OPTIMAL;
-        image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        auto result = check_vk(vkCreateImage(this->device, &image, nullptr, &target->image->image),
-            "create shadow image");
-        if (result.is_err()) {
-            return std::move(result).take_err();
-        }
-        result = this->allocate_image(target->image->image, target->image->memory);
-        if (result.is_err()) {
-            return std::move(result).take_err();
-        }
-        VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        view.image = target->image->image;
-        view.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view.format = VK_FORMAT_D32_SFLOAT;
-        view.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-        result = check_vk(vkCreateImageView(this->device, &view, nullptr, &target->image->view),
-            "create shadow image view");
-        if (result.is_err()) {
-            return std::move(result).take_err();
-        }
-        result = this->make_shadow_render_pass(*target);
-        if (result.is_err()) {
-            return std::move(result).take_err();
-        }
-        return target;
-    }
-    platform::RenderResult<void> VulkanDevice::begin_shadow_pass(
-        const VulkanShadowTarget& target, float clear_depth) {
-        if (!this->recording) {
-            return {};
-        }
-        if (this->main_recording || this->shadow_recording) {
-            return foundation::Error(platform::RenderError::MakeError,
-                "Shadow depth must be rendered before the main pass");
-        }
-        VkClearValue clear{};
-        clear.depthStencil = {clear_depth, 0};
-        VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        pass.renderPass = target.render_pass;
-        pass.framebuffer = target.framebuffer;
-        pass.renderArea.extent = target.extent;
-        pass.clearValueCount = 1;
-        pass.pClearValues = &clear;
-        vkCmdBeginRenderPass(this->command, &pass, VK_SUBPASS_CONTENTS_INLINE);
-        const VkViewport viewport{0,
-            0,
-            static_cast<float>(target.extent.width),
-            static_cast<float>(target.extent.height),
-            0,
-            1};
-        const VkRect2D scissor{{0, 0}, target.extent};
-        vkCmdSetViewport(this->command, 0, 1, &viewport);
-        vkCmdSetScissor(this->command, 0, 1, &scissor);
-        this->shadow_recording = true;
-        return {};
     }
 } // namespace enishi::renderer::vulkan

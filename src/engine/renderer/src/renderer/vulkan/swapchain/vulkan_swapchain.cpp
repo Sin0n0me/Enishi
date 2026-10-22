@@ -1,4 +1,4 @@
-#include <renderer/vulkan/device/vulkan_device.h>
+#include "vulkan_swapchain.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -13,28 +13,193 @@
     } while (false)
 
 namespace enishi::renderer::vulkan {
-    void VulkanDevice::destroy_swapchain() {
+    VulkanSwapchain::VulkanSwapchain(
+        VulkanDevice& context, SDL_Window* window, VkSurfaceKHR surface)
+        : context(context)
+        , window(window)
+        , surface(surface) {
+    }
+    VulkanSwapchain::~VulkanSwapchain() {
+        this->destroy_swapchain();
+        vkDestroyRenderPass(this->context.device, this->context.render_pass, nullptr);
+        vkDestroySemaphore(this->context.device, this->acquired, nullptr);
+        vkDestroySemaphore(this->context.device, this->finished, nullptr);
+        vkDestroyFence(this->context.device, this->submitted, nullptr);
+    }
+    platform::RenderResult<void> VulkanSwapchain::init() {
+        VkSemaphoreCreateInfo semaphore{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        ENISHI_VK_TRY(
+            vkCreateSemaphore(this->context.device, &semaphore, nullptr, &this->acquired));
+        ENISHI_VK_TRY(
+            vkCreateSemaphore(this->context.device, &semaphore, nullptr, &this->finished));
+        VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fence.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        ENISHI_VK_TRY(vkCreateFence(this->context.device, &fence, nullptr, &this->submitted));
+        return this->make_swapchain();
+    }
+    platform::RenderResult<void> VulkanSwapchain::begin_frame(glm::vec4 clear_color) {
+        if ((SDL_GetWindowFlags(this->window) & SDL_WINDOW_MINIMIZED) != 0) {
+            return {};
+        }
+        if (this->swapchain == VK_NULL_HANDLE || this->context.extent.width == 0 ||
+            this->context.extent.height == 0) {
+            auto result = this->make_swapchain();
+            if (result.is_err() || this->context.extent.width == 0 ||
+                this->context.extent.height == 0) {
+                return result;
+            }
+        }
+        constexpr auto WAIT_FOREVER = (std::numeric_limits<std::uint64_t>::max)();
+        ENISHI_VK_TRY(
+            vkWaitForFences(this->context.device, 1, &this->submitted, VK_TRUE, WAIT_FOREVER));
+        auto acquired_result = vkAcquireNextImageKHR(this->context.device,
+            this->swapchain,
+            WAIT_FOREVER,
+            this->acquired,
+            VK_NULL_HANDLE,
+            &this->image_index);
+        if (acquired_result == VK_ERROR_OUT_OF_DATE_KHR) {
+            return this->make_swapchain();
+        }
+        if (acquired_result != VK_SUBOPTIMAL_KHR) {
+            ENISHI_VK_TRY(acquired_result);
+        }
+        ENISHI_VK_TRY(vkResetCommandBuffer(this->context.command, 0));
+        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        ENISHI_VK_TRY(vkBeginCommandBuffer(this->context.command, &begin));
+        this->frame_clear_color = clear_color;
+        this->context.recording = true;
+        this->main_recording = false;
+        this->context.shadow_recording = false;
+        return {};
+    }
+    void VulkanSwapchain::end_active_pass() {
+        if (this->main_recording || this->context.shadow_recording) {
+            vkCmdEndRenderPass(this->context.command);
+        }
+        this->main_recording = false;
+        this->context.shadow_recording = false;
+    }
+    void VulkanSwapchain::begin_main_pass() {
+        if (!this->context.recording || this->main_recording) {
+            return;
+        }
+        this->end_active_pass();
+        const auto clear_color = this->frame_clear_color;
+        std::array<VkClearValue, 2> clear{};
+        clear[0].color = {{clear_color.r, clear_color.g, clear_color.b, clear_color.a}};
+        clear[1].depthStencil = {1.0f, 0};
+        VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        pass.renderPass = this->context.render_pass;
+        pass.framebuffer = this->framebuffers[this->image_index];
+        pass.renderArea.extent = this->context.extent;
+        pass.clearValueCount = static_cast<std::uint32_t>(clear.size());
+        pass.pClearValues = clear.data();
+        vkCmdBeginRenderPass(this->context.command, &pass, VK_SUBPASS_CONTENTS_INLINE);
+        const VkViewport viewport{0,
+            0,
+            static_cast<float>(this->context.extent.width),
+            static_cast<float>(this->context.extent.height),
+            0,
+            1};
+        const VkRect2D scissor{{0, 0}, this->context.extent};
+        vkCmdSetViewport(this->context.command, 0, 1, &viewport);
+        vkCmdSetScissor(this->context.command, 0, 1, &scissor);
+        this->main_recording = true;
+    }
+    platform::RenderResult<void> VulkanSwapchain::end_frame(
+        const std::shared_ptr<VulkanBuffer>& readback) {
+        if (!this->context.recording) {
+            return {};
+        }
+        this->begin_main_pass();
+        this->end_active_pass();
+        this->context.recording = false;
+        if (readback != nullptr) {
+            auto result = this->record_readback(*readback);
+            if (result.is_err()) {
+                return result;
+            }
+        }
+        ENISHI_VK_TRY(vkEndCommandBuffer(this->context.command));
+        ENISHI_VK_TRY(vkResetFences(this->context.device, 1, &this->submitted));
+        const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submit.waitSemaphoreCount = 1;
+        submit.pWaitSemaphores = &this->acquired;
+        submit.pWaitDstStageMask = &wait_stage;
+        submit.commandBufferCount = 1;
+        submit.pCommandBuffers = &this->context.command;
+        submit.signalSemaphoreCount = 1;
+        submit.pSignalSemaphores = &this->finished;
+        ENISHI_VK_TRY(vkQueueSubmit(this->context.queue, 1, &submit, this->submitted));
+        VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+        present.waitSemaphoreCount = 1;
+        present.pWaitSemaphores = &this->finished;
+        present.swapchainCount = 1;
+        present.pSwapchains = &this->swapchain;
+        present.pImageIndices = &this->image_index;
+        const auto result = vkQueuePresentKHR(this->context.queue, &present);
+        ENISHI_VK_TRY(vkQueueWaitIdle(this->context.queue));
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            return this->make_swapchain();
+        }
+        return check_vk(result, "vkQueuePresentKHR");
+    }
+    platform::RenderResult<void> VulkanSwapchain::begin_shadow_pass(
+        const VulkanShadowTarget& target, float clear_depth) {
+        if (!this->context.recording) {
+            return {};
+        }
+        if (this->main_recording || this->context.shadow_recording) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "Shadow depth must be rendered before the main pass");
+        }
+        VkClearValue clear{};
+        clear.depthStencil = {clear_depth, 0};
+        VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        pass.renderPass = target.render_pass;
+        pass.framebuffer = target.framebuffer;
+        pass.renderArea.extent = target.extent;
+        pass.clearValueCount = 1;
+        pass.pClearValues = &clear;
+        vkCmdBeginRenderPass(this->context.command, &pass, VK_SUBPASS_CONTENTS_INLINE);
+        const VkViewport viewport{0,
+            0,
+            static_cast<float>(target.extent.width),
+            static_cast<float>(target.extent.height),
+            0,
+            1};
+        const VkRect2D scissor{{0, 0}, target.extent};
+        vkCmdSetViewport(this->context.command, 0, 1, &viewport);
+        vkCmdSetScissor(this->context.command, 0, 1, &scissor);
+        this->context.shadow_recording = true;
+        return {};
+    }
+    void VulkanSwapchain::destroy_swapchain() {
         for (auto framebuffer : this->framebuffers) {
-            vkDestroyFramebuffer(this->device, framebuffer, nullptr);
+            vkDestroyFramebuffer(this->context.device, framebuffer, nullptr);
         }
         this->framebuffers.clear();
-        vkDestroyImageView(this->device, this->depth_view, nullptr);
-        vkDestroyImage(this->device, this->depth_image, nullptr);
-        vkFreeMemory(this->device, this->depth_memory, nullptr);
+        vkDestroyImageView(this->context.device, this->depth_view, nullptr);
+        vkDestroyImage(this->context.device, this->depth_image, nullptr);
+        vkFreeMemory(this->context.device, this->depth_memory, nullptr);
         this->depth_view = VK_NULL_HANDLE;
         this->depth_image = VK_NULL_HANDLE;
         this->depth_memory = VK_NULL_HANDLE;
         for (auto view : this->views) {
-            vkDestroyImageView(this->device, view, nullptr);
+            vkDestroyImageView(this->context.device, view, nullptr);
         }
         this->views.clear();
         this->swapchain_images.clear();
-        vkDestroySwapchainKHR(this->device, this->swapchain, nullptr);
+        vkDestroySwapchainKHR(this->context.device, this->swapchain, nullptr);
         this->swapchain = VK_NULL_HANDLE;
     }
-    platform::RenderResult<void> VulkanDevice::make_depth() {
+    platform::RenderResult<void> VulkanSwapchain::make_depth() {
         VkFormatProperties properties{};
-        vkGetPhysicalDeviceFormatProperties(this->physical, this->depth_format, &properties);
+        vkGetPhysicalDeviceFormatProperties(
+            this->context.physical, this->depth_format, &properties);
         if ((properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) ==
             0) {
             return foundation::Error(platform::RenderError::MakeError,
@@ -43,14 +208,14 @@ namespace enishi::renderer::vulkan {
         VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         image.imageType = VK_IMAGE_TYPE_2D;
         image.format = this->depth_format;
-        image.extent = {this->extent.width, this->extent.height, 1};
+        image.extent = {this->context.extent.width, this->context.extent.height, 1};
         image.mipLevels = 1;
         image.arrayLayers = 1;
         image.samples = VK_SAMPLE_COUNT_1_BIT;
         image.tiling = VK_IMAGE_TILING_OPTIMAL;
         image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        ENISHI_VK_TRY(vkCreateImage(this->device, &image, nullptr, &this->depth_image));
-        auto result = this->allocate_image(this->depth_image, this->depth_memory);
+        ENISHI_VK_TRY(vkCreateImage(this->context.device, &image, nullptr, &this->depth_image));
+        auto result = this->context.allocate_image(this->depth_image, this->depth_memory);
         if (result.is_err()) {
             return result;
         }
@@ -59,10 +224,10 @@ namespace enishi::renderer::vulkan {
         view.viewType = VK_IMAGE_VIEW_TYPE_2D;
         view.format = this->depth_format;
         view.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-        return check_vk(vkCreateImageView(this->device, &view, nullptr, &this->depth_view),
+        return check_vk(vkCreateImageView(this->context.device, &view, nullptr, &this->depth_view),
             "create depth view");
     }
-    platform::RenderResult<void> VulkanDevice::make_render_pass() {
+    platform::RenderResult<void> VulkanSwapchain::make_render_pass() {
         std::array<VkAttachmentDescription, 2> attachments{};
         attachments[0].format = this->color_format;
         attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -102,20 +267,21 @@ namespace enishi::renderer::vulkan {
         info.pSubpasses = &subpass;
         info.dependencyCount = 1;
         info.pDependencies = &dependency;
-        return check_vk(vkCreateRenderPass(this->device, &info, nullptr, &this->render_pass),
+        return check_vk(
+            vkCreateRenderPass(this->context.device, &info, nullptr, &this->context.render_pass),
             "vkCreateRenderPass");
     }
-    platform::RenderResult<void> VulkanDevice::make_swapchain() {
-        ENISHI_VK_TRY(vkDeviceWaitIdle(this->device));
+    platform::RenderResult<void> VulkanSwapchain::make_swapchain() {
+        ENISHI_VK_TRY(vkDeviceWaitIdle(this->context.device));
         VkSurfaceCapabilitiesKHR caps{};
-        ENISHI_VK_TRY(
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->physical, this->surface, &caps));
+        ENISHI_VK_TRY(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+            this->context.physical, this->surface, &caps));
         std::uint32_t count = 0;
-        ENISHI_VK_TRY(
-            vkGetPhysicalDeviceSurfaceFormatsKHR(this->physical, this->surface, &count, nullptr));
+        ENISHI_VK_TRY(vkGetPhysicalDeviceSurfaceFormatsKHR(
+            this->context.physical, this->surface, &count, nullptr));
         std::vector<VkSurfaceFormatKHR> formats(count);
         ENISHI_VK_TRY(vkGetPhysicalDeviceSurfaceFormatsKHR(
-            this->physical, this->surface, &count, formats.data()));
+            this->context.physical, this->surface, &count, formats.data()));
         const auto format = std::ranges::find_if(formats, [this](const auto& candidate) {
             return (this->color_format == VK_FORMAT_UNDEFINED
                            ? candidate.format == VK_FORMAT_B8G8R8A8_UNORM
@@ -127,21 +293,21 @@ namespace enishi::renderer::vulkan {
                 "Vulkan surface requires BGRA8_UNORM/SRGB_NONLINEAR");
         }
         this->color_format = format->format;
-        this->extent = caps.currentExtent;
-        if (this->extent.width == (std::numeric_limits<std::uint32_t>::max)()) {
+        this->context.extent = caps.currentExtent;
+        if (this->context.extent.width == (std::numeric_limits<std::uint32_t>::max)()) {
             int width = 0;
             int height = 0;
             if (!SDL_GetWindowSizeInPixels(this->window, &width, &height)) {
                 return foundation::Error(platform::RenderError::MakeError, SDL_GetError());
             }
-            this->extent = {std::clamp(static_cast<std::uint32_t>((std::max)(width, 0)),
-                                caps.minImageExtent.width,
-                                caps.maxImageExtent.width),
+            this->context.extent = {std::clamp(static_cast<std::uint32_t>((std::max)(width, 0)),
+                                        caps.minImageExtent.width,
+                                        caps.maxImageExtent.width),
                 std::clamp(static_cast<std::uint32_t>((std::max)(height, 0)),
                     caps.minImageExtent.height,
                     caps.maxImageExtent.height)};
         }
-        if (this->extent.width == 0 || this->extent.height == 0) {
+        if (this->context.extent.width == 0 || this->context.extent.height == 0) {
             return {};
         }
         this->destroy_swapchain();
@@ -156,7 +322,7 @@ namespace enishi::renderer::vulkan {
         info.minImageCount = image_count;
         info.imageFormat = this->color_format;
         info.imageColorSpace = format->colorSpace;
-        info.imageExtent = this->extent;
+        info.imageExtent = this->context.extent;
         info.imageArrayLayers = 1;
         info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         this->can_readback = (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0;
@@ -180,21 +346,21 @@ namespace enishi::renderer::vulkan {
         }
         info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         info.clipped = VK_TRUE;
-        ENISHI_VK_TRY(vkCreateSwapchainKHR(this->device, &info, nullptr, &this->swapchain));
-        ENISHI_VK_TRY(
-            vkGetSwapchainImagesKHR(this->device, this->swapchain, &this->image_count, nullptr));
-        std::vector<VkImage> images(this->image_count);
+        ENISHI_VK_TRY(vkCreateSwapchainKHR(this->context.device, &info, nullptr, &this->swapchain));
         ENISHI_VK_TRY(vkGetSwapchainImagesKHR(
-            this->device, this->swapchain, &this->image_count, images.data()));
+            this->context.device, this->swapchain, &this->context.image_count, nullptr));
+        std::vector<VkImage> images(this->context.image_count);
+        ENISHI_VK_TRY(vkGetSwapchainImagesKHR(
+            this->context.device, this->swapchain, &this->context.image_count, images.data()));
         this->swapchain_images = images;
         return this->make_framebuffers();
     }
-    platform::RenderResult<void> VulkanDevice::make_framebuffers() {
+    platform::RenderResult<void> VulkanSwapchain::make_framebuffers() {
         auto result = this->make_depth();
         if (result.is_err()) {
             return result;
         }
-        if (this->render_pass == VK_NULL_HANDLE) {
+        if (this->context.render_pass == VK_NULL_HANDLE) {
             result = this->make_render_pass();
             if (result.is_err()) {
                 return result;
@@ -207,134 +373,27 @@ namespace enishi::renderer::vulkan {
             view.format = this->color_format;
             view.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
             this->views.emplace_back(VK_NULL_HANDLE);
-            ENISHI_VK_TRY(vkCreateImageView(this->device, &view, nullptr, &this->views.back()));
+            ENISHI_VK_TRY(
+                vkCreateImageView(this->context.device, &view, nullptr, &this->views.back()));
             const std::array attachments{this->views.back(), this->depth_view};
             VkFramebufferCreateInfo framebuffer{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-            framebuffer.renderPass = this->render_pass;
+            framebuffer.renderPass = this->context.render_pass;
             framebuffer.attachmentCount = static_cast<std::uint32_t>(attachments.size());
             framebuffer.pAttachments = attachments.data();
-            framebuffer.width = this->extent.width;
-            framebuffer.height = this->extent.height;
+            framebuffer.width = this->context.extent.width;
+            framebuffer.height = this->context.extent.height;
             framebuffer.layers = 1;
             this->framebuffers.emplace_back(VK_NULL_HANDLE);
             ENISHI_VK_TRY(vkCreateFramebuffer(
-                this->device, &framebuffer, nullptr, &this->framebuffers.back()));
+                this->context.device, &framebuffer, nullptr, &this->framebuffers.back()));
         }
         return {};
     }
-    platform::RenderResult<void> VulkanDevice::begin_frame(glm::vec4 clear_color) {
-        if ((SDL_GetWindowFlags(this->window) & SDL_WINDOW_MINIMIZED) != 0) {
-            return {};
-        }
-        if (this->swapchain == VK_NULL_HANDLE || this->extent.width == 0 ||
-            this->extent.height == 0) {
-            auto result = this->make_swapchain();
-            if (result.is_err() || this->extent.width == 0 || this->extent.height == 0) {
-                return result;
-            }
-        }
-        constexpr auto WAIT_FOREVER = (std::numeric_limits<std::uint64_t>::max)();
-        ENISHI_VK_TRY(vkWaitForFences(this->device, 1, &this->submitted, VK_TRUE, WAIT_FOREVER));
-        auto acquired_result = vkAcquireNextImageKHR(this->device,
-            this->swapchain,
-            WAIT_FOREVER,
-            this->acquired,
-            VK_NULL_HANDLE,
-            &this->image_index);
-        if (acquired_result == VK_ERROR_OUT_OF_DATE_KHR) {
-            return this->make_swapchain();
-        }
-        if (acquired_result != VK_SUBOPTIMAL_KHR) {
-            ENISHI_VK_TRY(acquired_result);
-        }
-        ENISHI_VK_TRY(vkResetCommandBuffer(this->command, 0));
-        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-        begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        ENISHI_VK_TRY(vkBeginCommandBuffer(this->command, &begin));
-        this->frame_clear_color = clear_color;
-        this->recording = true;
-        this->main_recording = false;
-        this->shadow_recording = false;
-        return {};
-    }
-    void VulkanDevice::end_active_pass() {
-        if (this->main_recording || this->shadow_recording) {
-            vkCmdEndRenderPass(this->command);
-        }
-        this->main_recording = false;
-        this->shadow_recording = false;
-    }
-    void VulkanDevice::begin_main_pass() {
-        if (!this->recording || this->main_recording) {
-            return;
-        }
-        this->end_active_pass();
-        const auto clear_color = this->frame_clear_color;
-        std::array<VkClearValue, 2> clear{};
-        clear[0].color = {{clear_color.r, clear_color.g, clear_color.b, clear_color.a}};
-        clear[1].depthStencil = {1.0f, 0};
-        VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        pass.renderPass = this->render_pass;
-        pass.framebuffer = this->framebuffers[this->image_index];
-        pass.renderArea.extent = this->extent;
-        pass.clearValueCount = static_cast<std::uint32_t>(clear.size());
-        pass.pClearValues = clear.data();
-        vkCmdBeginRenderPass(this->command, &pass, VK_SUBPASS_CONTENTS_INLINE);
-        const VkViewport viewport{0,
-            0,
-            static_cast<float>(this->extent.width),
-            static_cast<float>(this->extent.height),
-            0,
-            1};
-        const VkRect2D scissor{{0, 0}, this->extent};
-        vkCmdSetViewport(this->command, 0, 1, &viewport);
-        vkCmdSetScissor(this->command, 0, 1, &scissor);
-        this->main_recording = true;
-    }
-    platform::RenderResult<void> VulkanDevice::end_frame(
-        const std::shared_ptr<VulkanBuffer>& readback) {
-        if (!this->recording) {
-            return {};
-        }
-        this->begin_main_pass();
-        this->end_active_pass();
-        this->recording = false;
-        if (readback != nullptr) {
-            auto result = this->record_readback(*readback);
-            if (result.is_err()) {
-                return result;
-            }
-        }
-        ENISHI_VK_TRY(vkEndCommandBuffer(this->command));
-        ENISHI_VK_TRY(vkResetFences(this->device, 1, &this->submitted));
-        const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-        submit.waitSemaphoreCount = 1;
-        submit.pWaitSemaphores = &this->acquired;
-        submit.pWaitDstStageMask = &wait_stage;
-        submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &this->command;
-        submit.signalSemaphoreCount = 1;
-        submit.pSignalSemaphores = &this->finished;
-        ENISHI_VK_TRY(vkQueueSubmit(this->queue, 1, &submit, this->submitted));
-        VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-        present.waitSemaphoreCount = 1;
-        present.pWaitSemaphores = &this->finished;
-        present.swapchainCount = 1;
-        present.pSwapchains = &this->swapchain;
-        present.pImageIndices = &this->image_index;
-        const auto result = vkQueuePresentKHR(this->queue, &present);
-        ENISHI_VK_TRY(vkQueueWaitIdle(this->queue));
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            return this->make_swapchain();
-        }
-        return check_vk(result, "vkQueuePresentKHR");
-    }
-    platform::RenderResult<void> VulkanDevice::record_readback(const VulkanBuffer& buffer) {
+    platform::RenderResult<void> VulkanSwapchain::record_readback(const VulkanBuffer& buffer) {
         constexpr VkDeviceSize BGRA_PIXEL_SIZE = 4;
         // Unpadded screenshot rows: byte count = width * height * four BGRA channels.
-        const auto bytes =
-            static_cast<VkDeviceSize>(this->extent.width) * this->extent.height * BGRA_PIXEL_SIZE;
+        const auto bytes = static_cast<VkDeviceSize>(this->context.extent.width) *
+                           this->context.extent.height * BGRA_PIXEL_SIZE;
         if (!this->can_readback || buffer.size < bytes) {
             return foundation::Error(platform::RenderError::MakeError,
                 "Swapchain readback unsupported or buffer too small");
@@ -348,7 +407,7 @@ namespace enishi::renderer::vulkan {
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-        vkCmdPipelineBarrier(this->command,
+        vkCmdPipelineBarrier(this->context.command,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT,
             0,
@@ -360,8 +419,8 @@ namespace enishi::renderer::vulkan {
             &barrier);
         VkBufferImageCopy copy{};
         copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        copy.imageExtent = {this->extent.width, this->extent.height, 1};
-        vkCmdCopyImageToBuffer(this->command,
+        copy.imageExtent = {this->context.extent.width, this->context.extent.height, 1};
+        vkCmdCopyImageToBuffer(this->context.command,
             barrier.image,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             buffer.buffer,
@@ -378,7 +437,7 @@ namespace enishi::renderer::vulkan {
         host.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         host.buffer = buffer.buffer;
         host.size = bytes;
-        vkCmdPipelineBarrier(this->command,
+        vkCmdPipelineBarrier(this->context.command,
             VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_HOST_BIT,
             0,
