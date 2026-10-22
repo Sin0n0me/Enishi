@@ -1,4 +1,7 @@
+#include "pose_tests.h"
+#include <animation/procedural/cursor/cursor_gaze.h>
 #include <animation/procedural/cursor/cursor_pose.h>
+#include <animation/procedural/cursor/cursor_transforms.h>
 #include <animation/transition/pose_transition.h>
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
@@ -93,8 +96,83 @@ namespace {
         }
         check(turned, "Model-space targets animate the head without core integration");
     }
+    void transform_cache_without_pose_controller() {
+        constexpr std::size_t ROOT = 0;
+        constexpr std::size_t CHILD = 1;
+        constexpr std::size_t BONE_COUNT = 2;
+        const glm::vec3 root_position(2, 0, 0);
+        const glm::vec3 child_position(0, 3, 0);
+        const glm::vec3 movement(1, 0, 0);
+        component::ModelComponent model;
+        component::AnimationComponent pose;
+        model.bone_node.resize(BONE_COUNT);
+        model.bone_node[ROOT].parent = types::INVALID_BONE_INDEX;
+        model.bone_node[CHILD].parent = ROOT;
+        pose.animation.resize(BONE_COUNT);
+        pose.animation[ROOT].position = root_position;
+        pose.animation[CHILD].position = child_position;
+        animation::CursorTransformCache cache;
+        cache.globals.resize(BONE_COUNT, glm::mat4(1));
+        cache.external.resize(BONE_COUNT, glm::mat4(1));
+        cache.cached_local.resize(BONE_COUNT);
+        cache.cached_external.resize(BONE_COUNT, glm::mat4(1));
+        cache.changed_globals.resize(BONE_COUNT);
+        cache.traversal = {ROOT, CHILD};
+        animation::CursorTransforms::update_globals(cache, model, pose);
+        // With identity rotations/scales, child world position = parent + child local position.
+        check(glm::vec3(cache.globals[CHILD][3]) == root_position + child_position,
+            "Matrix propagation works without a CursorPose controller");
+        auto independent = cache;
+        pose.animation[ROOT].position += movement;
+        animation::CursorTransforms::update_globals(cache, model, pose);
+        check(glm::vec3(cache.globals[CHILD][3]) == root_position + child_position + movement,
+            "A changed parent invalidates its child transform");
+        check(glm::vec3(independent.globals[CHILD][3]) == root_position + child_position,
+            "Updating one caller-owned cache does not change another");
+        animation::CursorTransforms::update_globals(independent, model, pose);
+        check(independent.globals == cache.globals,
+            "Independent caches produce the same output for the same input");
+    }
+
+    void gaze_without_pose_controller() {
+        constexpr types::BoneIndex HEAD_BONE = 0;
+        constexpr std::size_t BONE_COUNT = 1;
+        const glm::vec3 offset(1, 0, 0);
+        animation::CursorPoseState state{};
+        state.joints.fill(types::INVALID_BONE_INDEX);
+        state.joints[animation::CursorPoseState::Head] = HEAD_BONE;
+        state.transforms.globals.resize(BONE_COUNT, glm::mat4(1));
+        component::AnimationComponent first;
+        first.animation.resize(BONE_COUNT);
+        auto second = first;
+        const auto initial = first.animation[HEAD_BONE].rotation;
+        animation::CursorGaze::look(state,
+            first,
+            animation::CursorPoseState::Head,
+            offset,
+            state.config.head_yaw,
+            state.config.head_pitch);
+        check(glm::length(first.animation[HEAD_BONE].rotation - initial) > TOLERANCE,
+            "Gaze calculation is callable without a CursorPose controller");
+        check(second.animation[HEAD_BONE].rotation == initial,
+            "Gaze only modifies the supplied animation");
+        animation::CursorGaze::look(state,
+            second,
+            animation::CursorPoseState::Head,
+            offset,
+            state.config.head_yaw,
+            state.config.head_pitch);
+        check(first.animation[HEAD_BONE].rotation == second.animation[HEAD_BONE].rotation,
+            "Gaze calculation has no hidden per-instance state");
+    }
 } // namespace
-int main() {
+void enishi::animation::tests::run_pose_tests() {
+    transform_cache_without_pose_controller();
+    gaze_without_pose_controller();
     linear_pose_transition();
     head_tracking_without_core();
+}
+
+int main() {
+    enishi::animation::tests::run_pose_tests();
 }
