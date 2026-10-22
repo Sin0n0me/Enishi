@@ -1,5 +1,6 @@
 #include "selection_ui.h"
-#include <foundation/log/logger.h>
+#include "selection_click_settings.h"
+#include "selection_settings.h"
 #include <utility>
 
 namespace enishi::ui {
@@ -38,25 +39,9 @@ namespace enishi::ui {
         }
         if (ui.is_window_appearing()) {
             this->page = Page::Actions;
-            this->error_message.clear();
+            this->models_page.reset_error();
         }
-        switch (this->page) {
-            case Page::Actions:
-                this->draw_actions(ui);
-                break;
-            case Page::ClickSettings:
-                this->draw_click_settings(ui);
-                break;
-            case Page::Settings:
-                this->draw_settings(ui);
-                break;
-            case Page::Script:
-                this->draw_script(ui);
-                break;
-            case Page::Models:
-                this->draw_models(ui);
-                break;
-        }
+        this->draw_page(ui);
         ui.end_popup();
     }
 
@@ -78,4 +63,27 @@ namespace enishi::ui {
         }
     }
 
+    void SelectionUI::draw_page(sub_system::IUI& ui) {
+        if (this->page != Page::Actions && ui.button("戻る")) {
+            this->page = Page::Actions;
+            return;
+        }
+        switch (this->page) {
+            case Page::Actions:
+                this->draw_actions(ui);
+                break;
+            case Page::ClickSettings:
+                SelectionClickSettings::draw(ui, *this->click_settings);
+                break;
+            case Page::Settings:
+                SelectionSettings::draw(ui, *this->render_settings);
+                break;
+            case Page::Script:
+                this->script_page.draw(ui, *this->scripts);
+                break;
+            case Page::Models:
+                this->models_page.draw(ui, *this->models);
+                break;
+        }
+    }
 } // namespace enishi::ui
