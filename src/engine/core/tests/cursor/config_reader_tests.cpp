@@ -1,4 +1,6 @@
+#include "config_reader_tests.h"
 #include <chrono>
+#include <core/system/animation/bone_name_config.h>
 #include <core/system/animation/cursor_pose_config.h>
 #include <core/system/animation/model_event_motion_config.h>
 #include <core/system/camera/camera_zoom_config.h>
@@ -90,6 +92,36 @@ namespace {
             "Camera parser must propagate read errors");
     }
 
+    void bone_name_tests() {
+        std::istringstream input("\xEF\xBB\xBF# header\n\nneck \"#custom neck\" \"Neck\" # tail");
+        const auto parsed = core::parse_bone_name_config(input);
+        require(parsed.is_ok(), "Bone aliases support UTF-8 BOM and comments");
+        const std::vector<std::string> names{"#custom neck", "head"};
+        require(parsed.unwrap().find(names, animation::BoneRole::Neck) == 0 &&
+                    parsed.unwrap().find(names, animation::BoneRole::Head) == 1,
+            "Specified roles replace defaults and unspecified roles retain defaults");
+        const std::vector<std::string> invalid_lines{"unknown \"name\"",
+            "neck",
+            "neck \"\"",
+            "neck unquoted",
+            "neck \"unterminated",
+            "neck \"one\"\nneck \"two\""};
+        for (const auto& line : invalid_lines) {
+            std::istringstream invalid(line);
+            require(core::parse_bone_name_config(invalid).is_err(),
+                "Unknown, duplicate, empty and malformed aliases must be rejected");
+        }
+        std::istringstream lines("# header\n\nneck \"missing quote");
+        const auto error = core::parse_bone_name_config(lines);
+        require(
+            error.is_err() && error.unwrap_err().get_message().find("line 3") != std::string::npos,
+            "Bone configuration diagnostics preserve physical line numbers");
+        std::istringstream failed;
+        failed.setstate(std::ios::badbit);
+        require(core::parse_bone_name_config(failed).is_err(),
+            "Bone configuration propagates read errors");
+    }
+
     void motion_tests() {
         TemporaryConfig valid("\xEF\xBB\xBF# header\n\npush_states Dynamic # "
                               "selected\n\"#generic\" \"click\" \"*\" none # disabled action");
@@ -110,6 +142,7 @@ namespace {
 } // namespace
 
 void config_reader_tests() {
+    bone_name_tests();
     reader_tests();
     setting_tests();
     motion_tests();

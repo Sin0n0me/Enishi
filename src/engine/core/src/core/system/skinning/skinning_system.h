@@ -45,6 +45,7 @@ namespace enishi::core {
         std::weak_ptr<platform::IWindow> cursor_window;
         std::shared_ptr<sub_system::ICameraController> camera;
         animation::CursorPoseConfig cursor_config;
+        animation::BoneNameDictionary bone_names;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
@@ -57,6 +58,7 @@ namespace enishi::core {
         void set_cursor_window(const std::shared_ptr<platform::IWindow>& window);
         void set_camera(std::shared_ptr<sub_system::ICameraController> camera);
         void set_cursor_config(const animation::CursorPoseConfig& config);
+        void set_bone_names(const animation::BoneNameDictionary& dictionary);
         bool begin_model_drag(types::ClientMousePosition cursor);
         void end_model_drag();
         void post_update(void) override;

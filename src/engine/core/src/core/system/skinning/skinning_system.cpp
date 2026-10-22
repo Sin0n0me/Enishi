@@ -38,6 +38,13 @@ namespace enishi::core {
         }
     }
 
+    void SkinningSystem::set_bone_names(const animation::BoneNameDictionary& dictionary) {
+        this->bone_names = dictionary;
+        for (auto& [entity, bones] : this->model_bones) {
+            bones->cursor_pose.reset();
+        }
+    }
+
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
         const auto window = this->cursor_window.lock();
         const auto cursor = window != nullptr && this->camera != nullptr
@@ -97,7 +104,8 @@ namespace enishi::core {
                     : std::span<const types::SkinningCommand>(skinning.order);
 
             if (bones.cursor_pose == nullptr) {
-                bones.cursor_pose = std::make_unique<animation::CursorPose>(model, this->cursor_config);
+                bones.cursor_pose = std::make_unique<animation::CursorPose>(
+                    model, this->cursor_config, this->bone_names);
             }
             if (bones.cursor_pose != nullptr) {
                 bones.cursor_pose->apply_transitioned(model, animation,

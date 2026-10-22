@@ -2,6 +2,7 @@
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/cursor_pose_config.h>
+#include <core/system/animation/bone_name_config.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
 #include <core/system/animation/model_event_motion_handler.h>
@@ -118,6 +119,13 @@ namespace enishi {
             foundation::Logger::warning(cursor_config.unwrap_err().get_message());
         } else {
             skinning_system->set_cursor_config(std::move(cursor_config).unwrap());
+        }
+
+        auto bone_names = core::load_bone_name_config("config/bone_names.cfg");
+        if (bone_names.is_err()) {
+            foundation::Logger::warning(bone_names.unwrap_err().get_message());
+        } else {
+            skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
         constexpr core::Priority CLICK_PRIORITY = 97;
