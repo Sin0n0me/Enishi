@@ -1,7 +1,7 @@
 #include "application.h"
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
-#include <core/system/animation/cursor_pose_config.h>
+#include <core/config/application_settings.h>
 #include <core/system/animation/bone_name_config.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
@@ -103,23 +103,19 @@ namespace enishi {
         this->window_animation_sync = window_sync;
         this->display_camera = window_sync;
         skinning_system->set_camera(this->display_camera);
-        core::CameraZoomConfig zoom_config;
-        auto zoom_settings = core::load_camera_zoom_config("config/camera.cfg");
-        if (zoom_settings.is_err()) {
-            foundation::Logger::warning(zoom_settings.unwrap_err().get_message());
+        core::ApplicationSettings settings;
+        auto loaded_settings = core::load_application_settings("config/settings.cfg");
+        if (loaded_settings.is_err()) {
+            foundation::Logger::warning(loaded_settings.unwrap_err().get_message());
         } else {
-            zoom_config = std::move(zoom_settings).unwrap();
+            settings = std::move(loaded_settings).unwrap();
         }
         // Polling is priority 80; update the camera before click picking in pre_update (97).
         constexpr core::Priority CAMERA_ZOOM_PRIORITY = 81;
         this->system_scheduler.register_system<core::CameraZoomSystem>(
-            CAMERA_ZOOM_PRIORITY, root_window, this->camera, zoom_config);
-        auto cursor_config = core::load_cursor_pose_config("config/cursor_tracking.cfg");
-        if (cursor_config.is_err()) {
-            foundation::Logger::warning(cursor_config.unwrap_err().get_message());
-        } else {
-            skinning_system->set_cursor_config(std::move(cursor_config).unwrap());
-        }
+            CAMERA_ZOOM_PRIORITY, root_window, this->camera, settings.camera);
+        skinning_system->set_cursor_config(settings.cursor_tracking);
+        this->click_settings->push_states = std::move(settings.click.push_states);
 
         auto bone_names = core::load_bone_name_config("config/bone_names.cfg");
         if (bone_names.is_err()) {
@@ -132,15 +128,9 @@ namespace enishi {
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
             CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings,
             this->display_camera);
-        auto motion_rules = core::load_model_event_motions(
-            "config/model_event_motions.cfg", this->click_settings.get());
-        if (motion_rules.is_err()) {
-            foundation::Logger::warning(motion_rules.unwrap_err().get_message());
-        } else {
-            clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
-                this->registry, animation_system, std::move(motion_rules).unwrap(),
-                this->click_settings, physics_engine->get_shared_world()));
-        }
+        clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
+            this->registry, animation_system, std::move(settings.model_events),
+            this->click_settings, physics_engine->get_shared_world()));
         root_window->set_model_drag_handler(
             [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](types::ClientMousePosition cursor) {
                 const auto system = weak.lock();
