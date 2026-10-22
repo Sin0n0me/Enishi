@@ -1,4 +1,5 @@
 #include "camera_zoom_config.h"
+#include <foundation/text/config_line_reader.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -9,19 +10,10 @@ namespace enishi::core {
         std::istream& stream) {
         CameraZoomConfig config;
         bool seen = false;
-        std::string line;
-        std::size_t number = 0;
-        constexpr std::string_view UTF8_BOM = "\xEF\xBB\xBF";
-        while (std::getline(stream, line)) {
-            ++number;
-            if (number == 1 && line.starts_with(UTF8_BOM)) {
-                line.erase(0, UTF8_BOM.size());
-            }
-            std::istringstream fields(line);
-            fields >> std::ws;
-            if (fields.eof() || fields.peek() == '#') {
-                continue;
-            }
+        foundation::ConfigLineReader reader(stream);
+        std::istringstream fields;
+        while (reader.next(fields)) {
+            const auto number = reader.line_number();
             std::string key;
             std::string value;
             if (!(fields >> key >> value) || key != "invert_wheel" || seen ||
@@ -29,15 +21,14 @@ namespace enishi::core {
                 return foundation::Error(CameraZoomConfigError::InvalidSetting,
                     "Invalid camera setting at line " + std::to_string(number));
             }
-            fields >> std::ws;
-            if (!fields.eof() && fields.peek() != '#') {
+            if (foundation::has_config_trailing_fields(fields)) {
                 return foundation::Error(CameraZoomConfigError::InvalidSetting,
                     "Unexpected camera setting field at line " + std::to_string(number));
             }
             seen = true;
             config.invert_wheel = value == "on";
         }
-        if (stream.bad() || (stream.fail() && !stream.eof())) {
+        if (reader.read_failed()) {
             return foundation::Error(
                 CameraZoomConfigError::ReadFailed, "Cannot read camera settings");
         }

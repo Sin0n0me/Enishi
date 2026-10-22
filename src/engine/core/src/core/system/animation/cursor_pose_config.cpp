@@ -1,5 +1,6 @@
 #include "cursor_pose_config.h"
 #include <cmath>
+#include <foundation/text/config_line_reader.h>
 #include <fstream>
 #include <set>
 #include <sstream>
@@ -11,24 +12,15 @@ namespace enishi::core {
         std::istream& stream) {
         animation::CursorPoseConfig config;
         std::set<std::string> seen;
-        std::string line;
-        std::size_t line_number = 0;
+        foundation::ConfigLineReader reader(stream);
+        std::istringstream fields;
         constexpr float MAX_ANGLE = 90.0f;
         constexpr float MAX_SPEED = 720.0f;
         constexpr float MAX_HEIGHT_RATIO = 0.5f;
         constexpr float MAX_JUMP_SECONDS = 10.0f;
         constexpr float MIN_JUMP_DURATION = 0.2f;
-        constexpr std::string_view UTF8_BOM = "\xEF\xBB\xBF";
-        while (std::getline(stream, line)) {
-            ++line_number;
-            if (line_number == 1 && line.starts_with(UTF8_BOM)) {
-                line.erase(0, UTF8_BOM.size());
-            }
-            std::istringstream fields(line);
-            fields >> std::ws;
-            if (fields.eof() || fields.peek() == '#') {
-                continue;
-            }
+        while (reader.next(fields)) {
+            const auto line_number = reader.line_number();
             std::string key;
             float value = 0;
             fields >> key;
@@ -80,8 +72,7 @@ namespace enishi::core {
                 return foundation::Error(CursorConfigError::InvalidSetting,
                     "Invalid cursor setting at line " + std::to_string(line_number));
             }
-            fields >> std::ws;
-            if (!fields.eof() && fields.peek() != '#') {
+            if (foundation::has_config_trailing_fields(fields)) {
                 return foundation::Error(CursorConfigError::InvalidSetting,
                     "Unexpected cursor setting field at line " + std::to_string(line_number));
             }
@@ -89,7 +80,7 @@ namespace enishi::core {
                 *destination = value;
             }
         }
-        if (stream.bad() || (stream.fail() && !stream.eof())) {
+        if (reader.read_failed()) {
             return foundation::Error(CursorConfigError::ReadFailed, "Cannot read cursor settings");
         }
         return config;

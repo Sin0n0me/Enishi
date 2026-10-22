@@ -2116,7 +2116,10 @@ namespace {
     }
 } // namespace
 
+void config_reader_tests();
+
 int main(int argc, char** argv) {
+    config_reader_tests();
     window_animation_sync_tests();
     if (argc == 2 && std::string_view(argv[1]) == "--benchmark") {
         benchmark_cursor();

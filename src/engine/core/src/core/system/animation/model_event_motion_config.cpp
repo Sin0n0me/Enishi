@@ -1,5 +1,6 @@
 #include "model_event_motion_config.h"
 #include <cmath>
+#include <foundation/text/config_line_reader.h>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -93,19 +94,10 @@ namespace enishi::core {
                 "Cannot open model event motion configuration: " + path.string());
         }
         std::vector<ModelEventMotionRule> rules;
-        std::string line;
-        std::size_t line_number = 0;
-        while (std::getline(stream, line)) {
-            ++line_number;
-            constexpr std::string_view UTF8_BOM = "\xEF\xBB\xBF";
-            if (line_number == 1 && line.starts_with(UTF8_BOM)) {
-                line.erase(0, UTF8_BOM.size());
-            }
-            std::istringstream fields(line);
-            fields >> std::ws;
-            if (fields.eof() || fields.peek() == '#') {
-                continue;
-            }
+        foundation::ConfigLineReader reader(stream);
+        std::istringstream fields;
+        while (reader.next(fields)) {
+            const auto line_number = reader.line_number();
             std::string directive;
             fields >> directive;
             if (directive == "push_states") {
@@ -125,8 +117,7 @@ namespace enishi::core {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Invalid motion rule at line " + std::to_string(line_number));
             }
-            fields >> std::ws;
-            if (!fields.eof() && fields.peek() != '#') {
+            if (foundation::has_config_trailing_fields(fields)) {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Unexpected motion rule field at line " + std::to_string(line_number));
             }

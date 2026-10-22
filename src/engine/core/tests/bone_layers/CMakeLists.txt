@@ -26,6 +26,7 @@ add_library(bone_layer_runtime STATIC
     "${CORE_ROOT}/system/skinning/model_pose_initializer.cpp"
     "${CORE_ROOT}/system/physics/physics_body_factory.cpp"
     "${CORE_ROOT}/system/render/bone_matrix_upload.cpp"
+    "${ENGINE_ROOT}/foundation/src/foundation/text/config_line_reader.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow.cpp"
     "${ENGINE_ROOT}/model_controller/src/model_controller/model_component_builder.cpp"
     "${ENGINE_ROOT}/ik_system/src/ik_system/ik_solver.cpp"
