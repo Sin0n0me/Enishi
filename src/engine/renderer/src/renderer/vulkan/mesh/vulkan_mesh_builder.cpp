@@ -153,7 +153,7 @@ namespace enishi::renderer::vulkan {
         if (result.is_err()) {
             return result;
         }
-        std::unordered_map<const types::TextureData*, std::shared_ptr<VulkanImage>> textures;
+        TextureCache textures;
         for (auto& material : data.materials) {
             auto& target = mesh.materials.emplace_back();
             target.draw = material.draw_binding;
@@ -167,81 +167,95 @@ namespace enishi::renderer::vulkan {
             if (result.is_err()) {
                 return result;
             }
-            VkDescriptorSetAllocateInfo allocation{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-            allocation.descriptorPool = mesh.pool;
-            allocation.descriptorSetCount = 1;
-            allocation.pSetLayouts = &state.descriptors;
-            result = check_vk(
-                vkAllocateDescriptorSets(state.context->device, &allocation, &target.descriptors),
-                "vkAllocateDescriptorSets");
+            result = VulkanMeshBuilder::make_material_descriptors(
+                state, material, mesh, target, textures);
             if (result.is_err()) {
                 return result;
             }
-            const std::array<std::string, UNIFORM_COUNT> uniform_names{
-                "Camera", "Bones", "Material"};
-            std::array<VkDescriptorBufferInfo, UNIFORM_COUNT> buffer_infos{};
-            std::array<VkWriteDescriptorSet, UNIFORM_COUNT + TEXTURE_COUNT> writes{};
-            for (std::uint32_t binding = 0; binding < UNIFORM_COUNT; ++binding) {
-                const auto& name = uniform_names[binding];
-                auto& uniforms = target.uniforms.contains(name) ? target.uniforms : mesh.uniforms;
-                if (!uniforms.contains(name)) {
-                    return foundation::Error(
-                        platform::RenderError::MakeError, "Missing Vulkan model uniform: " + name);
-                }
-                const auto& buffer = uniforms.at(name);
-                buffer_infos[binding] = {buffer->buffer, 0, buffer->size};
-                writes[binding] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                writes[binding].dstSet = target.descriptors;
-                writes[binding].dstBinding = binding;
-                writes[binding].descriptorCount = 1;
-                writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                writes[binding].pBufferInfo = &buffer_infos[binding];
-            }
-            const std::array<std::string, TEXTURE_COUNT> texture_names{
-                "model_texture", "sphere_texture", "toon_texture"};
-            std::array<VkDescriptorImageInfo, TEXTURE_COUNT> image_infos{};
-            for (std::uint32_t index = 0; index < TEXTURE_COUNT; ++index) {
-                const auto found = material.textures.find(texture_names[index]);
-                if (found == material.textures.end() || found->second == nullptr) {
-                    return foundation::Error(platform::RenderError::MakeError,
-                        "Missing Vulkan model texture: " + texture_names[index]);
-                }
-                auto cached = textures.find(found->second.get());
-                if (cached == textures.end()) {
-                    auto image = state.context->make_texture(*found->second);
-                    if (image.is_err()) {
-                        return std::move(image).take_err();
-                    }
-                    cached = textures.emplace(found->second.get(), image.unwrap()).first;
-                }
-                target.textures.push_back(cached->second);
-                image_infos[index] = {
-                    state.sampler, cached->second->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-                const auto binding = UNIFORM_COUNT + index;
-                writes[binding] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                writes[binding].dstSet = target.descriptors;
-                writes[binding].dstBinding = binding;
-                writes[binding].descriptorCount = 1;
-                writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                writes[binding].pImageInfo = &image_infos[index];
-            }
-            constexpr std::uint32_t SHADOW_BINDING = 6;
-            const auto& shadow_buffer = mesh.uniforms.at("ShadowMap");
-            const VkDescriptorBufferInfo shadow_info{shadow_buffer->buffer, 0, shadow_buffer->size};
-            VkWriteDescriptorSet shadow_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            shadow_write.dstSet = target.descriptors;
-            shadow_write.dstBinding = SHADOW_BINDING;
-            shadow_write.descriptorCount = 1;
-            shadow_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            shadow_write.pBufferInfo = &shadow_info;
-            vkUpdateDescriptorSets(state.context->device, 1, &shadow_write, 0, nullptr);
-            vkUpdateDescriptorSets(state.context->device,
-                static_cast<std::uint32_t>(writes.size()),
-                writes.data(),
-                0,
-                nullptr);
-            mesh.sampler_descriptors[state.sampler].push_back(target.descriptors);
         }
+        return {};
+    }
+    platform::RenderResult<void> VulkanMeshBuilder::make_material_descriptors(
+        VulkanRendererState& state,
+        const types::MeshMaterial& material,
+        VulkanMesh& mesh,
+        VulkanMaterial& target,
+        TextureCache& textures) {
+        constexpr std::uint32_t UNIFORM_COUNT = 3;
+        constexpr std::uint32_t TEXTURE_COUNT = 3;
+        VkDescriptorSetAllocateInfo allocation{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        allocation.descriptorPool = mesh.pool;
+        allocation.descriptorSetCount = 1;
+        allocation.pSetLayouts = &state.descriptors;
+        auto result = check_vk(
+            vkAllocateDescriptorSets(state.context->device, &allocation, &target.descriptors),
+            "vkAllocateDescriptorSets");
+        if (result.is_err()) {
+            return result;
+        }
+        const std::array<std::string, UNIFORM_COUNT> uniform_names{"Camera", "Bones", "Material"};
+        std::array<VkDescriptorBufferInfo, UNIFORM_COUNT> buffer_infos{};
+        std::array<VkWriteDescriptorSet, UNIFORM_COUNT + TEXTURE_COUNT> writes{};
+        for (std::uint32_t binding = 0; binding < UNIFORM_COUNT; ++binding) {
+            const auto& name = uniform_names[binding];
+            auto& uniforms = target.uniforms.contains(name) ? target.uniforms : mesh.uniforms;
+            if (!uniforms.contains(name)) {
+                return foundation::Error(
+                    platform::RenderError::MakeError, "Missing Vulkan model uniform: " + name);
+            }
+            const auto& buffer = uniforms.at(name);
+            buffer_infos[binding] = {buffer->buffer, 0, buffer->size};
+            writes[binding] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            writes[binding].dstSet = target.descriptors;
+            writes[binding].dstBinding = binding;
+            writes[binding].descriptorCount = 1;
+            writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            writes[binding].pBufferInfo = &buffer_infos[binding];
+        }
+        const std::array<std::string, TEXTURE_COUNT> texture_names{
+            "model_texture", "sphere_texture", "toon_texture"};
+        std::array<VkDescriptorImageInfo, TEXTURE_COUNT> image_infos{};
+        for (std::uint32_t index = 0; index < TEXTURE_COUNT; ++index) {
+            const auto found = material.textures.find(texture_names[index]);
+            if (found == material.textures.end() || found->second == nullptr) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    "Missing Vulkan model texture: " + texture_names[index]);
+            }
+            auto cached = textures.find(found->second.get());
+            if (cached == textures.end()) {
+                auto image = state.context->make_texture(*found->second);
+                if (image.is_err()) {
+                    return std::move(image).take_err();
+                }
+                cached = textures.emplace(found->second.get(), image.unwrap()).first;
+            }
+            target.textures.push_back(cached->second);
+            image_infos[index] = {
+                state.sampler, cached->second->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            const auto binding = UNIFORM_COUNT + index;
+            writes[binding] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            writes[binding].dstSet = target.descriptors;
+            writes[binding].dstBinding = binding;
+            writes[binding].descriptorCount = 1;
+            writes[binding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            writes[binding].pImageInfo = &image_infos[index];
+        }
+        constexpr std::uint32_t SHADOW_BINDING = 6;
+        const auto& shadow_buffer = mesh.uniforms.at("ShadowMap");
+        const VkDescriptorBufferInfo shadow_info{shadow_buffer->buffer, 0, shadow_buffer->size};
+        VkWriteDescriptorSet shadow_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        shadow_write.dstSet = target.descriptors;
+        shadow_write.dstBinding = SHADOW_BINDING;
+        shadow_write.descriptorCount = 1;
+        shadow_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        shadow_write.pBufferInfo = &shadow_info;
+        vkUpdateDescriptorSets(state.context->device, 1, &shadow_write, 0, nullptr);
+        vkUpdateDescriptorSets(state.context->device,
+            static_cast<std::uint32_t>(writes.size()),
+            writes.data(),
+            0,
+            nullptr);
+        mesh.sampler_descriptors[state.sampler].push_back(target.descriptors);
         return {};
     }
 } // namespace enishi::renderer::vulkan

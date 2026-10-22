@@ -4,6 +4,10 @@
 #include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 namespace enishi::renderer::vulkan {
     class VulkanMeshBuilder final {
+      private:
+        using TextureCache =
+            std::unordered_map<const types::TextureData*, std::shared_ptr<VulkanImage>>;
+
       public:
         static platform::RenderResult<types::RenderHandle> create_mesh(VulkanRendererState& state,
             ResourceAccessor& resource_accessor,
@@ -22,5 +26,10 @@ namespace enishi::renderer::vulkan {
             types::MeshData& data,
             VulkanMesh& mesh,
             types::MeshHandles& handles);
+        static platform::RenderResult<void> make_material_descriptors(VulkanRendererState& state,
+            const types::MeshMaterial& material,
+            VulkanMesh& mesh,
+            VulkanMaterial& target,
+            TextureCache& textures);
     };
 } // namespace enishi::renderer::vulkan

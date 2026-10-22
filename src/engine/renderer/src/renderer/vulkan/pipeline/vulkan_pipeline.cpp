@@ -143,25 +143,7 @@ namespace enishi::renderer::vulkan {
             VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
         viewport.viewportCount = 1;
         viewport.scissorCount = 1;
-        VkPipelineRasterizationStateCreateInfo raster{
-            VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-        raster.polygonMode = VK_POLYGON_MODE_FILL;
-        raster.lineWidth = 1.0f;
-        if (state.rasterizers.contains(state.rasterizer)) {
-            const auto& source = state.rasterizers.at(state.rasterizer);
-            if (source.cull_mode == types::CullMode::Back) {
-                raster.cullMode = VK_CULL_MODE_BACK_BIT;
-            }
-            if (source.cull_mode == types::CullMode::Front) {
-                raster.cullMode = VK_CULL_MODE_FRONT_BIT;
-            }
-            raster.frontFace = source.front_face == types::FrontFace::CounterClockwise
-                                   ? VK_FRONT_FACE_COUNTER_CLOCKWISE
-                                   : VK_FRONT_FACE_CLOCKWISE;
-            raster.depthBiasEnable = source.depth_bias.enable;
-            raster.depthBiasConstantFactor = source.depth_bias.constant_factor;
-            raster.depthBiasSlopeFactor = source.depth_bias.slope_factor;
-        }
+        const auto raster = VulkanPipeline::make_rasterizer(state);
         VkPipelineMultisampleStateCreateInfo multisample{
             VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
         multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -210,5 +192,28 @@ namespace enishi::renderer::vulkan {
         }
         state.pipelines.emplace(key, pipeline);
         return pipeline;
+    }
+    VkPipelineRasterizationStateCreateInfo VulkanPipeline::make_rasterizer(
+        const VulkanRendererState& state) {
+        VkPipelineRasterizationStateCreateInfo raster{
+            VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+        raster.polygonMode = VK_POLYGON_MODE_FILL;
+        raster.lineWidth = 1.0f;
+        if (state.rasterizers.contains(state.rasterizer)) {
+            const auto& source = state.rasterizers.at(state.rasterizer);
+            if (source.cull_mode == types::CullMode::Back) {
+                raster.cullMode = VK_CULL_MODE_BACK_BIT;
+            }
+            if (source.cull_mode == types::CullMode::Front) {
+                raster.cullMode = VK_CULL_MODE_FRONT_BIT;
+            }
+            raster.frontFace = source.front_face == types::FrontFace::CounterClockwise
+                                   ? VK_FRONT_FACE_COUNTER_CLOCKWISE
+                                   : VK_FRONT_FACE_CLOCKWISE;
+            raster.depthBiasEnable = source.depth_bias.enable;
+            raster.depthBiasConstantFactor = source.depth_bias.constant_factor;
+            raster.depthBiasSlopeFactor = source.depth_bias.slope_factor;
+        }
+        return raster;
     }
 } // namespace enishi::renderer::vulkan
