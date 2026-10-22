@@ -1,13 +1,14 @@
 #include "skinning_system.h"
-#include <core/system/animation/cursor_ray.h>
 #include "bone_inheritance.h"
 #include "bone_view_factory.h"
+#include "skinning_drag.h"
+#include "skinning_physics.h"
 #include <component/animation_component.h>
 #include <component/ik_component.h>
 #include <component/morph_component.h>
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
-#include <core/system/physics/physics_body_factory.h>
+#include <core/system/animation/cursor_ray.h>
 #include <foundation/log/logger.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
@@ -135,6 +136,55 @@ namespace enishi::core {
     void SkinningSystem::render(void) const {
     }
 
+    void SkinningSystem::update_after_physics(void) {
+        for (auto [entity, animation, model, skinning] :
+            this->registry->view<component::AnimationComponent,
+                component::ModelComponent,
+                component::SkinningComponent>()) {
+            const auto found = this->model_bones.find(entity);
+            if (found == this->model_bones.end() || !found->second->pending_after_physics) {
+                continue;
+            }
+            auto& bones = *found->second;
+            bones.pending_after_physics = false;
+            const auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
+            if (bodies.is_some() && !bodies.unwrap().enabled) {
+                continue;
+            }
+            if (this->physics_engine != nullptr &&
+                this->physics_engine->get_world()->get_config_reader()->can_update()) {
+                SkinningPhysics::import_pose(bones);
+            }
+            this->evaluate_bone_phase(
+                bones, this->registry->get<component::IKComponent>(entity), true);
+            this->write_skinning_matrices(animation, model, skinning);
+        }
+    }
+
+    bool SkinningSystem::begin_model_drag(types::ClientMousePosition cursor) {
+        const auto window = this->cursor_window.lock();
+        if (window == nullptr || this->camera == nullptr) {
+            return false;
+        }
+        const auto size = window->get_size();
+        if (size.is_none()) {
+            return false;
+        }
+        const auto camera = this->camera->get_camera();
+        const auto ray = types::Ray::make_ray_from_screen(size.unwrap(), cursor, camera);
+        // Transform the world-space ray into model space: origin = inverse(world) * origin,
+        // direction = normalize(mat3(inverse(world)) * direction).
+        const auto inverse = glm::inverse(camera.world);
+        const animation::CursorRay local{{glm::vec3(inverse * glm::vec4(ray.origin, 1)),
+                                             glm::normalize(glm::mat3(inverse) * ray.direction)},
+            glm::normalize(glm::mat3(inverse) * glm::vec3(glm::inverse(camera.view)[2]))};
+        return SkinningDrag::begin(*this->registry, this->model_bones, local);
+    }
+
+    void SkinningSystem::end_model_drag() {
+        SkinningDrag::end(this->model_bones);
+    }
+
     ModelBones& SkinningSystem::get_or_build(const types::HandleId entity,
         const component::ModelComponent& model,
         component::AnimationComponent& animation,
@@ -182,7 +232,7 @@ namespace enishi::core {
                 bones->external_transforms);
         }
 
-        this->build_physics(*bones, model, physics, physics_bodies);
+        SkinningPhysics::build(*bones, this->physics_engine.get(), model, physics, physics_bodies);
 
         auto& ref = *bones;
         this->model_bones.emplace(entity, std::move(bones));
@@ -261,24 +311,11 @@ namespace enishi::core {
                 break;
 
             case types::SkinningCommand::PhysicsSimulate:
-                this->import_physics_pose(bones);
+                SkinningPhysics::import_pose(bones);
                 break;
 
             case types::SkinningCommand::WriteBackPhysicsSimulate:
-                if (bones.physics_cache != nullptr && bones.animation_cache != nullptr) {
-                    const auto bone_count = bones.physics_cache->size();
-                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
-                        auto* const animation_view = bones.animation_cache->at(i);
-                        auto* const physics_view = bones.physics_cache->at(i);
-                        const auto& global = animation_view->get_animation_global_transform();
-                        if (physics_view->get_physics_global() != global) {
-                            physics_view->set_physics_global(global);
-                        }
-                    }
-                    for (types::BoneIndex i = 0; i < bone_count; ++i) {
-                        bones.physics_updater->update_local(i);
-                    }
-                }
+                SkinningPhysics::write_back_pose(bones);
                 break;
 
             case types::SkinningCommand::ReadBoneMatrices:

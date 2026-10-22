@@ -11,9 +11,9 @@
 #include <ecs/registry.h>
 #include <engine_types/skinning/skinning_command.h>
 #include <memory>
+#include <span>
 #include <sub_system/camera/interface_camera_controller.h>
 #include <sub_system/physics/interface_physics_engine.h>
-#include <span>
 #include <unordered_map>
 #include <variant>
 
@@ -28,18 +28,18 @@ namespace enishi::core {
      */
     class SkinningSystem final : public ISystem {
       private:
-        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
-            types::SkinningCommand::Animation,
-            types::SkinningCommand::IK,
-            types::SkinningCommand::WriteBackPhysicsSimulate,
-        };
-
         using AddonComponent = std::variant<std::monostate,
             component::IKComponent*,
             component::PhysicsComponent*,
             component::PhysicsBodiesComponent*>;
 
       private:
+        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
+            types::SkinningCommand::Animation,
+            types::SkinningCommand::IK,
+            types::SkinningCommand::WriteBackPhysicsSimulate,
+        };
+
         std::shared_ptr<ecs::Registry> registry;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
         std::weak_ptr<platform::IWindow> cursor_window;
@@ -77,12 +77,6 @@ namespace enishi::core {
         void evaluate_bone_phase(ModelBones& bones,
             foundation::Option<component::IKComponent&> ik,
             bool after_physics) const noexcept;
-        void import_physics_pose(ModelBones& bones) const noexcept;
-        void build_physics(ModelBones& bones,
-            const component::ModelComponent& model,
-            foundation::Option<component::PhysicsComponent&> physics,
-            foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const;
-
         void execute_command(const types::SkinningCommand command,
             ModelBones& bones,
             foundation::Option<component::IKComponent&> ik) const noexcept;

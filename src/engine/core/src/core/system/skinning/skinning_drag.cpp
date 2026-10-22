@@ -1,30 +1,17 @@
-#include "skinning_system.h"
-#include <platform/window/interface_window.h>
+#include "skinning_drag.h"
 
 namespace enishi::core {
-    bool SkinningSystem::begin_model_drag(types::ClientMousePosition cursor) {
-        const auto window = this->cursor_window.lock();
-        if (window == nullptr || this->camera == nullptr) {
-            return false;
-        }
-        const auto size = window->get_size();
-        if (size.is_none()) {
-            return false;
-        }
-        const auto camera = this->camera->get_camera();
-        const auto ray = types::Ray::make_ray_from_screen(size.unwrap(), cursor, camera);
-        const auto inverse = glm::inverse(camera.world);
-        const animation::CursorRay local{{glm::vec3(inverse * glm::vec4(ray.origin, 1)),
-                                  glm::normalize(glm::mat3(inverse) * ray.direction)},
-            glm::normalize(glm::mat3(inverse) * glm::vec3(glm::inverse(camera.view)[2]))};
+    bool SkinningDrag::begin(ecs::Registry& registry,
+        const std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>>& model_bones,
+        const animation::CursorRay& local) {
         animation::CursorPose* selected = nullptr;
         const component::AnimationComponent* pose = nullptr;
         std::size_t side = 0;
         float distance = 0;
         for (auto [entity, animation, model] :
-            this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
-            const auto found = this->model_bones.find(entity);
-            if (!model.visible || found == this->model_bones.end() ||
+            registry.view<component::AnimationComponent, component::ModelComponent>()) {
+            const auto found = model_bones.find(entity);
+            if (!model.visible || found == model_bones.end() ||
                 found->second->cursor_pose == nullptr) {
                 continue;
             }
@@ -43,8 +30,9 @@ namespace enishi::core {
         return selected->is_hanging();
     }
 
-    void SkinningSystem::end_model_drag() {
-        for (auto& [entity, bones] : this->model_bones) {
+    void SkinningDrag::end(
+        const std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>>& model_bones) {
+        for (auto& [entity, bones] : model_bones) {
             if (bones->cursor_pose != nullptr) {
                 bones->cursor_pose->end_hanging();
             }
