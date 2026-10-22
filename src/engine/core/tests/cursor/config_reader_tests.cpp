@@ -1,5 +1,6 @@
 #include "config_reader_tests.h"
 #include <chrono>
+#include <core/config/application_settings.h>
 #include <core/system/animation/bone_name_config.h>
 #include <core/system/animation/cursor_pose_config.h>
 #include <core/system/animation/model_event_motion_config.h>
@@ -122,6 +123,56 @@ namespace {
             "Bone configuration propagates read errors");
     }
 
+    void application_settings_tests() {
+        TemporaryConfig file(
+            "\xEF\xBB\xBF# header\n[model_events] # actions\n"
+            "push_states Dynamic\n\"*\" \"click\" \"*\" \"../motions/example.vmd\" on\n"
+            "[camera]\ninvert_wheel on\n[cursor_tracking]\nneck_yaw 8\n");
+        const auto parsed = core::load_application_settings(file.path);
+        require(parsed.is_ok(), "Unified configuration accepts reordered sections and BOM");
+        const auto& settings = parsed.unwrap();
+        require(settings.camera.invert_wheel && settings.cursor_tracking.neck_yaw == 8 &&
+                    settings.model_events.size() == 1 &&
+                    settings.click.push_states ==
+                        std::vector<types::RigidBodyKind>{types::RigidBodyKind::Dynamic},
+            "All feature parsers receive their own section");
+        require(settings.model_events.front().motion ==
+                    (file.path.parent_path() / "../motions/example.vmd").lexically_normal(),
+            "Motion paths remain relative to the configuration directory");
+        std::istringstream empty;
+        const auto defaults = core::parse_application_settings(empty, {});
+        require(defaults.is_ok() && !defaults.unwrap().camera.invert_wheel &&
+                    defaults.unwrap().model_events.empty(),
+            "Missing sections retain defaults");
+        const std::vector<std::string> invalid{"invert_wheel on",
+            "[unknown]",
+            "[camera] junk",
+            "[camera]\n[camera]",
+            "[camera]\nneck_yaw 8",
+            "[cursor_tracking]\ninvert_wheel on"};
+        for (const auto& value : invalid) {
+            std::istringstream stream(value);
+            require(core::parse_application_settings(stream, {}).is_err(),
+                "Unknown, repeated, malformed sections and misplaced keys must fail");
+        }
+        std::istringstream wrong_line("[camera]\ninvert_wheel off\n# comment\n"
+                                      "[cursor_tracking]\n\nneck_yaw 91");
+        const auto error = core::parse_application_settings(wrong_line, {});
+        require(
+            error.is_err() && error.unwrap_err().get_message().find("line 6") != std::string::npos,
+            "Feature errors refer to physical lines in the unified file");
+        std::istringstream wrong_event("[camera]\ninvert_wheel off\n[model_events]\n"
+                                       "\"*\" \"click\" \"*\" impulse 0 0 invalid on");
+        const auto event_error = core::parse_application_settings(wrong_event, {});
+        require(event_error.is_err() &&
+                    event_error.unwrap_err().get_message().find("line 4") != std::string::npos,
+            "Event errors preserve the unified file line number");
+        std::istringstream failed;
+        failed.setstate(std::ios::badbit);
+        require(core::parse_application_settings(failed, {}).is_err(),
+            "Unified configuration propagates read errors");
+    }
+
     void motion_tests() {
         TemporaryConfig valid("\xEF\xBB\xBF# header\n\npush_states Dynamic # "
                               "selected\n\"#generic\" \"click\" \"*\" none # disabled action");
@@ -142,6 +193,7 @@ namespace {
 } // namespace
 
 void config_reader_tests() {
+    application_settings_tests();
     bone_name_tests();
     reader_tests();
     setting_tests();
