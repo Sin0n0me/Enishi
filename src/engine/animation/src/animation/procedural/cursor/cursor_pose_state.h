@@ -1,14 +1,21 @@
 #pragma once
 #include "../../transition/pose_transition.h"
+#include "cursor_pose_config.h"
 #include <array>
 #include <cstdint>
 #include <engine_types/assets/model/addons/bone.h>
 #include <engine_types/collider/obb.h>
+#include <engine_types/collider/ray.h>
 #include <optional>
 #include <utility>
 #include <vector>
 
 namespace enishi::animation {
+    struct CursorRay {
+        types::Ray ray;
+        glm::vec3 plane_normal;
+    };
+
     struct CursorCapsule {
         glm::vec3 start;
         glm::vec3 end;
@@ -113,4 +120,39 @@ namespace enishi::animation {
         std::vector<glm::mat4> physics_globals;
     };
 
+    struct CursorPoseState {
+        enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
+        enum BodyBone : std::size_t {
+            BodyLeft,
+            BodyRight,
+            BodyNeck,
+            BodyHead,
+            BodyHips,
+            BodyCount
+        };
+        CursorTransitionState transition_state;
+        CursorIdleState idle;
+        CursorHangingState hanging_state;
+        CursorLocomotionState locomotion;
+        CursorTransformCache transforms;
+        CursorCollisionState collision;
+        std::array<std::vector<types::BoneIndex>, 2> hand_reach_bones;
+        std::array<types::BoneIndex, Count> joints;
+        std::array<types::BoneIndex, 2> wrists;
+        std::array<types::BoneIndex, BodyCount> body_bones;
+        types::BoneIndex body_anchor = types::INVALID_BONE_INDEX;
+        std::array<types::BoneIndex, 2> eyes;
+        std::optional<types::Ray> reach_ray;
+        std::array<glm::quat, Count> offsets;
+        std::array<glm::quat, Count> originals;
+        std::array<glm::quat, Count> bind_rotations;
+        std::array<glm::vec3, 2> hinge_axes;
+        std::array<glm::vec3, 2> upper_axes;
+        std::array<float, 2> bind_flex{};
+        glm::mat3 body_bind_inverse{1};
+        glm::vec3 head_local_up{0, 1, 0};
+        CursorPoseConfig config;
+        std::array<bool, 2> active_arms{};
+        bool applied = false;
+    };
 } // namespace enishi::animation

@@ -1,11 +1,14 @@
-#include "cursor_pose.h"
+#include "cursor_collision.h"
 #include <algorithm>
+#include <animation/procedural/cursor/cursor_reach.h>
 #include <cmath>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <foundation/log/logger.h>
 
 namespace enishi::animation {
+    using enum CursorPoseState::Joint;
+    using enum CursorPoseState::BodyBone;
     namespace {
         bool belongs_to(
             const component::ModelComponent& model, types::BoneIndex bone, types::BoneIndex root) {
@@ -72,7 +75,8 @@ namespace enishi::animation {
         }
     } // namespace
 
-    void CursorPose::initialize_collision(const component::ModelComponent& model) {
+    void CursorCollision::initialize_collision(
+        CursorPoseState& state, const component::ModelComponent& model) {
         for (types::BoneIndex bone = 0; bone < model.collision_vertices.size(); ++bone) {
             if (!(bone < model.bone_node.size()) || model.collision_vertices[bone].empty()) {
                 continue;
@@ -83,13 +87,13 @@ namespace enishi::animation {
                 foundation::Logger::warning("Cannot build cursor collision bounds");
                 continue;
             }
-            CollisionBone bounds{bone, local.unwrap()};
-            for (std::size_t side = 0; side < this->wrists.size(); ++side) {
-                if (belongs_to(model, bone, this->joints[side == 0 ? LeftArm : RightArm])) {
+            CursorCollisionBone bounds{bone, local.unwrap()};
+            for (std::size_t side = 0; side < state.wrists.size(); ++side) {
+                if (belongs_to(model, bone, state.joints[side == 0 ? LeftArm : RightArm])) {
                     bounds.arm = static_cast<int>(side);
                     bounds.distal =
-                        belongs_to(model, bone, this->joints[side == 0 ? LeftElbow : RightElbow]);
-                    bounds.hand = belongs_to(model, bone, this->wrists[side]);
+                        belongs_to(model, bone, state.joints[side == 0 ? LeftElbow : RightElbow]);
+                    bounds.hand = belongs_to(model, bone, state.wrists[side]);
                 }
             }
             for (const auto& body : model.rigid_bodies) {
@@ -99,44 +103,100 @@ namespace enishi::animation {
                     break;
                 }
             }
-            this->collision.bones.push_back(std::move(bounds));
+            state.collision.bones.push_back(std::move(bounds));
         }
-        this->initialize_collision_queries(model);
+        CursorCollision::initialize_collision_queries(state, model);
     }
 
-    void CursorPose::initialize_collision_queries(const component::ModelComponent& model) {
-        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+    float CursorCollision::hand_radius(const CursorPoseState& state, std::size_t side) {
+        float radius = CursorReach::arm_frame(state, side).hand_margin;
+        const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+        for (const auto index : state.collision.hand_bounds[side]) {
+            const auto& bounds = CursorCollision::collision_bound(state, index);
+            if (!bounds.world.has_value()) {
+                continue;
+            }
+            // |center-wrist| + |half_extent| encloses all eight OBB corners about the wrist.
+            radius = (std::max)(radius,
+                glm::length(bounds.world->center - wrist) + glm::length(bounds.world->half_extent));
+        }
+        return radius;
+    }
+
+    bool CursorCollision::mesh_arm_clear(const CursorPoseState& state, std::size_t side) {
+        if (!state.config.experimental_obb_collision) {
+            return true;
+        }
+        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto start = glm::vec3(state.transforms.globals[elbow][3]);
+        const auto end = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+        const auto frame = CursorReach::arm_frame(state, side);
+        const auto limb_low = (glm::min)(start, end) - glm::vec3(frame.arm_margin);
+        const auto limb_high = (glm::max)(start, end) + glm::vec3(frame.arm_margin);
+        const auto hand_low = end - glm::vec3(frame.hand_margin);
+        const auto hand_high = end + glm::vec3(frame.hand_margin);
+        for (const auto& query : state.collision.queries[side]) {
+            const auto& obstacle = CursorCollision::collision_bound(state, query.obstacle);
+            if (!obstacle.world.has_value()) {
+                continue;
+            }
+            // Upper arms attach to the torso, so their shared shoulder region is not tested
+            // against clothing. Forearms, hands and fingers must clear it in their entirety.
+            if ((query.forearm &&
+                    aabb_overlaps(limb_low, limb_high, obstacle.lower, obstacle.upper) &&
+                    segment_hits(start, end, *obstacle.world, frame.arm_margin)) ||
+                (query.hand && aabb_overlaps(hand_low, hand_high, obstacle.lower, obstacle.upper) &&
+                    segment_hits(end, end, *obstacle.world, frame.hand_margin))) {
+                return false;
+            }
+            for (const auto index : query.limbs) {
+                const auto& limb = CursorCollision::collision_bound(state, index);
+                if (limb.world.has_value() &&
+                    aabb_overlaps(limb.lower, limb.upper, obstacle.lower, obstacle.upper)) {
+                    if (collider::Collider::overlap(*limb.world, *obstacle.world)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    void CursorCollision::initialize_collision_queries(
+        CursorPoseState& state, const component::ModelComponent& model) {
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             const int owner = static_cast<int>(side);
-            const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-            for (std::size_t index = 0; index < this->collision.bones.size(); ++index) {
-                const auto& bounds = this->collision.bones[index];
+            const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+            for (std::size_t index = 0; index < state.collision.bones.size(); ++index) {
+                const auto& bounds = state.collision.bones[index];
                 if (bounds.arm == owner) {
                     if (bounds.hand) {
-                        this->collision.hand_bounds[side].push_back(index);
+                        state.collision.hand_bounds[side].push_back(index);
                     }
                     continue;
                 }
-                CollisionQuery query{{},
+                CursorCollisionQuery query{{},
                     index,
                     !adjacent(model, elbow, bounds.bone),
-                    !adjacent(model, this->wrists[side], bounds.bone)};
-                for (std::size_t limb = 0; limb < this->collision.bones.size(); ++limb) {
-                    const auto& candidate = this->collision.bones[limb];
+                    !adjacent(model, state.wrists[side], bounds.bone)};
+                for (std::size_t limb = 0; limb < state.collision.bones.size(); ++limb) {
+                    const auto& candidate = state.collision.bones[limb];
                     if (candidate.arm == owner && candidate.distal &&
                         !adjacent(model, candidate.bone, bounds.bone)) {
                         query.limbs.push_back(limb);
                     }
                 }
-                this->collision.queries[side].push_back(std::move(query));
+                state.collision.queries[side].push_back(std::move(query));
             }
         }
     }
 
-    const CursorPose::CollisionBone& CursorPose::collision_bound(std::size_t index) const {
-        auto& bounds = this->collision.bones[index];
-        const auto& matrix = bounds.physics && bounds.bone < this->collision.physics_globals.size()
-                                 ? this->collision.physics_globals[bounds.bone]
-                                 : this->transforms.globals[bounds.bone];
+    const CursorCollisionBone& CursorCollision::collision_bound(
+        const CursorPoseState& state, std::size_t index) {
+        auto& bounds = state.collision.bones[index];
+        const auto& matrix = bounds.physics && bounds.bone < state.collision.physics_globals.size()
+                                 ? state.collision.physics_globals[bounds.bone]
+                                 : state.transforms.globals[bounds.bone];
         if (bounds.transform == matrix) {
             return bounds;
         }
@@ -156,59 +216,5 @@ namespace enishi::animation {
             foundation::Logger::warning("Cannot transform cursor collision bounds");
         }
         return bounds;
-    }
-
-    float CursorPose::hand_radius(std::size_t side) const {
-        float radius = this->arm_frame(side).hand_margin;
-        const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
-        for (const auto index : this->collision.hand_bounds[side]) {
-            const auto& bounds = this->collision_bound(index);
-            if (!bounds.world.has_value()) {
-                continue;
-            }
-            // |center-wrist| + |half_extent| encloses all eight OBB corners about the wrist.
-            radius = (std::max)(radius,
-                glm::length(bounds.world->center - wrist) + glm::length(bounds.world->half_extent));
-        }
-        return radius;
-    }
-
-    bool CursorPose::mesh_arm_clear(std::size_t side) const {
-        if (!this->config.experimental_obb_collision) {
-            return true;
-        }
-        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto start = glm::vec3(this->transforms.globals[elbow][3]);
-        const auto end = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
-        const auto frame = this->arm_frame(side);
-        const auto limb_low = (glm::min)(start, end) - glm::vec3(frame.arm_margin);
-        const auto limb_high = (glm::max)(start, end) + glm::vec3(frame.arm_margin);
-        const auto hand_low = end - glm::vec3(frame.hand_margin);
-        const auto hand_high = end + glm::vec3(frame.hand_margin);
-        for (const auto& query : this->collision.queries[side]) {
-            const auto& obstacle = this->collision_bound(query.obstacle);
-            if (!obstacle.world.has_value()) {
-                continue;
-            }
-            // Upper arms attach to the torso, so their shared shoulder region is not tested
-            // against clothing. Forearms, hands and fingers must clear it in their entirety.
-            if ((query.forearm &&
-                    aabb_overlaps(limb_low, limb_high, obstacle.lower, obstacle.upper) &&
-                    segment_hits(start, end, *obstacle.world, frame.arm_margin)) ||
-                (query.hand && aabb_overlaps(hand_low, hand_high, obstacle.lower, obstacle.upper) &&
-                    segment_hits(end, end, *obstacle.world, frame.hand_margin))) {
-                return false;
-            }
-            for (const auto index : query.limbs) {
-                const auto& limb = this->collision_bound(index);
-                if (limb.world.has_value() &&
-                    aabb_overlaps(limb.lower, limb.upper, obstacle.lower, obstacle.upper)) {
-                    if (collider::Collider::overlap(*limb.world, *obstacle.world)) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
     }
 } // namespace enishi::animation

@@ -1,10 +1,15 @@
-#include "cursor_pose.h"
+#include "cursor_reach.h"
 #include <algorithm>
+#include <animation/procedural/cursor/cursor_collision.h>
+#include <animation/procedural/cursor/cursor_transforms.h>
+#include <animation/procedural/jump/cursor_jump.h>
 #include <cmath>
 #include <initializer_list>
 #include <string_view>
 
 namespace enishi::animation {
+    using enum CursorPoseState::Joint;
+    using enum CursorPoseState::BodyBone;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
@@ -116,11 +121,12 @@ namespace enishi::animation {
         }
     } // namespace
 
-    void CursorPose::initialize_arms(const component::ModelComponent& model) {
-        this->bind_rotations.fill(IDENTITY);
-        this->hinge_axes.fill(glm::vec3(0, 1, 0));
-        this->upper_axes.fill(glm::vec3(1, 0, 0));
-        this->body_bones.fill(types::INVALID_BONE_INDEX);
+    void CursorReach::initialize_arms(
+        CursorPoseState& state, const component::ModelComponent& model) {
+        state.bind_rotations.fill(IDENTITY);
+        state.hinge_axes.fill(glm::vec3(0, 1, 0));
+        state.upper_axes.fill(glm::vec3(1, 0, 0));
+        state.body_bones.fill(types::INVALID_BONE_INDEX);
         const auto find = [&](std::initializer_list<std::string_view> names) {
             for (const auto name : names) {
                 const auto found = std::ranges::find(model.bone_names, name);
@@ -130,97 +136,98 @@ namespace enishi::animation {
             }
             return types::INVALID_BONE_INDEX;
         };
-        this->body_bones = {find({"左腕", "leftUpperArm", "LeftArm"}),
+        state.body_bones = {find({"左腕", "leftUpperArm", "LeftArm"}),
             find({"右腕", "rightUpperArm", "RightArm"}),
             find({"首", "neck", "Neck"}),
             find({"頭", "head", "Head"}),
             find({"下半身", "hips", "Hips"})};
-        auto ancestor = this->body_bones[BodyLeft];
+        auto ancestor = state.body_bones[BodyLeft];
         if (!(ancestor < model.bone_node.size())) {
-            ancestor = this->body_bones[BodyRight];
+            ancestor = state.body_bones[BodyRight];
         }
         for (std::size_t step = 0;
              step < model.bone_node.size() && ancestor < model.bone_node.size();
              ++step) {
             ancestor = model.bone_node[ancestor].parent;
-            auto other = this->body_bones[BodyRight];
+            auto other = state.body_bones[BodyRight];
             for (std::size_t depth = 0;
                  depth < model.bone_node.size() && other < model.bone_node.size();
                  ++depth) {
                 if (other == ancestor) {
-                    this->body_anchor = ancestor;
+                    state.body_anchor = ancestor;
                     break;
                 }
                 other = model.bone_node[other].parent;
             }
-            if (this->body_anchor < model.bone_node.size()) {
+            if (state.body_anchor < model.bone_node.size()) {
                 break;
             }
         }
-        if (this->body_anchor < model.bind_bone.size()) {
-            this->body_bind_inverse = glm::mat3(model.bind_bone[this->body_anchor].global_inverse);
+        if (state.body_anchor < model.bind_bone.size()) {
+            state.body_bind_inverse = glm::mat3(model.bind_bone[state.body_anchor].global_inverse);
         }
-        if (this->body_bones[BodyHead] < model.bind_bone.size()) {
-            this->head_local_up =
-                glm::mat3(model.bind_bone[this->body_bones[BodyHead]].global_inverse) *
+        if (state.body_bones[BodyHead] < model.bind_bone.size()) {
+            state.head_local_up =
+                glm::mat3(model.bind_bone[state.body_bones[BodyHead]].global_inverse) *
                 glm::vec3(0, 1, 0);
         }
         for (std::size_t joint = 0; joint < Count; ++joint) {
-            if (this->joints[joint] < model.bind_bone.size()) {
-                this->bind_rotations[joint] =
-                    rotation_of(model.bind_bone[this->joints[joint]].local);
+            if (state.joints[joint] < model.bind_bone.size()) {
+                state.bind_rotations[joint] =
+                    rotation_of(model.bind_bone[state.joints[joint]].local);
             }
         }
-        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             const auto arm = side == 0 ? LeftArm : RightArm;
             const auto elbow = side == 0 ? LeftElbow : RightElbow;
-            if (!(this->wrists[side] < model.bind_bone.size()) ||
-                !(this->joints[arm] < model.bind_bone.size()) ||
-                !(this->joints[elbow] < model.bind_bone.size())) {
+            if (!(state.wrists[side] < model.bind_bone.size()) ||
+                !(state.joints[arm] < model.bind_bone.size()) ||
+                !(state.joints[elbow] < model.bind_bone.size())) {
                 continue;
             }
-            const auto& shoulder = model.bind_bone[this->joints[arm]];
-            const auto& joint = model.bind_bone[this->joints[elbow]];
+            const auto& shoulder = model.bind_bone[state.joints[arm]];
+            const auto& joint = model.bind_bone[state.joints[elbow]];
             const auto upper = glm::vec3(joint.global[3] - shoulder.global[3]);
             const auto lower =
-                glm::vec3(model.bind_bone[this->wrists[side]].global[3] - joint.global[3]);
+                glm::vec3(model.bind_bone[state.wrists[side]].global[3] - joint.global[3]);
             auto axis = glm::cross(upper, glm::vec3(0, 0, -1));
             if (!(glm::length(upper) > EPSILON) || !(glm::length(lower) > EPSILON) ||
                 !(glm::length(axis) > EPSILON)) {
                 continue;
             }
             axis = glm::normalize(axis);
-            this->hinge_axes[side] = glm::normalize(glm::mat3(joint.global_inverse) * axis);
-            this->upper_axes[side] = glm::normalize(glm::mat3(shoulder.global_inverse) * upper);
+            state.hinge_axes[side] = glm::normalize(glm::mat3(joint.global_inverse) * axis);
+            state.upper_axes[side] = glm::normalize(glm::mat3(shoulder.global_inverse) * upper);
             // Signed bind flex measured around the forward-bending anatomical axis.
-            this->bind_flex[side] =
+            state.bind_flex[side] =
                 std::atan2(glm::dot(glm::cross(glm::normalize(upper), glm::normalize(lower)), axis),
                     glm::dot(glm::normalize(upper), glm::normalize(lower)));
         }
     }
 
-    bool CursorPose::can_reach(std::size_t side, const glm::vec3& target) const {
-        if (!(this->wrists[side] < this->transforms.globals.size())) {
+    bool CursorReach::can_reach(
+        const CursorPoseState& state, std::size_t side, const glm::vec3& target) {
+        if (!(state.wrists[side] < state.transforms.globals.size())) {
             return false;
         }
-        const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
-        const auto joint = glm::vec3(this->transforms.globals[elbow][3]);
+        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
+        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
+        const auto joint = glm::vec3(state.transforms.globals[elbow][3]);
         const float upper = glm::length(joint - shoulder);
         const float lower =
-            glm::length(glm::vec3(this->transforms.globals[this->wrists[side]][3]) - joint);
+            glm::length(glm::vec3(state.transforms.globals[state.wrists[side]][3]) - joint);
         // Each arm owns its range: |target-shoulder| < upper+lower. A 5% release
         // margin avoids repeatedly entering/leaving when the cursor grazes the boundary.
-        const float release = this->active_arms[side] ? REACH_RELEASE_RATIO : 1.0f;
+        const float release = state.active_arms[side] ? REACH_RELEASE_RATIO : 1.0f;
         if (!(upper > EPSILON) || !(lower > EPSILON) ||
             !(glm::length(target - shoulder) < (upper + lower) * release)) {
             return false;
         }
-        if (this->body_bones[BodyLeft] < this->transforms.globals.size() &&
-            this->body_bones[BodyRight] < this->transforms.globals.size()) {
-            const auto left = glm::vec3(this->transforms.globals[this->body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(this->transforms.globals[this->body_bones[BodyRight]][3]);
+        if (state.body_bones[BodyLeft] < state.transforms.globals.size() &&
+            state.body_bones[BodyRight] < state.transforms.globals.size()) {
+            const auto left = glm::vec3(state.transforms.globals[state.body_bones[BodyLeft]][3]);
+            const auto right = glm::vec3(state.transforms.globals[state.body_bones[BodyRight]][3]);
             const auto across = left - right;
             const float width = glm::length(across);
             if (width > EPSILON) {
@@ -230,25 +237,25 @@ namespace enishi::animation {
                 const float lateral =
                     sign * glm::dot(target - (left + right) * 0.5f, across / width);
                 const float margin =
-                    this->active_arms[side] ? CROSS_BODY_RELEASE_RATIO : CROSS_BODY_RATIO;
+                    state.active_arms[side] ? CROSS_BODY_RELEASE_RATIO : CROSS_BODY_RATIO;
                 return lateral > -width * margin;
             }
         }
         return true;
     }
 
-    CursorPose::ArmFrame CursorPose::arm_frame(std::size_t side) const {
-        const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
-        const float upper = glm::length(glm::vec3(this->transforms.globals[elbow][3]) - shoulder);
+    CursorArmFrame CursorReach::arm_frame(const CursorPoseState& state, std::size_t side) {
+        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
+        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
+        const float upper = glm::length(glm::vec3(state.transforms.globals[elbow][3]) - shoulder);
         const float lower = glm::length(glm::vec3(
-            this->transforms.globals[this->wrists[side]][3] - this->transforms.globals[elbow][3]));
+            state.transforms.globals[state.wrists[side]][3] - state.transforms.globals[elbow][3]));
         const auto basis =
-            this->body_anchor < this->transforms.globals.size()
-                ? glm::mat3(this->transforms.globals[this->body_anchor]) * this->body_bind_inverse
+            state.body_anchor < state.transforms.globals.size()
+                ? glm::mat3(state.transforms.globals[state.body_anchor]) * state.body_bind_inverse
                 : glm::mat3(1);
-        ArmFrame frame{{},
+        CursorArmFrame frame{{},
             shoulder,
             glm::normalize(basis * glm::vec3(1, 0, 0)),
             glm::normalize(basis * glm::vec3(0, 1, 0)),
@@ -257,10 +264,10 @@ namespace enishi::animation {
             lower * ARM_MARGIN_RATIO,
             lower * HAND_MARGIN_RATIO};
         float width = upper;
-        if (this->body_bones[BodyLeft] < this->transforms.globals.size() &&
-            this->body_bones[BodyRight] < this->transforms.globals.size()) {
-            const auto left = glm::vec3(this->transforms.globals[this->body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(this->transforms.globals[this->body_bones[BodyRight]][3]);
+        if (state.body_bones[BodyLeft] < state.transforms.globals.size() &&
+            state.body_bones[BodyRight] < state.transforms.globals.size()) {
+            const auto left = glm::vec3(state.transforms.globals[state.body_bones[BodyLeft]][3]);
+            const auto right = glm::vec3(state.transforms.globals[state.body_bones[BodyRight]][3]);
             frame.center = (left + right) * 0.5f;
             width = glm::length(left - right);
         } else {
@@ -268,18 +275,18 @@ namespace enishi::animation {
             frame.center -= frame.outward * sign * width * 0.5f;
         }
         frame.outward *= side == 0 ? 1.0f : -1.0f;
-        const auto hips = this->body_bones[BodyHips] < this->transforms.globals.size()
-                              ? glm::vec3(this->transforms.globals[this->body_bones[BodyHips]][3])
+        const auto hips = state.body_bones[BodyHips] < state.transforms.globals.size()
+                              ? glm::vec3(state.transforms.globals[state.body_bones[BodyHips]][3])
                               : frame.center - frame.up * frame.length * TORSO_HEIGHT_RATIO;
-        const auto neck = this->body_bones[BodyNeck] < this->transforms.globals.size()
-                              ? glm::vec3(this->transforms.globals[this->body_bones[BodyNeck]][3])
+        const auto neck = state.body_bones[BodyNeck] < state.transforms.globals.size()
+                              ? glm::vec3(state.transforms.globals[state.body_bones[BodyNeck]][3])
                               : frame.center;
         frame.obstacles.push_back({hips, neck, width * TORSO_RADIUS_RATIO});
-        if (this->body_bones[BodyHead] < this->transforms.globals.size()) {
-            const auto head = glm::vec3(this->transforms.globals[this->body_bones[BodyHead]][3]);
+        if (state.body_bones[BodyHead] < state.transforms.globals.size()) {
+            const auto head = glm::vec3(state.transforms.globals[state.body_bones[BodyHead]][3]);
             const auto head_up =
-                glm::normalize(glm::mat3(this->transforms.globals[this->body_bones[BodyHead]]) *
-                               this->head_local_up);
+                glm::normalize(glm::mat3(state.transforms.globals[state.body_bones[BodyHead]]) *
+                               state.head_local_up);
             frame.obstacles.push_back({head,
                 head + head_up * lower * HEAD_HEIGHT_RATIO,
                 (std::max)(width, lower) * HEAD_RADIUS_RATIO});
@@ -287,79 +294,19 @@ namespace enishi::animation {
         return frame;
     }
 
-    bool CursorPose::arm_clear(std::size_t side, const ArmFrame& frame) const {
-        const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(this->transforms.globals[arm][3]);
-        const auto joint = glm::vec3(this->transforms.globals[elbow][3]);
-        const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
-        for (const auto& capsule : frame.obstacles) {
-            // Inflate centerline tests by limb thickness, and the wrist by the hand's extent.
-            const float squared =
-                (capsule.radius + frame.arm_margin) * (capsule.radius + frame.arm_margin);
-            const float hand_squared =
-                (capsule.radius + frame.hand_margin) * (capsule.radius + frame.hand_margin);
-            if (segment_distance_squared(shoulder, joint, capsule.start, capsule.end) < squared ||
-                segment_distance_squared(joint, wrist, capsule.start, capsule.end) < squared ||
-                segment_distance_squared(wrist, wrist, capsule.start, capsule.end) < hand_squared) {
-                return false;
-            }
-        }
-        const std::size_t other = 1 - side;
-        if (this->wrists[other] < this->transforms.globals.size()) {
-            const auto other_elbow = this->joints[other == 0 ? LeftElbow : RightElbow];
-            const auto other_joint = glm::vec3(this->transforms.globals[other_elbow][3]);
-            const auto other_wrist = glm::vec3(this->transforms.globals[this->wrists[other]][3]);
-            const auto other_frame = this->arm_frame(other);
-            const float limb_clearance = frame.arm_margin + other_frame.arm_margin;
-            const float hand_clearance = frame.hand_margin + other_frame.hand_margin;
-            const float first_hand_clearance = frame.hand_margin + other_frame.arm_margin;
-            const float second_hand_clearance = other_frame.hand_margin + frame.arm_margin;
-            // Capsules overlap when segment distance squared < (r1+r2)^2.
-            if (segment_distance_squared(joint, wrist, other_joint, other_wrist) <
-                    limb_clearance * limb_clearance ||
-                glm::dot(wrist - other_wrist, wrist - other_wrist) <
-                    hand_clearance * hand_clearance ||
-                segment_distance_squared(wrist, wrist, other_joint, other_wrist) <
-                    first_hand_clearance * first_hand_clearance ||
-                segment_distance_squared(other_wrist, other_wrist, joint, wrist) <
-                    second_hand_clearance * second_hand_clearance) {
-                return false;
-            }
-        }
-        return this->mesh_arm_clear(side);
-    }
-
-    void CursorPose::constrain_arm(
-        component::AnimationComponent& animation, std::size_t side) const {
-        const auto arm = side == 0 ? LeftArm : RightArm;
-        const auto elbow = side == 0 ? LeftElbow : RightElbow;
-        auto& upper = animation.animation[this->joints[arm]].rotation;
-        auto& lower = animation.animation[this->joints[elbow]].rotation;
-        upper = glm::normalize(this->bind_rotations[arm] *
-                               limit_shoulder(glm::inverse(this->bind_rotations[arm]) * upper,
-                                   this->upper_axes[side]));
-        const float flex =
-            twist_angle(glm::inverse(this->bind_rotations[elbow]) * lower, this->hinge_axes[side]);
-        lower = this->bind_rotations[elbow] *
-                glm::angleAxis(std::clamp(flex,
-                                   -this->bind_flex[side],
-                                   glm::radians(MAX_FLEX) - this->bind_flex[side]),
-                    this->hinge_axes[side]);
-    }
-
-    void CursorPose::solve_arm(const component::ModelComponent& model,
+    void CursorReach::solve_arm(CursorPoseState& state,
+        const component::ModelComponent& model,
         component::AnimationComponent& animation,
         std::size_t side,
         const glm::vec3& target,
-        const ArmFrame& frame) {
+        const CursorArmFrame& frame) {
         const auto arm = side == 0 ? LeftArm : RightArm;
         const auto elbow = side == 0 ? LeftElbow : RightElbow;
-        const auto shoulder = glm::vec3(this->transforms.globals[this->joints[arm]][3]);
-        const auto joint = glm::vec3(this->transforms.globals[this->joints[elbow]][3]);
+        const auto shoulder = glm::vec3(state.transforms.globals[state.joints[arm]][3]);
+        const auto joint = glm::vec3(state.transforms.globals[state.joints[elbow]][3]);
         const float upper = glm::length(joint - shoulder);
         const float lower =
-            glm::length(glm::vec3(this->transforms.globals[this->wrists[side]][3]) - joint);
+            glm::length(glm::vec3(state.transforms.globals[state.wrists[side]][3]) - joint);
         if (!(upper > EPSILON) || !(lower > EPSILON) ||
             !(glm::length(target - shoulder) > EPSILON)) {
             return;
@@ -389,14 +336,14 @@ namespace enishi::animation {
             std::clamp((distance * distance - upper * upper - lower * lower) / (2 * upper * lower),
                 -1.0f,
                 1.0f));
-        animation.animation[this->joints[elbow]].rotation =
-            this->bind_rotations[elbow] *
-            glm::angleAxis(flex - this->bind_flex[side], this->hinge_axes[side]);
-        this->update_globals(model, animation);
+        animation.animation[state.joints[elbow]].rotation =
+            state.bind_rotations[elbow] *
+            glm::angleAxis(flex - state.bind_flex[side], state.hinge_axes[side]);
+        CursorTransforms::update_globals(state.transforms, model, animation);
         const auto current_upper =
-            glm::vec3(this->transforms.globals[this->joints[elbow]][3]) - shoulder;
-        const auto current_lower = glm::vec3(this->transforms.globals[this->wrists[side]][3] -
-                                             this->transforms.globals[this->joints[elbow]][3]);
+            glm::vec3(state.transforms.globals[state.joints[elbow]][3]) - shoulder;
+        const auto current_lower = glm::vec3(state.transforms.globals[state.wrists[side]][3] -
+                                             state.transforms.globals[state.joints[elbow]][3]);
         auto correction = between(current_upper, desired_upper);
         const auto axis = glm::normalize(desired_upper);
         const auto from = glm::cross(correction * current_upper, correction * current_lower);
@@ -408,61 +355,29 @@ namespace enishi::animation {
                     glm::dot(glm::normalize(from), glm::normalize(to)));
             correction = glm::angleAxis(twist, axis) * correction;
         }
-        const auto global_rotation = rotation_of(this->transforms.globals[this->joints[arm]]);
-        animation.animation[this->joints[arm]].rotation *=
+        const auto global_rotation = rotation_of(state.transforms.globals[state.joints[arm]]);
+        animation.animation[state.joints[arm]].rotation *=
             glm::inverse(global_rotation) * correction * global_rotation;
-        this->constrain_arm(animation, side);
-        this->update_globals(model, animation);
+        CursorReach::constrain_arm(state, animation, side);
+        CursorTransforms::update_globals(state.transforms, model, animation);
     }
 
-    bool CursorPose::reach_side(const component::ModelComponent& model,
-        component::AnimationComponent& animation,
-        std::size_t side,
-        const glm::vec3& target) {
-        const auto frame = this->arm_frame(side);
-        auto safe_target = target;
-        // Never chase a cursor through or behind the body. Shift the goal forward instead.
-        safe_target += frame.forward * (std::max)(0.0f,
-                                           frame.length * FRONT_REACH_RATIO -
-                                               glm::dot(safe_target - frame.center, frame.forward));
-        const auto arm = this->joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = this->joints[side == 0 ? LeftElbow : RightElbow];
-        const auto original_upper = animation.animation[arm].rotation;
-        const auto original_lower = animation.animation[elbow].rotation;
-        for (std::size_t attempt = 0; attempt < AVOID_ATTEMPTS; ++attempt) {
-            animation.animation[arm].rotation = original_upper;
-            animation.animation[elbow].rotation = original_lower;
-            this->update_globals(model, animation);
-            // Search forward and outward if either complete arm segment intersects a capsule.
-            const auto candidate = safe_target + static_cast<float>(attempt) * frame.length *
-                                                     (frame.forward * AVOID_FORWARD_STEP +
-                                                         frame.outward * AVOID_SIDE_STEP);
-            this->solve_arm(model, animation, side, candidate, frame);
-            if (this->arm_clear(side, frame)) {
-                return true;
-            }
-        }
-        animation.animation[arm].rotation = original_upper;
-        animation.animation[elbow].rotation = original_lower;
-        this->update_globals(model, animation);
-        return false;
-    }
-
-    void CursorPose::limit_arm_speed(const component::ModelComponent& model,
+    void CursorReach::limit_arm_speed(CursorPoseState& state,
+        const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const std::array<glm::quat, Count>& previous,
         float seconds) {
         const float elapsed = std::isfinite(seconds) ? (std::max)(0.0f, seconds) : 0.0f;
-        const float step = glm::radians(this->config.arm_speed) * elapsed;
+        const float step = glm::radians(state.config.arm_speed) * elapsed;
         constexpr std::size_t BACKTRACK_STEPS = 12;
-        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             const auto arm = side == 0 ? LeftArm : RightArm;
             const auto elbow = side == 0 ? LeftElbow : RightElbow;
-            if (!(this->wrists[side] < this->transforms.globals.size())) {
+            if (!(state.wrists[side] < state.transforms.globals.size())) {
                 continue;
             }
-            const auto desired_upper = this->offsets[arm];
-            const auto desired_lower = this->offsets[elbow];
+            const auto desired_upper = state.offsets[arm];
+            const auto desired_lower = state.offsets[elbow];
             // Shortest quaternion arc: theta = 2*atan2(|q.xyz|, |q.w|).
             // Both joints use t=min(1, speed*dt/max(theta)), preserving the solved bend.
             const auto upper_delta = glm::inverse(previous[arm]) * desired_upper;
@@ -480,20 +395,20 @@ namespace enishi::animation {
                 continue;
             }
             const auto set_offsets = [&](const glm::quat& upper, const glm::quat& lower) {
-                this->offsets[arm] = upper;
-                this->offsets[elbow] = lower;
-                animation.animation[this->joints[arm]].rotation =
-                    glm::normalize(this->originals[arm] * upper);
-                animation.animation[this->joints[elbow]].rotation =
-                    glm::normalize(this->originals[elbow] * lower);
-                this->update_globals(model, animation);
+                state.offsets[arm] = upper;
+                state.offsets[elbow] = lower;
+                animation.animation[state.joints[arm]].rotation =
+                    glm::normalize(state.originals[arm] * upper);
+                animation.animation[state.joints[elbow]].rotation =
+                    glm::normalize(state.originals[elbow] * lower);
+                CursorTransforms::update_globals(state.transforms, model, animation);
             };
             float fraction = step / angle;
             bool accepted = false;
             for (std::size_t attempt = 0; attempt < BACKTRACK_STEPS; ++attempt) {
                 set_offsets(glm::normalize(glm::slerp(previous[arm], desired_upper, fraction)),
                     glm::normalize(glm::slerp(previous[elbow], desired_lower, fraction)));
-                if (this->arm_clear(side, this->arm_frame(side))) {
+                if (CursorReach::arm_clear(state, side, CursorReach::arm_frame(state, side))) {
                     accepted = true;
                     break;
                 }
@@ -502,7 +417,8 @@ namespace enishi::animation {
             }
             if (!accepted) {
                 set_offsets(previous[arm], previous[elbow]);
-                if (!this->arm_clear(side, this->arm_frame(side)) && elapsed > 0) {
+                if (!CursorReach::arm_clear(state, side, CursorReach::arm_frame(state, side)) &&
+                    elapsed > 0) {
                     // An animated torso/head may move into the previous pose. In that case
                     // clearance takes precedence over speed; never retain an intersecting arm.
                     set_offsets(desired_upper, desired_lower);
@@ -511,39 +427,179 @@ namespace enishi::animation {
         }
     }
 
-    void CursorPose::protect_arms(
-        const component::ModelComponent& model, component::AnimationComponent& animation) {
-        this->update_globals(model, animation);
-        for (std::size_t side = 0; side < this->wrists.size(); ++side) {
+    void CursorReach::protect_arms(CursorPoseState& state,
+        const component::ModelComponent& model,
+        component::AnimationComponent& animation) {
+        CursorTransforms::update_globals(state.transforms, model, animation);
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             const auto arm = side == 0 ? LeftArm : RightArm;
             const auto elbow = side == 0 ? LeftElbow : RightElbow;
-            if (!(this->wrists[side] < this->transforms.globals.size()) ||
-                (glm::length(this->offsets[arm] - IDENTITY) < EPSILON &&
-                    glm::length(this->offsets[elbow] - IDENTITY) < EPSILON)) {
+            if (!(state.wrists[side] < state.transforms.globals.size()) ||
+                (glm::length(state.offsets[arm] - IDENTITY) < EPSILON &&
+                    glm::length(state.offsets[elbow] - IDENTITY) < EPSILON)) {
                 continue;
             }
             // Releasing an arm must converge to the authored animation, even when that
             // animation intentionally contains rotations outside the procedural hinge limits.
-            if (this->active_arms[side]) {
-                this->constrain_arm(animation, side);
+            if (state.active_arms[side]) {
+                CursorReach::constrain_arm(state, animation, side);
             }
-            this->update_globals(model, animation);
-            const auto frame = this->arm_frame(side);
-            if (!this->arm_clear(side, frame)) {
+            CursorTransforms::update_globals(state.transforms, model, animation);
+            const auto frame = CursorReach::arm_frame(state, side);
+            if (!CursorReach::arm_clear(state, side, frame)) {
                 // Interpolation between two safe poses can cut through the body. Re-solve its
                 // actual intermediate hand position and keep the corrected offset for next frame.
-                const auto wrist = glm::vec3(this->transforms.globals[this->wrists[side]][3]);
-                if (!this->reach_side(model, animation, side, wrist)) {
-                    animation.animation[this->joints[arm]].rotation = this->originals[arm];
-                    animation.animation[this->joints[elbow]].rotation = this->originals[elbow];
-                    this->update_globals(model, animation);
+                const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+                if (!CursorReach::reach_side(state, model, animation, side, wrist)) {
+                    animation.animation[state.joints[arm]].rotation = state.originals[arm];
+                    animation.animation[state.joints[elbow]].rotation = state.originals[elbow];
+                    CursorTransforms::update_globals(state.transforms, model, animation);
                 }
             }
-            this->offsets[arm] = glm::normalize(glm::inverse(this->originals[arm]) *
-                                                animation.animation[this->joints[arm]].rotation);
-            this->offsets[elbow] =
-                glm::normalize(glm::inverse(this->originals[elbow]) *
-                               animation.animation[this->joints[elbow]].rotation);
+            state.offsets[arm] = glm::normalize(glm::inverse(state.originals[arm]) *
+                                                animation.animation[state.joints[arm]].rotation);
+            state.offsets[elbow] =
+                glm::normalize(glm::inverse(state.originals[elbow]) *
+                               animation.animation[state.joints[elbow]].rotation);
         }
+    }
+
+    void CursorReach::reach(CursorPoseState& state,
+        const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        const glm::vec3& target) {
+        std::array<glm::vec3, 2> goals{target, target};
+        // Cooldown gates the next jump, not the effort to reach its target after landing.
+        const bool stretch = state.locomotion.wait > 0 || state.locomotion.height > 0 ||
+                             CursorJump::desired_jump_height(state, target) > 0;
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
+            if ((!stretch && !CursorJump::cursor_in_arm_reach(state, side)) ||
+                !(state.wrists[side] < state.transforms.globals.size()) ||
+                CursorReach::can_reach(state, side, target)) {
+                continue;
+            }
+            const auto shoulder = glm::vec3(
+                state.transforms.globals[state.joints[side == 0 ? LeftArm : RightArm]][3]);
+            const auto delta = target - shoulder;
+            if (!(delta.y > 0)) {
+                continue;
+            }
+            // Stretch toward the cursor within the reach sphere, including after landing:
+            // goal = shoulder + normalize(target-shoulder) * arm_length * margin.
+            constexpr float JUMP_REACH_MARGIN = 0.95f;
+            goals[side] = shoulder + glm::normalize(delta) *
+                                         CursorReach::arm_frame(state, side).length *
+                                         JUMP_REACH_MARGIN;
+        }
+        const std::array<bool, 2> in_range{
+            CursorReach::can_reach(state, 0, goals[0]), CursorReach::can_reach(state, 1, goals[1])};
+        const bool both = in_range[0] && in_range[1];
+        for (std::size_t side = 0; side < state.wrists.size(); ++side) {
+            auto goal = goals[side];
+            if (both) {
+                // Separate goals by the sum of the hand envelopes, plus a small gap.
+                constexpr float HAND_GAP_RATIO = 1.1f;
+                goal += CursorReach::arm_frame(state, side).outward *
+                        CursorCollision::hand_radius(state, side) * HAND_GAP_RATIO;
+            }
+            state.active_arms[side] =
+                in_range[side] && CursorReach::reach_side(state, model, animation, side, goal);
+        }
+    }
+
+    bool CursorReach::arm_clear(
+        const CursorPoseState& state, std::size_t side, const CursorArmFrame& frame) {
+        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
+        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
+        const auto joint = glm::vec3(state.transforms.globals[elbow][3]);
+        const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+        for (const auto& capsule : frame.obstacles) {
+            // Inflate centerline tests by limb thickness, and the wrist by the hand's extent.
+            const float squared =
+                (capsule.radius + frame.arm_margin) * (capsule.radius + frame.arm_margin);
+            const float hand_squared =
+                (capsule.radius + frame.hand_margin) * (capsule.radius + frame.hand_margin);
+            if (segment_distance_squared(shoulder, joint, capsule.start, capsule.end) < squared ||
+                segment_distance_squared(joint, wrist, capsule.start, capsule.end) < squared ||
+                segment_distance_squared(wrist, wrist, capsule.start, capsule.end) < hand_squared) {
+                return false;
+            }
+        }
+        const std::size_t other = 1 - side;
+        if (state.wrists[other] < state.transforms.globals.size()) {
+            const auto other_elbow = state.joints[other == 0 ? LeftElbow : RightElbow];
+            const auto other_joint = glm::vec3(state.transforms.globals[other_elbow][3]);
+            const auto other_wrist = glm::vec3(state.transforms.globals[state.wrists[other]][3]);
+            const auto other_frame = CursorReach::arm_frame(state, other);
+            const float limb_clearance = frame.arm_margin + other_frame.arm_margin;
+            const float hand_clearance = frame.hand_margin + other_frame.hand_margin;
+            const float first_hand_clearance = frame.hand_margin + other_frame.arm_margin;
+            const float second_hand_clearance = other_frame.hand_margin + frame.arm_margin;
+            // Capsules overlap when segment distance squared < (r1+r2)^2.
+            if (segment_distance_squared(joint, wrist, other_joint, other_wrist) <
+                    limb_clearance * limb_clearance ||
+                glm::dot(wrist - other_wrist, wrist - other_wrist) <
+                    hand_clearance * hand_clearance ||
+                segment_distance_squared(wrist, wrist, other_joint, other_wrist) <
+                    first_hand_clearance * first_hand_clearance ||
+                segment_distance_squared(other_wrist, other_wrist, joint, wrist) <
+                    second_hand_clearance * second_hand_clearance) {
+                return false;
+            }
+        }
+        return CursorCollision::mesh_arm_clear(state, side);
+    }
+
+    void CursorReach::constrain_arm(
+        const CursorPoseState& state, component::AnimationComponent& animation, std::size_t side) {
+        const auto arm = side == 0 ? LeftArm : RightArm;
+        const auto elbow = side == 0 ? LeftElbow : RightElbow;
+        auto& upper = animation.animation[state.joints[arm]].rotation;
+        auto& lower = animation.animation[state.joints[elbow]].rotation;
+        upper = glm::normalize(state.bind_rotations[arm] *
+                               limit_shoulder(glm::inverse(state.bind_rotations[arm]) * upper,
+                                   state.upper_axes[side]));
+        const float flex =
+            twist_angle(glm::inverse(state.bind_rotations[elbow]) * lower, state.hinge_axes[side]);
+        lower = state.bind_rotations[elbow] *
+                glm::angleAxis(std::clamp(flex,
+                                   -state.bind_flex[side],
+                                   glm::radians(MAX_FLEX) - state.bind_flex[side]),
+                    state.hinge_axes[side]);
+    }
+
+    bool CursorReach::reach_side(CursorPoseState& state,
+        const component::ModelComponent& model,
+        component::AnimationComponent& animation,
+        std::size_t side,
+        const glm::vec3& target) {
+        const auto frame = CursorReach::arm_frame(state, side);
+        auto safe_target = target;
+        // Never chase a cursor through or behind the body. Shift the goal forward instead.
+        safe_target += frame.forward * (std::max)(0.0f,
+                                           frame.length * FRONT_REACH_RATIO -
+                                               glm::dot(safe_target - frame.center, frame.forward));
+        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
+        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto original_upper = animation.animation[arm].rotation;
+        const auto original_lower = animation.animation[elbow].rotation;
+        for (std::size_t attempt = 0; attempt < AVOID_ATTEMPTS; ++attempt) {
+            animation.animation[arm].rotation = original_upper;
+            animation.animation[elbow].rotation = original_lower;
+            CursorTransforms::update_globals(state.transforms, model, animation);
+            // Search forward and outward if either complete arm segment intersects a capsule.
+            const auto candidate = safe_target + static_cast<float>(attempt) * frame.length *
+                                                     (frame.forward * AVOID_FORWARD_STEP +
+                                                         frame.outward * AVOID_SIDE_STEP);
+            CursorReach::solve_arm(state, model, animation, side, candidate, frame);
+            if (CursorReach::arm_clear(state, side, frame)) {
+                return true;
+            }
+        }
+        animation.animation[arm].rotation = original_upper;
+        animation.animation[elbow].rotation = original_lower;
+        CursorTransforms::update_globals(state.transforms, model, animation);
+        return false;
     }
 } // namespace enishi::animation
