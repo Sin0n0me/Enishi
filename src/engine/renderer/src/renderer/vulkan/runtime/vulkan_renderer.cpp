@@ -1,41 +1,17 @@
-#include <renderer/vulkan/runtime/vulkan_renderer.h>
-#include <renderer/vulkan/shader/spirv_shader_reflection.h>
 #include <array>
 #include <cstring>
 #include <foundation/log/logger.h>
+#include <renderer/vulkan/command/vulkan_commands.h>
+#include <renderer/vulkan/mesh/vulkan_mesh_builder.h>
+#include <renderer/vulkan/pipeline/vulkan_pipeline.h>
+#include <renderer/vulkan/pipeline/vulkan_render_states.h>
+#include <renderer/vulkan/runtime/vulkan_handles.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
+#include <renderer/vulkan/shader/spirv_shader_reflection.h>
+#include <renderer/vulkan/shadow/vulkan_shadow_resources.h>
+#include <renderer/vulkan/view/vulkan_views.h>
 
 namespace enishi::renderer::vulkan {
-    VulkanMesh::~VulkanMesh() {
-        if (this->owner != nullptr) {
-            for (const auto pool : this->sampler_pools) {
-                vkDestroyDescriptorPool(this->owner->device, pool, nullptr);
-            }
-            vkDestroyDescriptorPool(this->owner->device, this->pool, nullptr);
-        }
-    }
-    VulkanRendererState::VulkanRendererState(std::shared_ptr<VulkanDevice> context)
-        : context(std::move(context)) {
-    }
-    VulkanRendererState::~VulkanRendererState() {
-        const auto device = this->context->device;
-        for (const auto& [key, pipeline] : this->pipelines) {
-            vkDestroyPipeline(device, pipeline, nullptr);
-        }
-        for (const auto& [handle, shader] : this->shaders) {
-            vkDestroyShaderModule(device, shader.module, nullptr);
-        }
-        this->active_shadow.reset();
-        this->sampled_shadow.reset();
-        this->shadow_targets.clear();
-        this->fallback_shadow.reset();
-        vkDestroySampler(device, this->shadow_sampler, nullptr);
-        vkDestroyDescriptorSetLayout(device, this->shadow_descriptors, nullptr);
-        vkDestroyPipelineLayout(device, this->pipeline_layout, nullptr);
-        vkDestroyDescriptorSetLayout(device, this->descriptors, nullptr);
-        for (const auto& [handle, sampler] : this->samplers) {
-            vkDestroySampler(device, sampler, nullptr);
-        }
-    }
     VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanDevice> context)
         : context(std::move(context))
         , handle_mapper(std::make_unique<RenderHandleMapper>())
@@ -51,11 +27,7 @@ namespace enishi::renderer::vulkan {
     std::shared_ptr<VulkanDevice> VulkanRenderer::get_native_context() const noexcept {
         return this->context;
     }
-    types::RenderHandle VulkanRenderer::make_handle(types::RenderHandleType type) noexcept {
-        auto handle = this->handle_mapper->make(type, {});
-        (*this->handle_mapper)[handle].resource = handle.id;
-        return handle;
-    }
+
     platform::RenderResult<void> VulkanRenderer::init_resources() {
         // Set zero: Camera, Bones, Material, base/sphere/toon textures, ShadowMap.
         constexpr std::uint32_t UNIFORM_COUNT = 3;
@@ -83,7 +55,7 @@ namespace enishi::renderer::vulkan {
             return result;
         }
         VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        result = this->init_shadow_resources();
+        result = VulkanShadowResources::init_shadow_resources(*this->state);
         if (result.is_err()) {
             return result;
         }
@@ -224,5 +196,102 @@ namespace enishi::renderer::vulkan {
     }
     const platform::IRenderHandleMapper* VulkanRenderer::get_handle_mapper() const noexcept {
         return this->handle_mapper.get();
+    }
+    void VulkanRenderer::setup_viewports() const {
+        return VulkanCommands::setup_viewports();
+    }
+    void VulkanRenderer::setup_views() const {
+        return VulkanCommands::setup_views(*this->state, *this->resource_accessor);
+    }
+    void VulkanRenderer::submit_command_shader(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_shader(*this->state, command);
+    }
+    void VulkanRenderer::submit_command_state(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_state(*this->state, command);
+    }
+    void VulkanRenderer::submit_command_view(
+        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
+        return VulkanCommands::submit_command_view(
+            *this->state, *this->resource_accessor, command, render_target);
+    }
+    void VulkanRenderer::submit_command_viewport(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_viewport(*this->state, command);
+    }
+    void VulkanRenderer::submit_command_topology(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_topology(*this->state, command);
+    }
+    void VulkanRenderer::submit_command_vertex_layout(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_vertex_layout(command);
+    }
+    void VulkanRenderer::submit_command_buffer(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_buffer(*this->state, command);
+    }
+    void VulkanRenderer::submit_command_image(const types::DrawCommand& command) const {
+        return VulkanCommands::submit_command_image(*this->state, command);
+    }
+    void VulkanRenderer::draw(const types::RenderHandle& handle) const {
+        return VulkanCommands::draw(*this->state, handle);
+    }
+    void VulkanRenderer::submit_command_mesh(
+        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
+        return VulkanCommands::submit_command_mesh(*this->state, command, render_target);
+    }
+    void VulkanRenderer::present() const {
+        return VulkanCommands::present(*this->state);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_mesh(
+        const types::ModelData& model, const std::vector<types::RenderHandle>& shaders) {
+        return VulkanMeshBuilder::create_mesh(
+            *this->state, *this->resource_accessor, *this->handle_mapper, model, shaders);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_image(
+        const types::ImageDescription& description) {
+        return VulkanViews::create_image(*this->state, *this->handle_mapper, description);
+    }
+    platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
+    VulkanRenderer::create_render_target_view(
+        types::RenderHandle image, const types::ImageViewDescription& description) {
+        return VulkanViews::create_render_target_view(
+            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+    }
+    platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
+    VulkanRenderer::create_depth_stencil_view(
+        types::RenderHandle image, const types::ImageViewDescription& description) {
+        return VulkanViews::create_depth_stencil_view(
+            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+    }
+    platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
+    VulkanRenderer::create_shader_resource_view(
+        types::RenderHandle image, const types::ImageViewDescription& description) {
+        return VulkanViews::create_shader_resource_view(
+            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+    }
+    platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
+    VulkanRenderer::create_unordered_access_view(
+        types::RenderHandle image, const types::ImageViewDescription& description) {
+        return VulkanViews::create_unordered_access_view(image, description);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_rasterizer(
+        const types::RasterizerStateDescription& value) {
+        return VulkanRenderStates::create_rasterizer(
+            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_depth_stencil(
+        const types::DepthStencilStateDescription& value) {
+        return VulkanRenderStates::create_depth_stencil(
+            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_blend(
+        const types::BlendStateDescription& value) {
+        return VulkanRenderStates::create_blend(
+            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+    }
+    platform::RenderResult<types::RenderHandle> VulkanRenderer::create_sampler(
+        const types::SamplerStateDescription& value) {
+        return VulkanRenderStates::create_sampler(
+            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+    }
+    types::RenderHandle VulkanRenderer::make_handle(types::RenderHandleType type) noexcept {
+        return VulkanHandles::make(*this->handle_mapper, type);
     }
 } // namespace enishi::renderer::vulkan

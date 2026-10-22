@@ -1,6 +1,6 @@
-#include <renderer/vulkan/runtime/vulkan_renderer.h>
 #include <array>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/vulkan/pipeline/vulkan_pipeline.h>
 
 namespace enishi::renderer::vulkan {
     namespace {
@@ -102,19 +102,19 @@ namespace enishi::renderer::vulkan {
                 {8, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(SkinnedVertex, anchor1)}}};
         }
     } // namespace
-    platform::RenderResult<VkPipeline> VulkanRenderer::active_pipeline() const {
-        const std::array key{this->state->vertex_shader.id.handle_id,
-            this->state->pixel_shader.id.handle_id,
-            this->state->rasterizer.id.handle_id,
-            this->state->depth.id.handle_id,
-            this->state->blend.id.handle_id,
-            static_cast<std::uint32_t>(this->context->shadow_recording)};
-        const auto cached = this->state->pipelines.find(key);
-        if (cached != this->state->pipelines.end()) {
+    platform::RenderResult<VkPipeline> VulkanPipeline::active_pipeline(VulkanRendererState& state) {
+        const std::array key{state.vertex_shader.id.handle_id,
+            state.pixel_shader.id.handle_id,
+            state.rasterizer.id.handle_id,
+            state.depth.id.handle_id,
+            state.blend.id.handle_id,
+            static_cast<std::uint32_t>(state.context->shadow_recording)};
+        const auto cached = state.pipelines.find(key);
+        if (cached != state.pipelines.end()) {
             return cached->second;
         }
-        if (!this->state->shaders.contains(this->state->vertex_shader) ||
-            !this->state->shaders.contains(this->state->pixel_shader)) {
+        if (!state.shaders.contains(state.vertex_shader) ||
+            !state.shaders.contains(state.pixel_shader)) {
             return foundation::Error(platform::RenderError::MakeError,
                 "Vulkan draw requires vertex and fragment shaders");
         }
@@ -124,9 +124,9 @@ namespace enishi::renderer::vulkan {
             stage.pName = "main";
         }
         stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-        stages[0].module = this->state->shaders.at(this->state->vertex_shader).module;
+        stages[0].module = state.shaders.at(state.vertex_shader).module;
         stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stages[1].module = this->state->shaders.at(this->state->pixel_shader).module;
+        stages[1].module = state.shaders.at(state.pixel_shader).module;
         const VkVertexInputBindingDescription binding{
             0, sizeof(SkinnedVertex), VK_VERTEX_INPUT_RATE_VERTEX};
         const auto attributes = model_attributes();
@@ -147,8 +147,8 @@ namespace enishi::renderer::vulkan {
             VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
         raster.polygonMode = VK_POLYGON_MODE_FILL;
         raster.lineWidth = 1.0f;
-        if (this->state->rasterizers.contains(this->state->rasterizer)) {
-            const auto& source = this->state->rasterizers.at(this->state->rasterizer);
+        if (state.rasterizers.contains(state.rasterizer)) {
+            const auto& source = state.rasterizers.at(state.rasterizer);
             if (source.cull_mode == types::CullMode::Back) {
                 raster.cullMode = VK_CULL_MODE_BACK_BIT;
             }
@@ -167,20 +167,19 @@ namespace enishi::renderer::vulkan {
         multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
         VkPipelineDepthStencilStateCreateInfo depth{
             VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-        if (this->state->depths.contains(this->state->depth)) {
-            const auto& source = this->state->depths.at(this->state->depth).depth;
+        if (state.depths.contains(state.depth)) {
+            const auto& source = state.depths.at(state.depth).depth;
             depth.depthTestEnable = source.enabled;
             depth.depthWriteEnable = source.write_enabled;
             depth.depthCompareOp = compare_op(source.compare_operator);
         }
         auto blend_attachment = make_blend(types::RenderTargetBlendState::default_blend_state());
-        if (this->state->blends.contains(this->state->blend)) {
-            blend_attachment =
-                make_blend(this->state->blends.at(this->state->blend).render_targets[0]);
+        if (state.blends.contains(state.blend)) {
+            blend_attachment = make_blend(state.blends.at(state.blend).render_targets[0]);
         }
         VkPipelineColorBlendStateCreateInfo blend{
             VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-        blend.attachmentCount = this->context->shadow_recording ? 0 : 1;
+        blend.attachmentCount = state.context->shadow_recording ? 0 : 1;
         blend.pAttachments = &blend_attachment;
         const std::array dynamic_states{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
         VkPipelineDynamicStateCreateInfo dynamic{
@@ -198,18 +197,18 @@ namespace enishi::renderer::vulkan {
         info.pDepthStencilState = &depth;
         info.pColorBlendState = &blend;
         info.pDynamicState = &dynamic;
-        info.layout = this->state->pipeline_layout;
-        info.renderPass = this->context->shadow_recording ? this->state->active_shadow->render_pass
-                                                          : this->context->render_pass;
+        info.layout = state.pipeline_layout;
+        info.renderPass = state.context->shadow_recording ? state.active_shadow->render_pass
+                                                          : state.context->render_pass;
         VkPipeline pipeline = VK_NULL_HANDLE;
         auto result =
             check_vk(vkCreateGraphicsPipelines(
-                         this->context->device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline),
+                         state.context->device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline),
                 "vkCreateGraphicsPipelines");
         if (result.is_err()) {
             return std::move(result).take_err();
         }
-        this->state->pipelines.emplace(key, pipeline);
+        state.pipelines.emplace(key, pipeline);
         return pipeline;
     }
 } // namespace enishi::renderer::vulkan

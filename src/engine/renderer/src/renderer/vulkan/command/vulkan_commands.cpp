@@ -1,6 +1,7 @@
-#include <renderer/vulkan/runtime/vulkan_renderer.h>
 #include <algorithm>
 #include <foundation/log/logger.h>
+#include <renderer/vulkan/command/vulkan_commands.h>
+#include <renderer/vulkan/pipeline/vulkan_pipeline.h>
 
 namespace enishi::renderer::vulkan {
     namespace {
@@ -11,90 +12,96 @@ namespace enishi::renderer::vulkan {
             state.failed = true;
         }
     } // namespace
-    void VulkanRenderer::setup_viewports() const {
+    void VulkanCommands::setup_viewports() {
         // The current drawable extent is applied after acquiring the swapchain image.
     }
-    void VulkanRenderer::setup_views() const {
-        if (this->state->failed) {
+    void VulkanCommands::setup_views(
+        VulkanRendererState& state, ResourceAccessor& resource_accessor) {
+        if (state.failed) {
             return;
         }
         glm::vec4 clear_color{};
-        const auto targets = this->resource_accessor->get_render_target_views();
+        const auto targets = resource_accessor.get_render_target_views();
         if (!targets.empty()) {
             clear_color = targets.front()->get_clear_color();
         }
-        this->state->sampled_shadow = this->state->fallback_shadow;
-        this->state->active_shadow.reset();
-        this->state->main_viewport = {};
-        auto result = this->context->begin_frame(clear_color);
+        state.sampled_shadow = state.fallback_shadow;
+        state.active_shadow.reset();
+        state.main_viewport = {};
+        auto result = state.context->begin_frame(clear_color);
         if (result.is_err()) {
-            fail(*this->state, result.unwrap_err().get_message());
+            fail(state, result.unwrap_err().get_message());
         }
     }
-    void VulkanRenderer::submit_command_shader(const types::DrawCommand& command) const {
-        const auto found = this->state->shaders.find(command.handle);
-        if (command.sub_command != types::SubCommand::Bind || found == this->state->shaders.end()) {
+    void VulkanCommands::submit_command_shader(
+        VulkanRendererState& state, const types::DrawCommand& command) {
+        const auto found = state.shaders.find(command.handle);
+        if (command.sub_command != types::SubCommand::Bind || found == state.shaders.end()) {
             return;
         }
         if (found->second.kind == types::ShaderKind::Vertex) {
-            this->state->vertex_shader = command.handle;
+            state.vertex_shader = command.handle;
         }
         if (found->second.kind == types::ShaderKind::Pixel) {
-            this->state->pixel_shader = command.handle;
+            state.pixel_shader = command.handle;
         }
     }
-    void VulkanRenderer::submit_command_state(const types::DrawCommand& command) const {
+    void VulkanCommands::submit_command_state(
+        VulkanRendererState& state, const types::DrawCommand& command) {
         if (command.sub_command != types::SubCommand::Bind) {
             return;
         }
-        if (this->state->rasterizers.contains(command.handle)) {
-            this->state->rasterizer = command.handle;
+        if (state.rasterizers.contains(command.handle)) {
+            state.rasterizer = command.handle;
         }
-        if (this->state->depths.contains(command.handle)) {
-            this->state->depth = command.handle;
+        if (state.depths.contains(command.handle)) {
+            state.depth = command.handle;
         }
-        if (this->state->blends.contains(command.handle)) {
-            this->state->blend = command.handle;
+        if (state.blends.contains(command.handle)) {
+            state.blend = command.handle;
         }
-        if (this->state->samplers.contains(command.handle)) {
-            this->state->sampler = this->state->samplers.at(command.handle);
+        if (state.samplers.contains(command.handle)) {
+            state.sampler = state.samplers.at(command.handle);
         }
     }
-    void VulkanRenderer::submit_command_view(
-        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
-        if (!this->context->recording || this->state->failed ||
+    void VulkanCommands::submit_command_view(VulkanRendererState& state,
+        ResourceAccessor& resource_accessor,
+        const types::DrawCommand& command,
+        const types::RenderHandle& render_target) {
+        if (!state.context->recording || state.failed ||
             command.sub_command != types::SubCommand::Bind) {
             return;
         }
-        const auto found = this->state->shadow_targets.find(command.handle);
-        if (found == this->state->shadow_targets.end()) {
+        const auto found = state.shadow_targets.find(command.handle);
+        if (found == state.shadow_targets.end()) {
             return; // Main attachments are opened lazily, after the shadow pass.
         }
-        const auto depth = this->resource_accessor->get_depth_stencil_view(command.handle.id);
+        const auto depth = resource_accessor.get_depth_stencil_view(command.handle.id);
         if (depth.is_some() && !render_target.is_valid()) {
             auto result =
-                this->context->begin_shadow_pass(*found->second, depth.unwrap()->clear_depth());
+                state.context->begin_shadow_pass(*found->second, depth.unwrap()->clear_depth());
             if (result.is_err()) {
-                fail(*this->state, result.unwrap_err().get_message());
+                fail(state, result.unwrap_err().get_message());
                 return;
             }
-            this->state->active_shadow = found->second;
-        } else if (this->resource_accessor->get_shader_resource_view(command.handle.id).is_some()) {
-            if (this->state->active_shadow != found->second) {
-                fail(*this->state, "Sampled shadow must have been rendered in this frame");
+            state.active_shadow = found->second;
+        } else if (resource_accessor.get_shader_resource_view(command.handle.id).is_some()) {
+            if (state.active_shadow != found->second) {
+                fail(state, "Sampled shadow must have been rendered in this frame");
                 return;
             }
-            this->context->begin_main_pass();
-            this->state->sampled_shadow = found->second;
+            state.context->begin_main_pass();
+            state.sampled_shadow = found->second;
         }
     }
-    void VulkanRenderer::submit_command_viewport(const types::DrawCommand& command) const {
-        const auto found = this->state->viewports.find(command.handle);
-        if (!this->context->recording || found == this->state->viewports.end()) {
+    void VulkanCommands::submit_command_viewport(
+        VulkanRendererState& state, const types::DrawCommand& command) {
+        const auto found = state.viewports.find(command.handle);
+        if (!state.context->recording || found == state.viewports.end()) {
             return;
         }
-        if (!this->context->shadow_recording) {
-            this->state->main_viewport = command.handle;
+        if (!state.context->shadow_recording) {
+            state.main_viewport = command.handle;
         }
         const auto& value = found->second;
         VkViewport viewport{value.left_top_x,
@@ -103,65 +110,68 @@ namespace enishi::renderer::vulkan {
             value.height,
             value.min_depth,
             value.max_depth};
-        vkCmdSetViewport(this->context->command, 0, 1, &viewport);
+        vkCmdSetViewport(state.context->command, 0, 1, &viewport);
     }
-    void VulkanRenderer::submit_command_topology(const types::DrawCommand& command) const {
+    void VulkanCommands::submit_command_topology(
+        VulkanRendererState& state, const types::DrawCommand& command) {
         if (command.handle.id.handle_id !=
             static_cast<std::uint32_t>(types::PrimitiveTopology::TriangleList)) {
-            fail(*this->state, "Vulkan model pass requires triangle-list topology");
+            fail(state, "Vulkan model pass requires triangle-list topology");
         }
     }
-    void VulkanRenderer::submit_command_vertex_layout(const types::DrawCommand&) const {
+    void VulkanCommands::submit_command_vertex_layout(const types::DrawCommand&) {
         // Layout was validated against SkinnedVertex during render-pass construction.
     }
-    void VulkanRenderer::submit_command_buffer(const types::DrawCommand&) const {
-        fail(*this->state, "Vulkan buffer commands must be submitted through a model mesh");
+    void VulkanCommands::submit_command_buffer(
+        VulkanRendererState& state, const types::DrawCommand&) {
+        fail(state, "Vulkan buffer commands must be submitted through a model mesh");
     }
-    void VulkanRenderer::submit_command_image(const types::DrawCommand&) const {
-        fail(*this->state, "Vulkan textures must be submitted through material descriptors");
+    void VulkanCommands::submit_command_image(
+        VulkanRendererState& state, const types::DrawCommand&) {
+        fail(state, "Vulkan textures must be submitted through material descriptors");
     }
-    void VulkanRenderer::draw(const types::RenderHandle&) const {
-        fail(*this->state, "Vulkan draws must be submitted through a model mesh");
+    void VulkanCommands::draw(VulkanRendererState& state, const types::RenderHandle&) {
+        fail(state, "Vulkan draws must be submitted through a model mesh");
     }
-    void VulkanRenderer::submit_command_mesh(
-        const types::DrawCommand& command, const types::RenderHandle&) const {
-        if (!this->context->recording || this->state->failed ||
+    void VulkanCommands::submit_command_mesh(
+        VulkanRendererState& state, const types::DrawCommand& command, const types::RenderHandle&) {
+        if (!state.context->recording || state.failed ||
             command.sub_command != types::SubCommand::Bind) {
             return;
         }
-        const auto found = this->state->meshes.find(command.handle);
-        if (found == this->state->meshes.end()) {
-            fail(*this->state, "Invalid Vulkan mesh handle");
+        const auto found = state.meshes.find(command.handle);
+        if (found == state.meshes.end()) {
+            fail(state, "Invalid Vulkan mesh handle");
             return;
         }
-        if (!this->context->shadow_recording) {
-            this->context->begin_main_pass();
+        if (!state.context->shadow_recording) {
+            state.context->begin_main_pass();
             // Opening the main pass restores its extent; preserve an explicitly submitted viewport.
-            if (this->state->main_viewport.is_valid()) {
-                this->submit_command_viewport(
-                    {.handle = this->state->main_viewport, .sub_command = types::SubCommand::Bind});
+            if (state.main_viewport.is_valid()) {
+                VulkanCommands::submit_command_viewport(
+                    state, {.handle = state.main_viewport, .sub_command = types::SubCommand::Bind});
             }
         }
-        auto pipeline = this->active_pipeline();
+        auto pipeline = VulkanPipeline::active_pipeline(state);
         if (pipeline.is_err()) {
-            fail(*this->state, pipeline.unwrap_err().get_message());
+            fail(state, pipeline.unwrap_err().get_message());
             return;
         }
         auto& mesh = *found->second;
-        auto prepared = this->prepare_mesh_sampler(mesh);
+        auto prepared = VulkanCommands::prepare_mesh_sampler(state, mesh);
         if (prepared.is_err()) {
-            fail(*this->state, prepared.unwrap_err().get_message());
+            fail(state, prepared.unwrap_err().get_message());
             return;
         }
-        const auto& descriptors = mesh.sampler_descriptors.at(this->state->sampler);
-        const auto buffer = this->context->command;
+        const auto& descriptors = mesh.sampler_descriptors.at(state.sampler);
+        const auto buffer = state.context->command;
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.unwrap());
-        const auto& shadow = this->context->shadow_recording ? this->state->fallback_shadow
-                                                             : this->state->sampled_shadow;
+        const auto& shadow =
+            state.context->shadow_recording ? state.fallback_shadow : state.sampled_shadow;
         constexpr std::uint32_t SHADOW_SET = 1;
         vkCmdBindDescriptorSets(buffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            this->state->pipeline_layout,
+            state.pipeline_layout,
             SHADOW_SET,
             1,
             &shadow->descriptors,
@@ -174,7 +184,7 @@ namespace enishi::renderer::vulkan {
             const auto& material = mesh.materials[index];
             vkCmdBindDescriptorSets(buffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
-                this->state->pipeline_layout,
+                state.pipeline_layout,
                 0,
                 1,
                 &descriptors[index],
@@ -192,7 +202,7 @@ namespace enishi::renderer::vulkan {
                     indexed->first_instance);
             } else if (const auto plain =
                            std::get_if<types::DrawParameter>(&material.draw.parameter);
-                plain != nullptr) {
+                       plain != nullptr) {
                 vkCmdDraw(buffer,
                     plain->vertex_count,
                     (std::max)(MINIMUM_INSTANCE_COUNT, plain->instance_count),
@@ -201,8 +211,15 @@ namespace enishi::renderer::vulkan {
             }
         }
     }
-    platform::RenderResult<void> VulkanRenderer::prepare_mesh_sampler(VulkanMesh& mesh) const {
-        if (mesh.sampler_descriptors.contains(this->state->sampler)) {
+    void VulkanCommands::present(VulkanRendererState& state) {
+        auto result = state.context->end_frame();
+        if (result.is_err()) {
+            fail(state, result.unwrap_err().get_message());
+        }
+    }
+    platform::RenderResult<void> VulkanCommands::prepare_mesh_sampler(
+        VulkanRendererState& state, VulkanMesh& mesh) {
+        if (mesh.sampler_descriptors.contains(state.sampler)) {
             return {};
         }
         // Keep sets immutable: updating a set already recorded invalidates that command buffer.
@@ -221,18 +238,18 @@ namespace enishi::renderer::vulkan {
         mesh.sampler_pools.emplace_back(VK_NULL_HANDLE);
         auto result =
             check_vk(vkCreateDescriptorPool(
-                         this->context->device, &pool, nullptr, &mesh.sampler_pools.back()),
+                         state.context->device, &pool, nullptr, &mesh.sampler_pools.back()),
                 "create sampler descriptor pool");
         if (result.is_err()) {
             return result;
         }
-        std::vector<VkDescriptorSetLayout> layouts(count, this->state->descriptors);
+        std::vector<VkDescriptorSetLayout> layouts(count, state.descriptors);
         std::vector<VkDescriptorSet> sets(count);
         VkDescriptorSetAllocateInfo allocation{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
         allocation.descriptorPool = mesh.sampler_pools.back();
         allocation.descriptorSetCount = count;
         allocation.pSetLayouts = layouts.data();
-        result = check_vk(vkAllocateDescriptorSets(this->context->device, &allocation, sets.data()),
+        result = check_vk(vkAllocateDescriptorSets(state.context->device, &allocation, sets.data()),
             "allocate sampler descriptor sets");
         if (result.is_err()) {
             return result;
@@ -249,11 +266,11 @@ namespace enishi::renderer::vulkan {
                 copies[binding].descriptorCount = 1;
             }
             vkUpdateDescriptorSets(
-                this->context->device, 0, nullptr, DESCRIPTOR_COUNT, copies.data());
+                state.context->device, 0, nullptr, DESCRIPTOR_COUNT, copies.data());
             std::array<VkDescriptorImageInfo, TEXTURE_COUNT> images{};
             std::array<VkWriteDescriptorSet, TEXTURE_COUNT> writes{};
             for (std::uint32_t texture = 0; texture < TEXTURE_COUNT; ++texture) {
-                images[texture] = {this->state->sampler,
+                images[texture] = {state.sampler,
                     material.textures[texture]->view,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
                 writes[texture] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -263,15 +280,9 @@ namespace enishi::renderer::vulkan {
                 writes[texture].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 writes[texture].pImageInfo = &images[texture];
             }
-            vkUpdateDescriptorSets(this->context->device, TEXTURE_COUNT, writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(state.context->device, TEXTURE_COUNT, writes.data(), 0, nullptr);
         }
-        mesh.sampler_descriptors.emplace(this->state->sampler, std::move(sets));
+        mesh.sampler_descriptors.emplace(state.sampler, std::move(sets));
         return {};
-    }
-    void VulkanRenderer::present() const {
-        auto result = this->context->end_frame();
-        if (result.is_err()) {
-            fail(*this->state, result.unwrap_err().get_message());
-        }
     }
 } // namespace enishi::renderer::vulkan

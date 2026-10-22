@@ -1,5 +1,5 @@
-#include <renderer/vulkan/runtime/vulkan_renderer.h>
 #include <array>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
 
 namespace enishi::renderer::vulkan {
     VulkanShadowTarget::~VulkanShadowTarget() {
@@ -148,87 +148,5 @@ namespace enishi::renderer::vulkan {
         vkCmdSetScissor(this->command, 0, 1, &scissor);
         this->shadow_recording = true;
         return {};
-    }
-    platform::RenderResult<void> VulkanRenderer::make_shadow_descriptors(
-        VulkanShadowTarget& target, VkImageLayout layout) {
-        const VkDescriptorPoolSize size{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1};
-        VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-        pool.maxSets = 1;
-        pool.poolSizeCount = 1;
-        pool.pPoolSizes = &size;
-        auto result =
-            check_vk(vkCreateDescriptorPool(this->context->device, &pool, nullptr, &target.pool),
-                "create shadow descriptor pool");
-        if (result.is_err()) {
-            return result;
-        }
-        VkDescriptorSetAllocateInfo allocation{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-        allocation.descriptorPool = target.pool;
-        allocation.descriptorSetCount = 1;
-        allocation.pSetLayouts = &this->state->shadow_descriptors;
-        result = check_vk(
-            vkAllocateDescriptorSets(this->context->device, &allocation, &target.descriptors),
-            "allocate shadow descriptors");
-        if (result.is_err()) {
-            return result;
-        }
-        const VkDescriptorImageInfo image{this->state->shadow_sampler, target.image->view, layout};
-        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        write.dstSet = target.descriptors;
-        write.dstBinding = 0;
-        write.descriptorCount = 1;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write.pImageInfo = &image;
-        vkUpdateDescriptorSets(this->context->device, 1, &write, 0, nullptr);
-        return {};
-    }
-    platform::RenderResult<void> VulkanRenderer::init_shadow_resources() {
-        VkDescriptorSetLayoutBinding binding{};
-        binding.binding = 0;
-        binding.descriptorCount = 1;
-        binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        VkDescriptorSetLayoutCreateInfo layout{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-        layout.bindingCount = 1;
-        layout.pBindings = &binding;
-        auto result =
-            check_vk(vkCreateDescriptorSetLayout(
-                         this->context->device, &layout, nullptr, &this->state->shadow_descriptors),
-                "create shadow descriptor layout");
-        if (result.is_err()) {
-            return result;
-        }
-        // Manual PCF uses texelFetch; nearest sampling avoids requiring D32 linear filtering.
-        VkSamplerCreateInfo sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-        sampler.magFilter = VK_FILTER_NEAREST;
-        sampler.minFilter = VK_FILTER_NEAREST;
-        sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        sampler.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        result = check_vk(
-            vkCreateSampler(this->context->device, &sampler, nullptr, &this->state->shadow_sampler),
-            "create shadow sampler");
-        if (result.is_err()) {
-            return result;
-        }
-        // An all-lit fallback keeps meshes usable without a shadow pass and avoids attachment
-        // feedback.
-        constexpr std::uint8_t FULL_DEPTH = 255;
-        types::TextureData texture{};
-        texture.format = types::TextureFormat::R8_UNORM;
-        texture.width = texture.height = texture.depth = texture.array_size = 1;
-        auto& mip = texture.mips.emplace_back();
-        mip.width = mip.height = mip.row_pitch = mip.slice_pitch = 1;
-        mip.pixels = {FULL_DEPTH};
-        auto image = this->context->make_texture(texture);
-        if (image.is_err()) {
-            return std::move(image).take_err();
-        }
-        this->state->fallback_shadow = std::make_shared<VulkanShadowTarget>();
-        auto& target = *this->state->fallback_shadow;
-        target.owner = this->context;
-        target.image = image.unwrap();
-        return this->make_shadow_descriptors(target, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 } // namespace enishi::renderer::vulkan

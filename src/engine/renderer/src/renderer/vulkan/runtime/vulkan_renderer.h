@@ -1,10 +1,10 @@
 #pragma once
 
-#include <renderer/vulkan/device/vulkan_device.h>
-#include <renderer/vulkan/runtime/vulkan_renderer_state.h>
-#include <renderer/common/resource_accessor.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/render_handle_mapper.h>
+#include <renderer/common/resource_accessor.h>
+#include <renderer/vulkan/device/vulkan_device.h>
+#include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 
 namespace enishi::renderer::vulkan {
     class VulkanRenderer final : public platform::IRenderer,
@@ -76,22 +76,10 @@ namespace enishi::renderer::vulkan {
         void draw(const types::RenderHandle&) const override;
         void present(void) const override;
 
-      private:
-        platform::RenderResult<void> init_shadow_resources();
-        platform::RenderResult<void> make_shadow_descriptors(
-            VulkanShadowTarget& target, VkImageLayout layout);
-        [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
-        [[nodiscard]] platform::RenderResult<VkPipeline> active_pipeline() const;
-        [[nodiscard]] platform::RenderResult<void> prepare_mesh_sampler(VulkanMesh& mesh) const;
-        [[nodiscard]] platform::RenderResult<void> make_mesh_uniforms(
-            types::MeshData::UniformMap& uniforms,
-            types::MeshHandles::UniformBuffers& named,
-            VulkanUniformMap& buffers);
-        [[nodiscard]] platform::RenderResult<void> make_materials(
-            types::MeshData& data, VulkanMesh& mesh, types::MeshHandles& handles);
-
-      public:
         platform::RenderResult<void> init_resources();
         std::shared_ptr<VulkanDevice> get_native_context() const noexcept;
+
+      private:
+        [[nodiscard]] types::RenderHandle make_handle(types::RenderHandleType type) noexcept;
     };
 } // namespace enishi::renderer::vulkan
