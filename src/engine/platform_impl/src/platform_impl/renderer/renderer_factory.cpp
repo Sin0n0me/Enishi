@@ -2,7 +2,7 @@
 #include <utility>
 #if defined(USE_VULKAN)
 #include <platform_impl/window/sdl/sdl3_window.h>
-#include <renderer/vulkan/vulkan_render_initializer.h>
+#include <renderer/vulkan/runtime/vulkan_render_initializer.h>
 #elif defined(USE_OPENGL40)
 #include <renderer/opengl/opengl40/opengl40_render_initializer.h>
 #else

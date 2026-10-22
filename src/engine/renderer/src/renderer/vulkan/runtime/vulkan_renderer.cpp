@@ -1,5 +1,5 @@
-#include "vulkan_renderer.h"
-#include "spirv_shader_reflection.h"
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
+#include <renderer/vulkan/shader/spirv_shader_reflection.h>
 #include <array>
 #include <cstring>
 #include <foundation/log/logger.h>

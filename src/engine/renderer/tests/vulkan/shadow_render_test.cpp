@@ -12,7 +12,7 @@
 #include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
 #include <renderer/common/upload/buffer_upload.h>
-#include <renderer/vulkan/vulkan_renderer.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
 
 using namespace enishi;
 namespace {

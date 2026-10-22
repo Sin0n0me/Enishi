@@ -1,5 +1,5 @@
-#include "vulkan_image_view.h"
-#include "vulkan_renderer.h"
+#include <renderer/vulkan/view/vulkan_image_view.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
 #include <algorithm>
 
 namespace enishi::renderer::vulkan {

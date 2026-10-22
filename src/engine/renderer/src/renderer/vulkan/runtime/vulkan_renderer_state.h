@@ -1,5 +1,5 @@
 #pragma once
-#include "vulkan_device.h"
+#include <renderer/vulkan/device/vulkan_device.h>
 #include <array>
 #include <engine_types/renderer/mesh/mesh_data.h>
 #include <map>

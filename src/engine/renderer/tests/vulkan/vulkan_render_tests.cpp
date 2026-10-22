@@ -14,7 +14,7 @@
 #include <iterator>
 #include <renderer/common/converter/skinned_vertices.h>
 #include <renderer/common/upload/buffer_upload.h>
-#include <renderer/vulkan/vulkan_render_initializer.h>
+#include <renderer/vulkan/runtime/vulkan_render_initializer.h>
 
 using namespace enishi;
 void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer);

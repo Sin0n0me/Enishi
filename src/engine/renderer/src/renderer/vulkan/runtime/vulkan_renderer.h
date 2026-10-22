@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vulkan_device.h"
-#include "vulkan_renderer_state.h"
+#include <renderer/vulkan/device/vulkan_device.h>
+#include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 #include <renderer/common/resource_accessor.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/render_handle_mapper.h>
