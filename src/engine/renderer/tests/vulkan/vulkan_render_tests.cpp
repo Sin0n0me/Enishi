@@ -1,3 +1,6 @@
+#include "vulkan_render_tests.h"
+#include "render_pass_test.h"
+#include "shadow_render_test.h"
 #include <SDL3/SDL.h>
 #include <array>
 #include <backends/imgui_impl_sdl3.h>
@@ -17,8 +20,6 @@
 #include <renderer/vulkan/runtime/vulkan_render_initializer.h>
 
 using namespace enishi;
-void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer);
-bool render_pass_test(const std::shared_ptr<platform::IRenderer>& renderer);
 namespace {
     constexpr int WIDTH = 256;
     constexpr int HEIGHT = 256;
@@ -245,7 +246,7 @@ namespace {
             "Swapchain did not follow window resize");
     }
 } // namespace
-int main() {
+int enishi::renderer::tests::run_vulkan_render_tests() {
     require(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
     const auto window = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>(
         SDL_CreateWindow(
@@ -281,4 +282,8 @@ int main() {
     device.reset();
     std::cout << "Vulkan model, bone update and UI rendering passed without validation errors\n";
     return EXIT_SUCCESS;
+}
+
+int main() {
+    return enishi::renderer::tests::run_vulkan_render_tests();
 }

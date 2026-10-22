@@ -1,3 +1,4 @@
+#include "shadow_render_test.h"
 #include <array>
 #include <core/system/asset/asset_system.h>
 #include <core/system/asset/shader/shader_data_provider.h>

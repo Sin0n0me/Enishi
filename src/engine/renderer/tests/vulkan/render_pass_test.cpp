@@ -1,3 +1,4 @@
+#include "render_pass_test.h"
 #include <array>
 #include <component/model_component.h>
 #include <core/system/asset/asset_system.h>
