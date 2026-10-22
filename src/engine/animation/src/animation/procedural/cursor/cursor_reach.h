@@ -1,11 +1,14 @@
 #pragma once
 #include <animation/procedural/cursor/cursor_pose_state.h>
+#include <animation/rig/bone_name_dictionary.h>
 #include <component/model_component.h>
 
 namespace enishi::animation {
     class CursorReach {
       public:
-        static void initialize_arms(CursorPoseState& state, const component::ModelComponent& model);
+        static void initialize_arms(CursorPoseState& state,
+            const component::ModelComponent& model,
+            const BoneNameDictionary& bone_names = BoneNameDictionary{});
         [[nodiscard]] static bool can_reach(
             const CursorPoseState& state, std::size_t side, const glm::vec3& target);
         [[nodiscard]] static CursorArmFrame arm_frame(

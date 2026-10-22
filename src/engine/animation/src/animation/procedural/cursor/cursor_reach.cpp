@@ -4,8 +4,6 @@
 #include <animation/procedural/cursor/cursor_transforms.h>
 #include <animation/procedural/jump/cursor_jump.h>
 #include <cmath>
-#include <initializer_list>
-#include <string_view>
 
 namespace enishi::animation {
     using enum CursorPoseState::Joint;
@@ -121,26 +119,18 @@ namespace enishi::animation {
         }
     } // namespace
 
-    void CursorReach::initialize_arms(
-        CursorPoseState& state, const component::ModelComponent& model) {
+    void CursorReach::initialize_arms(CursorPoseState& state,
+        const component::ModelComponent& model,
+        const BoneNameDictionary& bone_names) {
         state.bind_rotations.fill(IDENTITY);
         state.hinge_axes.fill(glm::vec3(0, 1, 0));
         state.upper_axes.fill(glm::vec3(1, 0, 0));
         state.body_bones.fill(types::INVALID_BONE_INDEX);
-        const auto find = [&](std::initializer_list<std::string_view> names) {
-            for (const auto name : names) {
-                const auto found = std::ranges::find(model.bone_names, name);
-                if (found != model.bone_names.end()) {
-                    return static_cast<types::BoneIndex>(found - model.bone_names.begin());
-                }
-            }
-            return types::INVALID_BONE_INDEX;
-        };
-        state.body_bones = {find({"左腕", "leftUpperArm", "LeftArm"}),
-            find({"右腕", "rightUpperArm", "RightArm"}),
-            find({"首", "neck", "Neck"}),
-            find({"頭", "head", "Head"}),
-            find({"下半身", "hips", "Hips"})};
+        state.body_bones = {bone_names.find(model.bone_names, BoneRole::LeftUpperArm),
+            bone_names.find(model.bone_names, BoneRole::RightUpperArm),
+            bone_names.find(model.bone_names, BoneRole::Neck),
+            bone_names.find(model.bone_names, BoneRole::Head),
+            bone_names.find(model.bone_names, BoneRole::Hips)};
         auto ancestor = state.body_bones[BodyLeft];
         if (!(ancestor < model.bone_node.size())) {
             ancestor = state.body_bones[BodyRight];

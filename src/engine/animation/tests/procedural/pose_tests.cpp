@@ -2,6 +2,7 @@
 #include <animation/procedural/cursor/cursor_gaze.h>
 #include <animation/procedural/cursor/cursor_pose.h>
 #include <animation/procedural/cursor/cursor_transforms.h>
+#include <animation/rig/bone_name_dictionary.h>
 #include <animation/transition/pose_transition.h>
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
@@ -95,7 +96,44 @@ namespace {
             }
         }
         check(turned, "Model-space targets animate the head without core integration");
+        model.bone_names[1] = "custom_neck";
+        model.bone_names[HEAD] = "custom_head";
+        animation::BoneNameDictionary dictionary;
+        check(dictionary.set_aliases(animation::BoneRole::Neck, {"custom_neck"}) &&
+                  dictionary.set_aliases(animation::BoneRole::Head, {"custom_head"}),
+            "Custom head and neck aliases can be installed");
+        animation::CursorPose custom(model, config, dictionary);
+        custom.apply(model, pose, target, DT);
+        check(glm::length(pose.animation[HEAD].rotation - original[HEAD].rotation) > TOLERANCE,
+            "Custom names reach the procedural animation controller");
+        custom.restore(pose);
     }
+    void bone_dictionary_lookup() {
+        animation::BoneNameDictionary dictionary;
+        using Role = animation::BoneRole;
+        const std::vector<std::string> names{"fallback", "custom_neck", "neck"};
+        check(dictionary.find(names, Role::Neck) == 2, "Default aliases remain available");
+        check(dictionary.set_aliases(Role::Neck, {"custom_neck", "fallback"}),
+            "Aliases can be replaced through the enum API");
+        check(dictionary.find(names, Role::Neck) == 1,
+            "Alias priority takes precedence over model bone order");
+        check(!dictionary.set_aliases(Role::Neck, {""}) &&
+                  !dictionary.set_aliases(Role::Count, {"invalid"}),
+            "Invalid overrides cannot corrupt a dictionary");
+        check(dictionary.find(names, Role::Neck) == 1 &&
+                  dictionary.find(names, Role::Count) == types::INVALID_BONE_INDEX,
+            "Rejected overrides preserve the dictionary and invalid roles cannot index it");
+        check(dictionary.find(names, Role::LeftFoot) == types::INVALID_BONE_INDEX,
+            "Missing bone roles remain optional");
+        for (std::size_t index = 0; index < static_cast<std::size_t>(Role::Count); ++index) {
+            const auto role = static_cast<Role>(index);
+            const auto key = animation::BoneNameDictionary::key_for_role(role);
+            check(!key.empty() && animation::BoneNameDictionary::role_from_key(key) == role &&
+                      !dictionary.aliases(role).empty(),
+                "Every enum role has a unique configurable key and default aliases");
+        }
+    }
+
     void transform_cache_without_pose_controller() {
         constexpr std::size_t ROOT = 0;
         constexpr std::size_t CHILD = 1;
@@ -167,6 +205,7 @@ namespace {
     }
 } // namespace
 void enishi::animation::tests::run_pose_tests() {
+    bone_dictionary_lookup();
     transform_cache_without_pose_controller();
     gaze_without_pose_controller();
     linear_pose_transition();

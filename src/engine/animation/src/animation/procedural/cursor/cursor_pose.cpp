@@ -10,8 +10,6 @@
 #include <animation/procedural/legs/cursor_legs.h>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
-#include <initializer_list>
-#include <string_view>
 
 namespace enishi::animation {
     using enum CursorPoseState::Joint;
@@ -20,17 +18,6 @@ namespace enishi::animation {
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
         constexpr float EPSILON = 0.00001f;
         constexpr float RESPONSE_RATE = 8.0f;
-
-        types::BoneIndex find_bone(
-            const component::ModelComponent& model, std::initializer_list<std::string_view> names) {
-            for (const auto name : names) {
-                const auto found = std::ranges::find(model.bone_names, name);
-                if (found != model.bone_names.end()) {
-                    return static_cast<types::BoneIndex>(found - model.bone_names.begin());
-                }
-            }
-            return types::INVALID_BONE_INDEX;
-        }
 
         bool descendant(const component::ModelComponent& model,
             types::BoneIndex child,
@@ -49,18 +36,20 @@ namespace enishi::animation {
 
     } // namespace
 
-    CursorPose::CursorPose(const component::ModelComponent& model, CursorPoseConfig config) {
-        this->state.joints = {find_bone(model, {"首", "neck", "Neck"}),
-            find_bone(model, {"頭", "head", "Head"}),
-            find_bone(model, {"左腕", "leftUpperArm", "LeftArm"}),
-            find_bone(model, {"左ひじ", "左肘", "leftLowerArm", "LeftForeArm"}),
-            find_bone(model, {"右腕", "rightUpperArm", "RightArm"}),
-            find_bone(model, {"右ひじ", "右肘", "rightLowerArm", "RightForeArm"})};
-        this->state.wrists = {find_bone(model, {"左手首", "leftHand", "LeftHand"}),
-            find_bone(model, {"右手首", "rightHand", "RightHand"})};
+    CursorPose::CursorPose(const component::ModelComponent& model,
+        CursorPoseConfig config,
+        const BoneNameDictionary& bone_names) {
+        this->state.joints = {bone_names.find(model.bone_names, BoneRole::Neck),
+            bone_names.find(model.bone_names, BoneRole::Head),
+            bone_names.find(model.bone_names, BoneRole::LeftUpperArm),
+            bone_names.find(model.bone_names, BoneRole::LeftLowerArm),
+            bone_names.find(model.bone_names, BoneRole::RightUpperArm),
+            bone_names.find(model.bone_names, BoneRole::RightLowerArm)};
+        this->state.wrists = {bone_names.find(model.bone_names, BoneRole::LeftHand),
+            bone_names.find(model.bone_names, BoneRole::RightHand)};
         this->state.config = config;
-        this->state.eyes = {find_bone(model, {"左目", "leftEye", "LeftEye"}),
-            find_bone(model, {"右目", "rightEye", "RightEye"})};
+        this->state.eyes = {bone_names.find(model.bone_names, BoneRole::LeftEye),
+            bone_names.find(model.bone_names, BoneRole::RightEye)};
         this->state.offsets.fill(IDENTITY);
         this->state.originals.fill(IDENTITY);
         for (auto& index : this->state.joints) {
@@ -86,7 +75,7 @@ namespace enishi::animation {
                 this->state.wrists[side] = types::INVALID_BONE_INDEX;
             }
         }
-        CursorReach::initialize_arms(this->state, model);
+        CursorReach::initialize_arms(this->state, model, bone_names);
         for (std::size_t side = 0; side < this->state.wrists.size(); ++side) {
             for (types::BoneIndex bone = 0; bone < model.bone_node.size(); ++bone) {
                 if (descendant(model, bone, this->state.wrists[side])) {
@@ -94,8 +83,8 @@ namespace enishi::animation {
                 }
             }
         }
-        CursorLegs::initialize_legs(this->state, model);
-        this->state.idle.torso = find_bone(model, {"上半身", "spine", "Spine", "chest", "Chest"});
+        CursorLegs::initialize_legs(this->state, model, bone_names);
+        this->state.idle.torso = bone_names.find(model.bone_names, BoneRole::Spine);
         for (const auto& body : model.rigid_bodies) {
             if (body.relate_bone_index == this->state.idle.torso &&
                 body.kind != types::RigidBodyKind::Kinematic) {

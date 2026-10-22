@@ -13,6 +13,7 @@ add_library(bone_layer_runtime STATIC
     ${SKINNING_SOURCES}
     ${CURSOR_SOURCES}
     ${PROCEDURAL_SOURCES}
+    "${ENGINE_ROOT}/animation/src/animation/rig/bone_name_dictionary.cpp"
     "${ENGINE_ROOT}/animation/src/animation/transition/pose_transition.cpp"
     ${COLLIDER_SOURCES}
     "${ENGINE_ROOT}/engine_types/src/engine_types/collider/ray.cpp"

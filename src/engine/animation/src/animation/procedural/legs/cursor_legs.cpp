@@ -2,8 +2,6 @@
 #include <algorithm>
 #include <animation/procedural/cursor/cursor_transforms.h>
 #include <cmath>
-#include <initializer_list>
-#include <string_view>
 
 namespace enishi::animation {
     using enum CursorPoseState::Joint;
@@ -11,17 +9,6 @@ namespace enishi::animation {
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float KNEE_BEND_DEGREES = 25.0f;
-
-        types::BoneIndex leg_bone(
-            const component::ModelComponent& model, std::initializer_list<std::string_view> names) {
-            for (const auto name : names) {
-                const auto found = std::ranges::find(model.bone_names, name);
-                if (found != model.bone_names.end()) {
-                    return static_cast<types::BoneIndex>(found - model.bone_names.begin());
-                }
-            }
-            return types::INVALID_BONE_INDEX;
-        }
 
         bool under(const component::ModelComponent& model,
             types::BoneIndex bone,
@@ -66,15 +53,15 @@ namespace enishi::animation {
         }
     } // namespace
 
-    void CursorLegs::initialize_legs(
-        CursorPoseState& state, const component::ModelComponent& model) {
-        state.locomotion.legs = {
-            {{leg_bone(model, {"左足", "leftUpperLeg", "LeftUpLeg"}),
-                 leg_bone(model, {"左ひざ", "左膝", "leftLowerLeg", "LeftLeg"}),
-                 leg_bone(model, {"左足首", "leftFoot", "LeftFoot"})},
-                {leg_bone(model, {"右足", "rightUpperLeg", "RightUpLeg"}),
-                    leg_bone(model, {"右ひざ", "右膝", "rightLowerLeg", "RightLeg"}),
-                    leg_bone(model, {"右足首", "rightFoot", "RightFoot"})}}};
+    void CursorLegs::initialize_legs(CursorPoseState& state,
+        const component::ModelComponent& model,
+        const BoneNameDictionary& bone_names) {
+        state.locomotion.legs = {{{bone_names.find(model.bone_names, BoneRole::LeftUpperLeg),
+                                      bone_names.find(model.bone_names, BoneRole::LeftLowerLeg),
+                                      bone_names.find(model.bone_names, BoneRole::LeftFoot)},
+            {bone_names.find(model.bone_names, BoneRole::RightUpperLeg),
+                bone_names.find(model.bone_names, BoneRole::RightLowerLeg),
+                bone_names.find(model.bone_names, BoneRole::RightFoot)}}};
         bool valid = true;
         for (const auto& leg : state.locomotion.legs) {
             valid = valid && leg[0] != leg[1] && leg[1] != leg[2] && under(model, leg[1], leg[0]) &&

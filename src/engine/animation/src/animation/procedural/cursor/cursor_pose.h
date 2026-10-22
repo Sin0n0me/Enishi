@@ -1,5 +1,6 @@
 #pragma once
 #include "cursor_pose_state.h"
+#include <animation/rig/bone_name_dictionary.h>
 #include <component/model_component.h>
 
 namespace enishi::animation {
@@ -10,7 +11,9 @@ namespace enishi::animation {
         CursorPoseState state;
 
       public:
-        explicit CursorPose(const component::ModelComponent& model, CursorPoseConfig config = {});
+        explicit CursorPose(const component::ModelComponent& model,
+            CursorPoseConfig config = {},
+            const BoneNameDictionary& bone_names = BoneNameDictionary{});
         void apply_transitioned(const component::ModelComponent& model,
             component::AnimationComponent& animation,
             const std::optional<CursorRay>& cursor,
