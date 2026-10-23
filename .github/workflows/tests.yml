@@ -44,10 +44,9 @@ jobs:
           arch: x64
 
       - name: Set up Rust for Musubu
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo +stable --version
+        uses: ./.github/actions/setup-rust
+        with:
+          gnu: 'false'
 
       - name: Cache Cargo dependencies
         uses: ./.github/actions/cache-cargo
@@ -56,6 +55,9 @@ jobs:
         uses: ./.github/actions/setup-musubu
         with:
           abi: msvc
+
+      - name: Set up pinned vcpkg
+        uses: ./.github/actions/setup-vcpkg
 
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu
@@ -70,7 +72,7 @@ jobs:
           path: |
             build/tests/visualstudio/_deps
             build/tests/visualstudio/libs
-          key: ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
+          key: ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-
 

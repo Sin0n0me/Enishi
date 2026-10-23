@@ -78,16 +78,9 @@ jobs:
         run: python -m pip install --requirement .github/requirements-ci.txt
 
       - name: Set up Rust for Musubu
-        shell: pwsh
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo +stable --version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ('${{ matrix.toolchain }}' -eq 'gcc') {
-            rustup target add x86_64-pc-windows-gnu --toolchain stable
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+        uses: ./.github/actions/setup-rust
+        with:
+          gnu: ${{ matrix.toolchain == 'gcc' }}
 
       - name: Cache Cargo dependencies
         uses: ./.github/actions/cache-cargo
@@ -151,7 +144,7 @@ jobs:
           path: |
             build/${{ matrix.backend }}/${{ matrix.toolchain }}/_deps
             build/${{ matrix.backend }}/${{ matrix.toolchain }}/libs
-          key: ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt') }}
           restore-keys: |
             ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
@@ -159,6 +152,9 @@ jobs:
         uses: ./.github/actions/setup-musubu
         with:
           abi: ${{ matrix.toolchain == 'gcc' && 'gnu' || 'msvc' }}
+
+      - name: Set up pinned vcpkg
+        uses: ./.github/actions/setup-vcpkg
 
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu

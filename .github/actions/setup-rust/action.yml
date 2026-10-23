@@ -1,0 +1,28 @@
+name: Set up pinned Rust
+description: Musubuで指定したRustバージョンをCIでも使用します。
+inputs:
+  gnu:
+    description: Windows GNUターゲットも導入するか
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Install pinned Rust toolchain
+      shell: pwsh
+      env:
+        INSTALL_GNU_TARGET: ${{ inputs.gnu }}
+      run: |
+        $source = Get-Content src/engine/script/rust-toolchain.toml -Raw
+        if ($source -notmatch '(?m)^channel = "([0-9]+\.[0-9]+\.[0-9]+)"\r?$') {
+          throw 'Missing pinned Rust channel'
+        }
+        $version = $Matches[1]
+        rustup toolchain install $version --profile minimal --no-self-update
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if ($env:INSTALL_GNU_TARGET -eq 'true') {
+          rustup target add x86_64-pc-windows-gnu --toolchain $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        "ENISHI_RUST_TOOLCHAIN=$version" >> $env:GITHUB_ENV
+        cargo "+$version" --version
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

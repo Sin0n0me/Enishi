@@ -14,7 +14,7 @@ runs:
         MUSUBU_ABI: ${{ inputs.abi }}
       run: |
         if ($env:MUSUBU_ABI -notin @('msvc', 'gnu')) { throw 'Unsupported Rust ABI' }
-        $rustVersion = rustc +stable -vV
+        $rustVersion = rustc "+$env:ENISHI_RUST_TOOLCHAIN" -vV
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $compiler = ''
         if ($env:MUSUBU_ABI -eq 'gnu') {
@@ -41,7 +41,7 @@ runs:
       env:
         MUSUBU_ABI: ${{ inputs.abi }}
       run: |
-        $cargoArgs = @('+stable', 'build', '--release', '--locked', '--offline',
+        $cargoArgs = @("+$env:ENISHI_RUST_TOOLCHAIN", 'build', '--release', '--locked', '--offline',
           '--manifest-path', 'src/engine/script/bridge/Cargo.toml', '--target-dir', $env:CARGO_TARGET_DIR)
         if ($env:MUSUBU_ABI -eq 'gnu') { $cargoArgs += @('--target', 'x86_64-pc-windows-gnu') }
         cargo @cargoArgs

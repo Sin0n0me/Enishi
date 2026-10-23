@@ -25,8 +25,7 @@ set(NOTHINGS_STD_SOURCE_DIR "${ASSET_DEPENDENT_LIBS}/nothings_std")
 FetchContent_Declare(
     NOTHINGS_STD
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG "master"
-    GIT_SHALLOW TRUE
+    GIT_TAG "2c980bb59875b0d32144a71867fbdebb2f77cd20"
     GIT_PROGRESS ON
     SOURCE_DIR ${NOTHINGS_STD_SOURCE_DIR}
 )
