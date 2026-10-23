@@ -87,7 +87,7 @@ namespace enishi ::foundation {
         }
         template <typename U>
         Error(E&& new_error, Error<U>&& pre_error)
-            : details::ErrorBase<E>(std::move(new_error), std::move(pre_error.messages)) {
+            : details::ErrorBase<Error<E>, E>(std::move(new_error), std::move(pre_error.messages)) {
         }
         Error(details::ErrorBase<Error<E>, E>&& error)
             : details::ErrorBase<Error<E>, E>(error) {
