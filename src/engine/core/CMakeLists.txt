@@ -73,7 +73,13 @@ FetchContent_MakeAvailable(COLLIDER)
 FetchContent_Declare(RENDERER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../renderer)
 FetchContent_MakeAvailable(RENDERER)
 
+if(NOT TARGET tomlplusplus::tomlplusplus)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/tomlplusplus
+        ${CMAKE_BINARY_DIR}/third_party/tomlplusplus EXCLUDE_FROM_ALL)
+endif()
+
 set(DEPENDENCIES
+    PRIVATE tomlplusplus::tomlplusplus
     PRIVATE renderer
     PUBLIC collider
     PUBLIC platform
