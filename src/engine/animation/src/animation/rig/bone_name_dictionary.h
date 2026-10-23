@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <engine_types/assets/model/addons/bone.h>
-#include <optional>
+#include <foundation/option/option.h>
 #include <span>
 #include <string>
 #include <string_view>
@@ -37,7 +37,7 @@ namespace enishi::animation {
 
       public:
         BoneNameDictionary();
-        [[nodiscard]] static std::optional<BoneRole> role_from_key(std::string_view key);
+        [[nodiscard]] static foundation::Option<BoneRole> role_from_key(std::string_view key);
         [[nodiscard]] static std::string_view key_for_role(BoneRole role);
         [[nodiscard]] bool set_aliases(BoneRole role, std::vector<std::string> aliases);
         [[nodiscard]] std::span<const std::string> aliases(BoneRole role) const;

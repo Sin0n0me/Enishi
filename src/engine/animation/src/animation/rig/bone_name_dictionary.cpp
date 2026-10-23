@@ -48,13 +48,13 @@ namespace enishi::animation {
             }
         }
     }
-    std::optional<BoneRole> BoneNameDictionary::role_from_key(std::string_view key) {
+    foundation::Option<BoneRole> BoneNameDictionary::role_from_key(std::string_view key) {
         for (const auto& definition : DEFINITIONS) {
             if (definition.key == key) {
                 return definition.role;
             }
         }
-        return std::nullopt;
+        return {};
     }
     std::string_view BoneNameDictionary::key_for_role(BoneRole role) {
         for (const auto& definition : DEFINITIONS) {

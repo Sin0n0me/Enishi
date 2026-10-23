@@ -17,7 +17,8 @@ namespace {
         for (int index = 0; index < static_cast<int>(Role::Count); ++index) {
             const auto role = static_cast<Role>(index);
             require(animation::MorphNameDictionary::role_from_key(
-                        animation::MorphNameDictionary::key_for_role(role)) == role,
+                        animation::MorphNameDictionary::key_for_role(role))
+                            .unwrap_or(Role::Count) == role,
                 "Every morph role must round-trip through its key");
             const std::vector<std::string> names{dictionary.aliases(role).front()};
             require(dictionary.find(names, role) == 0, "Every role has searchable defaults");

@@ -2,7 +2,7 @@
 #include <array>
 #include <engine_types/assets/model/addons/morph.h>
 #include <engine_types/assets/model/addons/morph_target.h>
-#include <optional>
+#include <foundation/option/option.h>
 #include <span>
 #include <string>
 #include <string_view>
@@ -34,7 +34,7 @@ namespace enishi::animation {
 
       public:
         MorphNameDictionary();
-        [[nodiscard]] static std::optional<MorphRole> role_from_key(std::string_view key);
+        [[nodiscard]] static foundation::Option<MorphRole> role_from_key(std::string_view key);
         [[nodiscard]] static std::string_view key_for_role(MorphRole role);
         [[nodiscard]] bool set_aliases(MorphRole role, std::vector<std::string> aliases);
         [[nodiscard]] std::span<const std::string> aliases(MorphRole role) const;

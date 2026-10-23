@@ -16,7 +16,8 @@ namespace enishi::core {
         animation::BoneNameDictionary dictionary;
         for (auto& entry : parsed.unwrap_mut()) {
             const auto role = animation::BoneNameDictionary::role_from_key(entry.role);
-            if (!role.has_value() || !dictionary.set_aliases(*role, std::move(entry.aliases))) {
+            if (role.is_none() ||
+                !dictionary.set_aliases(role.unwrap(), std::move(entry.aliases))) {
                 return foundation::Error(BoneNameConfigError::InvalidSetting,
                     "Invalid bone role: " + entry.role + " at line " + std::to_string(entry.line));
             }

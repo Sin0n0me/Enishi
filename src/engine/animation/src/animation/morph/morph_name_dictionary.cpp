@@ -38,13 +38,13 @@ namespace enishi::animation {
             }
         }
     }
-    std::optional<MorphRole> MorphNameDictionary::role_from_key(std::string_view key) {
+    foundation::Option<MorphRole> MorphNameDictionary::role_from_key(std::string_view key) {
         for (const auto& definition : DEFINITIONS) {
             if (definition.key == key) {
                 return definition.role;
             }
         }
-        return std::nullopt;
+        return {};
     }
     std::string_view MorphNameDictionary::key_for_role(MorphRole role) {
         for (const auto& definition : DEFINITIONS) {
