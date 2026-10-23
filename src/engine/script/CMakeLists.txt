@@ -35,7 +35,17 @@ if(ENISHI_CARGO_OFFLINE)
     list(APPEND cargo_network_options --offline)
 endif()
 set(musubu_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
-if(WIN32)
+set(cargo_target_options)
+if(MINGW)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(musubu_rust_target x86_64-pc-windows-gnu)
+    else()
+        set(musubu_rust_target i686-pc-windows-gnu)
+    endif()
+    list(APPEND cargo_target_options --target ${musubu_rust_target})
+    # C++側とRust側でGNU ABIを揃え、MSVC用のライブラリとの混在を避けます。
+    set(musubu_library "${musubu_target_dir}/${musubu_rust_target}/release/libenishi_musubu_bridge.a")
+elseif(WIN32)
     set(musubu_library "${musubu_target_dir}/release/enishi_musubu_bridge.lib")
 else()
     set(musubu_library "${musubu_target_dir}/release/libenishi_musubu_bridge.a")
@@ -43,7 +53,7 @@ endif()
 # Cargo tracks Rust sources and the pinned submodule, including changes after checkout.
 add_custom_target(enishi_musubu_build
     COMMAND ${CMAKE_COMMAND} -E env RUSTUP_TOOLCHAIN=stable
-        "${CARGO_EXECUTABLE}" build --release --locked ${cargo_network_options}
+        "${CARGO_EXECUTABLE}" build --release --locked ${cargo_network_options} ${cargo_target_options}
         --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/bridge/Cargo.toml"
         --target-dir "${musubu_target_dir}"
     BYPRODUCTS "${musubu_library}"
