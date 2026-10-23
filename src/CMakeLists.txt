@@ -19,6 +19,15 @@ set(DEPEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+if(WIN32)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WIN32_EXECUTABLE "$<CONFIG:Release>")
+    if(MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+        # GUIサブシステムでも既存のmainをCRTの初期化後に呼び出します。
+        target_link_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Release>:LINKER:/ENTRY:mainCRTStartup>")
+    endif()
+endif()
+
 #
 # フラグ設定
 #
