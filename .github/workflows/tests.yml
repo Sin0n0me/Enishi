@@ -57,21 +57,11 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('src/engine/script/bridge/Cargo.lock') }}
 
-      - name: Cache ICU dependencies
-        uses: actions/cache@v4
+      - name: Set up cached ICU
+        uses: ./.github/actions/setup-icu
         with:
-          path: |
-            vcpkg_installed
-            vcpkg_binary_cache
-          key: ${{ runner.os }}-tests-icu-x64-${{ hashFiles('src/engine/foundation/CMakeLists.txt', '.github/workflows/tests.yml') }}
-
-      - name: Install ICU
-        env:
-          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
-        run: |
-          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
-          vcpkg install icu:x64-windows "--x-install-root=$env:GITHUB_WORKSPACE/vcpkg_installed"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          triplet: x64-windows
+          log-name: icu-logs-tests-${{ matrix.config }}
 
       - name: Cache CMake dependencies
         uses: actions/cache@v4

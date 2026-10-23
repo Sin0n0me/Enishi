@@ -148,53 +148,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cmake-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
-      - name: Restore vcpkg dependencies
-        id: vcpkg-cache
-        uses: actions/cache/restore@v4
+      - name: Set up cached ICU
+        uses: ./.github/actions/setup-icu
         with:
-          path: |
-            vcpkg_installed
-            vcpkg_binary_cache
-          key: ${{ runner.os }}-vcpkg-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ hashFiles('**/CMakeLists.txt', '.github/workflows/cmake.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ matrix.toolchain }}-${{ matrix.platform }}-
-
-      - name: Locate ICU build logs
-        id: icu-logs
-        shell: pwsh
-        run: |
-          $vcpkgRoot = Split-Path (Get-Command vcpkg).Source
-          "directory=$vcpkgRoot/buildtrees/icu" >> $env:GITHUB_OUTPUT
-          vcpkg version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Install ICU
-        id: install-icu
-        env:
-          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
-        # MinGWではホスト側のツールを使わないため、ターゲット側にもicupkgの生成を要求します。
-        run: |
-          if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
-          vcpkg install "icu[tools]:%VCPKG_TARGET_TRIPLET%" --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
-        shell: cmd
-
-      - name: Upload ICU failure logs
-        if: failure() && steps.install-icu.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: icu-logs-${{ matrix.toolchain }}-${{ matrix.backend }}-${{ matrix.config }}-${{ matrix.platform }}
-          path: ${{ steps.icu-logs.outputs.directory }}/*.log
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Save vcpkg dependencies
-        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            vcpkg_installed
-            vcpkg_binary_cache
-          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+          triplet: ${{ env.VCPKG_TARGET_TRIPLET }}
+          log-name: icu-logs-${{ matrix.toolchain }}-${{ matrix.backend }}-${{ matrix.config }}-${{ matrix.platform }}
 
       - name: Build
         env:
