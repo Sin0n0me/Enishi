@@ -11,7 +11,8 @@ $configureArgs = @('-S', 'src', '-B', "build/$Backend/$Toolchain",
     "-DVCPKG_TARGET_TRIPLET=$env:VCPKG_TARGET_TRIPLET",
     "-DPython_EXECUTABLE=$env:pythonLocation/python.exe",
     "-DPython3_EXECUTABLE=$env:pythonLocation/python.exe",
-    "-DUSE_OPENGL40=$($Backend -eq 'opengl')", "-DUSE_VULKAN=$($Backend -eq 'vulkan')")
+    "-DUSE_OPENGL40=$($Backend -eq 'opengl')", "-DUSE_VULKAN=$($Backend -eq 'vulkan')",
+    "-DENISHI_VULKAN_TESTS=$($Backend -eq 'vulkan')")
 if ($Toolchain -eq 'visualstudio') {
     $configureArgs += @('-G', 'Visual Studio 17 2022', '-A', 'x64')
 } else {

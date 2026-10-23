@@ -178,9 +178,11 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
+          $targets = @('enishi_engine')
+          if ('${{ matrix.backend }}' -eq 'vulkan') { $targets += 'vulkan_render_tests' }
           $buildArgs = @('--build', 'build/${{ matrix.backend }}/${{ matrix.toolchain }}',
-            '--config', '${{ matrix.config }}', '--target', 'enishi_engine',
-            '--parallel', $env:CMAKE_BUILD_PARALLEL_LEVEL)
+            '--config', '${{ matrix.config }}', '--target') + $targets +
+            @('--parallel', $env:CMAKE_BUILD_PARALLEL_LEVEL)
           if ('${{ matrix.toolchain }}' -eq 'visualstudio') {
             $buildArgs += @('--', '/p:UseMultiToolTask=true', '/p:EnforceProcessCountAcrossBuilds=true',
               "/p:MultiProcMaxCount=$env:CMAKE_BUILD_PARALLEL_LEVEL")
@@ -203,16 +205,6 @@ jobs:
           if ($subsystem -ne $expected) {
             throw "Unexpected executable subsystem: $subsystem (expected $expected)"
           }
-
-      # Compile the GPU tests without running them on a hosted runner without a guaranteed Vulkan device.
-      - name: Build Vulkan validation executable
-        if: matrix.backend == 'vulkan'
-        shell: pwsh
-        run: |
-          cmake -S src -B build/vulkan/${{ matrix.toolchain }} -DENISHI_VULKAN_TESTS=ON
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build build/vulkan/${{ matrix.toolchain }} --config ${{ matrix.config }} --target vulkan_render_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Validate Vulkan shaders
         if: matrix.backend == 'vulkan'
