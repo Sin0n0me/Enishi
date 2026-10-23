@@ -90,13 +90,8 @@ jobs:
           }
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src/engine/script/bridge/Cargo.lock') }}
-          
+        uses: ./.github/actions/cache-cargo
+
       - name: Setup Developer Command
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -105,7 +100,7 @@ jobs:
       - name: Cache Vulkan SDK
         if: matrix.backend != 'directx'
         id: vulkan-sdk-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/vulkan-sdk
           key: ${{ runner.os }}-vulkan-sdk-${{ matrix.platform }}-${{ env.VULKAN_SDK_VERSION }}
@@ -142,15 +137,23 @@ jobs:
           "VULKAN_SDK=$sdkRoot" >> $env:GITHUB_ENV
           (Join-Path $sdkRoot 'Bin') >> $env:GITHUB_PATH
 
-      - name: Cache CMake dependencies
-        uses: actions/cache@v4
+      - name: Save Vulkan SDK immediately
+        if: matrix.backend != 'directx' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/vulkan-sdk
+          key: ${{ steps.vulkan-sdk-cache.outputs.cache-primary-key }}
+
+      - name: Restore CMake dependencies
+        id: cmake-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/${{ matrix.backend }}/${{ matrix.toolchain }}/_deps
             build/${{ matrix.backend }}/${{ matrix.toolchain }}/libs
-          key: ${{ runner.os }}-cmake-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
+            ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu
@@ -158,15 +161,31 @@ jobs:
           triplet: ${{ env.VCPKG_TARGET_TRIPLET }}
           log-name: icu-logs-${{ matrix.toolchain }}-${{ matrix.backend }}-${{ matrix.config }}-${{ matrix.platform }}
 
+      - name: Configure build
+        shell: pwsh
+        run: ./.github/scripts/configure-build.ps1 -Backend '${{ matrix.backend }}' -Toolchain '${{ matrix.toolchain }}' -Config '${{ matrix.config }}'
+
+      - name: Save CMake dependencies immediately
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/_deps
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/libs
+          key: ${{ steps.cmake-cache.outputs.cache-primary-key }}
+
       - name: Build
-        env:
-          VCPKG_INSTALLED_DIR: ${{ github.workspace }}\vcpkg_installed
+        shell: pwsh
         run: |
-          set "PYTHON_EXECUTABLE=%pythonLocation%\python.exe"
-          set "PATH=%pythonLocation%;%PATH%"
-          "%PYTHON_EXECUTABLE%" -c "import jinja2"
-          build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} ${{ matrix.toolchain }}
-        shell: cmd
+          $buildArgs = @('--build', 'build/${{ matrix.backend }}/${{ matrix.toolchain }}',
+            '--config', '${{ matrix.config }}', '--target', 'enishi_engine',
+            '--parallel', $env:CMAKE_BUILD_PARALLEL_LEVEL)
+          if ('${{ matrix.toolchain }}' -eq 'visualstudio') {
+            $buildArgs += @('--', '/p:UseMultiToolTask=true', '/p:EnforceProcessCountAcrossBuilds=true',
+              "/p:MultiProcMaxCount=$env:CMAKE_BUILD_PARALLEL_LEVEL")
+          }
+          cmake @buildArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check executable subsystem
         shell: pwsh

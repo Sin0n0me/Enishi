@@ -50,12 +50,7 @@ jobs:
           cargo +stable --version
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src/engine/script/bridge/Cargo.lock') }}
+        uses: ./.github/actions/cache-cargo
 
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu
@@ -63,15 +58,16 @@ jobs:
           triplet: x64-windows
           log-name: icu-logs-tests-${{ matrix.config }}
 
-      - name: Cache CMake dependencies
-        uses: actions/cache@v4
+      - name: Restore CMake dependencies
+        id: cmake-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/tests/visualstudio/_deps
             build/tests/visualstudio/libs
-          key: ${{ runner.os }}-tests-cmake-x64-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
+          key: ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-tests-cmake-x64-${{ matrix.config }}-
+            ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-
 
       # These tests do not create a renderer or load model assets. Only their targets are built.
       - name: Configure tests
@@ -88,6 +84,15 @@ jobs:
             -DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF -DENISHI_VULKAN_TESTS=OFF `
             -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Save CMake dependencies immediately
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/tests/visualstudio/_deps
+            build/tests/visualstudio/libs
+          key: ${{ steps.cmake-cache.outputs.cache-primary-key }}
 
       - name: Build tests
         run: |
