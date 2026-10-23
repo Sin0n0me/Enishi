@@ -1,4 +1,5 @@
 #include "config_reader_tests.h"
+#include "morph_name_tests.h"
 #include <chrono>
 #include <core/config/application_settings.h>
 #include <core/system/animation/bone_name_config.h>
@@ -193,6 +194,7 @@ namespace {
 } // namespace
 
 void config_reader_tests() {
+    morph_name_tests();
     application_settings_tests();
     bone_name_tests();
     reader_tests();
