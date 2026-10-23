@@ -62,7 +62,7 @@ jobs:
           arch: ${{ matrix.platform }}
 
       - name: Cache Vulkan SDK
-        if: matrix.backend == 'vulkan'
+        if: matrix.backend != 'directx'
         id: vulkan-sdk-cache
         uses: actions/cache@v4
         with:
@@ -70,7 +70,7 @@ jobs:
           key: ${{ runner.os }}-vulkan-sdk-${{ matrix.platform }}-${{ env.VULKAN_SDK_VERSION }}
 
       - name: Install Vulkan SDK
-        if: matrix.backend == 'vulkan' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        if: matrix.backend != 'directx' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -89,11 +89,11 @@ jobs:
           }
 
       - name: Configure Vulkan SDK environment
-        if: matrix.backend == 'vulkan'
+        if: matrix.backend != 'directx'
         shell: pwsh
         run: |
           $sdkRoot = Join-Path $env:RUNNER_TEMP 'vulkan-sdk'
-          foreach ($required in @('Include/vulkan/vulkan.h', 'Lib/vulkan-1.lib', 'Bin/glslc.exe', 'Bin/spirv-val.exe', 'Source/SPIRV-Reflect/spirv_reflect.c')) {
+          foreach ($required in @('Include/vulkan/vulkan.h', 'Lib/vulkan-1.lib', 'Bin/glslc.exe', 'Bin/dxc.exe', 'Bin/spirv-val.exe', 'Source/SPIRV-Reflect/spirv_reflect.c')) {
             if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $required))) {
               throw "Vulkan SDK component is missing: $required"
             }
