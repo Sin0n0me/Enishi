@@ -1,14 +1,14 @@
 # Global bone-name overrides, loaded at startup. Restart after editing.
 # Each configured role REPLACES its default aliases. Unlisted roles keep defaults.
-# Format: role "first candidate" "second candidate" ...
 # Matching is case-sensitive; candidates are tried left to right.
-# Use UTF-8. Names must be nonempty and quoted. Duplicate role lines are errors.
+# Use UTF-8. Aliases must be nonempty strings in a nonempty array.
 # If the file contains an error, the entire file is ignored and defaults are used.
-#
-# Examples (disabled):
-# neck "custom_neck" "neck" "Neck"
-# left_lower_leg "custom_left_knee" "leftLowerLeg" "LeftLeg"
-#
+version = 1
+
+# Example (disabled):
+# [roles.neck]
+# aliases = ["custom_neck", "neck"]
+
 # Roles:
 # neck head spine hips
 # left_upper_arm left_lower_arm left_hand left_eye

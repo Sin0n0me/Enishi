@@ -119,7 +119,7 @@ build\build.cmd directx Release gcc
 
 ## 設定ファイル
 
-カメラ操作・カーソル追従・クリック動作は `config/settings.cfg` にまとめて設定します。名前の辞書は `config/bone_names.cfg` と `config/morph_names.cfg` に分離しています。
+カメラ操作・カーソル追従・クリック動作は `config/settings.cfg` にまとめて設定します。名前の辞書は `config/bone_names.toml` と `config/morph_names.toml` に分離しています。
 
 ```text
 [camera]
@@ -138,14 +138,30 @@ neck_yaw 10
 
 ### モーフ名の辞書
 
-`config/morph_names.cfg` は全モデル共通の辞書です。UTF-8で、役割に続けて候補名をダブルクォートで囲んで記述します。
+`config/morph_names.toml` は全モデル共通の辞書です。UTF-8のTOML形式で、形式のバージョンと役割ごとの候補名を記述します。
 
-```text
-blink "custom_blink" "まばたき" "blink"
-mouth_a "custom_mouth_a" "あ"
+```toml
+version = 1
+
+[roles.blink]
+aliases = ["custom_blink", "まばたき", "blink"]
+
+[roles.mouth_a]
+aliases = ["custom_mouth_a", "あ"]
 ```
 
-候補は左から順に、大文字小文字を区別して完全一致で検索します。記述した役割の既定候補は置き換えられ、未指定の役割は既定値を使います。役割一覧は設定ファイル内のコメントを参照してください。変更は再起動後に反映されます。不正な行があれば行番号をログへ出し、モーフ辞書全体を既定値に戻します。
+候補は左から順に、大文字小文字を区別して完全一致で検索します。記述した役割の既定候補は置き換えられ、未指定の役割は既定値を使います。役割一覧は設定ファイル内のコメントを参照してください。変更は再起動後に反映されます。構文エラー、未知のキー・役割、空の候補や重複定義があれば位置をログへ出し、その辞書全体を既定値に戻します。`version = 1` は必須です。
+
+ボーン辞書 `config/bone_names.toml` も同じ形式です。たとえば首の候補は次のように設定します。
+
+```toml
+version = 1
+
+[roles.neck]
+aliases = ["custom_neck", "neck", "Neck"]
+```
+
+旧 `bone_names.cfg` / `morph_names.cfg` は読み込みません。独自設定がある場合は上記のTOML形式へ移してください。`config/settings.cfg` の形式は変更していません。
 
 コードからは `animation::MorphRole` と `animation::MorphNameDictionary` で検索できます。起動時に読み込んだ辞書を使う場合は、`AnimationSystem::find_morph(entity, animation::MorphRole::Blink)` でモデル内のモーフ番号を取得します。該当するモーフがなければ `types::INVALID_MORPH_INDEX` を返します。この辞書の追加だけで表情を自動再生することはありません。
 

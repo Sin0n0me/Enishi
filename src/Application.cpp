@@ -118,14 +118,14 @@ namespace enishi {
         skinning_system->set_cursor_config(settings.cursor_tracking);
         this->click_settings->push_states = std::move(settings.click.push_states);
 
-        auto bone_names = core::load_bone_name_config("config/bone_names.cfg");
+        auto bone_names = core::load_bone_name_config("config/bone_names.toml");
         if (bone_names.is_err()) {
             foundation::Logger::warning(bone_names.unwrap_err().get_message());
         } else {
             skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
-        auto morph_names = core::load_morph_name_config("config/morph_names.cfg");
+        auto morph_names = core::load_morph_name_config("config/morph_names.toml");
         if (morph_names.is_err()) {
             foundation::Logger::warning(morph_names.unwrap_err().get_message());
         } else {

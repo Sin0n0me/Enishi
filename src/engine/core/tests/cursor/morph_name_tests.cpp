@@ -36,8 +36,8 @@ namespace {
         require(dictionary.aliases(static_cast<Role>(-1)).empty(), "Invalid enum is safe");
     }
     void config_tests() {
-        std::istringstream input(
-            "\xEF\xBB\xBF# header\nblink \"custom blink\" \"fallback\" # tail");
+        std::istringstream input("\xEF\xBB\xBF# header\nversion = 1\n[roles.blink]\naliases = "
+                                 "[\n\"custom blink\", 'fallback',\n] # tail");
         const auto parsed = core::parse_morph_name_config(input);
         require(parsed.is_ok(), "BOM, quoted spaces and comments are supported");
         const std::vector<std::string> names{"fallback", "custom blink", "aa", "blink"};
@@ -48,16 +48,28 @@ namespace {
         require(parsed.unwrap().find(old_names, animation::MorphRole::Blink) ==
                     types::INVALID_MORPH_INDEX,
             "Configured aliases replace rather than append to defaults");
-        for (const auto* text : {"unknown \"name\"",
-                 "blink",
-                 "blink \"\"",
-                 "blink unquoted",
-                 "blink \"unterminated",
-                 "blink \"a\"\nblink \"b\""}) {
+        for (const auto* text : {"",
+                 "version = 2",
+                 "version = 1.0",
+                 "version = true",
+                 "version = 1\nunknown = 1",
+                 "version = 1\nroles = []",
+                 "version = 1\n[roles.unknown]\naliases = ['name']",
+                 "version = 1\n[roles.blink]",
+                 "version = 1\n[roles.blink]\naliases = []",
+                 "version = 1\n[roles.blink]\naliases = ['']",
+                 "version = 1\n[roles.blink]\naliases = [1]",
+                 "version = 1\n[roles.blink]\naliases = 'name'",
+                 "version = 1\n[roles.blink]\naliases = ['a']\nextra = 1",
+                 "version = 1\n[roles.blink]\naliases = ['a']\naliases = ['b']",
+                 "version = 1\n[roles.blink]\naliases = ['a']\n[roles.blink]",
+                 "version = 1\n[roles.blink]\naliases = ['unterminated"}) {
             std::istringstream invalid(text);
             require(
                 core::parse_morph_name_config(invalid).is_err(), "Reject malformed configuration");
         }
+        std::istringstream defaults("version = 1");
+        require(core::parse_morph_name_config(defaults).is_ok(), "Allow default-only dictionary");
         std::istringstream failed;
         failed.setstate(std::ios::badbit);
         require(core::parse_morph_name_config(failed).is_err(), "Propagate stream failure");
@@ -75,7 +87,7 @@ namespace {
             "Create synthetic model");
         require(
             system.find_morph(entity, animation::MorphRole::Blink) == 1, "Use default dictionary");
-        std::istringstream input("blink \"custom blink\"");
+        std::istringstream input("version = 1\n[roles.blink]\naliases = [\"custom blink\"]");
         const auto parsed = core::parse_morph_name_config(input);
         require(parsed.is_ok(), "Parse override");
         system.set_morph_names(parsed.unwrap());

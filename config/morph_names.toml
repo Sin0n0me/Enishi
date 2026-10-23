@@ -1,14 +1,14 @@
 # Global morph-name overrides, loaded at startup. Restart after editing.
 # Each configured role REPLACES its default aliases. Unlisted roles keep defaults.
-# Format: role "first candidate" "second candidate" ...
 # Matching is case-sensitive; candidates are tried left to right.
-# Use UTF-8. Names must be nonempty and quoted. Duplicate role lines are errors.
+# Use UTF-8. Aliases must be nonempty strings in a nonempty array.
 # If the file contains an error, the entire file is ignored and defaults are used.
-#
-# Examples (disabled):
-# blink "custom_blink" "blink" "Blink"
-# mouth_a "custom_vowel_a" "aa"
-#
+version = 1
+
+# Example (disabled):
+# [roles.blink]
+# aliases = ["custom_blink", "blink"]
+
 # Roles:
 # blink
 # blink_left

@@ -1,49 +1,25 @@
 #include "morph_name_config.h"
-#include <foundation/text/config_line_reader.h>
+#include <core/config/name_dictionary_toml.h>
 #include <fstream>
-#include <iomanip>
-#include <set>
-#include <sstream>
 #include <utility>
 
 namespace enishi::core {
     foundation::Result<animation::MorphNameDictionary, MorphNameConfigError>
     parse_morph_name_config(std::istream& stream) {
-        animation::MorphNameDictionary dictionary;
-        foundation::ConfigLineReader reader(stream);
-        std::istringstream fields;
-        std::set<animation::MorphRole> seen;
-        while (reader.next(fields)) {
-            std::string key;
-            fields >> key;
-            const auto role = animation::MorphNameDictionary::role_from_key(key);
-            if (!role.has_value() || !seen.insert(*role).second) {
-                return foundation::Error(MorphNameConfigError::InvalidSetting,
-                    "Unknown or duplicate morph role at line " +
-                        std::to_string(reader.line_number()));
-            }
-            std::vector<std::string> names;
-            while (!fields.eof()) {
-                fields >> std::ws;
-                if (fields.eof() || fields.peek() == '#') {
-                    break;
-                }
-                std::string name;
-                if (fields.peek() != '"' || !(fields >> std::quoted(name)) || name.empty()) {
-                    return foundation::Error(MorphNameConfigError::InvalidSetting,
-                        "Expected a quoted nonempty morph name at line " +
-                            std::to_string(reader.line_number()));
-                }
-                names.push_back(std::move(name));
-            }
-            if (!dictionary.set_aliases(*role, std::move(names))) {
-                return foundation::Error(MorphNameConfigError::InvalidSetting,
-                    "Missing morph names at line " + std::to_string(reader.line_number()));
-            }
+        auto parsed = parse_name_dictionary_toml(stream);
+        if (parsed.is_err()) {
+            auto code = parsed.unwrap_err().get_error() == NameDictionaryConfigError::ReadFailed
+                            ? MorphNameConfigError::ReadFailed
+                            : MorphNameConfigError::InvalidSetting;
+            return foundation::Error(std::move(code), parsed.unwrap_err().get_message());
         }
-        if (reader.read_failed()) {
-            return foundation::Error(
-                MorphNameConfigError::ReadFailed, "Cannot read morph name settings");
+        animation::MorphNameDictionary dictionary;
+        for (auto& entry : parsed.unwrap_mut()) {
+            const auto role = animation::MorphNameDictionary::role_from_key(entry.role);
+            if (!role.has_value() || !dictionary.set_aliases(*role, std::move(entry.aliases))) {
+                return foundation::Error(MorphNameConfigError::InvalidSetting,
+                    "Invalid morph role: " + entry.role + " at line " + std::to_string(entry.line));
+            }
         }
         return dictionary;
     }
