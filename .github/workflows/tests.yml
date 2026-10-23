@@ -52,6 +52,11 @@ jobs:
       - name: Cache Cargo dependencies
         uses: ./.github/actions/cache-cargo
 
+      - name: Set up cached Musubu
+        uses: ./.github/actions/setup-musubu
+        with:
+          abi: msvc
+
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu
         with:

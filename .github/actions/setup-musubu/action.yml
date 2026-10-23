@@ -1,0 +1,55 @@
+name: Set up cached Musubu
+description: 描画APIとアプリのビルド構成から独立したRust成果物を準備します。
+inputs:
+  abi:
+    description: RustのWindows ABI（msvcまたはgnu）
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Identify Rust build environment
+      id: environment
+      shell: pwsh
+      env:
+        MUSUBU_ABI: ${{ inputs.abi }}
+      run: |
+        if ($env:MUSUBU_ABI -notin @('msvc', 'gnu')) { throw 'Unsupported Rust ABI' }
+        $rustVersion = rustc +stable -vV
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $compiler = ''
+        if ($env:MUSUBU_ABI -eq 'gnu') {
+          $compiler = gcc --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        $identity = @(($rustVersion -join "`n"), ($compiler -join "`n"),
+          $env:VCToolsVersion, $env:WindowsSDKVersion) -join "`n"
+        $fingerprint = [Convert]::ToHexString(
+          [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($identity)))
+        "fingerprint=$fingerprint" >> $env:GITHUB_OUTPUT
+        "CARGO_TARGET_DIR=$env:GITHUB_WORKSPACE/build/cargo" >> $env:GITHUB_ENV
+
+    - name: Restore Rust build artifacts
+      id: cache
+      uses: actions/cache/restore@v4
+      with:
+        path: build/cargo
+        key: musubu-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.abi }}-${{ steps.environment.outputs.fingerprint }}-${{ hashFiles('src/engine/script/bridge/**', 'src/engine/script/Musubu/**', '.github/actions/setup-musubu/action.yml') }}
+
+    # 復元後もCargoに鮮度を確認させ、ソースが変わった場合だけ再コンパイルします。
+    - name: Build Musubu
+      shell: pwsh
+      env:
+        MUSUBU_ABI: ${{ inputs.abi }}
+      run: |
+        $cargoArgs = @('+stable', 'build', '--release', '--locked', '--offline',
+          '--manifest-path', 'src/engine/script/bridge/Cargo.toml', '--target-dir', $env:CARGO_TARGET_DIR)
+        if ($env:MUSUBU_ABI -eq 'gnu') { $cargoArgs += @('--target', 'x86_64-pc-windows-gnu') }
+        cargo @cargoArgs
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Save Rust build artifacts immediately
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: build/cargo
+        key: ${{ steps.cache.outputs.cache-primary-key }}

@@ -155,6 +155,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
+      - name: Set up cached Musubu
+        uses: ./.github/actions/setup-musubu
+        with:
+          abi: ${{ matrix.toolchain == 'gcc' && 'gnu' || 'msvc' }}
+
       - name: Set up cached ICU
         uses: ./.github/actions/setup-icu
         with:
