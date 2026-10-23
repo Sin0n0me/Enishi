@@ -8,22 +8,22 @@
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <platform/renderer/interface_renderer.h>
 #include <renderer/common/resource_binder.h>
+#include <renderer/directx/directx11/resource/interface_d3d11_render_resources.h>
 
 namespace enishi::renderer::directx {
-    class D3D11RenderCommandEncoder;
-
     class D3D11Renderer : public platform::IRenderer {
       private:
-        std::shared_ptr<D3D11> d3d11;
-        std::unique_ptr<ResourceManager> resource_manager;
-        std::unique_ptr<D3D11RenderCommandEncoder> encoder;
+        std::shared_ptr<ID3D11RenderResources> resources;
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder;
 
       public:
         explicit D3D11Renderer(std::unique_ptr<D3D11> d3d11);
+        D3D11Renderer(const D3D11Renderer&) = delete;
         ~D3D11Renderer() noexcept override;
+        D3D11Renderer& operator=(const D3D11Renderer&) = delete;
 
-        // Borrowed encoder; its lifetime is bounded by this renderer.
-        [[nodiscard]] platform::IRenderCommandEncoder& get_command_encoder() const noexcept;
+        [[nodiscard]] std::shared_ptr<platform::IRenderCommandEncoder>
+        get_command_encoder() const noexcept;
 
         [[nodiscard]] std::shared_ptr<ID3D11Context> get_native_context(void) const;
 

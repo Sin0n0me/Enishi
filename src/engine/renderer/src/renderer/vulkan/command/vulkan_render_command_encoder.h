@@ -1,16 +1,16 @@
 #pragma once
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/resource_accessor.h>
+#include <renderer/vulkan/runtime/interface_vulkan_render_resources.h>
 #include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 
 namespace enishi::renderer::vulkan {
     class VulkanRenderCommandEncoder final : public platform::IRenderCommandEncoder {
       private:
-        VulkanRendererState& state;
-        ResourceAccessor& resource_accessor;
+        std::shared_ptr<IVulkanRenderResources> resources;
 
       public:
-        VulkanRenderCommandEncoder(VulkanRendererState& state, ResourceAccessor& resource_accessor);
+        explicit VulkanRenderCommandEncoder(std::shared_ptr<IVulkanRenderResources> resources);
         void setup_viewports(void) const override;
         void setup_views(void) const override;
         void submit_command_buffer(const types::DrawCommand&) const override;

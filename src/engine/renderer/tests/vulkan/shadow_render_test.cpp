@@ -104,20 +104,20 @@ namespace {
         for (const auto& command : pass.get_commands()) {
             switch (command.handle.type) {
                 case types::RenderHandleType::View:
-                    renderer.get_command_encoder().submit_command_view(
+                    renderer.get_command_encoder()->submit_command_view(
                         command, pass.get_render_target());
                     break;
                 case types::RenderHandleType::State:
-                    renderer.get_command_encoder().submit_command_state(command);
+                    renderer.get_command_encoder()->submit_command_state(command);
                     break;
                 case types::RenderHandleType::Shader:
-                    renderer.get_command_encoder().submit_command_shader(command);
+                    renderer.get_command_encoder()->submit_command_shader(command);
                     break;
                 case types::RenderHandleType::Topology:
-                    renderer.get_command_encoder().submit_command_topology(command);
+                    renderer.get_command_encoder()->submit_command_topology(command);
                     break;
                 case types::RenderHandleType::VertexLayout:
-                    renderer.get_command_encoder().submit_command_vertex_layout(command);
+                    renderer.get_command_encoder()->submit_command_vertex_layout(command);
                     break;
                 default:
                     break;
@@ -187,23 +187,23 @@ namespace {
                                bool expected_shadow,
                                bool with_shadow = true,
                                bool narrow_viewport = false) {
-            renderer.get_command_encoder().setup_views();
+            renderer.get_command_encoder()->setup_views();
             require(device->recording, "Shadow test frame not acquired");
             if (narrow_viewport) {
-                renderer.get_command_encoder().submit_command_viewport(bind(viewport));
+                renderer.get_command_encoder()->submit_command_viewport(bind(viewport));
             }
             if (with_shadow) {
                 submit(renderer, pass);
                 if (draw_caster) {
-                    renderer.get_command_encoder().submit_command_mesh(bind(caster), {});
+                    renderer.get_command_encoder()->submit_command_mesh(bind(caster), {});
                 }
-                renderer.get_command_encoder().submit_command_view(
+                renderer.get_command_encoder()->submit_command_view(
                     bind(pass.get_sampled_depth()), {});
             }
             for (const auto shader : shaders) {
-                renderer.get_command_encoder().submit_command_shader(bind(shader));
+                renderer.get_command_encoder()->submit_command_shader(bind(shader));
             }
-            renderer.get_command_encoder().submit_command_mesh(bind(receiver), {});
+            renderer.get_command_encoder()->submit_command_mesh(bind(receiver), {});
             success(device->end_frame(pixels));
             check_pixels(*pixels, device->extent, expected_shadow, narrow_viewport, wall);
         };

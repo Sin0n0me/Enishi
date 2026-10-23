@@ -1,16 +1,16 @@
 #pragma once
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/directx/directx11/d3d11.h>
+#include <renderer/directx/directx11/resource/interface_d3d11_render_resources.h>
 #include <renderer/directx/directx11/resource/resource_manager.h>
 
 namespace enishi::renderer::directx {
     class D3D11RenderCommandEncoder final : public platform::IRenderCommandEncoder {
       private:
-        D3D11& d3d11;
-        ResourceManager& resource_manager;
+        std::shared_ptr<ID3D11RenderResources> resources;
 
       public:
-        D3D11RenderCommandEncoder(D3D11& d3d11, ResourceManager& resource_manager);
+        explicit D3D11RenderCommandEncoder(std::shared_ptr<ID3D11RenderResources> resources);
         void setup_viewports(void) const override;
         void setup_views(void) const override;
         void submit_command_buffer(const types::DrawCommand& command) const override;

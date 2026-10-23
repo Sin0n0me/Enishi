@@ -1,4 +1,5 @@
 #pragma once
+#include <renderer/opengl/opengl40/runtime/interface_opengl40_render_resources.h>
 
 #include <memory>
 #include <platform/renderer/interface_opengl_context.h>
@@ -10,22 +11,19 @@
 #include <vector>
 
 namespace enishi::renderer::opengl {
-    class OpenGL40RenderCommandEncoder;
-
     class OpenGL40Renderer final : public platform::IRenderer {
       private:
-        std::shared_ptr<platform::IOpenGLContext> context;
-        std::unique_ptr<RenderHandleMapper> handle_mapper;
-        std::unique_ptr<ResourceAccessor> resource_accessor;
-        std::unique_ptr<OpenGL40RendererState> state;
-        std::unique_ptr<OpenGL40RenderCommandEncoder> encoder;
+        std::shared_ptr<IOpenGL40RenderResources> resources;
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder;
 
       public:
         explicit OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context);
+        OpenGL40Renderer(const OpenGL40Renderer&) = delete;
         ~OpenGL40Renderer(void) noexcept override;
+        OpenGL40Renderer& operator=(const OpenGL40Renderer&) = delete;
 
-        // Borrowed encoder; its lifetime is bounded by this renderer.
-        [[nodiscard]] platform::IRenderCommandEncoder& get_command_encoder() const noexcept;
+        [[nodiscard]] std::shared_ptr<platform::IRenderCommandEncoder>
+        get_command_encoder() const noexcept;
 
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect&) override;

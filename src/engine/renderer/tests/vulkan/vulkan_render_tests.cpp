@@ -139,14 +139,14 @@ namespace {
             static_cast<VkDeviceSize>(device->extent.width) * device->extent.height * CHANNELS,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT));
         const auto frame = [&]() {
-            renderer.get_command_encoder().setup_views();
+            renderer.get_command_encoder()->setup_views();
             require(device->recording, "Frame not acquired");
-            renderer.get_command_encoder().submit_command_state(bind(first_sampler));
-            renderer.get_command_encoder().submit_command_mesh(bind(mesh), {});
-            renderer.get_command_encoder().submit_command_state(bind(second_sampler));
-            renderer.get_command_encoder().submit_command_mesh(bind(mesh), {});
-            renderer.get_command_encoder().submit_command_state(bind(first_sampler));
-            renderer.get_command_encoder().submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(first_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(second_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(first_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
             success(device->end_frame(pixels));
             return centroid(*pixels, device->extent.width, device->extent.height);
         };
@@ -215,7 +215,7 @@ namespace {
         ImGui::GetBackgroundDrawList()->AddRectFilled(
             {0, 0}, {UI_SIZE, UI_SIZE}, IM_COL32(255, 0, 0, 255));
         ImGui::Render();
-        renderer.get_command_encoder().setup_views();
+        renderer.get_command_encoder()->setup_views();
         require(device->recording, "UI frame not acquired");
         device->begin_main_pass();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
@@ -239,7 +239,7 @@ namespace {
         SDL_PumpEvents();
         const auto device = renderer.get_native_context();
         for (int frame = 0; frame < MAXIMUM_FRAMES; ++frame) {
-            renderer.get_command_encoder().setup_views();
+            renderer.get_command_encoder()->setup_views();
             success(device->end_frame());
         }
         require(device->extent.width == RESIZED_WIDTH && device->extent.height == HEIGHT,
@@ -260,11 +260,11 @@ int enishi::renderer::tests::run_vulkan_render_tests() {
     take(renderer->create_shader_reflection(vertex));
     take(renderer->create_shader_reflection(fragment));
     take(renderer->create_vertex_layout_from_shader_data(vertex));
-    renderer->get_command_encoder().submit_command_shader(
+    renderer->get_command_encoder()->submit_command_shader(
         bind(take(renderer->create_shader(types::ShaderKind::Vertex, vertex))));
-    renderer->get_command_encoder().submit_command_shader(
+    renderer->get_command_encoder()->submit_command_shader(
         bind(take(renderer->create_shader(types::ShaderKind::Pixel, fragment))));
-    renderer->get_command_encoder().submit_command_state(
+    renderer->get_command_encoder()->submit_command_state(
         bind(take(renderer->create_rasterizer(types::RasterizerStateDescription::no_cull()))));
     require(renderer->create_shader(types::ShaderKind::Pixel, vertex).is_err(),
         "Shader stage mismatch was accepted");

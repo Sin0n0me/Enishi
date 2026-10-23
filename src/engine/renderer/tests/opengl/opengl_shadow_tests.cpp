@@ -67,20 +67,20 @@ namespace {
         for (const auto& command : pass.get_commands()) {
             switch (command.handle.type) {
                 case types::RenderHandleType::View:
-                    renderer.get_command_encoder().submit_command_view(
+                    renderer.get_command_encoder()->submit_command_view(
                         command, pass.get_render_target());
                     break;
                 case types::RenderHandleType::State:
-                    renderer.get_command_encoder().submit_command_state(command);
+                    renderer.get_command_encoder()->submit_command_state(command);
                     break;
                 case types::RenderHandleType::Shader:
-                    renderer.get_command_encoder().submit_command_shader(command);
+                    renderer.get_command_encoder()->submit_command_shader(command);
                     break;
                 case types::RenderHandleType::Topology:
-                    renderer.get_command_encoder().submit_command_topology(command);
+                    renderer.get_command_encoder()->submit_command_topology(command);
                     break;
                 case types::RenderHandleType::VertexLayout:
-                    renderer.get_command_encoder().submit_command_vertex_layout(command);
+                    renderer.get_command_encoder()->submit_command_vertex_layout(command);
                     break;
                 default:
                     break;
@@ -95,7 +95,7 @@ namespace {
     }
     void check_shadow_target(
         renderer::opengl::OpenGL40Renderer& renderer, const platform::IRenderPass& shadow) {
-        renderer.get_command_encoder().setup_views();
+        renderer.get_command_encoder()->setup_views();
         submit(renderer, shadow);
         require(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE,
             "shadow FBO incomplete");
@@ -110,7 +110,7 @@ namespace {
         glClearDepth(0.25);
         glClear(GL_DEPTH_BUFFER_BIT);
         glDepthMask(GL_FALSE);
-        renderer.get_command_encoder().setup_views();
+        renderer.get_command_encoder()->setup_views();
         submit(renderer, shadow);
         float depth = 0;
         glReadPixels(1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
@@ -133,9 +133,9 @@ namespace {
             types::ImageViewDescription::make_depth_stencil_view_description(
                 types::ImageFormat::D32_FLOAT)));
         glDepthMask(GL_FALSE);
-        renderer.get_command_encoder().submit_command_view(
+        renderer.get_command_encoder()->submit_command_view(
             bind(target->get_handle()), target->get_handle());
-        renderer.get_command_encoder().submit_command_view(
+        renderer.get_command_encoder()->submit_command_view(
             bind(depth->get_handle()), target->get_handle());
         require(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE,
             "model FBO incomplete");
@@ -149,16 +149,16 @@ namespace {
         constexpr float WALL_ALPHA = 0.25f;
         glClearColor(0, 0, 0, WALL_ALPHA);
         glClear(GL_COLOR_BUFFER_BIT);
-        renderer.get_command_encoder().submit_command_view(
+        renderer.get_command_encoder()->submit_command_view(
             bind(target->get_handle()), target->get_handle());
-        renderer.get_command_encoder().submit_command_view(
+        renderer.get_command_encoder()->submit_command_view(
             bind(depth->get_handle()), target->get_handle());
         float preserved[4]{};
         glReadPixels(1, 1, 1, 1, GL_RGBA, GL_FLOAT, preserved);
         require(preserved[3] > 0.24f && preserved[3] < 0.26f,
             "rebinding the model target must preserve the background shadow");
         glClearColor(0, 0, 0, 0);
-        renderer.get_command_encoder().submit_command_view(
+        renderer.get_command_encoder()->submit_command_view(
             bind(shadow.get_sampled_depth()), target->get_handle());
         glActiveTexture(GL_TEXTURE3);
         GLint texture = 0;
@@ -170,7 +170,7 @@ namespace {
         for (const auto& entry : take(provider.get(paths))) {
             take(renderer.create_shader_reflection(*entry.data));
             const auto shader = take(renderer.create_shader(entry.kind, *entry.data));
-            renderer.get_command_encoder().submit_command_shader(bind(shader));
+            renderer.get_command_encoder()->submit_command_shader(bind(shader));
         }
         GLint program = 0;
         glGetIntegerv(GL_CURRENT_PROGRAM, &program);
@@ -179,11 +179,30 @@ namespace {
         GLint unit = -1;
         glGetUniformiv(program, location, &unit);
         require(unit == 3, "shader sampler and render pass texture unit must agree");
-        renderer.get_command_encoder().setup_views();
+        renderer.get_command_encoder()->setup_views();
         glActiveTexture(GL_TEXTURE3);
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
         require(texture == 0, "next frame must detach sampled shadow depth");
         glActiveTexture(GL_TEXTURE0);
+    }
+    void check_encoder_lifetime(const std::shared_ptr<platform::IOpenGLContext>& context) {
+        auto renderer = std::make_shared<renderer::opengl::OpenGL40Renderer>(context);
+        const std::weak_ptr<renderer::opengl::OpenGL40Renderer> observer = renderer;
+        constexpr int SIZE = 8;
+        take(renderer->create_image(types::ImageDescription::make_depth_stencil(
+            {SIZE, SIZE}, types::ImageFormat::D32_FLOAT)));
+        GLint texture = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
+        require(texture != 0, "lifetime test texture was not created");
+        auto encoder = renderer->get_command_encoder();
+        renderer.reset();
+        require(observer.expired(), "encoder must own resources independently of renderer");
+        require(glIsTexture(static_cast<GLuint>(texture)) == GL_TRUE,
+            "encoder must retain renderer resources");
+        encoder->setup_views();
+        encoder.reset();
+        require(glIsTexture(static_cast<GLuint>(texture)) == GL_FALSE,
+            "last owner must release renderer resources");
     }
     void run() {
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4), SDL_GetError());
@@ -195,6 +214,7 @@ namespace {
             SDL_DestroyWindow);
         require(window != nullptr, SDL_GetError());
         const auto context = std::make_shared<Context>(window.get());
+        check_encoder_lifetime(context);
         renderer::opengl::OpenGL40Renderer renderer(context);
         core::AssetSystem assets;
         core::ShaderDataProvider provider(

@@ -6,6 +6,7 @@
 #include <renderer/vulkan/pipeline/vulkan_pipeline.h>
 #include <renderer/vulkan/pipeline/vulkan_render_states.h>
 #include <renderer/vulkan/runtime/vulkan_handles.h>
+#include <renderer/vulkan/runtime/vulkan_render_resources.h>
 #include <renderer/vulkan/runtime/vulkan_renderer.h>
 #include <renderer/vulkan/shader/spirv_shader_reflection.h>
 #include <renderer/vulkan/shadow/vulkan_shadow_resources.h>
@@ -13,21 +14,13 @@
 
 namespace enishi::renderer::vulkan {
     VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanDevice> context)
-        : context(std::move(context))
-        , handle_mapper(std::make_unique<RenderHandleMapper>())
-        , resource_accessor(std::make_unique<ResourceAccessor>())
-        , state(std::make_unique<VulkanRendererState>(this->context))
-        , encoder(std::make_unique<VulkanRenderCommandEncoder>(
-              *this->state, *this->resource_accessor)) {
+        : resources(std::make_shared<VulkanRenderResources>(std::move(context)))
+        , encoder(std::make_shared<VulkanRenderCommandEncoder>(this->resources)) {
     }
     VulkanRenderer::~VulkanRenderer() noexcept {
-        auto result = this->context->wait_idle();
-        if (result.is_err()) {
-            foundation::Logger::error(result.unwrap_err().get_message());
-        }
     }
     std::shared_ptr<VulkanDevice> VulkanRenderer::get_native_context() const noexcept {
-        return this->context;
+        return this->resources->get_context();
     }
 
     platform::RenderResult<void> VulkanRenderer::init_resources() {
@@ -49,25 +42,28 @@ namespace enishi::renderer::vulkan {
             VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         descriptor.bindingCount = static_cast<std::uint32_t>(bindings.size());
         descriptor.pBindings = bindings.data();
-        auto result =
-            check_vk(vkCreateDescriptorSetLayout(
-                         this->context->device, &descriptor, nullptr, &this->state->descriptors),
-                "vkCreateDescriptorSetLayout");
+        auto result = check_vk(vkCreateDescriptorSetLayout(this->resources->get_context()->device,
+                                   &descriptor,
+                                   nullptr,
+                                   &this->resources->get_state().descriptors),
+            "vkCreateDescriptorSetLayout");
         if (result.is_err()) {
             return result;
         }
         VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-        result = VulkanShadowResources::init_shadow_resources(*this->state);
+        result = VulkanShadowResources::init_shadow_resources(this->resources->get_state());
         if (result.is_err()) {
             return result;
         }
-        const std::array layouts{this->state->descriptors, this->state->shadow_descriptors};
+        const std::array layouts{this->resources->get_state().descriptors,
+            this->resources->get_state().shadow_descriptors};
         layout.setLayoutCount = static_cast<std::uint32_t>(layouts.size());
         layout.pSetLayouts = layouts.data();
-        result =
-            check_vk(vkCreatePipelineLayout(
-                         this->context->device, &layout, nullptr, &this->state->pipeline_layout),
-                "vkCreatePipelineLayout");
+        result = check_vk(vkCreatePipelineLayout(this->resources->get_context()->device,
+                              &layout,
+                              nullptr,
+                              &this->resources->get_state().pipeline_layout),
+            "vkCreatePipelineLayout");
         if (result.is_err()) {
             return result;
         }
@@ -75,13 +71,14 @@ namespace enishi::renderer::vulkan {
         if (sampler.is_err()) {
             return std::move(sampler).take_err();
         }
-        this->state->sampler = this->state->samplers.at(sampler.unwrap());
+        this->resources->get_state().sampler =
+            this->resources->get_state().samplers.at(sampler.unwrap());
         return {};
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_viewport(
         const types::ViewportRect& viewport) {
         const auto handle = this->make_handle(types::RenderHandleType::ViewPort);
-        this->state->viewports.emplace(handle, viewport);
+        this->resources->get_state().viewports.emplace(handle, viewport);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_shader_reflection(
@@ -119,9 +116,9 @@ namespace enishi::renderer::vulkan {
             }
         }
         auto [resource, stored] =
-            this->resource_accessor->make_shader_reflection(std::move(reflection));
+            this->resources->get_resource_accessor().make_shader_reflection(std::move(reflection));
         const auto handle = this->make_handle(types::RenderHandleType::ShaderReflection);
-        (*this->handle_mapper)[handle].resource = resource;
+        (this->resources->get_handle_mapper())[handle].resource = resource;
         return handle;
     }
     platform::RenderResult<types::RenderHandle>
@@ -170,61 +167,75 @@ namespace enishi::renderer::vulkan {
         info.pCode = words.data();
         VulkanShader shader{.kind = kind};
         auto result =
-            check_vk(vkCreateShaderModule(this->context->device, &info, nullptr, &shader.module),
+            check_vk(vkCreateShaderModule(
+                         this->resources->get_context()->device, &info, nullptr, &shader.module),
                 "vkCreateShaderModule");
         if (result.is_err()) {
             return std::move(result).take_err();
         }
         const auto handle = this->make_handle(types::RenderHandleType::Shader);
-        this->state->shaders.emplace(handle, shader);
+        this->resources->get_state().shaders.emplace(handle, shader);
         return handle;
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_texture(
         const types::TextureData& data) {
-        auto image = this->context->make_texture(data);
+        auto image = this->resources->get_context()->make_texture(data);
         if (image.is_err()) {
             return std::move(image).take_err();
         }
         const auto handle = this->make_handle(types::RenderHandleType::Image);
-        this->state->textures.emplace(handle, std::move(image).unwrap());
+        this->resources->get_state().textures.emplace(handle, std::move(image).unwrap());
         return handle;
     }
     platform::IRenderResourceAccessor* VulkanRenderer::get_resource_accessor() noexcept {
-        return this->resource_accessor.get();
+        return &this->resources->get_resource_accessor();
     }
     platform::IRenderResourceAccessor* const
     VulkanRenderer::get_resource_accessor() const noexcept {
-        return this->resource_accessor.get();
+        return &this->resources->get_resource_accessor();
     }
     const platform::IRenderHandleMapper* VulkanRenderer::get_handle_mapper() const noexcept {
-        return this->handle_mapper.get();
+        return &this->resources->get_handle_mapper();
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_mesh(
         const types::ModelData& model, const std::vector<types::RenderHandle>& shaders) {
-        return VulkanMeshBuilder::create_mesh(
-            *this->state, *this->resource_accessor, *this->handle_mapper, model, shaders);
+        return VulkanMeshBuilder::create_mesh(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            model,
+            shaders);
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_image(
         const types::ImageDescription& description) {
-        return VulkanViews::create_image(*this->state, *this->handle_mapper, description);
+        return VulkanViews::create_image(
+            this->resources->get_state(), this->resources->get_handle_mapper(), description);
     }
     platform::RenderResult<std::shared_ptr<platform::IRenderTargetView>>
     VulkanRenderer::create_render_target_view(
         types::RenderHandle image, const types::ImageViewDescription& description) {
-        return VulkanViews::create_render_target_view(
-            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+        return VulkanViews::create_render_target_view(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            image,
+            description);
     }
     platform::RenderResult<std::shared_ptr<platform::IDepthStencilView>>
     VulkanRenderer::create_depth_stencil_view(
         types::RenderHandle image, const types::ImageViewDescription& description) {
-        return VulkanViews::create_depth_stencil_view(
-            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+        return VulkanViews::create_depth_stencil_view(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            image,
+            description);
     }
     platform::RenderResult<std::shared_ptr<platform::IShaderResourceView>>
     VulkanRenderer::create_shader_resource_view(
         types::RenderHandle image, const types::ImageViewDescription& description) {
-        return VulkanViews::create_shader_resource_view(
-            *this->state, *this->resource_accessor, *this->handle_mapper, image, description);
+        return VulkanViews::create_shader_resource_view(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            image,
+            description);
     }
     platform::RenderResult<std::shared_ptr<platform::IUnorderedAccessView>>
     VulkanRenderer::create_unordered_access_view(
@@ -233,29 +244,38 @@ namespace enishi::renderer::vulkan {
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_rasterizer(
         const types::RasterizerStateDescription& value) {
-        return VulkanRenderStates::create_rasterizer(
-            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+        return VulkanRenderStates::create_rasterizer(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            value);
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_depth_stencil(
         const types::DepthStencilStateDescription& value) {
-        return VulkanRenderStates::create_depth_stencil(
-            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+        return VulkanRenderStates::create_depth_stencil(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            value);
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_blend(
         const types::BlendStateDescription& value) {
-        return VulkanRenderStates::create_blend(
-            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+        return VulkanRenderStates::create_blend(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            value);
     }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_sampler(
         const types::SamplerStateDescription& value) {
-        return VulkanRenderStates::create_sampler(
-            *this->state, *this->resource_accessor, *this->handle_mapper, value);
+        return VulkanRenderStates::create_sampler(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            this->resources->get_handle_mapper(),
+            value);
     }
     types::RenderHandle VulkanRenderer::make_handle(types::RenderHandleType type) noexcept {
-        return VulkanHandles::make(*this->handle_mapper, type);
+        return VulkanHandles::make(this->resources->get_handle_mapper(), type);
     }
 
-    platform::IRenderCommandEncoder& VulkanRenderer::get_command_encoder() const noexcept {
-        return *this->encoder;
+    std::shared_ptr<platform::IRenderCommandEncoder>
+    VulkanRenderer::get_command_encoder() const noexcept {
+        return this->encoder;
     }
 } // namespace enishi::renderer::vulkan

@@ -2,19 +2,16 @@
 #include <platform/renderer/interface_opengl_context.h>
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/resource_accessor.h>
+#include <renderer/opengl/opengl40/runtime/interface_opengl40_render_resources.h>
 #include <renderer/opengl/opengl40/runtime/opengl40_renderer_state.h>
 
 namespace enishi::renderer::opengl {
     class OpenGL40RenderCommandEncoder final : public platform::IRenderCommandEncoder {
       private:
-        OpenGL40RendererState& state;
-        ResourceAccessor& resource_accessor;
-        platform::IOpenGLContext& context;
+        std::shared_ptr<IOpenGL40RenderResources> resources;
 
       public:
-        OpenGL40RenderCommandEncoder(OpenGL40RendererState& state,
-            ResourceAccessor& resource_accessor,
-            platform::IOpenGLContext& context);
+        explicit OpenGL40RenderCommandEncoder(std::shared_ptr<IOpenGL40RenderResources> resources);
         void setup_viewports(void) const override;
         void setup_views(void) const override;
         void submit_command_buffer(const types::DrawCommand&) const override;

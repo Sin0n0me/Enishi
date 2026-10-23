@@ -1,4 +1,5 @@
 #pragma once
+#include <renderer/vulkan/runtime/interface_vulkan_render_resources.h>
 
 #include <platform/renderer/interface_render_command_encoder.h>
 #include <renderer/common/render_handle_mapper.h>
@@ -7,22 +8,19 @@
 #include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 
 namespace enishi::renderer::vulkan {
-    class VulkanRenderCommandEncoder;
-
     class VulkanRenderer final : public platform::IRenderer {
       private:
-        std::shared_ptr<VulkanDevice> context;
-        std::unique_ptr<RenderHandleMapper> handle_mapper;
-        std::unique_ptr<ResourceAccessor> resource_accessor;
-        std::unique_ptr<VulkanRendererState> state;
-        std::unique_ptr<VulkanRenderCommandEncoder> encoder;
+        std::shared_ptr<IVulkanRenderResources> resources;
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder;
 
       public:
         explicit VulkanRenderer(std::shared_ptr<VulkanDevice> context);
+        VulkanRenderer(const VulkanRenderer&) = delete;
         ~VulkanRenderer(void) noexcept override;
+        VulkanRenderer& operator=(const VulkanRenderer&) = delete;
 
-        // Borrowed encoder; its lifetime is bounded by this renderer.
-        [[nodiscard]] platform::IRenderCommandEncoder& get_command_encoder() const noexcept;
+        [[nodiscard]] std::shared_ptr<platform::IRenderCommandEncoder>
+        get_command_encoder() const noexcept;
 
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect&) override;

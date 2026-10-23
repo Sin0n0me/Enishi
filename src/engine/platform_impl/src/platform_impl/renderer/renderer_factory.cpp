@@ -60,10 +60,8 @@ namespace enishi::platform_impl {
         if (result.is_err()) {
             return std::move(result).unwrap_err();
         }
-        // The alias keeps the renderer and its resources alive while the encoder is in use.
         auto renderer = std::move(result).unwrap();
-        auto encoder = std::shared_ptr<platform::IRenderCommandEncoder>(
-            renderer, &renderer->get_command_encoder());
+        auto encoder = renderer->get_command_encoder();
         return RendererInstance{std::move(renderer), std::move(encoder)};
     }
 } // namespace enishi::platform_impl

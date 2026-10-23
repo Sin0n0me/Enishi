@@ -1,38 +1,41 @@
 #include "vulkan_render_command_encoder.h"
 #include <renderer/vulkan/command/vulkan_commands.h>
+#include <utility>
 
 namespace enishi::renderer::vulkan {
 
     VulkanRenderCommandEncoder::VulkanRenderCommandEncoder(
-        VulkanRendererState& state, ResourceAccessor& resource_accessor)
-        : state(state)
-        , resource_accessor(resource_accessor) {
+        std::shared_ptr<IVulkanRenderResources> resources)
+        : resources(std::move(resources)) {
     }
     void VulkanRenderCommandEncoder::setup_viewports() const {
         return VulkanCommands::setup_viewports();
     }
     void VulkanRenderCommandEncoder::setup_views() const {
-        return VulkanCommands::setup_views(this->state, this->resource_accessor);
+        return VulkanCommands::setup_views(
+            this->resources->get_state(), this->resources->get_resource_accessor());
     }
     void VulkanRenderCommandEncoder::submit_command_shader(
         const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_shader(this->state, command);
+        return VulkanCommands::submit_command_shader(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::submit_command_state(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_state(this->state, command);
+        return VulkanCommands::submit_command_state(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::submit_command_view(
         const types::DrawCommand& command, const types::RenderHandle& render_target) const {
-        return VulkanCommands::submit_command_view(
-            this->state, this->resource_accessor, command, render_target);
+        return VulkanCommands::submit_command_view(this->resources->get_state(),
+            this->resources->get_resource_accessor(),
+            command,
+            render_target);
     }
     void VulkanRenderCommandEncoder::submit_command_viewport(
         const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_viewport(this->state, command);
+        return VulkanCommands::submit_command_viewport(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::submit_command_topology(
         const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_topology(this->state, command);
+        return VulkanCommands::submit_command_topology(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::submit_command_vertex_layout(
         const types::DrawCommand& command) const {
@@ -40,19 +43,20 @@ namespace enishi::renderer::vulkan {
     }
     void VulkanRenderCommandEncoder::submit_command_buffer(
         const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_buffer(this->state, command);
+        return VulkanCommands::submit_command_buffer(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::submit_command_image(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_image(this->state, command);
+        return VulkanCommands::submit_command_image(this->resources->get_state(), command);
     }
     void VulkanRenderCommandEncoder::draw(const types::RenderHandle& handle) const {
-        return VulkanCommands::draw(this->state, handle);
+        return VulkanCommands::draw(this->resources->get_state(), handle);
     }
     void VulkanRenderCommandEncoder::submit_command_mesh(
         const types::DrawCommand& command, const types::RenderHandle& render_target) const {
-        return VulkanCommands::submit_command_mesh(this->state, command, render_target);
+        return VulkanCommands::submit_command_mesh(
+            this->resources->get_state(), command, render_target);
     }
     void VulkanRenderCommandEncoder::present() const {
-        return VulkanCommands::present(this->state);
+        return VulkanCommands::present(this->resources->get_state());
     }
 } // namespace enishi::renderer::vulkan
