@@ -138,8 +138,9 @@ endif()
 if(USE_OPENGL40)
     target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/PrepareOpenGLShaders.cmake")
-    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/glsl"
+    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
         "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    add_dependencies(${PROJECT_NAME} enishi_opengl_shaders)
     target_compile_definitions(platform_impl PRIVATE
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
     option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
@@ -151,7 +152,7 @@ endif()
 
 if(USE_VULKAN)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
-    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"
+    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
         "${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
     add_dependencies(${PROJECT_NAME} enishi_vulkan_shaders)
     target_compile_definitions(platform_impl PRIVATE

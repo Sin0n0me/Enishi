@@ -1,6 +1,6 @@
 #include "common/constant_buffer/material.hlsl"
-Texture2D model_texture : register(t0);
-SamplerState model_sampler : register(s0);
+ENISHI_BINDING(3, 0) ENISHI_COMBINED Texture2D model_texture : register(t0);
+ENISHI_BINDING(3, 0) ENISHI_COMBINED SamplerState model_sampler : register(s0);
 
 void main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) {
     static const float ALPHA_CUTOFF = 0.5f;

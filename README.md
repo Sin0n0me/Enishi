@@ -18,6 +18,25 @@ build\build.cmd <opengl|directx|vulkan> [Debug|Release|RelWithDebInfo|MinSizeRel
 構成を省略した場合は `Debug`、ツールチェーンを省略した場合は `auto` を使用します。
 `auto` は Visual Studio、Clang、GCC の順に利用可能なツールチェーンを選択します。
 
+### 共通シェーダーの生成
+
+描画ロジックは `src/shader/hlsl` に集約しています。モデル・シャドウ・透明な壁のパスを変更する場合は、このHLSLと `common` 配下を編集してください。
+
+- DirectX11: HLSLをFXCでDXBCへ直接コンパイルします。
+- Vulkan: HLSLをDXCでSPIR-Vへコンパイルします。
+- OpenGL: HLSLをDXCでSPIR-Vへコンパイルし、SPIRV-Cross CLIでGLSL 4.0へ変換します。
+
+OpenGLにも公式Vulkan SDKの `dxc` と `spirv-val`、Python 3が必要です。SDKの `Bin` をPATHへ追加するか、`VULKAN_SDK` を設定してください。CMakeの `ENISHI_DXC_EXECUTABLE` と `ENISHI_SPIRV_VAL_EXECUTABLE` でも指定できます。
+
+初回はプロジェクトルートでサブモジュールを取得してください。
+
+```bat
+git submodule update --init tools/SPIRV-Cross
+```
+
+通常のアプリビルドでSPIRV-Crossもビルドされます。HLSL本体・共通include・変換スクリプト・変換ツールの更新時は、CMakeが依存関係からシェーダーを再生成します。生成GLSLを直接編集する必要はありません。
+CLIと生成シェーダーはビルドディレクトリへ出力し、中間SPIR-Vは変換後に削除します。成果物はGit管理に含めません。
+
 ### Visual Studio
 
 ```bat
@@ -46,7 +65,7 @@ build\build.cmd directx Release clang
 ### Vulkan
 
 CMake 3.24以降と、[公式Vulkan SDK](https://vulkan.lunarg.com/sdk/home)が必要です。
-SDKに含まれるVulkanヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`を使用します。
+SDKに含まれるVulkanヘッダー・ローダー、`dxc`、`spirv-val`、`Source/SPIRV-Reflect`を使用します。
 実行環境にはVulkan 1.1以上に対応したGPUドライバーと、64 KiB以上のuniform buffer範囲が必要です。
 
 ```bat
@@ -54,7 +73,7 @@ build\build.cmd vulkan Debug
 ```
 
 生成先は `build\vulkan\visualstudio`（Clang指定時は `build\vulkan\clang`）です。
-Vulkan用GLSLはビルド時にSPIR-Vへ変換され、ビルドディレクトリの `shader\vulkan` から読み込まれます。
+共通HLSLはビルド時にDXCでSPIR-Vへ変換され、ビルドディレクトリの `shader\vulkan` から読み込まれます。
 `assets` へのシェーダーのコピーや、`shader_compile.py` の実行は不要です。
 
 SDKを通常のインストーラーで導入していない場合は、ビルド前に `VULKAN_SDK` をSDKのルートに設定してください。

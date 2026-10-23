@@ -1,5 +1,10 @@
+#ifndef ENISHI_SHADER_BACKEND
+#include "common/backend.hlsl"
+#endif
+
+ENISHI_BINDING(1, 0)
 cbuffer Bones : register(b1) {
-    column_major matrix bone_matrices[512];
+    column_major matrix bone_matrices[ENISHI_BONE_CAPACITY];
 };
 
 static const uint SKIN_LINEAR = 0u;

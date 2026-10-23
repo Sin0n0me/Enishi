@@ -1,3 +1,4 @@
+#include "skinning_tests.h"
 #include <array>
 #include <bit>
 #include <cmath>
@@ -79,7 +80,8 @@ namespace {
                 &this->device,
                 nullptr,
                 &this->context));
-            const auto source = read_shader("/hlsl/common/input_vs_model.hlsl") +
+            const auto source = read_shader("/hlsl/common/backend.hlsl") +
+                                read_shader("/hlsl/common/input_vs_model.hlsl") +
                                 read_shader("/hlsl/common/constant_buffer/bones.hlsl") + R"(
 StructuredBuffer<VSInput> vertices : register(t0);
 struct Output { float3 position; float3 normal; };
@@ -379,7 +381,7 @@ void material_shader_tests() {
     }
 }
 
-int main() {
+int run_skinning_tests() {
     shader_layout_validation_tests();
     shader_signature_tests();
     material_shader_tests();
@@ -389,4 +391,7 @@ int main() {
     rigid_quaternion_tests(runner);
     spherical_anchor_tests(runner);
     std::cout << "Skinning packing and WARP shader tests passed\n";
+    return EXIT_SUCCESS;
 }
+
+int main() { return run_skinning_tests(); }

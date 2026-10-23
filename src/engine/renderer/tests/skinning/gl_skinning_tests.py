@@ -64,13 +64,13 @@ def rotation(angle):
     return m
 
 
-def run_tests():
+def run_tests(directory):
     uint = c.c_uint
     integer = c.c_int
     pointer = c.c_void_p
     create_shader = gl("glCreateShader", uint, uint)
     shader = create_shader(0x8B31)  # GL_VERTEX_SHADER
-    source = (Path(__file__).resolve().parents[4] / "shader/glsl/vs_model_gl.glsl").read_bytes()
+    source = (directory / "vs_model_gl.glsl").read_bytes()
     source_pointer = c.c_char_p(source)
     gl("glShaderSource", None, uint, integer, c.POINTER(c.c_char_p), pointer)(shader, 1, c.byref(source_pointer), None)
     gl("glCompileShader", None, uint)(shader)
@@ -80,7 +80,7 @@ def run_tests():
     gl("glGetShaderInfoLog", None, uint, integer, pointer, pointer)(shader, len(log), None, log)
     check(status.value == 1, log.value.decode())
     fragment = create_shader(0x8B30)  # GL_FRAGMENT_SHADER
-    fragment_source = (Path(__file__).resolve().parents[4] / "shader/glsl/ps_model_gl.glsl").read_bytes()
+    fragment_source = (directory / "ps_model_gl.glsl").read_bytes()
     fragment_pointer = c.c_char_p(fragment_source)
     gl("glShaderSource", None, uint, integer, c.POINTER(c.c_char_p), pointer)(fragment, 1, c.byref(fragment_pointer), None)
     gl("glCompileShader", None, uint)(fragment)
@@ -188,4 +188,5 @@ def run_with_context(test):
 
 
 if __name__ == "__main__":
-    run_with_context(run_tests)
+    import sys
+    run_with_context(lambda: run_tests(Path(sys.argv[1])))

@@ -2,12 +2,12 @@
 #include "common/constant_buffer/material.hlsl"
 #include "common/shadow_visibility.hlsl"
 
-Texture2D model_texture : register(t0);
-Texture2D sphere_texture : register(t1);
-Texture2D toon_texture : register(t2);
-SamplerState model_sampler : register(s0);
-SamplerState sphere_sampler : register(s1);
-SamplerState toon_sampler : register(s2);
+ENISHI_BINDING(3, 0) ENISHI_COMBINED Texture2D model_texture : register(t0);
+ENISHI_BINDING(4, 0) ENISHI_COMBINED Texture2D sphere_texture : register(t1);
+ENISHI_BINDING(5, 0) ENISHI_COMBINED Texture2D toon_texture : register(t2);
+ENISHI_BINDING(3, 0) ENISHI_COMBINED SamplerState model_sampler : register(s0);
+ENISHI_BINDING(4, 0) ENISHI_COMBINED SamplerState sphere_sampler : register(s1);
+ENISHI_BINDING(5, 0) ENISHI_COMBINED SamplerState toon_sampler : register(s2);
 
 
 float4 apply_sphere(
