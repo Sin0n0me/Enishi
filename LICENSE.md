@@ -86,6 +86,11 @@ vulkan.h, vulkan_core.h, vulkan_win32.h: Copyright 2015-2026 The Khronos Group I
 The Vulkan SDK is a collection of separately licensed components. This entry
 covers the API headers used by Enishi, not every SDK tool or system driver.
 
+SPIRV-Cross (build-time shader transpiler)
+Source: https://github.com/KhronosGroup/SPIRV-Cross
+License: Apache-2.0
+LICENSE: license text 10; copyright notices are retained in tools/SPIRV-Cross.
+
 Musubu and its compiler/runtime crates
 Source: https://github.com/Sin0n0me/Musubu
 License: MIT
