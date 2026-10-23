@@ -1,6 +1,7 @@
 #include "background_render_pass_constructor.h"
 #include <render_pass/constructor/pipeline_description_builder.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
+#include <utility>
 
 namespace enishi::render_pass {
     namespace {
@@ -27,16 +28,10 @@ namespace enishi::render_pass {
         }
     } // namespace
 
-#if defined(USE_VULKAN)
-    constexpr char VS_FILE_NAME[] = "vs_clear_wall_vk";
-    constexpr char PS_FILE_NAME[] = "ps_clear_wall_vk";
-#elif defined(USE_OPENGL40)
-    constexpr char VS_FILE_NAME[] = "vs_clear_wall_gl";
-    constexpr char PS_FILE_NAME[] = "ps_clear_wall_gl";
-#else
-    constexpr char VS_FILE_NAME[] = "vs_clear_wall";
-    constexpr char PS_FILE_NAME[] = "ps_clear_wall";
-#endif
+    BackgroundRenderPassConstructor::BackgroundRenderPassConstructor(
+        platform::RenderBackendDescription backend)
+        : backend(std::move(backend)) {
+    }
 
     foundation::Result<std::shared_ptr<platform::IRenderPass>, ConstructError>
     BackgroundRenderPassConstructor::make(platform::IRenderer* const renderer,
@@ -54,12 +49,7 @@ namespace enishi::render_pass {
                         ->add_shader_resource(shadow_depth)
                         ->add_swap_chain_render_target_view(types::ImageFormat::BGRA8_UNORM)
                         ->add_shaders(shader_data_provider, this->get_paths())
-                        ->add_depth_stencil_view(
-#if defined(USE_VULKAN)
-                            types::ImageFormat::D32_FLOAT)
-#else
-                            types::ImageFormat::D24_UNORM_S8_UINT)
-#endif
+                        ->add_depth_stencil_view(this->backend.depth_format)
                         ->add_blend_state(types::BlendStateDescription{
                             .alpha_to_coverage = false,
                             .independent_blend = false,
@@ -112,8 +102,8 @@ namespace enishi::render_pass {
     std::vector<std::tuple<types::ShaderKind, std::filesystem::path>>
     BackgroundRenderPassConstructor::get_paths(void) const noexcept {
         return {
-            {types::ShaderKind::Vertex, VS_FILE_NAME},
-            {types::ShaderKind::Pixel, PS_FILE_NAME},
+            {types::ShaderKind::Vertex, "vs_clear_wall" + this->backend.shader_suffix},
+            {types::ShaderKind::Pixel, "ps_clear_wall" + this->backend.shader_suffix},
         };
     }
 

@@ -1,6 +1,5 @@
 #include "render_system.h"
 #include "bone_matrix_upload.h"
-#include "camera_upload.h"
 #include "material_morph_upload.h"
 #include "shadow_upload.h"
 #include "vertex_morph_upload.h"
@@ -8,6 +7,7 @@
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <foundation/log/logger.h>
+#include <renderer/common/upload/camera_upload.h>
 
 namespace enishi::core {
     RenderSystem::RenderSystem(std::shared_ptr<ecs::Registry> registry,
@@ -33,10 +33,6 @@ namespace enishi::core {
 
     void RenderSystem::set_ui(std::shared_ptr<sub_system::IUI> ui) {
         this->ui = std::move(ui);
-    }
-
-    bool enishi::core::RenderSystem::should_close(void) {
-        return false;
     }
 
     void enishi::core::RenderSystem::pre_update(void) {
@@ -68,7 +64,8 @@ namespace enishi::core {
                     continue;
                 }
                 // Upload every visible mesh, including newly loaded or re-shown models.
-                const auto result = upload_camera(*this->renderer, model.render_handle, snapshot);
+                const auto result =
+                    renderer::upload_camera(*this->renderer, model.render_handle, snapshot);
                 if (result.is_err()) {
                     foundation::Logger::warning(result.unwrap_err().get_message());
                 }

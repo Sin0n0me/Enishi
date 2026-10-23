@@ -39,7 +39,6 @@ namespace enishi::core {
         foundation::VoidResult<sub_system::CameraError> set_view_projection(
             const glm::mat4& view, const glm::mat4& projection) override;
         void reset() override;
-        bool should_close() override;
         void pre_update() override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update() override;

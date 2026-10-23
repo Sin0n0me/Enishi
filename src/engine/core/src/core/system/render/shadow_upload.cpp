@@ -1,62 +1,11 @@
 #include "shadow_upload.h"
-#include "camera_upload.h"
 #include <component/model_component.h>
 #include <component/skinning_component.h>
 #include <engine_types/renderer/uniform_buffer/shadow_receiver.h>
+#include <renderer/common/upload/camera_upload.h>
+#include <renderer/common/upload/shadow_uniform_upload.h>
 
 namespace enishi::core {
-    namespace {
-        foundation::Result<void, platform::RenderError> write_shadow(
-            platform::IResourceUpdater& updater, const types::UniformShadow& shadow) {
-            auto& resource = updater.get_resource();
-            const auto data = resource.get_render_data();
-            if (data.stride != sizeof(types::UniformShadow) ||
-                data.byte_width() != sizeof(types::UniformShadow)) {
-                return foundation::Error(platform::RenderError::ResolveError,
-                    "Shadow buffer capacity or stride mismatch");
-            }
-            resource.update(shadow, 0);
-            updater.on_update();
-            return {};
-        }
-
-        foundation::Result<void, platform::RenderError> upload_model_shadow(
-            platform::IRenderer& renderer,
-            types::RenderHandle mesh_handle,
-            const types::UniformShadow& shadow) {
-            const auto mapped = renderer.get_handle_mapper()->get(mesh_handle);
-            if (mapped.is_none()) {
-                return foundation::Error(
-                    platform::RenderError::ResolveError, "Model mesh handle is missing");
-            }
-            auto* resources = renderer.get_resource_accessor()->get_resource_accessor();
-            const auto mesh =
-                resources->get_mesh_accessor()->get_mesh_handle(mapped.unwrap().resource);
-            if (mesh.is_none()) {
-                return foundation::Error(
-                    platform::RenderError::ResolveError, "Model mesh resource is missing");
-            }
-            const auto& uniforms = mesh.unwrap().uniform_buffers;
-            const auto found = uniforms.find(types::UniformShadow::UNIFORM_NAME);
-            if (found == uniforms.end() || found->second.empty()) {
-                return foundation::Error(
-                    platform::RenderError::ResolveError, "Model shadow uniform is missing");
-            }
-            for (const auto handle : found->second) {
-                const auto buffer = resources->get_buffer_accessor()->get_buffer(handle);
-                if (buffer.is_none() || buffer.unwrap() == nullptr) {
-                    return foundation::Error(
-                        platform::RenderError::ResolveError, "Shadow updater is missing");
-                }
-                auto result = write_shadow(*buffer.unwrap(), shadow);
-                if (result.is_err()) {
-                    return result;
-                }
-            }
-            return {};
-        }
-    } // namespace
-
     foundation::Result<void, platform::RenderError> upload_shadow(platform::IRenderer& renderer,
         ecs::Registry& registry,
         const types::UniformCamera& camera,
@@ -91,11 +40,11 @@ namespace enishi::core {
         const auto shadow =
             receivers.empty() ? types::fit_shadow_projection(light_bounds) : receiver.shadow;
         for (const auto mesh : receivers) {
-            auto result = upload_camera(renderer, mesh, receiver.camera);
+            auto result = renderer::upload_camera(renderer, mesh, receiver.camera);
             if (result.is_err()) {
                 return result;
             }
-            result = upload_model_shadow(renderer, mesh, shadow);
+            result = renderer::upload_model_shadow(renderer, mesh, shadow);
             if (result.is_err()) {
                 return result;
             }
@@ -106,7 +55,8 @@ namespace enishi::core {
             }
             auto model_shadow = shadow;
             model_shadow.options.x = self_shadow_enabled ? 0.0f : 1.0f;
-            auto result = upload_model_shadow(renderer, model.render_handle, model_shadow);
+            auto result =
+                renderer::upload_model_shadow(renderer, model.render_handle, model_shadow);
             if (result.is_err()) {
                 return result;
             }

@@ -39,7 +39,6 @@ namespace enishi::core {
             const std::string& id) override;
         void hide_model(const std::string& id) override;
 
-        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;

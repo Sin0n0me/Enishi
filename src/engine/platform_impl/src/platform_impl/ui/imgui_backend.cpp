@@ -6,7 +6,7 @@
 #if defined(USE_VULKAN)
 #include <backends/imgui_impl_vulkan.h>
 #include <foundation/log/logger.h>
-#include <renderer/vulkan/vulkan_renderer.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
 #elif defined(USE_OPENGL40)
 #include <backends/imgui_impl_opengl3.h>
 #else

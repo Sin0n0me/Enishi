@@ -1,3 +1,6 @@
+#include "vulkan_render_tests.h"
+#include "render_pass_test.h"
+#include "shadow_render_test.h"
 #include <SDL3/SDL.h>
 #include <array>
 #include <backends/imgui_impl_sdl3.h>
@@ -13,11 +16,10 @@
 #include <iostream>
 #include <iterator>
 #include <renderer/common/converter/skinned_vertices.h>
-#include <renderer/vulkan/vulkan_render_initializer.h>
+#include <renderer/common/upload/buffer_upload.h>
+#include <renderer/vulkan/runtime/vulkan_render_initializer.h>
 
 using namespace enishi;
-void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer);
-bool render_pass_test(const std::shared_ptr<platform::IRenderer>& renderer);
 namespace {
     constexpr int WIDTH = 256;
     constexpr int HEIGHT = 256;
@@ -132,19 +134,19 @@ namespace {
         auto bones = uniform(renderer, mesh, "Bones");
         std::array<glm::mat4, types::HeavyModelBones::CAPACITY> palette;
         palette.fill(glm::mat4{1});
-        success(core::write_bone_matrices(*bones, palette));
+        success(renderer::write_bone_matrices(*bones, palette));
         auto pixels = take(device->make_buffer(
             static_cast<VkDeviceSize>(device->extent.width) * device->extent.height * CHANNELS,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT));
         const auto frame = [&]() {
-            renderer.setup_views();
+            renderer.get_command_encoder()->setup_views();
             require(device->recording, "Frame not acquired");
-            renderer.submit_command_state(bind(first_sampler));
-            renderer.submit_command_mesh(bind(mesh), {});
-            renderer.submit_command_state(bind(second_sampler));
-            renderer.submit_command_mesh(bind(mesh), {});
-            renderer.submit_command_state(bind(first_sampler));
-            renderer.submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(first_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(second_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
+            renderer.get_command_encoder()->submit_command_state(bind(first_sampler));
+            renderer.get_command_encoder()->submit_command_mesh(bind(mesh), {});
             success(device->end_frame(pixels));
             return centroid(*pixels, device->extent.width, device->extent.height);
         };
@@ -158,7 +160,7 @@ namespace {
         if (method == types::SkinningMethod::SphericalBlend) {
             palette[3] = glm::mat4{1};
         }
-        success(core::write_bone_matrices(*bones, palette));
+        success(renderer::write_bone_matrices(*bones, palette));
         const auto after = frame();
         // Two translated influences contribute (0.3 + 0.4) * translation; NDC spans two units.
         const auto expected = 0.7 * TRANSLATION * device->extent.width / 2.0;
@@ -213,7 +215,7 @@ namespace {
         ImGui::GetBackgroundDrawList()->AddRectFilled(
             {0, 0}, {UI_SIZE, UI_SIZE}, IM_COL32(255, 0, 0, 255));
         ImGui::Render();
-        renderer.setup_views();
+        renderer.get_command_encoder()->setup_views();
         require(device->recording, "UI frame not acquired");
         device->begin_main_pass();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
@@ -237,14 +239,14 @@ namespace {
         SDL_PumpEvents();
         const auto device = renderer.get_native_context();
         for (int frame = 0; frame < MAXIMUM_FRAMES; ++frame) {
-            renderer.setup_views();
+            renderer.get_command_encoder()->setup_views();
             success(device->end_frame());
         }
         require(device->extent.width == RESIZED_WIDTH && device->extent.height == HEIGHT,
             "Swapchain did not follow window resize");
     }
 } // namespace
-int main() {
+int enishi::renderer::tests::run_vulkan_render_tests() {
     require(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
     const auto window = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>(
         SDL_CreateWindow(
@@ -258,11 +260,11 @@ int main() {
     take(renderer->create_shader_reflection(vertex));
     take(renderer->create_shader_reflection(fragment));
     take(renderer->create_vertex_layout_from_shader_data(vertex));
-    renderer->submit_command_shader(
+    renderer->get_command_encoder()->submit_command_shader(
         bind(take(renderer->create_shader(types::ShaderKind::Vertex, vertex))));
-    renderer->submit_command_shader(
+    renderer->get_command_encoder()->submit_command_shader(
         bind(take(renderer->create_shader(types::ShaderKind::Pixel, fragment))));
-    renderer->submit_command_state(
+    renderer->get_command_encoder()->submit_command_state(
         bind(take(renderer->create_rasterizer(types::RasterizerStateDescription::no_cull()))));
     require(renderer->create_shader(types::ShaderKind::Pixel, vertex).is_err(),
         "Shader stage mismatch was accepted");
@@ -280,4 +282,8 @@ int main() {
     device.reset();
     std::cout << "Vulkan model, bone update and UI rendering passed without validation errors\n";
     return EXIT_SUCCESS;
+}
+
+int main() {
+    return enishi::renderer::tests::run_vulkan_render_tests();
 }

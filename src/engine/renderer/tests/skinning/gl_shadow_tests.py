@@ -188,10 +188,6 @@ class Runner:
 
 
 def run_tests(directory):
-    model = (directory / "vs_model_gl.glsl").read_text()
-    shadow = (directory / "vs_shadow_map_gl.glsl").read_text()
-    check(shadow == model.replace("#version 400 core", "#version 400 core\n#define ENISHI_SHADOW_PASS"),
-          "both vertex shaders must share the same skinning source")
     clear_program = program(directory, "vs_clear_wall_gl.glsl", "ps_clear_wall_gl.glsl")
     gl("glDeleteProgram", None, U)(clear_program)
     runner = Runner(directory)

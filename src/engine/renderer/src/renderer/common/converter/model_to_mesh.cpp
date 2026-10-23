@@ -166,12 +166,10 @@ namespace enishi::renderer {
                 });
         }
 
-#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
         std::vector<std::byte> shadow;
         append_bytes(shadow, types::UniformShadow{});
         uniforms.emplace(types::UniformShadow::UNIFORM_NAME,
             types::OwnedRenderData{std::move(shadow), sizeof(types::UniformShadow)});
-#endif
         auto&& addon_result = ModelToMesh::to_uniforms_from_addon(model_data, uniforms);
         if (addon_result.is_err()) {
             return std::move(addon_result).unwrap_err();

@@ -70,7 +70,11 @@ FetchContent_MakeAvailable(PHYSICS)
 FetchContent_Declare(COLLIDER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../collider)
 FetchContent_MakeAvailable(COLLIDER)
 
+FetchContent_Declare(RENDERER SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../renderer)
+FetchContent_MakeAvailable(RENDERER)
+
 set(DEPENDENCIES
+    PRIVATE renderer
     PUBLIC collider
     PUBLIC platform
     PUBLIC sub_system
@@ -114,25 +118,4 @@ enishi_configure_library(${PROJECT_NAME}
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
-
-
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
 endif()

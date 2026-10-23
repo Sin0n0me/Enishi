@@ -7,7 +7,7 @@ namespace enishi::core {
     ModelClickSystem::ModelClickSystem(std::shared_ptr<collider::Collider> collider,
         std::shared_ptr<platform::IWindow> window,
         std::shared_ptr<ecs::Registry> registry,
-        std::shared_ptr<ModelClickSettings> settings,
+        std::shared_ptr<types::ModelClickSettings> settings,
         std::shared_ptr<sub_system::ICameraController> camera)
         : collider(std::move(collider))
         , window(std::move(window))
@@ -32,7 +32,7 @@ namespace enishi::core {
         const auto ray =
             types::Ray::make_ray_from_screen(size.unwrap(), cursor, this->camera->get_camera());
         const auto hit = this->collider->raycast(ray);
-        if (!apply_click_mode || this->settings->mode != ModelClickMode::Push || !hit.has_value()) {
+        if (!apply_click_mode || this->settings->mode != types::ModelClickMode::Push || !hit.has_value()) {
             return hit;
         }
         if (hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
@@ -84,9 +84,6 @@ namespace enishi::core {
         }
     }
 
-    bool ModelClickSystem::should_close(void) {
-        return false;
-    }
     void ModelClickSystem::post_update(void) {
     }
     void ModelClickSystem::render(void) const {

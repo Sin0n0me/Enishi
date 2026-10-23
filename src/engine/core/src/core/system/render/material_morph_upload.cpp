@@ -1,20 +1,9 @@
 #include "material_morph_upload.h"
 #include <animation/morph/material_morph.h>
 #include <cstring>
+#include <renderer/common/upload/buffer_upload.h>
 
 namespace enishi::core {
-    platform::RenderResult<void> write_material_uniform(
-        platform::IResourceUpdater& updater, const types::UniformMaterial& material) {
-        auto& resource = updater.get_resource();
-        if (resource.get_render_data().byte_width() < sizeof(material)) {
-            return foundation::Error(
-                platform::RenderError::ResolveError, "Material uniform buffer is too small");
-        }
-        std::memcpy(&resource[0], &material, sizeof(material));
-        updater.on_update();
-        return {};
-    }
-
     platform::RenderResult<void> upload_material_morphs(platform::IRenderer& renderer,
         const component::ModelComponent& model,
         const component::MorphComponent& morph) {
@@ -51,7 +40,8 @@ namespace enishi::core {
                     return foundation::Error(
                         platform::RenderError::ResolveError, "Material morph updater is missing");
                 }
-                auto result = write_material_uniform(*buffer.unwrap(), materials.unwrap()[index]);
+                auto result =
+                    renderer::write_material_uniform(*buffer.unwrap(), materials.unwrap()[index]);
                 if (result.is_err()) {
                     return result;
                 }

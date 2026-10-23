@@ -157,9 +157,6 @@ namespace enishi::core {
             this->previous = position;
         }
     }
-    bool WindowAnimationSync::should_close() {
-        return false;
-    }
     void WindowAnimationSync::pre_update() {
     }
     void WindowAnimationSync::post_update() {

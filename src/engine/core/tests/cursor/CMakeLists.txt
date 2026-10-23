@@ -1,4 +1,4 @@
-add_executable(enishi_cursor_tests cursor_tests.cpp window_animation_sync_tests.cpp)
+add_executable(enishi_cursor_tests cursor_tests.cpp window_animation_sync_tests.cpp config_reader_tests.cpp)
 target_link_libraries(enishi_cursor_tests PRIVATE core)
 target_compile_features(enishi_cursor_tests PRIVATE cxx_std_23)
 if(MSVC)

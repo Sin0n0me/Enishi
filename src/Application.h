@@ -1,7 +1,7 @@
 #pragma once
 #include "settings.h"
 #include <core/system/asset/asset_manager.h>
-#include <core/system/collision/model_click_settings.h>
+#include <engine_types/input/model_click_settings.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
 #include <core/system/window/window_manager.h>
@@ -19,10 +19,11 @@ namespace enishi {
     class Application {
       private:
         std::shared_ptr<ecs::Registry> registry;
-        std::shared_ptr<core::ModelClickSettings> click_settings;
+        std::shared_ptr<types::ModelClickSettings> click_settings;
         std::shared_ptr<sub_system::ICameraController> camera;
         std::shared_ptr<sub_system::ICameraController> display_camera;
         std::shared_ptr<sub_system::IWindowAnimationSync> window_animation_sync;
+        std::shared_ptr<platform::IWindow> root_window;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;

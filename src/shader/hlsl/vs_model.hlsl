@@ -17,7 +17,8 @@ PSInput main(const VSInput input) {
     const float4 skinned_pos = float4(deformed.position, 1.0);
     const float4 clip_pos = apply_camera(skinned_pos);
     const float3 skinned_nor = normalize(deformed.normal);
-    const matrix mv = view * world;
+    // Compose model-to-world and world-to-view transforms: MV = V * W.
+    const matrix mv = mul(view, world);
     const float3 view_pos = mul(mv, skinned_pos).xyz;
     const float3 view_nor = normalize(mul((float3x3)mv, skinned_nor));
     const float3 view_light = normalize(mul((float3x3)view, light_direction));

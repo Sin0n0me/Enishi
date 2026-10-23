@@ -1,7 +1,7 @@
 .vs/
 x64/
 out/
-build/**/
+/build/*
 build_cmake/
 assets/**/
 CMakeFiles/
@@ -31,3 +31,6 @@ log.txt
 /cache/last_model.txt
 
 
+
+# Optional in-source SPIRV-Cross build output (normal builds use build/).
+/tools/SPIRV-Cross/build/

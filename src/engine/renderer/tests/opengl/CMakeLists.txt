@@ -1,7 +1,8 @@
 add_executable(opengl_shadow_tests opengl_shadow_tests.cpp)
+add_dependencies(opengl_shadow_tests enishi_opengl_shaders)
 target_compile_features(opengl_shadow_tests PRIVATE cxx_std_23)
 target_compile_definitions(opengl_shadow_tests PRIVATE NOMINMAX)
-target_link_libraries(opengl_shadow_tests PRIVATE renderer render_pass core SDL3::SDL3)
+target_link_libraries(opengl_shadow_tests PRIVATE renderer render_pass core platform_impl SDL3::SDL3)
 add_test(NAME opengl_shadow_tests COMMAND opengl_shadow_tests)
 set_tests_properties(opengl_shadow_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -14,5 +15,6 @@ if(WIN32)
         "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_shadow_tests.py"
         "${CMAKE_BINARY_DIR}/shader/opengl")
     add_test(NAME opengl_skinning_shaders COMMAND "${Python3_EXECUTABLE}" -B
-        "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_skinning_tests.py")
+        "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_skinning_tests.py"
+        "${CMAKE_BINARY_DIR}/shader/opengl")
 endif()

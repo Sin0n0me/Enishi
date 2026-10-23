@@ -131,16 +131,17 @@ if(USE_DIRECTX_11)
     enishi_compile_hlsl_shaders(enishi_hlsl_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
         "${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
     add_dependencies(${PROJECT_NAME} enishi_hlsl_shaders)
-    target_compile_definitions(core PRIVATE
+    target_compile_definitions(platform_impl PRIVATE
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
 endif()
 
 if(USE_OPENGL40)
     target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/PrepareOpenGLShaders.cmake")
-    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/glsl"
+    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
         "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
-    target_compile_definitions(core PRIVATE
+    add_dependencies(${PROJECT_NAME} enishi_opengl_shaders)
+    target_compile_definitions(platform_impl PRIVATE
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
     option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
     if(ENISHI_OPENGL_TESTS)
@@ -151,10 +152,10 @@ endif()
 
 if(USE_VULKAN)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
-    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/vulkan"
+    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
         "${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
     add_dependencies(${PROJECT_NAME} enishi_vulkan_shaders)
-    target_compile_definitions(core PRIVATE
+    target_compile_definitions(platform_impl PRIVATE
         ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
     option(ENISHI_VULKAN_TESTS "Build synthetic Vulkan rendering tests without model assets" OFF)
     if(ENISHI_VULKAN_TESTS)
@@ -193,27 +194,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
-
-
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME} ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
 endif()

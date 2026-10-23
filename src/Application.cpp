@@ -1,7 +1,8 @@
 #include "application.h"
 #include <script/script_engine.h>
 #include <core/system/animation/animation_system.h>
-#include <core/system/animation/cursor_pose_config.h>
+#include <core/config/application_settings.h>
+#include <core/system/animation/bone_name_config.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
 #include <core/system/animation/model_event_motion_handler.h>
@@ -12,11 +13,11 @@
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
 #include <core/system/window/window_animation_sync.h>
-#include <core/system/ui/selection_ui.h>
+#include <ui/selection/selection_ui.h>
 #include <core/system/ui/ui_system.h>
 #include <foundation/log/logger.h>
 #include <foundation/str/string_builder.h>
-#include <platform_impl/physics/physics_config.h>
+#include <physics/common/physics_config.h>
 #include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
@@ -26,15 +27,8 @@
 #include <physics/bullet3/physics_engine.h>
 
 #include <core/system/asset/shader/shader_data_provider.h>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
-#if defined(USE_VULKAN)
-#include <renderer/vulkan/vulkan_render_initializer.h>
-#elif defined(USE_OPENGL40)
-#include <renderer/opengl/opengl40/opengl40_render_initializer.h>
-#else
-#include <renderer/directx/directx11/d3d11_render_initializer.h>
-#include <renderer/directx/directx11/d3d11_renderer.h>
-#endif
 
 int main(void) {
     /*
@@ -74,7 +68,7 @@ namespace enishi {
 
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
-        this->click_settings = std::make_shared<core::ModelClickSettings>();
+        this->click_settings = std::make_shared<types::ModelClickSettings>();
         this->camera = std::make_shared<core::CameraController>();
 
         // システムの追加
@@ -83,7 +77,7 @@ namespace enishi {
             this->system_scheduler.register_system<core::AnimationSystem>(80, this->registry);
 
         auto physics_engine = std::make_shared<physics::bullet3::PhysicsEngine>(
-            std::make_shared<platform_impl::PhysicsWorldConfig>());
+            std::make_shared<physics::PhysicsWorldConfig>());
         auto skinning_system = this->system_scheduler.register_system<core::SkinningSystem>(
             85, this->registry, physics_engine);
 
@@ -95,7 +89,8 @@ namespace enishi {
             COLLISION_PRIORITY, this->registry, collider);
 
         // ウィンドウの初期化
-        const auto root_window = this->init_window();
+        this->root_window = this->init_window();
+        const auto& root_window = this->root_window;
         if (!bool(root_window)) {
             return false;
         }
@@ -108,37 +103,34 @@ namespace enishi {
         this->window_animation_sync = window_sync;
         this->display_camera = window_sync;
         skinning_system->set_camera(this->display_camera);
-        core::CameraZoomConfig zoom_config;
-        auto zoom_settings = core::load_camera_zoom_config("config/camera.cfg");
-        if (zoom_settings.is_err()) {
-            foundation::Logger::warning(zoom_settings.unwrap_err().get_message());
+        core::ApplicationSettings settings;
+        auto loaded_settings = core::load_application_settings("config/settings.cfg");
+        if (loaded_settings.is_err()) {
+            foundation::Logger::warning(loaded_settings.unwrap_err().get_message());
         } else {
-            zoom_config = std::move(zoom_settings).unwrap();
+            settings = std::move(loaded_settings).unwrap();
         }
         // Polling is priority 80; update the camera before click picking in pre_update (97).
         constexpr core::Priority CAMERA_ZOOM_PRIORITY = 81;
         this->system_scheduler.register_system<core::CameraZoomSystem>(
-            CAMERA_ZOOM_PRIORITY, root_window, this->camera, zoom_config);
-        auto cursor_config = core::load_cursor_pose_config("config/cursor_tracking.cfg");
-        if (cursor_config.is_err()) {
-            foundation::Logger::warning(cursor_config.unwrap_err().get_message());
+            CAMERA_ZOOM_PRIORITY, root_window, this->camera, settings.camera);
+        skinning_system->set_cursor_config(settings.cursor_tracking);
+        this->click_settings->push_states = std::move(settings.click.push_states);
+
+        auto bone_names = core::load_bone_name_config("config/bone_names.cfg");
+        if (bone_names.is_err()) {
+            foundation::Logger::warning(bone_names.unwrap_err().get_message());
         } else {
-            skinning_system->set_cursor_config(std::move(cursor_config).unwrap());
+            skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
             CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings,
             this->display_camera);
-        auto motion_rules = core::load_model_event_motions(
-            "config/model_event_motions.cfg", this->click_settings.get());
-        if (motion_rules.is_err()) {
-            foundation::Logger::warning(motion_rules.unwrap_err().get_message());
-        } else {
-            clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
-                this->registry, animation_system, std::move(motion_rules).unwrap(),
-                this->click_settings, physics_engine->get_shared_world()));
-        }
+        clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
+            this->registry, animation_system, std::move(settings.model_events),
+            this->click_settings, physics_engine->get_shared_world()));
         root_window->set_model_drag_handler(
             [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](types::ClientMousePosition cursor) {
                 const auto system = weak.lock();
@@ -175,7 +167,7 @@ namespace enishi {
         const auto init_time = this->app_timer.tick_unclamp();
         foundation::Logger::info(std::format("初期化時間: {:%S}s", init_time.delta_time));
 
-        for (; !this->system_scheduler.should_close();) {
+        for (; !this->root_window->should_close();) {
             const auto dt = this->app_timer.tick();
 
             // 更新
@@ -193,13 +185,7 @@ namespace enishi {
             std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
                 INIT_WINDOW_SIZE,
                 platform::WindowSystem::Windows,
-#if defined(USE_VULKAN)
-                types::GraphicsAPI::Vulkan11));
-#elif defined(USE_OPENGL40)
-                types::GraphicsAPI::OpenGL40));
-#else
-                types::GraphicsAPI::DirectX11));
-#endif
+                platform_impl::render_backend_description().api));
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
@@ -224,38 +210,14 @@ namespace enishi {
             return {};
         }
 
-        const auto opt_window_handle = root_window->get_handle();
-        if (opt_window_handle.is_none()) {
-            foundation::Logger::error("ウィンドウハンドルを取得できませんでした");
-            return {};
-        }
-
-#if defined(USE_VULKAN)
-        const auto sdl_window = std::dynamic_pointer_cast<platform_impl::SDL3Window>(root_window);
-        if (sdl_window == nullptr || sdl_window->get_window_handle().is_none()) {
-            foundation::Logger::error("Vulkan requires an SDL3 window");
-            return {};
-        }
-        auto initializer = renderer::vulkan::VulkanRenderInitializer{};
-        auto result_renderer = initializer.init(sdl_window->get_window_handle().unwrap());
-#elif defined(USE_OPENGL40)
-        auto context = root_window->create_opengl_context();
-        if (context.is_err()) {
-            foundation::Logger::error(context.unwrap_err().get_message());
-            return {};
-        }
-        auto initializer = renderer::opengl::OpenGL40RenderInitializer{};
-        auto result_renderer = initializer.init(std::move(context.unwrap_mut()));
-#else
-        auto initializer = renderer::directx::D3D11RenderInitializer{true};
-        auto result_renderer = initializer.init(opt_window_handle.unwrap(), INIT_WINDOW_SIZE);
-#endif
+        auto result_renderer = platform_impl::create_renderer(root_window, INIT_WINDOW_SIZE);
         if (result_renderer.is_err()) {
             foundation::Logger::error(result_renderer.unwrap_err().get_message());
             return {};
         }
 
-        auto&& renderer = result_renderer.unwrap();
+        const auto& instance = result_renderer.unwrap();
+        const auto& renderer = instance.renderer;
 
         const auto rect = types::ViewportRect{
             .left_top_x = 0.0,
@@ -272,22 +234,22 @@ namespace enishi {
             return {};
         }
 
-        auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(asset_system);
+        auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(
+            asset_system, platform_impl::shader_directory());
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
-            100, this->registry, renderer, renderer);
+            100, this->registry, renderer, instance.encoder);
 
         this->orchestra = std::make_unique<render_pass::RenderPassOrchestra>(
             render_system->get_renderer(), shader_data_provider);
 
         // レンダーパスの作成
+        const auto backend = platform_impl::render_backend_description();
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::ModelRenderPassConstructor>());
+            std::make_shared<render_pass::ModelRenderPassConstructor>(backend));
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::BackgroundRenderPassConstructor>());
-#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
+            std::make_shared<render_pass::BackgroundRenderPassConstructor>(backend));
         this->orchestra->add_constructor(
-            std::make_shared<render_pass::ShadowMapRenderPassConstructor>());
-#endif
+            std::make_shared<render_pass::ShadowMapRenderPassConstructor>(backend));
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
@@ -299,9 +261,7 @@ namespace enishi {
         this->orchestra->set_render_passes({
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME,
             render_pass::BackgroundRenderPassConstructor::RENDER_PASS_NAME,
-#if defined(USE_DIRECTX_11) || defined(USE_OPENGL40) || defined(USE_VULKAN)
             render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME,
-#endif
         });
         render_system->set_render_passes(this->orchestra->get_passes());
         render_system->set_camera(this->display_camera);
@@ -337,13 +297,17 @@ namespace enishi {
         const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();
         render_system->set_settings(render_settings);
-        const auto selection = std::make_shared<core::SelectionUI>(
+        const auto selection = std::make_shared<ui::SelectionUI>(
             std::move(models), this->click_settings, scripts, render_settings);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY,
             ui,
-            [selection](sub_system::IUI& ui) { selection->update(ui); },
-            [selection]() { return selection->should_close(); });
+            [selection, window](sub_system::IUI& ui) {
+                selection->update(ui);
+                if (selection->is_exit_requested()) {
+                    window->close();
+                }
+            });
         render_system->set_ui(ui);
         return true;
     }

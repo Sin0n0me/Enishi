@@ -1,4 +1,4 @@
-#include <core/system/ui/selection_ui.h>
+#include <ui/selection/selection_ui.h>
 #include <script/script_engine.h>
 #include <utility>
 
@@ -100,8 +100,8 @@ void selection_tests() {
     auto receiver = std::make_shared<Receiver>();
     engine->add_result_receiver(receiver);
     auto settings = std::make_shared<sub_system::RenderSettings>();
-    core::SelectionUI selection(
-        std::make_shared<Models>(), std::make_shared<core::ModelClickSettings>(), engine, settings);
+    ui::SelectionUI selection(
+        std::make_shared<Models>(), std::make_shared<types::ModelClickSettings>(), engine, settings);
     UI ui;
     ui.clicked = "スクリプト";
     selection.update(ui);
@@ -134,4 +134,8 @@ void selection_tests() {
     require(settings->self_shadow_enabled, "Settings must restore self shadows");
     ui.clicked = "戻る";
     selection.update(ui);
+    require(!selection.is_exit_requested(), "Exit must not be requested initially");
+    ui.clicked = "終了";
+    selection.update(ui);
+    require(selection.is_exit_requested(), "Exit button must request window closure");
 }

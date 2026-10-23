@@ -8,7 +8,7 @@
 #include <physics/bullet3/rigid_body/rigid_body.h>
 #include <physics/bullet3/rigid_body/rigid_body_impulse.h>
 #include <physics/helper/helper.h>
-#include <platform_impl/physics/physics_config.h>
+#include <physics/common/physics_config.h>
 #include <skinning_system/cache/physics_bone_cache.h>
 #include <skinning_system/updater/physics_bones_updater.h>
 #include <skinning_system/views/physics_bone_view.h>
@@ -133,7 +133,7 @@ namespace {
     }
 
     void world_tests() {
-        auto config = std::make_shared<platform_impl::PhysicsWorldConfig>();
+        auto config = std::make_shared<physics::PhysicsWorldConfig>();
         config->set_updatable(true);
         config->set_fixed_step_time(1.0f / 60.0f);
         config->set_max_step_count(4);

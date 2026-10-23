@@ -50,9 +50,6 @@ namespace enishi::core {
         this->collider->check_collisions();
     }
 
-    bool ModelCollisionSystem::should_close(void) {
-        return false;
-    }
     void ModelCollisionSystem::pre_update(void) {
     }
     void ModelCollisionSystem::update(const types::DeltaTime& delta_time) {

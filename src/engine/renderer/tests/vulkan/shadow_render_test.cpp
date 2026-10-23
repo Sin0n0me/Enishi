@@ -1,3 +1,4 @@
+#include "shadow_render_test.h"
 #include <array>
 #include <core/system/asset/asset_system.h>
 #include <core/system/asset/shader/shader_data_provider.h>
@@ -9,8 +10,10 @@
 #include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
-#include <renderer/vulkan/vulkan_renderer.h>
+#include <renderer/common/upload/buffer_upload.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
 
 using namespace enishi;
 namespace {
@@ -101,19 +104,20 @@ namespace {
         for (const auto& command : pass.get_commands()) {
             switch (command.handle.type) {
                 case types::RenderHandleType::View:
-                    renderer.submit_command_view(command, pass.get_render_target());
+                    renderer.get_command_encoder()->submit_command_view(
+                        command, pass.get_render_target());
                     break;
                 case types::RenderHandleType::State:
-                    renderer.submit_command_state(command);
+                    renderer.get_command_encoder()->submit_command_state(command);
                     break;
                 case types::RenderHandleType::Shader:
-                    renderer.submit_command_shader(command);
+                    renderer.get_command_encoder()->submit_command_shader(command);
                     break;
                 case types::RenderHandleType::Topology:
-                    renderer.submit_command_topology(command);
+                    renderer.get_command_encoder()->submit_command_topology(command);
                     break;
                 case types::RenderHandleType::VertexLayout:
-                    renderer.submit_command_vertex_layout(command);
+                    renderer.get_command_encoder()->submit_command_vertex_layout(command);
                     break;
                 default:
                     break;
@@ -183,22 +187,23 @@ namespace {
                                bool expected_shadow,
                                bool with_shadow = true,
                                bool narrow_viewport = false) {
-            renderer.setup_views();
+            renderer.get_command_encoder()->setup_views();
             require(device->recording, "Shadow test frame not acquired");
             if (narrow_viewport) {
-                renderer.submit_command_viewport(bind(viewport));
+                renderer.get_command_encoder()->submit_command_viewport(bind(viewport));
             }
             if (with_shadow) {
                 submit(renderer, pass);
                 if (draw_caster) {
-                    renderer.submit_command_mesh(bind(caster), {});
+                    renderer.get_command_encoder()->submit_command_mesh(bind(caster), {});
                 }
-                renderer.submit_command_view(bind(pass.get_sampled_depth()), {});
+                renderer.get_command_encoder()->submit_command_view(
+                    bind(pass.get_sampled_depth()), {});
             }
             for (const auto shader : shaders) {
-                renderer.submit_command_shader(bind(shader));
+                renderer.get_command_encoder()->submit_command_shader(bind(shader));
             }
-            renderer.submit_command_mesh(bind(receiver), {});
+            renderer.get_command_encoder()->submit_command_mesh(bind(receiver), {});
             success(device->end_frame(pixels));
             check_pixels(*pixels, device->extent, expected_shadow, narrow_viewport, wall);
         };
@@ -231,10 +236,10 @@ namespace {
         constexpr float OUTSIDE_LIGHT_VIEW = 2.0f;
         const auto moved = glm::translate(glm::mat4{1}, glm::vec3{OUTSIDE_LIGHT_VIEW, 0, 0});
         const std::array palette{moved, moved};
-        success(core::write_bone_matrices(*uniform(renderer, caster, "Bones"), palette));
+        success(renderer::write_bone_matrices(*uniform(renderer, caster, "Bones"), palette));
         frame(true, false);
         const std::array restored{glm::mat4{1}, glm::mat4{1}};
-        success(core::write_bone_matrices(*uniform(renderer, caster, "Bones"), restored));
+        success(renderer::write_bone_matrices(*uniform(renderer, caster, "Bones"), restored));
         frame(true, true);
         frame(false, false); // Hidden casters must not leave the previous frame's depth.
         frame(false, false, false);
@@ -244,9 +249,10 @@ namespace {
 } // namespace
 void shadow_render_test(renderer::vulkan::VulkanRenderer& renderer) {
     core::AssetSystem assets;
-    core::ShaderDataProvider provider(assets.get_asset_system());
-    const auto pass =
-        take(render_pass::ShadowMapRenderPassConstructor{}.make(&renderer, nullptr, &provider, {}));
+    core::ShaderDataProvider provider(assets.get_asset_system(), platform_impl::shader_directory());
+    const auto pass = take(render_pass::ShadowMapRenderPassConstructor{
+        enishi::platform_impl::render_backend_description()}
+                               .make(&renderer, nullptr, &provider, {}));
     const auto shaders = model_shaders(renderer, provider);
     for (const auto method : {types::SkinningMethod::LinearBlend,
              types::SkinningMethod::DualQuaternion,

@@ -1,9 +1,9 @@
 #include <animation/morph/uv_morph.h>
-#include <core/system/render/uv_morph_upload.h>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/common/vertex_buffer_updater.h>
 
 using namespace enishi;
@@ -44,12 +44,12 @@ void uv_morph_tests() {
             uploaded = true;
         });
     auto streams = renderer::skinned_uv_streams({});
-    check(core::stage_vertex_uvs(updater, streams, result.unwrap()).is_ok() && !uploaded,
+    check(renderer::stage_vertex_uvs(updater, streams, result.unwrap()).is_ok() && !uploaded,
         "UV changes stage before the combined vertex upload");
     updater.on_update();
     check(uploaded, "upload staged UVs");
     streams.front().offset = sizeof(renderer::SkinnedVertex);
-    check(core::stage_vertex_uvs(updater, streams, result.unwrap()).is_err(),
+    check(renderer::stage_vertex_uvs(updater, streams, result.unwrap()).is_err(),
         "reject invalid UV layout");
     targets[0].offsets = {types::UVMorphOffset{1, 0, {1, 0, 0, 0}}};
     check(animation::evaluate_uv_morphs(base, targets, weights).is_err(), "reject invalid UV vertex");

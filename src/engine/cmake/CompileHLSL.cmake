@@ -17,7 +17,7 @@ function(enishi_compile_hlsl_shaders target_name source_directory output_directo
         add_custom_command(OUTPUT "${output}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_directory}"
             COMMAND "${ENISHI_FXC_EXECUTABLE}" /nologo /T "${profile}" /E main
-                /Fo "${output}" "${source}"
+                /I "${source_directory}" /Fo "${output}" "${source}"
             DEPENDS "${source}" ${shader_includes}
             VERBATIM)
         list(APPEND outputs "${output}")

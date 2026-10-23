@@ -1,9 +1,21 @@
+#ifndef ENISHI_SHADER_BACKEND
+#include "common/backend.hlsl"
+#endif
+ENISHI_BINDING(0, 1) ENISHI_COMBINED
 Texture2D<float> shadow_texture : register(t3);
+#ifdef ENISHI_SPIRV
+ENISHI_BINDING(0, 1) ENISHI_COMBINED SamplerState shadow_sampler : register(s3);
+#endif
 
 float shadow_visibility(float4 light_position, float3 normal, float3 light_direction) {
     const float3 projected = light_position.xyz / light_position.w;
     // D3D NDC x/y [-1,1] -> texture [0,1], with the texture Y axis pointing down.
+#ifdef ENISHI_OPENGL
+    // OpenGL texture Y points up; the light-space depth remains in [0, 1].
+    const float2 uv = projected.xy * 0.5f + 0.5f;
+#else
     const float2 uv = projected.xy * float2(0.5f, -0.5f) + 0.5f;
+#endif
     if (any(uv < 0.0f) || any(uv > 1.0f) || projected.z < 0.0f || projected.z > 1.0f) {
         return 1.0f;
     }
