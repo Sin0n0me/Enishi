@@ -128,7 +128,9 @@ namespace {
         for (std::size_t index = 0; index < static_cast<std::size_t>(Role::Count); ++index) {
             const auto role = static_cast<Role>(index);
             const auto key = animation::BoneNameDictionary::key_for_role(role);
-            check(!key.empty() && animation::BoneNameDictionary::role_from_key(key) == role &&
+            check(!key.empty() &&
+                      animation::BoneNameDictionary::role_from_key(key).unwrap_or(
+                          animation::BoneRole::Count) == role &&
                       !dictionary.aliases(role).empty(),
                 "Every enum role has a unique configurable key and default aliases");
         }

@@ -1,4 +1,5 @@
 #include "config_reader_tests.h"
+#include "morph_name_tests.h"
 #include <chrono>
 #include <core/config/application_settings.h>
 #include <core/system/animation/bone_name_config.h>
@@ -94,25 +95,27 @@ namespace {
     }
 
     void bone_name_tests() {
-        std::istringstream input("\xEF\xBB\xBF# header\n\nneck \"#custom neck\" \"Neck\" # tail");
+        std::istringstream input("\xEF\xBB\xBF# header\nversion = 1\n[roles.neck]\naliases = "
+                                 "[\"#custom neck\", \"Neck\"] # tail");
         const auto parsed = core::parse_bone_name_config(input);
         require(parsed.is_ok(), "Bone aliases support UTF-8 BOM and comments");
         const std::vector<std::string> names{"#custom neck", "head"};
         require(parsed.unwrap().find(names, animation::BoneRole::Neck) == 0 &&
                     parsed.unwrap().find(names, animation::BoneRole::Head) == 1,
             "Specified roles replace defaults and unspecified roles retain defaults");
-        const std::vector<std::string> invalid_lines{"unknown \"name\"",
-            "neck",
-            "neck \"\"",
-            "neck unquoted",
-            "neck \"unterminated",
-            "neck \"one\"\nneck \"two\""};
+        const std::vector<std::string> invalid_lines{
+            "version = 1\n[roles.unknown]\naliases = ['name']",
+            "version = 1\n[roles.neck]",
+            "version = 1\n[roles.neck]\naliases = ['']",
+            "version = 1\n[roles.neck]\naliases = [unquoted]",
+            "version = 1\n[roles.neck]\naliases = ['unterminated",
+            "version = 1\n[roles.neck]\naliases = ['one']\n[roles.neck]"};
         for (const auto& line : invalid_lines) {
             std::istringstream invalid(line);
             require(core::parse_bone_name_config(invalid).is_err(),
                 "Unknown, duplicate, empty and malformed aliases must be rejected");
         }
-        std::istringstream lines("# header\n\nneck \"missing quote");
+        std::istringstream lines("version = 1\n[roles.neck]\naliases = [\"missing quote");
         const auto error = core::parse_bone_name_config(lines);
         require(
             error.is_err() && error.unwrap_err().get_message().find("line 3") != std::string::npos,
@@ -193,6 +196,7 @@ namespace {
 } // namespace
 
 void config_reader_tests() {
+    morph_name_tests();
     application_settings_tests();
     bone_name_tests();
     reader_tests();

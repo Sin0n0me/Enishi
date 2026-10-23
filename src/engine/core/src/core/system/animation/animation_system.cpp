@@ -7,6 +7,19 @@ namespace enishi::core {
         : registry(registry) {
     }
 
+    void AnimationSystem::set_morph_names(const animation::MorphNameDictionary& dictionary) {
+        this->morph_names = dictionary;
+    }
+
+    types::MorphIndex AnimationSystem::find_morph(
+        types::HandleId entity, animation::MorphRole role) const {
+        const auto model = this->registry->get<component::ModelComponent>(entity);
+        if (model.is_none()) {
+            return types::INVALID_MORPH_INDEX;
+        }
+        return this->morph_names.find(model.unwrap().morph_targets.targets, role);
+    }
+
     void AnimationSystem::set_controller(
         const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
         this->playback_states.erase(entity);

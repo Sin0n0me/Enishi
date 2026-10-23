@@ -1,49 +1,26 @@
 #include "bone_name_config.h"
-#include <foundation/text/config_line_reader.h>
+#include <core/config/name_dictionary_toml.h>
 #include <fstream>
-#include <iomanip>
-#include <set>
-#include <sstream>
 #include <utility>
 
 namespace enishi::core {
     foundation::Result<animation::BoneNameDictionary, BoneNameConfigError> parse_bone_name_config(
         std::istream& stream) {
-        animation::BoneNameDictionary dictionary;
-        foundation::ConfigLineReader reader(stream);
-        std::istringstream fields;
-        std::set<animation::BoneRole> seen;
-        while (reader.next(fields)) {
-            std::string key;
-            fields >> key;
-            const auto role = animation::BoneNameDictionary::role_from_key(key);
-            if (!role.has_value() || !seen.insert(*role).second) {
-                return foundation::Error(BoneNameConfigError::InvalidSetting,
-                    "Unknown or duplicate bone role at line " +
-                        std::to_string(reader.line_number()));
-            }
-            std::vector<std::string> names;
-            while (!fields.eof()) {
-                fields >> std::ws;
-                if (fields.eof() || fields.peek() == '#') {
-                    break;
-                }
-                std::string name;
-                if (fields.peek() != '"' || !(fields >> std::quoted(name)) || name.empty()) {
-                    return foundation::Error(BoneNameConfigError::InvalidSetting,
-                        "Expected a quoted nonempty bone name at line " +
-                            std::to_string(reader.line_number()));
-                }
-                names.push_back(std::move(name));
-            }
-            if (!dictionary.set_aliases(*role, std::move(names))) {
-                return foundation::Error(BoneNameConfigError::InvalidSetting,
-                    "Missing bone names at line " + std::to_string(reader.line_number()));
-            }
+        auto parsed = parse_name_dictionary_toml(stream);
+        if (parsed.is_err()) {
+            auto code = parsed.unwrap_err().get_error() == NameDictionaryConfigError::ReadFailed
+                            ? BoneNameConfigError::ReadFailed
+                            : BoneNameConfigError::InvalidSetting;
+            return foundation::Error(std::move(code), parsed.unwrap_err().get_message());
         }
-        if (reader.read_failed()) {
-            return foundation::Error(
-                BoneNameConfigError::ReadFailed, "Cannot read bone name settings");
+        animation::BoneNameDictionary dictionary;
+        for (auto& entry : parsed.unwrap_mut()) {
+            const auto role = animation::BoneNameDictionary::role_from_key(entry.role);
+            if (role.is_none() ||
+                !dictionary.set_aliases(role.unwrap(), std::move(entry.aliases))) {
+                return foundation::Error(BoneNameConfigError::InvalidSetting,
+                    "Invalid bone role: " + entry.role + " at line " + std::to_string(entry.line));
+            }
         }
         return dictionary;
     }
