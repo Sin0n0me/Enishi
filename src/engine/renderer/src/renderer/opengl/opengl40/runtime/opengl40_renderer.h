@@ -10,17 +10,22 @@
 #include <vector>
 
 namespace enishi::renderer::opengl {
-    class OpenGL40Renderer final : public platform::IRenderer,
-                                   public platform::IRenderCommandEncoder {
+    class OpenGL40RenderCommandEncoder;
+
+    class OpenGL40Renderer final : public platform::IRenderer {
       private:
         std::shared_ptr<platform::IOpenGLContext> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
         std::unique_ptr<ResourceAccessor> resource_accessor;
         std::unique_ptr<OpenGL40RendererState> state;
+        std::unique_ptr<OpenGL40RenderCommandEncoder> encoder;
 
       public:
         explicit OpenGL40Renderer(std::shared_ptr<platform::IOpenGLContext> context);
         ~OpenGL40Renderer(void) noexcept override;
+
+        // Borrowed encoder; its lifetime is bounded by this renderer.
+        [[nodiscard]] platform::IRenderCommandEncoder& get_command_encoder() const noexcept;
 
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect&) override;
@@ -62,21 +67,5 @@ namespace enishi::renderer::opengl {
         platform::IRenderResourceAccessor* const get_resource_accessor(
             void) const noexcept override;
         const platform::IRenderHandleMapper* get_handle_mapper(void) const noexcept override;
-
-        void setup_viewports(void) const override;
-        void setup_views(void) const override;
-        void submit_command_buffer(const types::DrawCommand&) const override;
-        void submit_command_shader(const types::DrawCommand&) const override;
-        void submit_command_view(
-            const types::DrawCommand&, const types::RenderHandle&) const override;
-        void submit_command_viewport(const types::DrawCommand&) const override;
-        void submit_command_mesh(
-            const types::DrawCommand&, const types::RenderHandle&) const override;
-        void submit_command_topology(const types::DrawCommand&) const override;
-        void submit_command_vertex_layout(const types::DrawCommand&) const override;
-        void submit_command_state(const types::DrawCommand&) const override;
-        void submit_command_image(const types::DrawCommand&) const override;
-        void draw(const types::RenderHandle&) const override;
-        void present(void) const override;
     };
 } // namespace enishi::renderer::opengl

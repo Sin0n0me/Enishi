@@ -1,7 +1,7 @@
 #include <array>
 #include <cstring>
 #include <foundation/log/logger.h>
-#include <renderer/vulkan/command/vulkan_commands.h>
+#include <renderer/vulkan/command/vulkan_render_command_encoder.h>
 #include <renderer/vulkan/mesh/vulkan_mesh_builder.h>
 #include <renderer/vulkan/pipeline/vulkan_pipeline.h>
 #include <renderer/vulkan/pipeline/vulkan_render_states.h>
@@ -16,7 +16,9 @@ namespace enishi::renderer::vulkan {
         : context(std::move(context))
         , handle_mapper(std::make_unique<RenderHandleMapper>())
         , resource_accessor(std::make_unique<ResourceAccessor>())
-        , state(std::make_unique<VulkanRendererState>(this->context)) {
+        , state(std::make_unique<VulkanRendererState>(this->context))
+        , encoder(std::make_unique<VulkanRenderCommandEncoder>(
+              *this->state, *this->resource_accessor)) {
     }
     VulkanRenderer::~VulkanRenderer() noexcept {
         auto result = this->context->wait_idle();
@@ -197,48 +199,6 @@ namespace enishi::renderer::vulkan {
     const platform::IRenderHandleMapper* VulkanRenderer::get_handle_mapper() const noexcept {
         return this->handle_mapper.get();
     }
-    void VulkanRenderer::setup_viewports() const {
-        return VulkanCommands::setup_viewports();
-    }
-    void VulkanRenderer::setup_views() const {
-        return VulkanCommands::setup_views(*this->state, *this->resource_accessor);
-    }
-    void VulkanRenderer::submit_command_shader(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_shader(*this->state, command);
-    }
-    void VulkanRenderer::submit_command_state(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_state(*this->state, command);
-    }
-    void VulkanRenderer::submit_command_view(
-        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
-        return VulkanCommands::submit_command_view(
-            *this->state, *this->resource_accessor, command, render_target);
-    }
-    void VulkanRenderer::submit_command_viewport(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_viewport(*this->state, command);
-    }
-    void VulkanRenderer::submit_command_topology(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_topology(*this->state, command);
-    }
-    void VulkanRenderer::submit_command_vertex_layout(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_vertex_layout(command);
-    }
-    void VulkanRenderer::submit_command_buffer(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_buffer(*this->state, command);
-    }
-    void VulkanRenderer::submit_command_image(const types::DrawCommand& command) const {
-        return VulkanCommands::submit_command_image(*this->state, command);
-    }
-    void VulkanRenderer::draw(const types::RenderHandle& handle) const {
-        return VulkanCommands::draw(*this->state, handle);
-    }
-    void VulkanRenderer::submit_command_mesh(
-        const types::DrawCommand& command, const types::RenderHandle& render_target) const {
-        return VulkanCommands::submit_command_mesh(*this->state, command, render_target);
-    }
-    void VulkanRenderer::present() const {
-        return VulkanCommands::present(*this->state);
-    }
     platform::RenderResult<types::RenderHandle> VulkanRenderer::create_mesh(
         const types::ModelData& model, const std::vector<types::RenderHandle>& shaders) {
         return VulkanMeshBuilder::create_mesh(
@@ -293,5 +253,9 @@ namespace enishi::renderer::vulkan {
     }
     types::RenderHandle VulkanRenderer::make_handle(types::RenderHandleType type) noexcept {
         return VulkanHandles::make(*this->handle_mapper, type);
+    }
+
+    platform::IRenderCommandEncoder& VulkanRenderer::get_command_encoder() const noexcept {
+        return *this->encoder;
     }
 } // namespace enishi::renderer::vulkan

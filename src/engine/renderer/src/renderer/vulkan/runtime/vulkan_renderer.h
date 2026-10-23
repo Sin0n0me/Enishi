@@ -7,17 +7,22 @@
 #include <renderer/vulkan/runtime/vulkan_renderer_state.h>
 
 namespace enishi::renderer::vulkan {
-    class VulkanRenderer final : public platform::IRenderer,
-                                 public platform::IRenderCommandEncoder {
+    class VulkanRenderCommandEncoder;
+
+    class VulkanRenderer final : public platform::IRenderer {
       private:
         std::shared_ptr<VulkanDevice> context;
         std::unique_ptr<RenderHandleMapper> handle_mapper;
         std::unique_ptr<ResourceAccessor> resource_accessor;
         std::unique_ptr<VulkanRendererState> state;
+        std::unique_ptr<VulkanRenderCommandEncoder> encoder;
 
       public:
         explicit VulkanRenderer(std::shared_ptr<VulkanDevice> context);
         ~VulkanRenderer(void) noexcept override;
+
+        // Borrowed encoder; its lifetime is bounded by this renderer.
+        [[nodiscard]] platform::IRenderCommandEncoder& get_command_encoder() const noexcept;
 
         platform::RenderResult<types::RenderHandle> create_viewport(
             const types::ViewportRect&) override;
@@ -59,22 +64,6 @@ namespace enishi::renderer::vulkan {
         platform::IRenderResourceAccessor* const get_resource_accessor(
             void) const noexcept override;
         const platform::IRenderHandleMapper* get_handle_mapper(void) const noexcept override;
-
-        void setup_viewports(void) const override;
-        void setup_views(void) const override;
-        void submit_command_buffer(const types::DrawCommand&) const override;
-        void submit_command_shader(const types::DrawCommand&) const override;
-        void submit_command_view(
-            const types::DrawCommand&, const types::RenderHandle&) const override;
-        void submit_command_viewport(const types::DrawCommand&) const override;
-        void submit_command_mesh(
-            const types::DrawCommand&, const types::RenderHandle&) const override;
-        void submit_command_topology(const types::DrawCommand&) const override;
-        void submit_command_vertex_layout(const types::DrawCommand&) const override;
-        void submit_command_state(const types::DrawCommand&) const override;
-        void submit_command_image(const types::DrawCommand&) const override;
-        void draw(const types::RenderHandle&) const override;
-        void present(void) const override;
 
         platform::RenderResult<void> init_resources();
         std::shared_ptr<VulkanDevice> get_native_context() const noexcept;
