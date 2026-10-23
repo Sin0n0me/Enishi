@@ -3,9 +3,6 @@ name: Windows CMake
 on:
   push:
   pull_request:
-  schedule:
-    # 毎週日曜の日本時間12時に、全組み合わせを検証します。
-    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       full_matrix:
@@ -21,9 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       # 通常は基準構成と各検証軸の代表だけを実行します。
-      # 軸同士の組み合わせに固有の問題は、定期実行と手動の全構成検証で確認します。
+      # 軸同士の組み合わせに固有の問題は、手動の全構成検証で確認します。
       matrix: >-
-        ${{ fromJSON((github.event_name == 'schedule' || inputs.full_matrix) &&
+        ${{ fromJSON(inputs.full_matrix &&
           '{"os":["windows-2022"],"config":["Release","Debug"],
             "toolchain":["visualstudio","clang","gcc"],
             "backend":["directx","opengl","vulkan"],"platform":["x64"]}' ||
