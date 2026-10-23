@@ -112,92 +112,16 @@ namespace enishi::renderer::opengl {
         }
         if (const auto it = runtime.rasterizers.find(command.handle);
             it != runtime.rasterizers.end()) {
-            if (it->second.cull_mode == types::CullMode::None) {
-                glDisable(GL_CULL_FACE);
-            } else {
-                glEnable(GL_CULL_FACE);
-            }
-
-            if (it->second.cull_mode == types::CullMode::Front) {
-                glCullFace(GL_FRONT);
-            } else {
-                glCullFace(GL_BACK);
-            }
-            glPolygonMode(GL_FRONT_AND_BACK,
-                it->second.fill_mode == types::FillMode::Wireframe ? GL_LINE : GL_FILL);
-            glFrontFace(it->second.front_face == types::FrontFace::Clockwise ? GL_CW : GL_CCW);
-            glLineWidth(it->second.line_width);
-            if (it->second.depth_clamp) {
-                glEnable(GL_DEPTH_CLAMP);
-            } else {
-                glDisable(GL_DEPTH_CLAMP);
-            }
-            if (it->second.depth_bias.enable) {
-                glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(
-                    it->second.depth_bias.slope_factor, it->second.depth_bias.constant_factor);
-            } else {
-                glDisable(GL_POLYGON_OFFSET_FILL);
-            }
+            OpenGL40RenderStates::apply_rasterizer(it->second);
             return;
         }
         if (const auto it = runtime.depth_stencils.find(command.handle);
             it != runtime.depth_stencils.end()) {
-            if (it->second.depth.enabled) {
-                glEnable(GL_DEPTH_TEST);
-            } else {
-                glDisable(GL_DEPTH_TEST);
-            }
-
-            glDepthMask(it->second.depth.write_enabled ? GL_TRUE : GL_FALSE);
-            glDepthFunc(helpers::to_gl_compare(it->second.depth.compare_operator));
-            if (it->second.stencil.enabled) {
-                glEnable(GL_STENCIL_TEST);
-                glStencilMaskSeparate(GL_FRONT, it->second.stencil.front.write_mask);
-                glStencilFuncSeparate(GL_FRONT,
-                    helpers::to_gl_compare(it->second.stencil.front.compare_operator),
-                    static_cast<GLint>(it->second.stencil.front.reference),
-                    it->second.stencil.front.compare_mask);
-                glStencilOpSeparate(GL_FRONT,
-                    helpers::to_gl_stencil_operator(it->second.stencil.front.stencil_fail_operator),
-                    helpers::to_gl_stencil_operator(it->second.stencil.front.depth_fail_operator),
-                    helpers::to_gl_stencil_operator(it->second.stencil.front.pass_operator));
-                glStencilMaskSeparate(GL_BACK, it->second.stencil.back.write_mask);
-                glStencilFuncSeparate(GL_BACK,
-                    helpers::to_gl_compare(it->second.stencil.back.compare_operator),
-                    static_cast<GLint>(it->second.stencil.back.reference),
-                    it->second.stencil.back.compare_mask);
-                glStencilOpSeparate(GL_BACK,
-                    helpers::to_gl_stencil_operator(it->second.stencil.back.stencil_fail_operator),
-                    helpers::to_gl_stencil_operator(it->second.stencil.back.depth_fail_operator),
-                    helpers::to_gl_stencil_operator(it->second.stencil.back.pass_operator));
-            } else {
-                glDisable(GL_STENCIL_TEST);
-            }
+            OpenGL40RenderStates::apply_depth_stencil(it->second);
             return;
         }
         if (const auto it = runtime.blends.find(command.handle); it != runtime.blends.end()) {
-            const auto& target = it->second.render_targets[FIRST_RENDER_TARGET];
-
-            target.enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
-            glBlendFuncSeparate(helpers::to_gl_blend_factor(target.src_color),
-                helpers::to_gl_blend_factor(target.dst_color),
-                helpers::to_gl_blend_factor(target.src_alpha),
-                helpers::to_gl_blend_factor(target.dst_alpha));
-            glBlendEquationSeparate(helpers::to_gl_blend_operator(target.color_operator),
-                helpers::to_gl_blend_operator(target.alpha_operator));
-            glColorMask((target.write_mask &
-                            static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteR)) !=
-                            EMPTY_COLOR_WRITE_MASK,
-                (target.write_mask &
-                    static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteG)) !=
-                    EMPTY_COLOR_WRITE_MASK,
-                (target.write_mask &
-                    static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteB)) !=
-                    EMPTY_COLOR_WRITE_MASK,
-                (target.write_mask &
-                    static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteA)) !=
-                    EMPTY_COLOR_WRITE_MASK);
+            OpenGL40RenderStates::apply_blend(it->second);
             return;
         }
         if (const auto it = runtime.samplers.find(command.handle); it != runtime.samplers.end()) {
@@ -207,5 +131,87 @@ namespace enishi::renderer::opengl {
             }
             runtime.active_sampler = sampler->second;
         }
+    }
+    void OpenGL40RenderStates::apply_rasterizer(const types::RasterizerStateDescription& state) {
+        if (state.cull_mode == types::CullMode::None) {
+            glDisable(GL_CULL_FACE);
+        } else {
+            glEnable(GL_CULL_FACE);
+        }
+
+        if (state.cull_mode == types::CullMode::Front) {
+            glCullFace(GL_FRONT);
+        } else {
+            glCullFace(GL_BACK);
+        }
+        glPolygonMode(
+            GL_FRONT_AND_BACK, state.fill_mode == types::FillMode::Wireframe ? GL_LINE : GL_FILL);
+        glFrontFace(state.front_face == types::FrontFace::Clockwise ? GL_CW : GL_CCW);
+        glLineWidth(state.line_width);
+        if (state.depth_clamp) {
+            glEnable(GL_DEPTH_CLAMP);
+        } else {
+            glDisable(GL_DEPTH_CLAMP);
+        }
+        if (state.depth_bias.enable) {
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(state.depth_bias.slope_factor, state.depth_bias.constant_factor);
+        } else {
+            glDisable(GL_POLYGON_OFFSET_FILL);
+        }
+    }
+    void OpenGL40RenderStates::apply_depth_stencil(
+        const types::DepthStencilStateDescription& state) {
+        if (state.depth.enabled) {
+            glEnable(GL_DEPTH_TEST);
+        } else {
+            glDisable(GL_DEPTH_TEST);
+        }
+
+        glDepthMask(state.depth.write_enabled ? GL_TRUE : GL_FALSE);
+        glDepthFunc(helpers::to_gl_compare(state.depth.compare_operator));
+        if (state.stencil.enabled) {
+            glEnable(GL_STENCIL_TEST);
+            glStencilMaskSeparate(GL_FRONT, state.stencil.front.write_mask);
+            glStencilFuncSeparate(GL_FRONT,
+                helpers::to_gl_compare(state.stencil.front.compare_operator),
+                static_cast<GLint>(state.stencil.front.reference),
+                state.stencil.front.compare_mask);
+            glStencilOpSeparate(GL_FRONT,
+                helpers::to_gl_stencil_operator(state.stencil.front.stencil_fail_operator),
+                helpers::to_gl_stencil_operator(state.stencil.front.depth_fail_operator),
+                helpers::to_gl_stencil_operator(state.stencil.front.pass_operator));
+            glStencilMaskSeparate(GL_BACK, state.stencil.back.write_mask);
+            glStencilFuncSeparate(GL_BACK,
+                helpers::to_gl_compare(state.stencil.back.compare_operator),
+                static_cast<GLint>(state.stencil.back.reference),
+                state.stencil.back.compare_mask);
+            glStencilOpSeparate(GL_BACK,
+                helpers::to_gl_stencil_operator(state.stencil.back.stencil_fail_operator),
+                helpers::to_gl_stencil_operator(state.stencil.back.depth_fail_operator),
+                helpers::to_gl_stencil_operator(state.stencil.back.pass_operator));
+        } else {
+            glDisable(GL_STENCIL_TEST);
+        }
+    }
+    void OpenGL40RenderStates::apply_blend(const types::BlendStateDescription& state) {
+        const auto& target = state.render_targets[FIRST_RENDER_TARGET];
+
+        target.enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
+        glBlendFuncSeparate(helpers::to_gl_blend_factor(target.src_color),
+            helpers::to_gl_blend_factor(target.dst_color),
+            helpers::to_gl_blend_factor(target.src_alpha),
+            helpers::to_gl_blend_factor(target.dst_alpha));
+        glBlendEquationSeparate(helpers::to_gl_blend_operator(target.color_operator),
+            helpers::to_gl_blend_operator(target.alpha_operator));
+        glColorMask(
+            (target.write_mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteR)) !=
+                EMPTY_COLOR_WRITE_MASK,
+            (target.write_mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteG)) !=
+                EMPTY_COLOR_WRITE_MASK,
+            (target.write_mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteB)) !=
+                EMPTY_COLOR_WRITE_MASK,
+            (target.write_mask & static_cast<std::uint8_t>(types::ColorWriteMask::ColorWriteA)) !=
+                EMPTY_COLOR_WRITE_MASK);
     }
 } // namespace enishi::renderer::opengl

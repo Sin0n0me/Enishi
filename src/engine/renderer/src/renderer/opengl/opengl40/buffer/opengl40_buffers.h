@@ -9,6 +9,6 @@ namespace enishi::renderer::opengl {
             OpenGL40RendererState& runtime,
             RenderHandleMapper& handle_mapper,
             const types::RenderData& data,
-            const std::uint32_t target);
+            const GLenum target);
     };
 } // namespace enishi::renderer::opengl

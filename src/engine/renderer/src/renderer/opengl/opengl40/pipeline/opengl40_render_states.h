@@ -28,5 +28,10 @@ namespace enishi::renderer::opengl {
             const types::BlendStateDescription& state);
         static void submit_command_state(
             OpenGL40RendererState& runtime, const types::DrawCommand& command);
+
+      private:
+        static void apply_rasterizer(const types::RasterizerStateDescription& state);
+        static void apply_depth_stencil(const types::DepthStencilStateDescription& state);
+        static void apply_blend(const types::BlendStateDescription& state);
     };
 } // namespace enishi::renderer::opengl

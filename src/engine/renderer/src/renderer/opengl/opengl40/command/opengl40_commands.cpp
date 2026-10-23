@@ -32,7 +32,7 @@ namespace enishi::renderer::opengl {
         const auto accessor = resource_accessor.get_buffer_accessor();
         for (const auto& buffer_handle : buffers->second) {
             const auto updater = accessor->get_buffer(buffer_handle);
-            if (updater.is_some() && updater.unwrap()) {
+            if (updater.is_some() && updater.unwrap() != nullptr) {
                 updater.unwrap()->on_update();
             }
         }
@@ -68,7 +68,8 @@ namespace enishi::renderer::opengl {
                 }
             }
             const auto& binding = bindings->second[material_index];
-            if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter)) {
+            if (const auto indexed = std::get_if<types::DrawIndexedParameter>(&binding.parameter);
+                indexed != nullptr) {
                 glDrawElementsInstancedBaseVertex(runtime.topology,
                     indexed->index_count,
                     runtime.active_index_type,
@@ -77,7 +78,8 @@ namespace enishi::renderer::opengl {
                     std::max(MINIMUM_INSTANCE_COUNT, indexed->instance_count),
                     static_cast<GLint>(indexed->vertex_offset));
 
-            } else if (const auto plain = std::get_if<types::DrawParameter>(&binding.parameter)) {
+            } else if (const auto plain = std::get_if<types::DrawParameter>(&binding.parameter);
+                       plain != nullptr) {
                 glDrawArraysInstanced(runtime.topology,
                     plain->first_vertex,
                     plain->vertex_count,
@@ -119,15 +121,16 @@ namespace enishi::renderer::opengl {
             return;
         }
         if (const auto indexed =
-                std::get_if<types::DrawIndexedParameter>(&binding->second.parameter)) {
+                std::get_if<types::DrawIndexedParameter>(&binding->second.parameter);
+            indexed != nullptr) {
             glDrawElementsInstancedBaseVertex(runtime.topology,
                 indexed->index_count,
                 runtime.active_index_type,
                 reinterpret_cast<const void*>(static_cast<std::uintptr_t>(indexed->first_index)),
                 indexed->instance_count,
                 static_cast<GLint>(indexed->vertex_offset));
-        } else if (const auto plain =
-                       std::get_if<types::DrawParameter>(&binding->second.parameter)) {
+        } else if (const auto plain = std::get_if<types::DrawParameter>(&binding->second.parameter);
+                   plain != nullptr) {
             glDrawArraysInstanced(
                 runtime.topology, plain->first_vertex, plain->vertex_count, plain->instance_count);
         }

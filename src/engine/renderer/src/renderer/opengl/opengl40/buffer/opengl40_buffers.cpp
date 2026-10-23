@@ -13,7 +13,7 @@ namespace enishi::renderer::opengl {
         OpenGL40RendererState& runtime,
         RenderHandleMapper& handle_mapper,
         const types::RenderData& data,
-        const std::uint32_t target) {
+        const GLenum target) {
         auto pending = check_gl_errors("before buffer creation");
         if (pending.is_err()) {
             return std::move(pending).take_err();

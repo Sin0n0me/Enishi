@@ -70,114 +70,12 @@ namespace enishi::renderer::opengl {
             runtime.back_buffer_images.contains(command.handle) ||
             (render_target.is_valid() && runtime.back_buffer_images.contains(render_target));
         if (is_back_buffer) {
-            if (type == types::ImageViewType::RenderTarget) {
-                if (!OpenGL40Framebuffers::prepare_back_buffer_framebuffer(
-                        runtime, command.handle)) {
-                    return;
-                }
-                const auto render_target_view =
-                    resource_accessor.get_render_target_view(command.handle.id);
-                if (render_target_view.is_none()) {
-                    return;
-                }
-                const auto color = render_target_view.unwrap()->get_clear_color();
-                glClearColor(color.r, color.g, color.b, color.a);
-                return;
-            }
-            if (type == types::ImageViewType::DepthStencil) {
-                if (!render_target.is_valid() ||
-                    !OpenGL40Framebuffers::prepare_back_buffer_framebuffer(
-                        runtime, render_target)) {
-                    return;
-                }
-                const auto depth_stencil_view =
-                    resource_accessor.get_depth_stencil_view(command.handle.id);
-                if (depth_stencil_view.is_none()) {
-                    return;
-                }
-                glClearDepth(depth_stencil_view.unwrap()->clear_depth());
-                glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
-                const auto depth_stencil_image = runtime.images.find(command.handle);
-                if (depth_stencil_image == runtime.images.end()) {
-                    return;
-                }
-                glFramebufferTexture2D(GL_FRAMEBUFFER,
-                    helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
-                    GL_TEXTURE_2D,
-                    object->second,
-                    static_cast<GLint>(
-                        depth_stencil_view.unwrap()->get_description().base_mip_level));
-                if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-                    return;
-                }
-                runtime.is_back_buffer_framebuffer_complete = true;
-                GLbitfield clear_mask = GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
-                if (!runtime.back_buffer_cleared) {
-                    clear_mask |= GL_COLOR_BUFFER_BIT;
-                    runtime.back_buffer_cleared = true;
-                }
-                clear_framebuffer(clear_mask);
-            }
+            OpenGL40Framebuffers::bind_back_buffer_view(
+                runtime, resource_accessor, command, render_target, type, object->second);
             return;
         }
-        if (!runtime.active_framebuffer) {
-            glGenFramebuffers(RESOURCE_COUNT, &runtime.active_framebuffer);
-
-            runtime.framebuffers.emplace_back(runtime.active_framebuffer);
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, runtime.active_framebuffer);
-        if (type == types::ImageViewType::RenderTarget) {
-            const auto render_target_view =
-                resource_accessor.get_render_target_view(command.handle.id);
-            if (render_target_view.is_none()) {
-                return;
-            }
-            const auto color = render_target_view.unwrap()->get_clear_color();
-            glClearColor(color.r, color.g, color.b, color.a);
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                GL_COLOR_ATTACHMENT0,
-                GL_TEXTURE_2D,
-                object->second,
-                static_cast<GLint>(render_target_view.unwrap()->get_description().base_mip_level));
-        }
-        if (type == types::ImageViewType::DepthStencil) {
-            const auto depth_stencil_view =
-                resource_accessor.get_depth_stencil_view(command.handle.id);
-            if (depth_stencil_view.is_none()) {
-                return;
-            }
-            glClearDepth(depth_stencil_view.unwrap()->clear_depth());
-            glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
-            const auto depth_stencil_image = runtime.images.find(command.handle);
-            if (depth_stencil_image == runtime.images.end()) {
-                return;
-            }
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
-                GL_TEXTURE_2D,
-                object->second,
-                static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
-        }
-        if (render_target.is_valid() && type == types::ImageViewType::DepthStencil) {
-            const auto target = runtime.objects.find(render_target);
-            const auto render_target_view =
-                resource_accessor.get_render_target_view(render_target.id);
-
-            if (target != runtime.objects.end() && render_target_view.is_some()) {
-                const auto color = render_target_view.unwrap()->get_clear_color();
-                glClearColor(color.r, color.g, color.b, color.a);
-                glFramebufferTexture2D(GL_FRAMEBUFFER,
-                    GL_COLOR_ATTACHMENT0,
-                    GL_TEXTURE_2D,
-                    target->second,
-                    static_cast<GLint>(
-                        render_target_view.unwrap()->get_description().base_mip_level));
-            }
-        }
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            return;
-        }
-        clear_framebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        OpenGL40Framebuffers::bind_attachment_view(
+            runtime, resource_accessor, command, render_target, type, object->second);
     }
     void OpenGL40Framebuffers::present(OpenGL40RendererState& runtime) {
         if (runtime.is_back_buffer_framebuffer_complete) {
@@ -243,11 +141,11 @@ namespace enishi::renderer::opengl {
         if (image == runtime.images.end()) {
             return false;
         }
-        if (!runtime.back_buffer_framebuffer) {
+        if (runtime.back_buffer_framebuffer == NO_GL_OBJECT) {
             glGenFramebuffers(RESOURCE_COUNT, &runtime.back_buffer_framebuffer);
             runtime.framebuffers.emplace_back(runtime.back_buffer_framebuffer);
         }
-        if (!runtime.back_buffer_color) {
+        if (runtime.back_buffer_color == NO_GL_OBJECT) {
             glGenTextures(RESOURCE_COUNT, &runtime.back_buffer_color);
             runtime.textures.emplace_back(runtime.back_buffer_color);
         }
@@ -280,5 +178,123 @@ namespace enishi::renderer::opengl {
         runtime.back_buffer_height = image->second.size.y;
         runtime.is_back_buffer_framebuffer_complete = false;
         return true;
+    }
+    void OpenGL40Framebuffers::bind_back_buffer_view(OpenGL40RendererState& runtime,
+        ResourceAccessor& resource_accessor,
+        const types::DrawCommand& command,
+        const types::RenderHandle& render_target,
+        types::ImageViewType type,
+        GLuint object) {
+        if (type == types::ImageViewType::RenderTarget) {
+            if (!OpenGL40Framebuffers::prepare_back_buffer_framebuffer(runtime, command.handle)) {
+                return;
+            }
+            const auto render_target_view =
+                resource_accessor.get_render_target_view(command.handle.id);
+            if (render_target_view.is_none()) {
+                return;
+            }
+            const auto color = render_target_view.unwrap()->get_clear_color();
+            glClearColor(color.r, color.g, color.b, color.a);
+            return;
+        }
+        if (type == types::ImageViewType::DepthStencil) {
+            if (!render_target.is_valid() ||
+                !OpenGL40Framebuffers::prepare_back_buffer_framebuffer(runtime, render_target)) {
+                return;
+            }
+            const auto depth_stencil_view =
+                resource_accessor.get_depth_stencil_view(command.handle.id);
+            if (depth_stencil_view.is_none()) {
+                return;
+            }
+            glClearDepth(depth_stencil_view.unwrap()->clear_depth());
+            glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+            const auto depth_stencil_image = runtime.images.find(command.handle);
+            if (depth_stencil_image == runtime.images.end()) {
+                return;
+            }
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
+                helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
+                GL_TEXTURE_2D,
+                object,
+                static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                return;
+            }
+            runtime.is_back_buffer_framebuffer_complete = true;
+            GLbitfield clear_mask = GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+            if (!runtime.back_buffer_cleared) {
+                clear_mask |= GL_COLOR_BUFFER_BIT;
+                runtime.back_buffer_cleared = true;
+            }
+            clear_framebuffer(clear_mask);
+        }
+        return;
+    }
+    void OpenGL40Framebuffers::bind_attachment_view(OpenGL40RendererState& runtime,
+        ResourceAccessor& resource_accessor,
+        const types::DrawCommand& command,
+        const types::RenderHandle& render_target,
+        types::ImageViewType type,
+        GLuint object) {
+        if (runtime.active_framebuffer == NO_GL_OBJECT) {
+            glGenFramebuffers(RESOURCE_COUNT, &runtime.active_framebuffer);
+
+            runtime.framebuffers.emplace_back(runtime.active_framebuffer);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, runtime.active_framebuffer);
+        if (type == types::ImageViewType::RenderTarget) {
+            const auto render_target_view =
+                resource_accessor.get_render_target_view(command.handle.id);
+            if (render_target_view.is_none()) {
+                return;
+            }
+            const auto color = render_target_view.unwrap()->get_clear_color();
+            glClearColor(color.r, color.g, color.b, color.a);
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
+                GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D,
+                object,
+                static_cast<GLint>(render_target_view.unwrap()->get_description().base_mip_level));
+        }
+        if (type == types::ImageViewType::DepthStencil) {
+            const auto depth_stencil_view =
+                resource_accessor.get_depth_stencil_view(command.handle.id);
+            if (depth_stencil_view.is_none()) {
+                return;
+            }
+            glClearDepth(depth_stencil_view.unwrap()->clear_depth());
+            glClearStencil(depth_stencil_view.unwrap()->clear_stencil());
+            const auto depth_stencil_image = runtime.images.find(command.handle);
+            if (depth_stencil_image == runtime.images.end()) {
+                return;
+            }
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
+                helpers::to_gl_depth_attachment(depth_stencil_image->second.format),
+                GL_TEXTURE_2D,
+                object,
+                static_cast<GLint>(depth_stencil_view.unwrap()->get_description().base_mip_level));
+        }
+        if (render_target.is_valid() && type == types::ImageViewType::DepthStencil) {
+            const auto target = runtime.objects.find(render_target);
+            const auto render_target_view =
+                resource_accessor.get_render_target_view(render_target.id);
+
+            if (target != runtime.objects.end() && render_target_view.is_some()) {
+                const auto color = render_target_view.unwrap()->get_clear_color();
+                glClearColor(color.r, color.g, color.b, color.a);
+                glFramebufferTexture2D(GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0,
+                    GL_TEXTURE_2D,
+                    target->second,
+                    static_cast<GLint>(
+                        render_target_view.unwrap()->get_description().base_mip_level));
+            }
+        }
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            return;
+        }
+        clear_framebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
 } // namespace enishi::renderer::opengl

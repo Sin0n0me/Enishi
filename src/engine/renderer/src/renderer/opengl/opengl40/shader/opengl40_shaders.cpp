@@ -114,7 +114,7 @@ namespace enishi::renderer::opengl {
         } else if (kind == types::ShaderKind::Pixel) {
             stage = GL_FRAGMENT_SHADER;
         }
-        if (!stage) {
+        if (stage == NO_GL_OBJECT) {
             return foundation::Error(
                 platform::RenderError::MakeError, "Unsupported GLSL shader stage");
         }
@@ -169,10 +169,11 @@ namespace enishi::renderer::opengl {
         return handle;
     }
     bool OpenGL40Shaders::use_active_program(OpenGL40RendererState& runtime) {
-        if (!runtime.active_vertex_shader || !runtime.active_fragment_shader) {
+        if (runtime.active_vertex_shader == NO_GL_OBJECT ||
+            runtime.active_fragment_shader == NO_GL_OBJECT) {
             return false;
         }
-        if (runtime.active_program) {
+        if (runtime.active_program != NO_GL_OBJECT) {
             glUseProgram(runtime.active_program);
 
             return true;

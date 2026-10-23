@@ -1,4 +1,5 @@
 #pragma once
+#include <glad/gl.h>
 #include <renderer/common/resource_accessor.h>
 #include <renderer/opengl/opengl40/runtime/opengl40_renderer_state.h>
 
@@ -18,5 +19,17 @@ namespace enishi::renderer::opengl {
             const types::RenderHandle& handle);
         static bool prepare_back_buffer_framebuffer(
             OpenGL40RendererState& runtime, const types::RenderHandle& render_target);
+        static void bind_back_buffer_view(OpenGL40RendererState& runtime,
+            ResourceAccessor& resource_accessor,
+            const types::DrawCommand& command,
+            const types::RenderHandle& render_target,
+            types::ImageViewType type,
+            GLuint object);
+        static void bind_attachment_view(OpenGL40RendererState& runtime,
+            ResourceAccessor& resource_accessor,
+            const types::DrawCommand& command,
+            const types::RenderHandle& render_target,
+            types::ImageViewType type,
+            GLuint object);
     };
 } // namespace enishi::renderer::opengl
