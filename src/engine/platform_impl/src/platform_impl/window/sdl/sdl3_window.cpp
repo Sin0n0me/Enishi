@@ -34,7 +34,7 @@ namespace enishi::platform_impl {
             }
 
             [[nodiscard]] void* get_proc_address(const char* const name) const noexcept override {
-                return SDL_GL_GetProcAddress(name);
+                return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
             }
         };
     } // namespace

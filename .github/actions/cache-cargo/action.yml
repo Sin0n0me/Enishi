@@ -1,0 +1,27 @@
+name: Cache Cargo sources
+description: Rust依存の取得直後にキャッシュし、後続ビルドの失敗から独立させます。
+runs:
+  using: composite
+  steps:
+    - name: Restore Cargo sources
+      id: cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: cargo-sources-v1-${{ runner.os }}-${{ hashFiles('src/engine/script/bridge/Cargo.lock') }}
+    - name: Fetch locked Cargo sources
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        cargo "+$env:ENISHI_RUST_TOOLCHAIN" fetch --locked --manifest-path src/engine/script/bridge/Cargo.toml
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Save Cargo sources immediately
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ steps.cache.outputs.cache-primary-key }}

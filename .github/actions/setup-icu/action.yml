@@ -1,0 +1,73 @@
+name: Set up cached ICU
+description: ICUの導入済み成果物を共有し、導入直後にキャッシュします。
+inputs:
+  triplet:
+    description: ICUのターゲットtriplet
+    required: true
+  log-name:
+    description: 導入失敗時のログartifact名
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Identify ICU build environment
+      id: environment
+      shell: pwsh
+      env:
+        ICU_TRIPLET: ${{ inputs.triplet }}
+      run: |
+        $vcpkgRoot = Split-Path (Get-Command vcpkg).Source
+        $revision = git -C $vcpkgRoot rev-parse HEAD
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $vcpkgVersion = vcpkg version
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $gccVersion = ''
+        if ($env:ICU_TRIPLET -like '*-mingw-*') {
+          $gccVersion = g++ --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        if ([string]::IsNullOrWhiteSpace($env:VCToolsVersion)) {
+          throw 'Set up the MSVC developer environment before preparing ICU.'
+        }
+        # MSVCとClangは同じMSVC版ICUを共有し、アプリの構成・描画API・ソース変更では失効させません。
+        $identity = @($env:ImageOS, $env:VCToolsVersion, $env:WindowsSDKVersion,
+          $revision, ($vcpkgVersion -join "`n"), ($gccVersion -join "`n")) -join "`n"
+        $fingerprint = [Convert]::ToHexString(
+          [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($identity)))
+        "fingerprint=$fingerprint" >> $env:GITHUB_OUTPUT
+        "log-directory=$vcpkgRoot/buildtrees/icu" >> $env:GITHUB_OUTPUT
+
+    - name: Restore installed ICU
+      id: cache
+      uses: actions/cache/restore@v4
+      with:
+        path: vcpkg_installed
+        key: icu-installed-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.triplet }}-${{ steps.environment.outputs.fingerprint }}-${{ hashFiles('.github/actions/setup-icu/action.yml') }}
+
+    - name: Install ICU on cache miss
+      id: install
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      env:
+        ICU_TRIPLET: ${{ inputs.triplet }}
+      run: |
+        # MinGWではターゲット側にもデータ生成用のicupkgが必要です。
+        vcpkg install "icu[tools]:$env:ICU_TRIPLET" "--x-install-root=$env:GITHUB_WORKSPACE/vcpkg_installed"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # 後続のアプリビルドやテストが失敗しても、導入に成功したICUは次回再利用します。
+    - name: Save installed ICU immediately
+      if: steps.cache.outputs.cache-hit != 'true' && steps.install.outcome == 'success'
+      uses: actions/cache/save@v4
+      with:
+        path: vcpkg_installed
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Upload ICU failure logs
+      if: failure() && steps.install.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.log-name }}
+        path: ${{ steps.environment.outputs.log-directory }}/*.log
+        if-no-files-found: warn
+        retention-days: 7

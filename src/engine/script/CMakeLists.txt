@@ -29,12 +29,18 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Musubu/compiler/musubu_engine/Cargo.t
     message(FATAL_ERROR "Musubu is missing. Run git submodule update --init --recursive")
 endif()
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/rust-toolchain.toml" rust_channel_line REGEX "^channel = ")
+string(REGEX REPLACE "^channel = \"([^\"]+)\"$" "\\1" rust_channel "${rust_channel_line}")
+set(ENISHI_RUST_TOOLCHAIN "${rust_channel}" CACHE STRING "Rust toolchain for Musubu")
 option(ENISHI_CARGO_OFFLINE "Build Musubu using cached Cargo dependencies only" OFF)
 set(cargo_network_options)
 if(ENISHI_CARGO_OFFLINE)
     list(APPEND cargo_network_options --offline)
 endif()
 set(musubu_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
+if(DEFINED ENV{CARGO_TARGET_DIR} AND NOT "$ENV{CARGO_TARGET_DIR}" STREQUAL "")
+    file(TO_CMAKE_PATH "$ENV{CARGO_TARGET_DIR}" musubu_target_dir)
+endif()
 set(cargo_target_options)
 if(MINGW)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -52,7 +58,7 @@ else()
 endif()
 # Cargo tracks Rust sources and the pinned submodule, including changes after checkout.
 add_custom_target(enishi_musubu_build
-    COMMAND ${CMAKE_COMMAND} -E env RUSTUP_TOOLCHAIN=stable
+    COMMAND ${CMAKE_COMMAND} -E env RUSTUP_TOOLCHAIN=${ENISHI_RUST_TOOLCHAIN}
         "${CARGO_EXECUTABLE}" build --release --locked ${cargo_network_options} ${cargo_target_options}
         --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/bridge/Cargo.toml"
         --target-dir "${musubu_target_dir}"
