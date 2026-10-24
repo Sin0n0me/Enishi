@@ -70,6 +70,7 @@ namespace enishi {
 
     bool Application::init(void) {
         this->registry = std::make_shared<ecs::Registry>();
+        this->debug_playback = std::make_shared<debug::PlaybackControl>();
         this->click_settings = std::make_shared<types::ModelClickSettings>();
         this->camera = std::make_shared<core::CameraController>();
 
@@ -85,6 +86,9 @@ namespace enishi {
 
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
             90, this->registry, physics_engine, skinning_system);
+        animation_system->set_debug_playback(this->debug_playback);
+        skinning_system->set_debug_playback(this->debug_playback);
+        physics_system->set_debug_playback(this->debug_playback);
         constexpr core::Priority COLLISION_PRIORITY = 96;
         this->collider = std::make_shared<collider::Collider>();
         this->system_scheduler.register_system<core::ModelCollisionSystem>(
@@ -190,11 +194,13 @@ namespace enishi {
     }
 
     std::shared_ptr<platform::IWindow> Application::init_window(void) {
-        const auto window_manager = this->system_scheduler.register_system<core::WindowManager>(80,
-            std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
-                INIT_WINDOW_SIZE,
-                platform::WindowSystem::Windows,
-                platform_impl::render_backend_description().api));
+        const auto window = std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
+            INIT_WINDOW_SIZE,
+            platform::WindowSystem::Windows,
+            platform_impl::render_backend_description().api);
+        window->set_debug_playback(this->debug_playback);
+        const auto window_manager =
+            this->system_scheduler.register_system<core::WindowManager>(80, window);
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
@@ -309,9 +315,13 @@ namespace enishi {
         }
         // Collision bounds are finalized at 96; the UI frame is finalized at 99.
         constexpr core::Priority OBB_DEBUG_PRIORITY = 98;
-        this->system_scheduler.register_system<core::OBBDebugSystem>(
-            OBB_DEBUG_PRIORITY, this->registry, this->collider, window,
-            this->display_camera, overlay);
+        this->system_scheduler.register_system<core::OBBDebugSystem>(OBB_DEBUG_PRIORITY,
+            this->registry,
+            this->collider,
+            window,
+            this->display_camera,
+            overlay,
+            this->debug_playback);
         constexpr core::Priority UI_PRIORITY = 99;
         const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();

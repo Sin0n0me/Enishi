@@ -30,6 +30,15 @@ namespace enishi::animation {
         this->time = 0.0f;
     }
 
+    void AnimationController::seek(float seconds) {
+        if (this->active_clip == nullptr || !std::isfinite(seconds) ||
+            !std::isfinite(this->active_clip->duration)) {
+            return;
+        }
+        // Seeking clamps to clip endpoints without changing the play/pause state.
+        this->time = std::clamp(seconds, 0.0f, std::max(this->active_clip->duration, 0.0f));
+    }
+
     void AnimationController::update(const float elapsed_seconds) {
         if (!this->playing || this->active_clip == nullptr || !(elapsed_seconds > 0.0f) ||
             !std::isfinite(elapsed_seconds)) {

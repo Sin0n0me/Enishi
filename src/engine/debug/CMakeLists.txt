@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(ENGINE_TYPES)
 
 set(SOURCES
     src/debug/debug.h
+    src/debug/playback/playback_control.h
     src/debug/overlay/overlay_line.h
     src/debug/overlay/interface_debug_overlay.h
     src/debug/overlay/obb_wireframe.h

@@ -14,10 +14,21 @@ namespace enishi::core {
         , skinning_system(std::move(skinning_system)) {
     }
 
+    void PhysicsSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
+    }
+
     void PhysicsSystem::pre_update(void) {
     }
 
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
+        if (this->debug_playback != nullptr && this->debug_playback->paused) {
+            // Keep simulation state intact; only finalize bones sampled by a debug seek.
+            if (this->skinning_system != nullptr) {
+                this->skinning_system->update_after_physics();
+            }
+            return;
+        }
         auto* world = this->physics_engine->get_world();
         for (auto [entity, bodies] : this->registry->view<component::PhysicsBodiesComponent>()) {
             const bool reset_pose = bodies.enabled && bodies.pose_reset_requested &&

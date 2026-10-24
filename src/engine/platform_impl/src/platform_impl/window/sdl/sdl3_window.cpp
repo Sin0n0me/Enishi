@@ -296,6 +296,10 @@ namespace enishi::platform_impl {
         return this->is_closing;
     }
 
+    void SDL3Window::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
+    }
+
     void SDL3Window::poll_events(void) {
         this->input.begin_frame();
         const auto position = this->get_position();
@@ -304,7 +308,14 @@ namespace enishi::platform_impl {
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (this->ui_event_handler != nullptr) {
+            const bool playback_key =
+                this->debug_playback != nullptr && this->debug_playback->enabled &&
+                (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
+                (event.key.key == SDLK_SPACE || event.key.key == SDLK_LEFT ||
+                    event.key.key == SDLK_RIGHT);
+            // Debug shortcuts must not also activate or navigate the focused UI widget.
+            if (this->ui_event_handler != nullptr &&
+                !(playback_key && event.type == SDL_EVENT_KEY_DOWN)) {
                 this->ui_event_handler(event);
             }
             const auto ui = this->ui.lock();
@@ -318,12 +329,14 @@ namespace enishi::platform_impl {
                 case SDL_EventType::SDL_EVENT_QUIT:
                     this->is_closing = true;
                     break;
-                case SDL_EventType::SDL_EVENT_KEY_DOWN:
-                    if (event.key.repeat || (capture_keyboard && event.key.key != SDLK_F3)) {
+                case SDL_EventType::SDL_EVENT_KEY_DOWN: {
+                    if (event.key.repeat ||
+                        (capture_keyboard && event.key.key != SDLK_F3 && !playback_key)) {
                         break;
                     }
                     this->input.on_key_down(SDL3Input::convert_key_code(event.key.key));
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_KEY_UP:
                     this->input.on_key_up(SDL3Input::convert_key_code(event.key.key));
                     break;

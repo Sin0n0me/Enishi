@@ -1,5 +1,6 @@
 #pragma once
 #include "settings.h"
+#include <debug/playback/playback_control.h>
 #include <collider/collider.h>
 #include <core/system/asset/asset_manager.h>
 #include <engine_types/input/model_click_settings.h>
@@ -20,6 +21,7 @@ namespace enishi {
     class Application {
       private:
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<collider::Collider> collider;
         std::shared_ptr<types::ModelClickSettings> click_settings;
         std::shared_ptr<sub_system::ICameraController> camera;

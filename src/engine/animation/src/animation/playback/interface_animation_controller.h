@@ -11,6 +11,7 @@ namespace enishi::animation {
         [[nodiscard]] virtual bool play(const std::string& name, const bool restart = true) = 0;
         virtual void pause(void) = 0;
         virtual void stop(void) = 0;
+        virtual void seek(float seconds) = 0;
         virtual void update(const float elapsed_seconds) = 0;
         [[nodiscard]] virtual const AnimationClipData* get_active_clip(void) const noexcept = 0;
         [[nodiscard]] virtual float get_time(void) const noexcept = 0;

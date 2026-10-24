@@ -1,4 +1,5 @@
 #pragma once
+#include <debug/playback/playback_control.h>
 #include "../../input/sdl/sdl_input.h"
 #include <SDL3/SDL.h>
 #include <engine_types/renderer/graphics_api.h>
@@ -34,6 +35,7 @@ namespace enishi::platform_impl {
         std::function<bool(types::ClientMousePosition)> begin_model_drag;
         std::function<void()> end_model_drag;
         std::weak_ptr<sub_system::IUI> ui;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::function<void(const SDL_Event&)> ui_event_handler;
         std::function<bool(types::ClientMousePosition)> interactive_hit_test;
 
@@ -52,6 +54,7 @@ namespace enishi::platform_impl {
         ~SDL3Window(void) noexcept;
 
         foundation::Option<SDL_Window*> get_window_handle(void) const;
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void set_ui(std::weak_ptr<sub_system::IUI> ui,
             std::function<void(const SDL_Event&)> event_handler);
 
