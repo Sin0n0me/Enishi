@@ -6,6 +6,7 @@
 #include <ranges>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace enishi ::foundation {

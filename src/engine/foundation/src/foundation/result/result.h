@@ -1,7 +1,9 @@
 #pragma once
 #include "../errors/errors.h"
 #include "../str/str.h"
+#include <concepts>
 #include <expected>
+#include <functional>
 #include <vector>
 
 namespace enishi::foundation {
@@ -173,7 +175,7 @@ namespace enishi::foundation {
         }
 
         template <class U>
-            requires std::constructible_from<std::remove_reference_t<T>, U&&>
+            requires std::constructible_from<typename Expected<T, E>::value_type, U&&>
         Result(U&& value)
             : details::ResultBase<Result<T, E>, T, E>(Expected<T, E>{std::forward<U>(value)}) {
         }
