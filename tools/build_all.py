@@ -116,12 +116,19 @@ def run_pattern(pattern: Pattern, root: Path, command_pair: tuple[list[str], lis
         with (directory / "build.log").open("w", encoding="utf-8") as log:
             for stage, command in zip(("configure", "build"), command_pair):
                 result["stage"] = stage
-                log.write(shlex.join(command) + "\n")
+                heading = f"[{pattern.label()} / {stage}] {shlex.join(command)}"
+                print(heading, flush=True)
+                log.write(heading + "\n")
                 log.flush()
-                completed = subprocess.run(command, cwd=PROJECT_ROOT, env=environment,
-                                           stdout=log, stderr=subprocess.STDOUT, check=False)
-                result["returncode"] = completed.returncode
-                if completed.returncode != 0:
+                with subprocess.Popen(command, cwd=PROJECT_ROOT, env=environment,
+                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                      text=True, errors="replace", bufsize=1) as process:
+                    for line in process.stdout:
+                        print(line, end="", flush=True)
+                        log.write(line)
+                        log.flush()
+                    result["returncode"] = process.wait()
+                if result["returncode"] != 0:
                     return result
         result["stage"] = "collect"
         executable = "enishi_engine.exe" if pattern.target_os == "windows" else "enishi_engine"
