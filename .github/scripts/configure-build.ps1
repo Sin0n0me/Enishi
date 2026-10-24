@@ -12,7 +12,10 @@ $configureArgs = @('-S', 'src', '-B', "build/$Backend/$Toolchain",
     "-DPython_EXECUTABLE=$env:pythonLocation/python.exe",
     "-DPython3_EXECUTABLE=$env:pythonLocation/python.exe",
     "-DUSE_OPENGL40=$($Backend -eq 'opengl')", "-DUSE_VULKAN=$($Backend -eq 'vulkan')",
-    "-DENISHI_VULKAN_TESTS=$($Backend -eq 'vulkan')")
+    "-DENISHI_VULKAN_TESTS=$($Backend -eq 'vulkan')",
+    "-DENISHI_SCRIPT_TESTS=$($Toolchain -ne 'visualstudio')",
+    "-DENISHI_CURSOR_TESTS=$($Toolchain -ne 'visualstudio')",
+    "-DENISHI_ECS_TESTS=$($Toolchain -ne 'visualstudio')")
 if ($Toolchain -eq 'visualstudio') {
     $configureArgs += @('-G', 'Visual Studio 17 2022', '-A', 'x64')
 } else {

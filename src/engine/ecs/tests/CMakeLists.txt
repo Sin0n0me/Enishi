@@ -1,0 +1,7 @@
+add_executable(enishi_ecs_tests template_tests.cpp)
+target_link_libraries(enishi_ecs_tests PRIVATE ecs engine_types foundation)
+target_compile_features(enishi_ecs_tests PRIVATE cxx_std_23)
+if(MSVC)
+    target_compile_options(enishi_ecs_tests PRIVATE /utf-8)
+endif()
+add_test(NAME enishi_ecs_tests COMMAND enishi_ecs_tests)

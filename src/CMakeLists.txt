@@ -187,6 +187,12 @@ if(ENISHI_CURSOR_TESTS)
     add_subdirectory(engine/core/tests/cursor)
 endif()
 
+option(ENISHI_ECS_TESTS "Build asset-free ECS and error template validation" OFF)
+if(ENISHI_ECS_TESTS)
+    enable_testing()
+    add_subdirectory(engine/ecs/tests)
+endif()
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
