@@ -1,6 +1,11 @@
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <span>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace enishi::types {
