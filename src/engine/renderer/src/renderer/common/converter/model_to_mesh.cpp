@@ -44,6 +44,11 @@ namespace enishi::renderer {
         buffer.insert(buffer.end(), bytes.begin(), bytes.end());
     }
 
+    foundation::Result<types::MeshData, RendererError> ModelToMesh::to_mesh_data(
+        const types::ModelData& model_data) {
+        return ModelToMesh::to_mesh_data(model_data, MeshConfig{});
+    }
+
     // 大量のコピーが発生するので頻繁に呼ばないこと
     [[nodiscard]]
     foundation::Result<types::MeshData, RendererError> ModelToMesh::to_mesh_data(
