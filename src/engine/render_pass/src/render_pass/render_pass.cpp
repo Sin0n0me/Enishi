@@ -14,6 +14,18 @@ namespace enishi::render_pass {
         return this->shader_reflections;
     }
 
+    types::RenderHandle RenderPass::get_sampled_depth(void) const noexcept {
+        return this->sampled_depth;
+    }
+
+    types::RenderHandle RenderPass::get_shadow_receiver(void) const noexcept {
+        return this->shadow_receiver;
+    }
+    void RenderPass::set_shadow_receiver(types::RenderHandle mesh) {
+        this->remove_mesh(this->shadow_receiver);
+        this->shadow_receiver = mesh;
+        this->add_mesh(mesh);
+    }
     void RenderPass::update(void) {
         for (auto& updater : this->resource_updater) {
             updater->on_update();
@@ -30,10 +42,14 @@ namespace enishi::render_pass {
 
         // RTVの追加
         this->render_target = description.render_target_view;
+        this->sampled_depth = description.sampled_depth;
 
         // DSVの追加
         this->add_command(description.render_target_view);
         this->add_command(description.depth_stencil_view);
+        for (const auto resource : description.shader_resources) {
+            this->add_command(resource);
+        }
 
         // トポロジの追加
         this->add_command(types::RenderHandle{

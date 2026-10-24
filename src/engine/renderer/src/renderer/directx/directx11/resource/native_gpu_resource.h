@@ -10,7 +10,7 @@
 #include <d3d11.h>
 #include <engine_types/handle/handle_type.h>
 #include <platform/renderer/interface_gpu_resource_accessor.h>
-#include <renderer/common/mesh/mesh_handles_pool.h>
+#include <renderer/common/resource_accessor.h>
 #include <unordered_map>
 #include <vector>
 #include <wrl/client.h>
@@ -19,6 +19,7 @@ namespace enishi::renderer::directx {
     class NativeGPUResource : public INativeResourceAccessor,
                               public platform::IGPUResourceAccessor {
       private:
+        std::unique_ptr<ResourceAccessor> interfaces;
         std::unique_ptr<InputLayoutPool> input_layout_pool;
         std::unique_ptr<StatePool> state_pool;
         std::unique_ptr<TexturePool> texture_pool;
@@ -26,8 +27,6 @@ namespace enishi::renderer::directx {
         std::unique_ptr<ShaderPool> shader_pool;
         std::unique_ptr<ViewPool> view_pool;
         std::unique_ptr<ViewportPool> viewport_pool;
-
-        std::unique_ptr<MeshPool> mesh_pool;
 
       public:
         NativeGPUResource(void);

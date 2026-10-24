@@ -12,9 +12,11 @@ namespace enishi::core {
       private:
         std::shared_ptr<platform::IAssetSystem> asset_system;
         std::vector<int> cache;
+        std::filesystem::path shader_directory;
 
       public:
-        explicit ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system);
+        explicit ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system,
+            std::filesystem::path shader_directory);
 
         foundation::Result<std::vector<platform::ShaderDataEntry>, platform::RenderError> get(
             std::span<const std::tuple<types::ShaderKind, std::filesystem::path>> paths)

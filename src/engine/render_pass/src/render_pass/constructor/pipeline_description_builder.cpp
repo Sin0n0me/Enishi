@@ -133,7 +133,7 @@ namespace enishi::render_pass {
         const auto window_size = opt_window_size.unwrap().to_glm_ivec2();
 
         auto&& view = make_depth_stencil(
-            types::ImageDescription::make_depth_stencil(window_size), format, this->renderer);
+            types::ImageDescription::make_depth_stencil(window_size, format), format, this->renderer);
         if (view.is_err()) {
             this->has_error = true;
             this->errors.push_back(view.unwrap_err().get_message());
@@ -239,6 +239,20 @@ namespace enishi::render_pass {
         }
 
         this->description.sampler_state = sampler_state.unwrap();
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::set_sampled_depth(
+        types::RenderHandle handle) noexcept {
+        this->description.sampled_depth = handle;
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_shader_resource(
+        types::RenderHandle handle) noexcept {
+        if (handle.is_valid()) {
+            this->description.shader_resources.push_back(handle);
+        }
         return this;
     }
 

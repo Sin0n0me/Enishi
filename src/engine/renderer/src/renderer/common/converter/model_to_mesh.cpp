@@ -5,6 +5,7 @@
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
+#include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <foundation/str/string_builder.h>
 
@@ -41,6 +42,11 @@ namespace enishi::renderer {
     void append_bytes(std::vector<std::byte>& buffer, const T& value) {
         const auto bytes = std::as_bytes(std::span{&value, sizeof(std::byte)});
         buffer.insert(buffer.end(), bytes.begin(), bytes.end());
+    }
+
+    foundation::Result<types::MeshData, RendererError> ModelToMesh::to_mesh_data(
+        const types::ModelData& model_data) {
+        return ModelToMesh::to_mesh_data(model_data, MeshConfig{});
     }
 
     // 大量のコピーが発生するので頻繁に呼ばないこと
@@ -165,6 +171,10 @@ namespace enishi::renderer {
                 });
         }
 
+        std::vector<std::byte> shadow;
+        append_bytes(shadow, types::UniformShadow{});
+        uniforms.emplace(types::UniformShadow::UNIFORM_NAME,
+            types::OwnedRenderData{std::move(shadow), sizeof(types::UniformShadow)});
         auto&& addon_result = ModelToMesh::to_uniforms_from_addon(model_data, uniforms);
         if (addon_result.is_err()) {
             return std::move(addon_result).unwrap_err();

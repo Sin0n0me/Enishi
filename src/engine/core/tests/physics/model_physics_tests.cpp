@@ -6,7 +6,7 @@
 #include <iostream>
 #include <model_controller/model_component_builder.h>
 #include <physics/bullet3/physics_engine.h>
-#include <platform_impl/physics/physics_config.h>
+#include <physics/common/physics_config.h>
 
 using namespace enishi;
 namespace {
@@ -64,7 +64,7 @@ void model_physics_tests() {
     check(registry->has<component::PhysicsBodiesComponent>(entity) &&
               registry->has<component::PhysicsComponent>(entity),
         "physics addons become runtime components");
-    auto config = std::make_shared<platform_impl::PhysicsWorldConfig>();
+    auto config = std::make_shared<physics::PhysicsWorldConfig>();
     config->set_updatable(true);
     auto engine = std::make_shared<physics::bullet3::PhysicsEngine>(config);
     check(engine->init_world().is_ok(), "initialize model physics world");

@@ -1,12 +1,13 @@
 #include "common/input_ps_model.hlsl"
 #include "common/constant_buffer/material.hlsl"
+#include "common/shadow_visibility.hlsl"
 
-Texture2D model_texture;
-Texture2D sphere_texture;
-Texture2D toon_texture;
-SamplerState model_sampler;
-SamplerState sphere_sampler;
-SamplerState toon_sampler;
+ENISHI_BINDING(3, 0) ENISHI_COMBINED Texture2D model_texture : register(t0);
+ENISHI_BINDING(4, 0) ENISHI_COMBINED Texture2D sphere_texture : register(t1);
+ENISHI_BINDING(5, 0) ENISHI_COMBINED Texture2D toon_texture : register(t2);
+ENISHI_BINDING(3, 0) ENISHI_COMBINED SamplerState model_sampler : register(s0);
+ENISHI_BINDING(4, 0) ENISHI_COMBINED SamplerState sphere_sampler : register(s1);
+ENISHI_BINDING(5, 0) ENISHI_COMBINED SamplerState toon_sampler : register(s2);
 
 
 float4 apply_sphere(
@@ -38,7 +39,9 @@ float4 main(const PSInput input) : SV_TARGET {
     // 光の適用
     // TODO: 光源位置や色を定数バッファで指定できるように
    
-    const float3 light_color = float3(1.0, 1.0, 1.0);
+    const float visibility = shadow_visibility(
+        input.shadow_position, input.view_normal, input.view_light);
+    const float3 light_color = float3(visibility, visibility, visibility);
     const float4 lighting_color = apply_lighting(
         base_color,
         light_color,
@@ -68,7 +71,9 @@ float4 main(const PSInput input) : SV_TARGET {
         input.view_normal
     );
     
-    const float4 final_color = specular_color;
+    // Retain ambient illumination and alpha; shadow only the direct specular contribution.
+    const float4 final_color = float4(
+        toon_color.rgb + (specular_color.rgb - toon_color.rgb) * visibility, toon_color.a);
     
     return final_color;
 }

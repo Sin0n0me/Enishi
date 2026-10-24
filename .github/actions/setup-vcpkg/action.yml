@@ -1,0 +1,21 @@
+name: Set up pinned vcpkg
+description: ランナーに同梱された可変のvcpkgではなく固定コミットを使用します。
+runs:
+  using: composite
+  steps:
+    - name: Checkout vcpkg 2026.10.16
+      uses: actions/checkout@v4
+      with:
+        repository: microsoft/vcpkg
+        ref: 9eec002df1cd109f8f104cd966a763daf9751489
+        path: build/vcpkg
+        persist-credentials: false
+    - name: Bootstrap pinned vcpkg
+      shell: pwsh
+      run: |
+        & ./build/vcpkg/bootstrap-vcpkg.bat -disableMetrics
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $root = Join-Path $env:GITHUB_WORKSPACE 'build/vcpkg'
+        "VCPKG_ROOT=$root" >> $env:GITHUB_ENV
+        "VCPKG_INSTALLATION_ROOT=$root" >> $env:GITHUB_ENV
+        $root >> $env:GITHUB_PATH

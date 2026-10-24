@@ -1,8 +1,28 @@
 #include "sdl3_window.h"
+#include <cmath>
 #include <foundation/log/logger.h>
 
 namespace enishi::platform_impl {
+    void SDL3Window::set_model_drag_handler(
+        std::function<bool(types::ClientMousePosition)> begin, std::function<void()> end) {
+        this->begin_model_drag = std::move(begin);
+        this->end_model_drag = std::move(end);
+    }
+
+    void SDL3Window::refresh_mouse_position(void) {
+        float mouse_x = 0.0f;
+        float mouse_y = 0.0f;
+        // Motion events stop outside the window; tracking must still notice the cursor leaving.
+        SDL_GetGlobalMouseState(&mouse_x, &mouse_y);
+        this->input.on_mouse_move(
+            {static_cast<std::int32_t>(mouse_x), static_cast<std::int32_t>(mouse_y)});
+    }
+
     void SDL3Window::cancel_model_drag(void) {
+        if (this->model_drag_claimed && this->end_model_drag != nullptr) {
+            this->end_model_drag();
+        }
+        this->model_drag_claimed = false;
         this->model_press.reset();
         this->model_dragging = false;
         if (!SDL_CaptureMouse(false)) {
@@ -17,15 +37,34 @@ namespace enishi::platform_impl {
         const auto dx = mouse_x - static_cast<float>(this->model_press->x);
         const auto dy = mouse_y - static_cast<float>(this->model_press->y);
         constexpr float DRAG_DISTANCE = 5.0f;
-        // Distance squared = dx^2 + dy^2; window = initial window + cursor displacement.
+        // Distance squared = dx^2 + dy^2.
         if (!this->model_dragging && dx * dx + dy * dy < DRAG_DISTANCE * DRAG_DISTANCE) {
             return;
         }
+        if (!this->model_dragging && this->begin_model_drag != nullptr) {
+            this->model_drag_claimed =
+                this->begin_model_drag(types::to_client(*this->model_press, this->drag_origin));
+        }
         this->model_dragging = true;
-        const auto result = this->set_position({this->drag_origin.x + static_cast<std::int32_t>(dx),
-            this->drag_origin.y + static_cast<std::int32_t>(dy)});
+        // Only a hand drag accepted by the hanging motion may move the window.
+        if (!this->model_drag_claimed) {
+            return;
+        }
+        const auto position = this->get_position();
+        if (position.is_none()) {
+            return;
+        }
+        // Incremental dragging preserves window movement submitted by animation since the
+        // previous pointer event: p_new=p_current+(drag_total-drag_applied).
+        const glm::vec2 total(std::trunc(dx), std::trunc(dy));
+        const auto delta = total - this->applied_drag_offset;
+        const auto result =
+            this->set_position({position.unwrap().x + static_cast<std::int32_t>(delta.x),
+                position.unwrap().y + static_cast<std::int32_t>(delta.y)});
         if (result.is_err()) {
             foundation::Logger::warning(result.unwrap_err().get_message());
+        } else {
+            this->applied_drag_offset = total;
         }
     }
 
@@ -43,6 +82,7 @@ namespace enishi::platform_impl {
             }
             this->model_press = types::to_screen(cursor, this->position);
             this->drag_origin = this->position;
+            this->applied_drag_offset = glm::vec2(0);
             this->model_dragging = false;
             if (!SDL_CaptureMouse(true)) {
                 foundation::Logger::warning(SDL_GetError());

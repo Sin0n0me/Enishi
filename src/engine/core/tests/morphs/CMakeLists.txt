@@ -5,19 +5,19 @@ find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 set(ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
 add_executable(vertex_morph_tests vertex_morph_tests.cpp morph_weight_tests.cpp uv_morph_tests.cpp
     impulse_morph_tests.cpp
-    "${ENGINE_ROOT}/core/src/core/system/animation/impulse_morph.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/vertex_morph.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/morph_weights.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/bone_morph.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/animation/uv_morph.cpp"
-    "${ENGINE_ROOT}/core/src/core/system/render/uv_morph_upload.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/impulse_morph.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/vertex_morph.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/morph_weights.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/bone_morph.cpp"
+    "${ENGINE_ROOT}/animation/src/animation/morph/uv_morph.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/converter/skinned_vertices.cpp"
     "${ENGINE_ROOT}/core/src/core/system/render/vertex_morph_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/vertex_buffer_updater.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/shadow.cpp"
     "${ENGINE_ROOT}/model_controller/src/model_controller/model_component_builder.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/renderer/render_handle.cpp")
 target_compile_features(vertex_morph_tests PRIVATE cxx_std_23)
-foreach(module core component model_controller engine_types foundation platform renderer)
+foreach(module animation core component model_controller engine_types foundation platform renderer)
     target_include_directories(vertex_morph_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(vertex_morph_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")
@@ -26,3 +26,7 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME vertex_morph_tests COMMAND vertex_morph_tests)
+
+target_sources(vertex_morph_tests PRIVATE
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/buffer_upload.cpp"
+    "${ENGINE_ROOT}/renderer/src/renderer/common/upload/mesh_uniform_upload.cpp")

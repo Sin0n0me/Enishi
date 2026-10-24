@@ -3,7 +3,11 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <imgui.h>
 #include <utility>
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+#include <backends/imgui_impl_vulkan.h>
+#include <foundation/log/logger.h>
+#include <renderer/vulkan/runtime/vulkan_renderer.h>
+#elif defined(USE_OPENGL40)
 #include <backends/imgui_impl_opengl3.h>
 #else
 #include <backends/imgui_impl_dx11.h>
@@ -28,7 +32,39 @@ namespace enishi::platform_impl {
             return foundation::Error(
                 sub_system::UIError::InitializationFailed, "UI window handle is unavailable");
         }
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+        const auto vk_renderer =
+            std::dynamic_pointer_cast<renderer::vulkan::VulkanRenderer>(this->renderer);
+        if (vk_renderer == nullptr) {
+            return foundation::Error(
+                sub_system::UIError::InitializationFailed, "UI requires a Vulkan renderer");
+        }
+        const auto device = vk_renderer->get_native_context();
+        this->platform_initialized = ImGui_ImplSDL3_InitForVulkan(native_window.unwrap());
+        if (this->platform_initialized) {
+            ImGui_ImplVulkan_InitInfo info{};
+            info.ApiVersion = VK_API_VERSION_1_1;
+            info.Instance = device->instance;
+            info.PhysicalDevice = device->physical;
+            info.Device = device->device;
+            info.QueueFamily = device->queue_family;
+            info.Queue = device->queue;
+            constexpr std::uint32_t UI_DESCRIPTOR_POOL_SIZE = 64;
+            constexpr std::uint32_t MINIMUM_IMAGE_COUNT = 2;
+            info.DescriptorPoolSize = UI_DESCRIPTOR_POOL_SIZE;
+            info.MinImageCount = MINIMUM_IMAGE_COUNT;
+            info.ImageCount = device->image_count;
+            info.PipelineInfoMain.RenderPass = device->render_pass;
+            info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+            info.CheckVkResultFn = [](VkResult code) {
+                if (code != VK_SUCCESS) {
+                    foundation::Logger::error(
+                        std::format("ImGui Vulkan failed ({})", static_cast<int>(code)));
+                }
+            };
+            this->renderer_initialized = ImGui_ImplVulkan_Init(&info);
+        }
+#elif defined(USE_OPENGL40)
         const auto gl_context = SDL_GL_GetCurrentContext();
         if (gl_context == nullptr) {
             return foundation::Error(
@@ -68,7 +104,17 @@ namespace enishi::platform_impl {
         }
         ImGui::SetCurrentContext(this->context);
         if (this->renderer_initialized) {
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+            const auto vk_renderer =
+                std::dynamic_pointer_cast<renderer::vulkan::VulkanRenderer>(this->renderer);
+            if (vk_renderer != nullptr) {
+                const auto result = vk_renderer->get_native_context()->wait_idle();
+                if (result.is_err()) {
+                    foundation::Logger::error(result.unwrap_err().get_message());
+                }
+            }
+            ImGui_ImplVulkan_Shutdown();
+#elif defined(USE_OPENGL40)
             ImGui_ImplOpenGL3_Shutdown();
 #else
             ImGui_ImplDX11_Shutdown();
@@ -83,7 +129,9 @@ namespace enishi::platform_impl {
     }
 
     void ImGuiBackend::begin_frame(void) {
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+        ImGui_ImplVulkan_NewFrame();
+#elif defined(USE_OPENGL40)
         ImGui_ImplOpenGL3_NewFrame();
 #else
         ImGui_ImplDX11_NewFrame();
@@ -92,7 +140,17 @@ namespace enishi::platform_impl {
     }
 
     void ImGuiBackend::render(void) {
-#if defined(USE_OPENGL40)
+#if defined(USE_VULKAN)
+        const auto vk_renderer =
+            std::dynamic_pointer_cast<renderer::vulkan::VulkanRenderer>(this->renderer);
+        if (vk_renderer != nullptr) {
+            const auto device = vk_renderer->get_native_context();
+            if (device->recording) {
+                device->begin_main_pass();
+                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), device->command);
+            }
+        }
+#elif defined(USE_OPENGL40)
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #else
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

@@ -3,22 +3,69 @@ name: Windows CMake
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: '全18構成を検証する（無効なら代表5構成）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    runs-on: windows-2022
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }} / ${{ matrix.backend }} / ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
-      matrix:
-        config: [Release, Debug]
-        backend: [directx, opengl]
-        #platform: [x86, x64]
-        platform: [x64]
+      fail-fast: false
+      # 通常は基準構成と各検証軸の代表だけを実行します。
+      # 軸同士の組み合わせに固有の問題は、手動の全構成検証で確認します。
+      matrix: >-
+        ${{ fromJSON(inputs.full_matrix &&
+          '{"os":["windows-2022"],"config":["Release","Debug"],
+            "toolchain":["visualstudio","clang","gcc"],
+            "backend":["directx","opengl","vulkan"],"platform":["x64"]}' ||
+          '{"include":[
+            {"os":"windows-2022","toolchain":"visualstudio","backend":"directx","config":"Debug","platform":"x64"},
+            {"os":"windows-2022","toolchain":"visualstudio","backend":"directx","config":"Release","platform":"x64"},
+            {"os":"windows-2022","toolchain":"clang","backend":"directx","config":"Debug","platform":"x64"},
+            {"os":"windows-2022","toolchain":"gcc","backend":"opengl","config":"Debug","platform":"x64"},
+            {"os":"windows-2022","toolchain":"visualstudio","backend":"vulkan","config":"Debug","platform":"x64"}
+          ]}') }}
+    env:
+      VULKAN_SDK_VERSION: '1.4.363.0'
+      VCPKG_TARGET_TRIPLET: ${{ matrix.toolchain == 'gcc' && 'x64-mingw-dynamic' || 'x64-windows' }}
+      UseMultiToolTask: 'true'
+      EnforceProcessCountAcrossBuilds: 'true'
     steps:
+      - name: Configure parallel builds
+        shell: pwsh
+        run: |
+          $jobs = [Environment]::ProcessorCount
+          "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" >> $env:GITHUB_ENV
+          "MultiProcMaxCount=$jobs" >> $env:GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Set up MinGW GCC
+        if: matrix.toolchain == 'gcc'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja
+
+      - name: Add MinGW tools to PATH
+        if: matrix.toolchain == 'gcc'
+        shell: pwsh
+        run: |
+          "${{ steps.msys2.outputs.msys2-location }}/mingw64/bin" >> $env:GITHUB_PATH
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,56 +76,146 @@ jobs:
 
       - name: Install Python dependencies
         run: python -m pip install --requirement .github/requirements-ci.txt
-          
+
+      - name: Set up Rust for Musubu
+        uses: ./.github/actions/setup-rust
+        with:
+          gnu: ${{ matrix.toolchain == 'gcc' }}
+
+      - name: Cache Cargo dependencies
+        uses: ./.github/actions/cache-cargo
+
       - name: Setup Developer Command
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.platform }}
 
-      - name: Cache CMake dependencies
-        uses: actions/cache@v4
+      - name: Cache Vulkan SDK
+        if: matrix.backend != 'directx'
+        id: vulkan-sdk-cache
+        uses: actions/cache/restore@v4
         with:
-          path: |
-            build/${{ matrix.backend }}/visualstudio/_deps
-            build/${{ matrix.backend }}/visualstudio/libs
-          key: ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-cmake-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
+          path: ${{ runner.temp }}/vulkan-sdk
+          key: ${{ runner.os }}-vulkan-sdk-${{ matrix.platform }}-${{ env.VULKAN_SDK_VERSION }}
 
-      - name: Restore vcpkg dependencies
-        id: vcpkg-cache
+      - name: Install Vulkan SDK
+        if: matrix.backend != 'directx' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:VULKAN_SDK_VERSION
+          $installer = Join-Path $env:RUNNER_TEMP 'vulkan-sdk-installer.exe'
+          $sdkRoot = Join-Path $env:RUNNER_TEMP 'vulkan-sdk'
+          Invoke-WebRequest "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe" -OutFile $installer
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O="?LunarG, Inc\.') {
+            throw 'Vulkan SDK installer signature is not a valid LunarG signature'
+          }
+          $arguments = @('--root', "`"$sdkRoot`"", '--accept-licenses', '--default-answer', '--confirm-command', 'install', 'copy_only=1')
+          $process = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Vulkan SDK installation failed: $($process.ExitCode)"
+          }
+
+      - name: Configure Vulkan SDK environment
+        if: matrix.backend != 'directx'
+        shell: pwsh
+        run: |
+          $sdkRoot = Join-Path $env:RUNNER_TEMP 'vulkan-sdk'
+          foreach ($required in @('Include/vulkan/vulkan.h', 'Lib/vulkan-1.lib', 'Bin/glslc.exe', 'Bin/dxc.exe', 'Bin/spirv-val.exe', 'Source/SPIRV-Reflect/spirv_reflect.c')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $required))) {
+              throw "Vulkan SDK component is missing: $required"
+            }
+          }
+          "VULKAN_SDK=$sdkRoot" >> $env:GITHUB_ENV
+          (Join-Path $sdkRoot 'Bin') >> $env:GITHUB_PATH
+
+      - name: Save Vulkan SDK immediately
+        if: matrix.backend != 'directx' && steps.vulkan-sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/vulkan-sdk
+          key: ${{ steps.vulkan-sdk-cache.outputs.cache-primary-key }}
+
+      - name: Restore CMake dependencies
+        id: cmake-cache
         uses: actions/cache/restore@v4
         with:
           path: |
-            vcpkg_installed
-            vcpkg_binary_cache
-          key: ${{ runner.os }}-vcpkg-${{ matrix.platform }}-${{ hashFiles('**/CMakeLists.txt', '.github/workflows/cmake.yml') }}
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/_deps
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/libs
+          key: ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ matrix.platform }}-
+            ${{ runner.os }}-cmake-sources-v2-${{ matrix.toolchain }}-${{ matrix.platform }}-${{ matrix.backend }}-${{ matrix.config }}-
 
-      - name: Install ICU
-        env:
-          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg_binary_cache
-        run: |
-          if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
-          vcpkg install icu:x64-windows --x-install-root="%GITHUB_WORKSPACE%\vcpkg_installed"
-        shell: cmd
+      - name: Set up cached Musubu
+        uses: ./.github/actions/setup-musubu
+        with:
+          abi: ${{ matrix.toolchain == 'gcc' && 'gnu' || 'msvc' }}
 
-      - name: Save vcpkg dependencies
-        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+      - name: Set up pinned vcpkg
+        uses: ./.github/actions/setup-vcpkg
+
+      - name: Set up cached ICU
+        uses: ./.github/actions/setup-icu
+        with:
+          triplet: ${{ env.VCPKG_TARGET_TRIPLET }}
+          log-name: icu-logs-${{ matrix.toolchain }}-${{ matrix.backend }}-${{ matrix.config }}-${{ matrix.platform }}
+
+      - name: Configure build
+        shell: pwsh
+        run: ./.github/scripts/configure-build.ps1 -Backend '${{ matrix.backend }}' -Toolchain '${{ matrix.toolchain }}' -Config '${{ matrix.config }}'
+
+      - name: Save CMake dependencies immediately
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
-            vcpkg_installed
-            vcpkg_binary_cache
-          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/_deps
+            build/${{ matrix.backend }}/${{ matrix.toolchain }}/libs
+          key: ${{ steps.cmake-cache.outputs.cache-primary-key }}
 
       - name: Build
-        env:
-          VCPKG_INSTALLED_DIR: ${{ github.workspace }}\vcpkg_installed
+        shell: pwsh
         run: |
-          set "PYTHON_EXECUTABLE=%pythonLocation%\python.exe"
-          set "PATH=%pythonLocation%;%PATH%"
-          "%PYTHON_EXECUTABLE%" -c "import jinja2"
-          build\build.cmd ${{ matrix.backend }} ${{ matrix.config }} visualstudio
-        shell: cmd
+          $targets = @('enishi_engine')
+          if ('${{ matrix.backend }}' -eq 'vulkan') { $targets += 'vulkan_render_tests' }
+          if ('${{ matrix.toolchain }}' -ne 'visualstudio') {
+            $targets += @('enishi_script_tests', 'enishi_cursor_tests', 'enishi_animation_pose_tests', 'enishi_ecs_tests')
+          }
+          $buildArgs = @('--build', 'build/${{ matrix.backend }}/${{ matrix.toolchain }}',
+            '--config', '${{ matrix.config }}', '--target') + $targets +
+            @('--parallel', $env:CMAKE_BUILD_PARALLEL_LEVEL)
+          if ('${{ matrix.toolchain }}' -eq 'visualstudio') {
+            $buildArgs += @('--', '/p:UseMultiToolTask=true', '/p:EnforceProcessCountAcrossBuilds=true',
+              "/p:MultiProcMaxCount=$env:CMAKE_BUILD_PARALLEL_LEVEL")
+          }
+          cmake @buildArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check executable subsystem
+        shell: pwsh
+        run: |
+          $directory = 'build/${{ matrix.backend }}/${{ matrix.toolchain }}'
+          if ('${{ matrix.toolchain }}' -eq 'visualstudio') {
+            $directory = Join-Path $directory '${{ matrix.config }}'
+          }
+          $bytes = [IO.File]::ReadAllBytes((Join-Path $directory 'enishi_engine.exe'))
+          # PEヘッダーの位置 + 署名とCOFFヘッダーの長さ + Subsystemフィールドのオフセット。
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $peOffset + 24 + 68)
+          $expected = if ('${{ matrix.config }}' -eq 'Release') { 2 } else { 3 }
+          if ($subsystem -ne $expected) {
+            throw "Unexpected executable subsystem: $subsystem (expected $expected)"
+          }
+
+      - name: Validate Vulkan shaders
+        if: matrix.backend == 'vulkan'
+        shell: pwsh
+        run: |
+          $shaders = @(Get-ChildItem -LiteralPath build/vulkan/${{ matrix.toolchain }}/shader/vulkan -Filter *.spv)
+          if ($shaders.Count -eq 0) { throw 'No compiled Vulkan shaders were found' }
+          foreach ($shader in $shaders) {
+            & "$env:VULKAN_SDK/Bin/spirv-val.exe" --target-env vulkan1.1 $shader.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

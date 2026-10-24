@@ -1,13 +1,15 @@
 #pragma once
 #include "settings.h"
 #include <core/system/asset/asset_manager.h>
-#include <core/system/collision/model_click_settings.h>
+#include <engine_types/input/model_click_settings.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
 
 #include <sub_system/model/interface_model_selection.h>
+#include <sub_system/camera/interface_camera_controller.h>
+#include <sub_system/window/interface_window_animation_sync.h>
 #include <sub_system/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
@@ -17,7 +19,11 @@ namespace enishi {
     class Application {
       private:
         std::shared_ptr<ecs::Registry> registry;
-        std::shared_ptr<core::ModelClickSettings> click_settings;
+        std::shared_ptr<types::ModelClickSettings> click_settings;
+        std::shared_ptr<sub_system::ICameraController> camera;
+        std::shared_ptr<sub_system::ICameraController> display_camera;
+        std::shared_ptr<sub_system::IWindowAnimationSync> window_animation_sync;
+        std::shared_ptr<platform::IWindow> root_window;
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
@@ -25,6 +31,9 @@ namespace enishi {
       public:
         bool init(void);
         void run(void);
+        [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;
+        [[nodiscard]] std::shared_ptr<sub_system::IWindowAnimationSync>
+        get_window_animation_sync() const;
 
       private:
         std::shared_ptr<platform::IWindow> init_window(void);

@@ -1,0 +1,10 @@
+[submodule "src/engine/script/Musubu"]
+	path = src/engine/script/Musubu
+	url = https://github.com/Sin0n0me/Musubu.git
+	branch = master
+[submodule "tools/SPIRV-Cross"]
+	path = tools/SPIRV-Cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross.git
+[submodule "third_party/tomlplusplus"]
+	path = third_party/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git

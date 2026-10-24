@@ -1,0 +1,126 @@
+name: Windows Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      UseMultiToolTask: 'true'
+      EnforceProcessCountAcrossBuilds: 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Configure parallel builds
+        run: |
+          $jobs = [Environment]::ProcessorCount
+          "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" >> $env:GITHUB_ENV
+          "MultiProcMaxCount=$jobs" >> $env:GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Developer Command
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Rust for Musubu
+        uses: ./.github/actions/setup-rust
+        with:
+          gnu: 'false'
+
+      - name: Cache Cargo dependencies
+        uses: ./.github/actions/cache-cargo
+
+      - name: Set up cached Musubu
+        uses: ./.github/actions/setup-musubu
+        with:
+          abi: msvc
+
+      - name: Set up pinned vcpkg
+        uses: ./.github/actions/setup-vcpkg
+
+      - name: Set up cached ICU
+        uses: ./.github/actions/setup-icu
+        with:
+          triplet: x64-windows
+          log-name: icu-logs-tests-${{ matrix.config }}
+
+      - name: Restore CMake dependencies
+        id: cmake-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/tests/visualstudio/_deps
+            build/tests/visualstudio/libs
+          key: ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-
+
+      # These tests do not create a renderer or load model assets. Only their targets are built.
+      - name: Configure tests
+        run: |
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) {
+            $vcpkgRoot = Split-Path (Get-Command vcpkg).Source
+          }
+          $toolchain = Join-Path $vcpkgRoot 'scripts/buildsystems/vcpkg.cmake'
+          cmake -S src -B build/tests/visualstudio -G 'Visual Studio 17 2022' -A x64 `
+            "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
+            "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/vcpkg_installed" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF -DENISHI_VULKAN_TESTS=OFF `
+            -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON -DENISHI_ECS_TESTS=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Save CMake dependencies immediately
+        if: steps.cmake-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/tests/visualstudio/_deps
+            build/tests/visualstudio/libs
+          key: ${{ steps.cmake-cache.outputs.cache-primary-key }}
+
+      - name: Build tests
+        run: |
+          cmake --build build/tests/visualstudio --config ${{ matrix.config }} `
+            --target enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build/tests/visualstudio -C ${{ matrix.config }} `
+            -R '^enishi_(script|cursor|animation_pose|ecs)_tests$' --output-on-failure --no-tests=error `
+            --output-junit "$env:GITHUB_WORKSPACE/build/tests/test-results.xml"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.config }}
+          path: |
+            build/tests/test-results.xml
+            build/tests/visualstudio/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
+          retention-days: 7

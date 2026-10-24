@@ -1,14 +1,15 @@
+#include "skinning_physics.h"
 #include "bone_view_factory.h"
-#include "skinning_system.h"
 #include <algorithm>
 #include <core/system/physics/physics_body_factory.h>
 #include <foundation/log/logger.h>
 
 namespace enishi::core {
-    void SkinningSystem::build_physics(ModelBones& bones,
+    void SkinningPhysics::build(ModelBones& bones,
+        sub_system::IPhysicsEngine* physics_engine,
         const component::ModelComponent& model,
         foundation::Option<component::PhysicsComponent&> physics,
-        foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const {
+        foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) {
         // PhysicsComponentを持たないモデルもある
         if (physics.is_some()) {
             auto views = BoneViewFactory::to_shared_views(
@@ -42,8 +43,8 @@ namespace enishi::core {
                     }
                 }
             }
-            if (physics_bodies.is_some() && this->physics_engine != nullptr) {
-                auto built = PhysicsBodyFactory::build(*this->physics_engine->get_world(),
+            if (physics_bodies.is_some() && physics_engine != nullptr) {
+                auto built = PhysicsBodyFactory::build(*physics_engine->get_world(),
                     physics_bodies.unwrap_mut(),
                     bones.physics_cache,
                     bones.physics_updater);
@@ -57,7 +58,7 @@ namespace enishi::core {
         }
     }
 
-    void SkinningSystem::import_physics_pose(ModelBones& bones) const noexcept {
+    void SkinningPhysics::import_pose(ModelBones& bones) noexcept {
         if (bones.physics_cache == nullptr || bones.ik_cache == nullptr) {
             return;
         }
@@ -105,28 +106,20 @@ namespace enishi::core {
         }
     }
 
-    void SkinningSystem::update_after_physics(void) {
-        for (auto [entity, animation, model, skinning] :
-            this->registry->view<component::AnimationComponent,
-                component::ModelComponent,
-                component::SkinningComponent>()) {
-            const auto found = this->model_bones.find(entity);
-            if (found == this->model_bones.end() || !found->second->pending_after_physics) {
-                continue;
+    void SkinningPhysics::write_back_pose(ModelBones& bones) noexcept {
+        if (bones.physics_cache != nullptr && bones.animation_cache != nullptr) {
+            const auto bone_count = bones.physics_cache->size();
+            for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                auto* const animation_view = bones.animation_cache->at(i);
+                auto* const physics_view = bones.physics_cache->at(i);
+                const auto& global = animation_view->get_animation_global_transform();
+                if (physics_view->get_physics_global() != global) {
+                    physics_view->set_physics_global(global);
+                }
             }
-            auto& bones = *found->second;
-            bones.pending_after_physics = false;
-            const auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
-            if (bodies.is_some() && !bodies.unwrap().enabled) {
-                continue;
+            for (types::BoneIndex i = 0; i < bone_count; ++i) {
+                bones.physics_updater->update_local(i);
             }
-            if (this->physics_engine != nullptr &&
-                this->physics_engine->get_world()->get_config_reader()->can_update()) {
-                this->import_physics_pose(bones);
-            }
-            this->evaluate_bone_phase(
-                bones, this->registry->get<component::IKComponent>(entity), true);
-            this->write_skinning_matrices(animation, model, skinning);
         }
     }
 } // namespace enishi::core

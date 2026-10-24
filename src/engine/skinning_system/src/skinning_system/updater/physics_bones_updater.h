@@ -1,19 +1,27 @@
 #pragma once
-#include <sub_system/skinning_system/interface_bone_updater.h>
 #include <skinning_system/cache/physics_bone_cache.h>
 #include <skinning_system/views/physics_bone_view.h>
 #include <span>
+#include <sub_system/skinning_system/interface_bone_updater.h>
 #include <vector>
 
 namespace enishi::skinning_system {
     class PhysicsBonesUpdater : public sub_system::IBoneUpdater {
       private:
+        struct TransformCache {
+            glm::mat4 inverse_source{1};
+            glm::mat4 inverse{1};
+            glm::mat4 local_source{1};
+            glm::mat4 parent_source{1};
+            glm::mat4 local{1};
+            bool inverse_valid{false};
+            bool local_valid{false};
+        };
         PhysicsBonesCache* const physics_view;
+        std::vector<TransformCache> transforms;
 
       public:
-        explicit PhysicsBonesUpdater(PhysicsBonesCache& physics_view) noexcept
-            : physics_view(&physics_view) {
-        }
+        explicit PhysicsBonesUpdater(PhysicsBonesCache& physics_view) noexcept;
 
         [[nodiscard]] std::span<const types::BoneNode> bone_nodes(void) const noexcept {
             return this->physics_view->get_bone_nodes();

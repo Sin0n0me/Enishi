@@ -1,3 +1,8 @@
+#ifndef ENISHI_SHADER_BACKEND
+#include "common/backend.hlsl"
+#endif
+
+ENISHI_BINDING(2, 0)
 cbuffer Material {
     float4 diffuse;
     float3 specular;

@@ -15,21 +15,21 @@
 namespace enishi::physics::bullet3 {
     class BulletRigidBody : public sub_system::IRigidBody {
       private:
-        // The resource pool owns this wrapper, so retaining shared ownership would form a cycle.
-        INativePhysicsAccessor* const native_view;
+        // Borrow heap objects owned by the same resource pool as this wrapper.
+        btRigidBody& rigid_body;
+        IMMDMotionState& active_motion_state;
+        IMMDMotionState& kinematic_motion_state;
         PhysicsBoneViews views;
-        types::HandleId rigid_body;
-        types::HandleId active_motion_state;
-        types::HandleId kinematic_motion_state;
         types::RigidBodyKind kind;
         types::BoneIndex bone_index;
+        glm::mat4 animation_transform{1};
+        bool has_animation_transform{false};
 
       public:
-        explicit BulletRigidBody(INativePhysicsAccessor& native_view,
+        explicit BulletRigidBody(btRigidBody& rigid_body,
+            IMMDMotionState& active_motion_state,
+            IMMDMotionState& kinematic_motion_state,
             PhysicsBoneViews&& views,
-            types::HandleId rigid_body,
-            types::HandleId active_motion_state,
-            types::HandleId kinematic_motion_state,
             types::RigidBodyKind kind,
             types::BoneIndex bone_index);
 

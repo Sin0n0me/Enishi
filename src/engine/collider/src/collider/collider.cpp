@@ -276,12 +276,48 @@ namespace enishi::collider {
         return count;
     }
 
+    bool Collider::overlap(const types::OBB& first, const types::OBB& second) {
+        if (!valid(first) || !valid(second)) {
+            return false;
+        }
+        const glm::dvec3 delta = glm::dvec3(second.center) - glm::dvec3(first.center);
+        const auto separated = [&](const glm::dvec3& axis) {
+            constexpr double MIN_AXIS_SQUARED = 1e-24;
+            // SAT: separation iff |dot(c2-c1,a)| > sum_i e_i*|dot(u_i,a)| for both boxes.
+            // Scaling a multiplies both sides equally: no normalization or contact points needed.
+            return glm::dot(axis, axis) > MIN_AXIS_SQUARED &&
+                   std::abs(glm::dot(delta, axis)) > radius(first, axis) + radius(second, axis);
+        };
+        for (int axis = 0; axis < 3; ++axis) {
+            if (separated(glm::dvec3(first.axis[axis])) || separated(glm::dvec3(second.axis[axis]))) {
+                return false;
+            }
+        }
+        for (int first_axis = 0; first_axis < 3; ++first_axis) {
+            for (int second_axis = 0; second_axis < 3; ++second_axis) {
+                if (separated(glm::cross(glm::dvec3(first.axis[first_axis]),
+                        glm::dvec3(second.axis[second_axis])))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     foundation::Option<types::OBBContact> Collider::intersect(
         const types::CollisionModelId first_model,
         const types::OBB& first,
         const types::CollisionModelId second_model,
         const types::OBB& second) {
-        if (first_model == second_model || !valid(first) || !valid(second)) {
+        if (first_model == second_model) {
+            return {};
+        }
+        return Collider::intersect(first, second);
+    }
+
+    foundation::Option<types::OBBContact> Collider::intersect(
+        const types::OBB& first, const types::OBB& second) {
+        if (!valid(first) || !valid(second)) {
             return {};
         }
         const glm::dvec3 delta = glm::dvec3(second.center) - glm::dvec3(first.center);

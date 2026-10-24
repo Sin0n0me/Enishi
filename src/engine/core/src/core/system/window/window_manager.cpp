@@ -9,10 +9,6 @@ namespace enishi::core {
         return this->root_window;
     }
 
-    bool WindowManager::should_close(void) {
-        return false;
-    }
-
     void WindowManager::pre_update(void) {
         this->root_window->poll_events();
     }

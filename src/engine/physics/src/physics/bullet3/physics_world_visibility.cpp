@@ -37,6 +37,7 @@ namespace enishi::physics::bullet3 {
                 }
             }
             this->world->removeRigidBody(native);
+            this->enabled_bodies_dirty = true;
             return {};
         }
 
@@ -44,6 +45,7 @@ namespace enishi::physics::bullet3 {
         wrapper.unwrap()->reset_transform();
         wrapper.unwrap()->reset();
         this->world->addRigidBody(native, disabled->second.first, disabled->second.second);
+        this->enabled_bodies_dirty = true;
         this->disabled_body_filters.erase(disabled);
         native->activate(true);
         for (const auto& joint : joints) {

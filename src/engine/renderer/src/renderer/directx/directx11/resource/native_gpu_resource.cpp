@@ -2,14 +2,14 @@
 
 namespace enishi::renderer::directx {
     NativeGPUResource::NativeGPUResource(void)
-        : input_layout_pool(std::make_unique<InputLayoutPool>())
+        : interfaces(std::make_unique<ResourceAccessor>())
+        , input_layout_pool(std::make_unique<InputLayoutPool>())
         , texture_pool(std::make_unique<TexturePool>())
         , buffer_pool(std::make_unique<BufferPool>())
         , shader_pool(std::make_unique<ShaderPool>())
-        , view_pool(std::make_unique<ViewPool>())
+        , view_pool(std::make_unique<ViewPool>(*this->interfaces))
         , viewport_pool(std::make_unique<ViewportPool>())
-        , mesh_pool(std::make_unique<MeshPool>())
-        , state_pool(std::make_unique<StatePool>()) {
+        , state_pool(std::make_unique<StatePool>(*this->interfaces)) {
     }
 
     INativeBufferAccessor* NativeGPUResource::get_native_buffer_accessor(void) noexcept {
@@ -60,17 +60,17 @@ namespace enishi::renderer::directx {
     }
 
     platform::IViewAccessor* NativeGPUResource::get_view_accessor(void) noexcept {
-        return this->view_pool.get();
+        return this->interfaces->get_view_accessor();
     }
     const platform::IViewAccessor* NativeGPUResource::get_view_accessor(void) const noexcept {
-        return this->view_pool.get();
+        return this->interfaces->get_view_accessor();
     }
 
     platform::IShaderAccessor* NativeGPUResource::get_shader_accessor(void) noexcept {
-        return this->shader_pool.get();
+        return this->interfaces->get_shader_accessor();
     }
     const platform::IShaderAccessor* NativeGPUResource::get_shader_accessor(void) const noexcept {
-        return this->shader_pool.get();
+        return this->interfaces->get_shader_accessor();
     }
 
     INativeStateAccessor* NativeGPUResource::get_native_state_accessor(void) noexcept {
@@ -81,26 +81,26 @@ namespace enishi::renderer::directx {
     }
 
     platform::IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) noexcept {
-        return this->mesh_pool.get();
+        return this->interfaces->get_mesh_accessor();
     }
     const platform::IMeshAccessor* NativeGPUResource::get_mesh_accessor(void) const noexcept {
-        return this->mesh_pool.get();
+        return this->interfaces->get_mesh_accessor();
     }
 
     platform::IStateAccessor* NativeGPUResource::get_state_accessor(void) noexcept {
-        return this->state_pool.get();
+        return this->interfaces->get_state_accessor();
     }
     const platform::IStateAccessor* NativeGPUResource::get_state_accessor(void) const noexcept {
-        return this->state_pool.get();
+        return this->interfaces->get_state_accessor();
     }
 
     platform::IBufferAccessor* NativeGPUResource::get_buffer_accessor(
         void) noexcept {
-        return this->buffer_pool.get();
+        return this->interfaces->get_buffer_accessor();
     }
     const platform::IBufferAccessor*
     NativeGPUResource::get_buffer_accessor(void) const noexcept {
-        return this->buffer_pool.get();
+        return this->interfaces->get_buffer_accessor();
     }
 } // namespace enishi::renderer::directx
 

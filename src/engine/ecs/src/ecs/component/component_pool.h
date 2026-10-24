@@ -55,19 +55,19 @@ namespace enishi::ecs {
         T& insert_or_replace(const EntityID id, T&& component) {
             if (this->has(id)) {
                 // 既存のコンポーネントを上書き
-                T& existing = this->components[this->sparse[id]];
+                T& existing = this->components[this->sparse[id.handle_id]];
                 existing = std::move(component);
                 return existing;
             }
-            return this->insert(id, std::move(component));
+            return this->emplace_component(id, std::move(component));
         }
 
         // 既に持っている場合は何もしない
-        T& insert_or_ignore(const EntityID id, const T&& component) {
+        T& insert_or_ignore(const EntityID id, T&& component) {
             if (this->has(id)) {
-                return this->components[this->sparse[id]];
+                return this->components[this->sparse[id.handle_id]];
             }
-            return this->insert(id, std::move(component));
+            return this->emplace_component(id, std::move(component));
         }
 
         // コンポーネントを削除(swap-and-pop で穴を作らない)
@@ -129,7 +129,7 @@ namespace enishi::ecs {
 
             this->sparse[id.handle_id] = static_cast<std::uint32_t>(this->dense.size());
             this->dense.push_back(id);
-            this->components.emplace_back(component);
+            this->components.emplace_back(std::move(component));
 
             return this->components.back();
         }

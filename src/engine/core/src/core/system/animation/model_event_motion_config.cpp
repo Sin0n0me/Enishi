@@ -1,12 +1,13 @@
 #include "model_event_motion_config.h"
 #include <cmath>
+#include <foundation/text/config_line_reader.h>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 
 namespace enishi::core {
     namespace {
-        bool read_push_states(std::istringstream& fields, ModelClickSettings& settings) {
+        bool read_push_states(std::istringstream& fields, types::ModelClickSettings& settings) {
             settings.push_states.clear();
             std::string state;
             bool exclusive = false;
@@ -24,7 +25,7 @@ namespace enishi::core {
                     }
                     exclusive = true;
                     if (state == "all") {
-                        settings.push_states = ModelClickSettings{}.push_states;
+                        settings.push_states = types::ModelClickSettings{}.push_states;
                     }
                 } else if (state == "Kinematic") {
                     settings.push_states.push_back(types::RigidBodyKind::Kinematic);
@@ -85,27 +86,15 @@ namespace enishi::core {
     } // namespace
 
     foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
-    load_model_event_motions(const std::filesystem::path& path, ModelClickSettings* settings) {
-        ModelClickSettings parsed_settings;
-        std::ifstream stream(path);
-        if (!stream.is_open()) {
-            return foundation::Error(MotionConfigError::ReadFailed,
-                "Cannot open model event motion configuration: " + path.string());
-        }
+    parse_model_event_motions(std::istream& stream,
+        const std::filesystem::path& directory,
+        types::ModelClickSettings* settings) {
+        types::ModelClickSettings parsed_settings;
         std::vector<ModelEventMotionRule> rules;
-        std::string line;
-        std::size_t line_number = 0;
-        while (std::getline(stream, line)) {
-            ++line_number;
-            constexpr std::string_view UTF8_BOM = "\xEF\xBB\xBF";
-            if (line_number == 1 && line.starts_with(UTF8_BOM)) {
-                line.erase(0, UTF8_BOM.size());
-            }
-            std::istringstream fields(line);
-            fields >> std::ws;
-            if (fields.eof() || fields.peek() == '#') {
-                continue;
-            }
+        foundation::ConfigLineReader reader(stream);
+        std::istringstream fields;
+        while (reader.next(fields)) {
+            const auto line_number = reader.line_number();
             std::string directive;
             fields >> directive;
             if (directive == "push_states") {
@@ -121,24 +110,33 @@ namespace enishi::core {
             if (!(fields >> std::quoted(rule.model) >> std::quoted(rule.event) >>
                     std::quoted(rule.bone)) ||
                 rule.model.empty() || rule.event.empty() || rule.bone.empty() ||
-                !read_action(fields, path.parent_path(), rule)) {
+                !read_action(fields, directory, rule)) {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Invalid motion rule at line " + std::to_string(line_number));
             }
-            fields >> std::ws;
-            if (!fields.eof() && fields.peek() != '#') {
+            if (foundation::has_config_trailing_fields(fields)) {
                 return foundation::Error(MotionConfigError::InvalidRule,
                     "Unexpected motion rule field at line " + std::to_string(line_number));
             }
             rules.push_back(std::move(rule));
         }
-        if (stream.bad()) {
-            return foundation::Error(MotionConfigError::ReadFailed,
-                "Cannot read model event motion configuration: " + path.string());
+        if (reader.read_failed()) {
+            return foundation::Error(
+                MotionConfigError::ReadFailed, "Cannot read model event motion configuration");
         }
         if (settings != nullptr) {
             settings->push_states = std::move(parsed_settings.push_states);
         }
         return rules;
+    }
+    foundation::Result<std::vector<ModelEventMotionRule>, MotionConfigError>
+    load_model_event_motions(
+        const std::filesystem::path& path, types::ModelClickSettings* settings) {
+        std::ifstream stream(path);
+        if (!stream.is_open()) {
+            return foundation::Error(MotionConfigError::ReadFailed,
+                "Cannot open model event motion configuration: " + path.string());
+        }
+        return parse_model_event_motions(stream, path.parent_path(), settings);
     }
 } // namespace enishi::core

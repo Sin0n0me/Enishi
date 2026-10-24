@@ -1,146 +1,83 @@
 #include "rigid_body.h"
-#include <physics/bullet3/physics_native_resource_maker.h>
 #include <utility>
 
 namespace enishi::physics::bullet3 {
-    BulletRigidBody::BulletRigidBody(INativePhysicsAccessor& native_view,
+    BulletRigidBody::BulletRigidBody(btRigidBody& rigid_body,
+        IMMDMotionState& active_motion_state,
+        IMMDMotionState& kinematic_motion_state,
         PhysicsBoneViews&& views,
-        types::HandleId rigid_body,
-        types::HandleId active_motion_state,
-        types::HandleId kinematic_motion_state,
         const types::RigidBodyKind kind,
         const types::BoneIndex bone_index)
-        : native_view(&native_view)
-        , views(std::move(views))
-        , rigid_body(rigid_body)
+        : rigid_body(rigid_body)
         , active_motion_state(active_motion_state)
         , kinematic_motion_state(kinematic_motion_state)
+        , views(std::move(views))
         , kind(kind)
         , bone_index(bone_index) {
     }
 
     void BulletRigidBody::set_active(const bool active_flag) {
-        auto&& opt_native_rigid_body =
-            this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
-                this->rigid_body);
-        if (opt_native_rigid_body.is_none()) {
-            return;
-        }
-
-        auto&& opt_active_motion_state =
-            this->native_view->get_native_motion_state_accessor()->get_native_motion_state(
-                this->active_motion_state);
-        auto&& opt_kinematic_motion_state =
-            this->native_view->get_native_motion_state_accessor()->get_native_motion_state(
-                this->kinematic_motion_state);
-        if (opt_kinematic_motion_state.is_none() || opt_active_motion_state.is_none()) {
-            return;
-        }
-        auto&& native_rigid_body = opt_native_rigid_body.unwrap();
-        auto&& active_motion_state = opt_active_motion_state.unwrap();
-        auto&& kinematic_motion_state = opt_kinematic_motion_state.unwrap();
-
-        const auto current_flag = native_rigid_body->getCollisionFlags();
-        if (this->kind != types::RigidBodyKind::Kinematic) {
-            const auto motion_state =
-                active_flag ? active_motion_state.get() : kinematic_motion_state.get();
-            const auto flag = active_flag ? current_flag & ~btCollisionObject::CF_KINEMATIC_OBJECT
-                                          : current_flag | btCollisionObject::CF_KINEMATIC_OBJECT;
-
-            native_rigid_body->setCollisionFlags(flag);
-            native_rigid_body->setMotionState(motion_state);
-        } else {
-            const auto flag = current_flag | btCollisionObject::CF_KINEMATIC_OBJECT;
-            native_rigid_body->setCollisionFlags(flag);
-            native_rigid_body->setMotionState(kinematic_motion_state.get());
-        }
+        const auto current_flag = this->rigid_body.getCollisionFlags();
+        const bool dynamic = active_flag && this->kind != types::RigidBodyKind::Kinematic;
+        const auto flag = dynamic ? current_flag & ~btCollisionObject::CF_KINEMATIC_OBJECT
+                                  : current_flag | btCollisionObject::CF_KINEMATIC_OBJECT;
+        this->rigid_body.setCollisionFlags(flag);
+        this->rigid_body.setMotionState(
+            dynamic ? &this->active_motion_state : &this->kinematic_motion_state);
+        this->rigid_body.activate(true);
     }
 
     void BulletRigidBody::reset(void) {
-        auto&& opt_native_rigid_body =
-            this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
-                this->rigid_body);
-        if (opt_native_rigid_body.is_none()) {
-            return;
-        }
-        auto&& native_rigid_body = opt_native_rigid_body.unwrap_mut();
-        native_rigid_body->setAngularVelocity(btVector3(0, 0, 0));
-        native_rigid_body->setLinearVelocity(btVector3(0, 0, 0));
-        native_rigid_body->clearForces();
+        this->rigid_body.setAngularVelocity(btVector3(0, 0, 0));
+        this->rigid_body.setLinearVelocity(btVector3(0, 0, 0));
+        this->rigid_body.clearForces();
     }
 
     void BulletRigidBody::reset_transform(void) {
-        const auto motion_state_handle = this->kind == types::RigidBodyKind::Kinematic
-                                             ? this->kinematic_motion_state
-                                             : this->active_motion_state;
-        auto&& opt_motion_state =
-            this->native_view->get_native_motion_state_accessor()->get_motion_state(
-                motion_state_handle);
-        if (opt_motion_state.is_none()) {
-            return;
-        }
-
-        auto&& motion_state = opt_motion_state.unwrap();
-        motion_state->reset(this->views.physics_bone_view.get());
-
-        auto&& opt_native_rigid_body =
-            this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
-                this->rigid_body);
-        if (opt_native_rigid_body.is_some()) {
-            auto&& native_rigid_body = opt_native_rigid_body.unwrap_mut();
-            btTransform transform;
-            native_rigid_body->getMotionState()->getWorldTransform(transform);
-            native_rigid_body->setWorldTransform(transform);
-            native_rigid_body->setInterpolationWorldTransform(transform);
-        }
+        auto& state = this->kind == types::RigidBodyKind::Kinematic ? this->kinematic_motion_state
+                                                                    : this->active_motion_state;
+        state.reset(this->views.physics_bone_view.get());
+        btTransform transform;
+        this->rigid_body.getMotionState()->getWorldTransform(transform);
+        this->rigid_body.setWorldTransform(transform);
+        this->rigid_body.setInterpolationWorldTransform(transform);
+        this->rigid_body.activate(true);
+        this->has_animation_transform = false;
     }
 
     void BulletRigidBody::sync_animation(void) {
         if (!this->is_in_world()) {
             return;
         }
-        const auto accessor = this->native_view->get_native_motion_state_accessor();
-        for (const auto handle : {this->kinematic_motion_state, this->active_motion_state}) {
-            auto state = accessor->get_motion_state(handle);
-            if (state.is_some()) {
-                state.unwrap()->update_global_transform(this->views.physics_bone_view.get());
-            }
+        const auto& animated = this->views.physics_bone_view->get_physics_global();
+        // Compare authored input, not the simulated transform: settling must not wake itself.
+        if (!this->has_animation_transform || animated != this->animation_transform) {
+            this->rigid_body.activate(true);
+            this->animation_transform = animated;
+            this->has_animation_transform = true;
         }
+        this->kinematic_motion_state.update_global_transform(this->views.physics_bone_view.get());
+        this->active_motion_state.update_global_transform(this->views.physics_bone_view.get());
     }
 
     void BulletRigidBody::apply_local_transform(void) {
         if (!this->is_in_world()) {
             return;
         }
-        this->views.updater->update_local(this->bone_index); // 物理状態の反映(ローカル空間)
+        this->views.updater->update_local(this->bone_index);
     }
 
     void BulletRigidBody::apply_global_transform(void) {
         if (!this->is_in_world()) {
             return;
         }
-        auto&& opt_active_motion_state =
-            this->native_view->get_native_motion_state_accessor()->get_motion_state(
-                this->active_motion_state);
-        auto&& opt_kinematic_motion_state =
-            this->native_view->get_native_motion_state_accessor()->get_motion_state(
-                this->kinematic_motion_state);
-
-        if (opt_active_motion_state.is_some()) {
-            auto&& active_motion_state = opt_active_motion_state.unwrap();
-            active_motion_state->reflect_global_transform(
-                this->views.physics_bone_view.get(), this->views.updater.get());
-        }
-        if (opt_kinematic_motion_state.is_some()) {
-            auto&& kinematic_motion_state = opt_kinematic_motion_state.unwrap();
-            kinematic_motion_state->reflect_global_transform(
-                this->views.physics_bone_view.get(), this->views.updater.get());
-        }
+        this->active_motion_state.reflect_global_transform(
+            this->views.physics_bone_view.get(), this->views.updater.get());
+        this->kinematic_motion_state.reflect_global_transform(
+            this->views.physics_bone_view.get(), this->views.updater.get());
     }
 
     bool BulletRigidBody::is_in_world(void) const {
-        const auto body = this->native_view->get_native_rigid_body_accessor()->get_native_rigid_body(
-            this->rigid_body);
-        return body.is_some() && body.unwrap()->isInWorld();
+        return this->rigid_body.isInWorld();
     }
 } // namespace enishi::physics::bullet3

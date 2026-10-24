@@ -17,6 +17,8 @@ namespace enishi::ui {
         std::unique_ptr<ImGuiContext, ImGuiContextDeleter> context;
         bool initialized = false;
         bool frame_ready = false;
+        float popup_anchor_x = 0.0f;
+        float popup_anchor_y = 0.0f;
 
       public:
         explicit UI(std::shared_ptr<sub_system::IUIBackend> backend);
@@ -30,7 +32,8 @@ namespace enishi::ui {
         void text(std::string_view value) override;
         bool button(const char* label) override;
         bool input_text(const char* label, std::string& value) override;
-        bool begin_context_popup(const char* id) override;
+        bool input_text_multiline(const char* label, std::string& value, bool read_only) override;
+        bool begin_context_popup(const char* id, float width, float height) override;
         void end_popup(void) override;
         bool is_window_appearing(void) const override;
         void same_line(void) override;

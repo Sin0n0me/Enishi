@@ -2,6 +2,9 @@
 #include <SDL3/SDL_init.h>
 #include <foundation/log/logger.h>
 #include <platform/window/common_settings.h>
+#if defined(USE_WINDOWS) || defined(_WIN32)
+#include <Windows.h>
+#endif
 
 namespace enishi::platform_impl {
     namespace {
@@ -31,7 +34,7 @@ namespace enishi::platform_impl {
             }
 
             [[nodiscard]] void* get_proc_address(const char* const name) const noexcept override {
-                return SDL_GL_GetProcAddress(name);
+                return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
             }
         };
     } // namespace
@@ -76,8 +79,7 @@ namespace enishi::platform_impl {
             return SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
                 size.width,
                 size.height,
-                //  SDL_WINDOW_ALWAYS_ON_TOP |
-                SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
+                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
                     SDL3Window::get_flag_from_graphics_api(graphics_api)));
         }())
         , is_closing(false)
@@ -168,12 +170,12 @@ namespace enishi::platform_impl {
                 };
             }
             case platform::WindowSystem::Windows: {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS) || defined(_WIN32)
                 const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                const HWND hwnd = (HWND)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
-                const HINSTANCE hinstance = (HINSTANCE)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+                const HWND hwnd = static_cast<HWND>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+                const HINSTANCE hinstance = static_cast<HINSTANCE>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr));
                 if (hwnd == nullptr || hinstance == nullptr) {
                     return {};
                 }
@@ -291,7 +293,7 @@ namespace enishi::platform_impl {
     }
 
     bool SDL3Window::should_close(void) const {
-        return !this->is_closing;
+        return this->is_closing;
     }
 
     void SDL3Window::poll_events(void) {
@@ -351,9 +353,18 @@ namespace enishi::platform_impl {
                         },
                         this->position));
                     break;
-                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL:
-
+                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL: {
+                    if (capture_mouse ||
+                        event.wheel.windowID != SDL_GetWindowID(this->window.get())) {
+                        break;
+                    }
+                    // Normalize SDL's flipped direction before applying the user's preference.
+                    const float direction =
+                        event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+                    this->input.on_mouse_wheel(
+                        {event.wheel.x * direction, event.wheel.y * direction});
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_GAINED:
                     // SDL_StartTextInput();
                     break;
@@ -362,8 +373,8 @@ namespace enishi::platform_impl {
                     break;
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
                     for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
-                         button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
-                         ++button) {
+                        button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
+                        ++button) {
                         this->input.on_mouse_button_up(static_cast<types::MouseButton>(button));
                     }
                     this->input.begin_frame();
@@ -373,6 +384,7 @@ namespace enishi::platform_impl {
             }
         }
 
+        this->refresh_mouse_position();
         SDL_Keymod mod = SDL_GetModState();
         /*
         io.AddKeyEvent(ImGuiKey::ImGuiKey_LeftCtrl, (mod & SDL_KMOD_CTRL) != 0);

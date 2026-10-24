@@ -2,17 +2,17 @@
 #include <foundation/path/path_utility.h>
 
 namespace enishi::core {
-    const std::filesystem::path SHADER_PATH = "./assets/shader";
-
-    ShaderDataProvider::ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system)
-        : asset_system(std::move(asset_system)) {
+    ShaderDataProvider::ShaderDataProvider(std::shared_ptr<platform::IAssetSystem> asset_system,
+        std::filesystem::path shader_directory)
+        : asset_system(std::move(asset_system))
+        , shader_directory(std::move(shader_directory)) {
     }
 
     foundation::Result<std::vector<platform::ShaderDataEntry>, platform::RenderError>
     ShaderDataProvider::get(
         std::span<const std::tuple<types::ShaderKind, std::filesystem::path>> paths) const {
         const auto path_object =
-            this->asset_system->find_assets(SHADER_PATH, types::AssetKind::Shader);
+            this->asset_system->find_assets(this->shader_directory, types::AssetKind::Shader);
         const auto pattern_shader_extensions =
             this->asset_system->get_extensions_pattern(types::AssetKind::Shader);
         const auto make_paths = [&](const std::filesystem::path& file_path) {
@@ -29,7 +29,7 @@ namespace enishi::core {
                 return foundation::Error(platform::RenderError::MakeError,
                     std::format("No shader asset matches {} under {}",
                         path.string(),
-                        SHADER_PATH.string()));
+                        this->shader_directory.string()));
             }
             for (const auto& shader_path : shader_paths) {
                 const auto asset_handle = this->asset_system->load_asset(shader_path)

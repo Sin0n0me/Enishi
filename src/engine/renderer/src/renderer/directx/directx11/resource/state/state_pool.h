@@ -3,18 +3,18 @@
 #include <engine_types/handle/handle_mapper.h>
 #include <engine_types/renderer/description/state_kind.h>
 #include <foundation/pool/resource_pool.h>
-#include <platform/renderer/state/interface_state_accessor.h>
+#include <renderer/common/resource_accessor.h>
 
 namespace enishi::renderer::directx {
-    class StatePool : public INativeStateAccessor, public platform::IStateAccessor {
+    class StatePool : public INativeStateAccessor {
       private:
         struct StateHandle {
             types::StateKind state_kind;
             std::size_t resource_index;
-            std::size_t interface_index;
         };
 
       private:
+        ResourceAccessor& interfaces;
         types::ResourceMapper<StateHandle> handle_mapper;
         foundation::ResourcePool<NativeRasterizerState> native_rasterizer_states;
         foundation::ResourcePool<NativeBlendState> native_blend_states;
@@ -22,6 +22,7 @@ namespace enishi::renderer::directx {
         foundation::ResourcePool<NativeSamplerState> native_sampler_states;
 
       public:
+        explicit StatePool(ResourceAccessor& interfaces);
         void remove_native_state(const types::HandleId handle) noexcept override;
         std::tuple<types::HandleId, NativeRasterizerState&> make_native_rasterizer_state(
             void) noexcept override;
@@ -47,9 +48,5 @@ namespace enishi::renderer::directx {
             const types::HandleId handle) noexcept override;
         foundation::Option<const NativeSamplerState&> get_native_sampler_state(
             const types::HandleId handle) const noexcept override;
-
-      public:
-        foundation::Option<types::StateKind> get_state_kind(
-            const types::HandleId& handle) const noexcept override;
     };
 } // namespace enishi::renderer::directx

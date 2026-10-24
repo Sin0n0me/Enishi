@@ -18,7 +18,9 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 
-if(USE_OPENGL40)
+if(USE_VULKAN)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_VULKAN)
+elseif(USE_OPENGL40)
     target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_OPENGL40")
 endif()
 
@@ -55,27 +57,4 @@ enishi_configure_library(${PROJECT_NAME}
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
-
-
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    #target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
 endif()
