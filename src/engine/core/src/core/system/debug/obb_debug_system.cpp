@@ -45,6 +45,7 @@ namespace enishi::core {
             }
         }
         this->overlay->draw_lines(lines);
+        this->overlay->draw_window_border();
     }
 
     void OBBDebugSystem::render(void) const {

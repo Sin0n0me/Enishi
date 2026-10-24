@@ -29,6 +29,7 @@ namespace enishi::ui {
         void end_frame(void) override;
         void render(void) override;
         void draw_lines(std::span<const debug::OverlayLine> lines) override;
+        void draw_window_border(void) override;
         bool begin_window(const char* title) override;
         void end_window(void) override;
         void text(std::string_view value) override;

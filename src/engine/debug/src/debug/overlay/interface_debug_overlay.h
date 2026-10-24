@@ -8,5 +8,6 @@ namespace enishi::debug {
         virtual ~IDebugOverlay() noexcept = default;
         // Submit after begin_frame and before end_frame on the UI thread.
         virtual void draw_lines(std::span<const OverlayLine> lines) = 0;
+        virtual void draw_window_border(void) = 0;
     };
 } // namespace enishi::debug
