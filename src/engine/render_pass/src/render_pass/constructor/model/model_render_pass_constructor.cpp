@@ -1,5 +1,5 @@
 #include "model_render_pass_constructor.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <foundation/str/string_builder.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>

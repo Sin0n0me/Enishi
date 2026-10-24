@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <renderer/vulkan/command/vulkan_commands.h>
 #include <renderer/vulkan/pipeline/vulkan_pipeline.h>
 
@@ -7,7 +7,7 @@ namespace enishi::renderer::vulkan {
     namespace {
         void fail(VulkanRendererState& state, std::string message) {
             if (!state.failed) {
-                foundation::Logger::error(std::move(message));
+                debug::Logger::error(std::move(message));
             }
             state.failed = true;
         }

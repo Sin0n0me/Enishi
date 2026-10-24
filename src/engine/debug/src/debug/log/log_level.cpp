@@ -1,7 +1,7 @@
 #include "log_level.h"
 
-namespace enishi ::foundation {
-    const UTF8 level_to_string(const LogLevel& level) {
+namespace enishi::debug {
+    const foundation::UTF8 level_to_string(const LogLevel& level) {
         switch (level) {
             case LogLevel::Debug:
                 return "Debug";
@@ -16,4 +16,4 @@ namespace enishi ::foundation {
         }
         return "Unknown";
     }
-} // namespace enishi::foundation
+} // namespace enishi::debug

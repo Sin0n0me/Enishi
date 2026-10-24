@@ -33,6 +33,9 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 set(DEPENDENCIES)
 include(FetchContent)
 
+FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
+FetchContent_MakeAvailable(ENISHI_DEBUG)
+
 FetchContent_Declare(
     PLATFORM
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../platform
@@ -137,3 +140,5 @@ if(ENISHI_RENDERER_RESOURCE_TESTS)
     enable_testing()
     add_subdirectory(tests/resources)
 endif()
+
+target_link_libraries(${PROJECT_NAME} PUBLIC enishi::debug)

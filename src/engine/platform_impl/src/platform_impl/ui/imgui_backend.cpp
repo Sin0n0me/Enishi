@@ -5,7 +5,7 @@
 #include <utility>
 #if defined(USE_VULKAN)
 #include <backends/imgui_impl_vulkan.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <renderer/vulkan/runtime/vulkan_renderer.h>
 #elif defined(USE_OPENGL40)
 #include <backends/imgui_impl_opengl3.h>
@@ -58,7 +58,7 @@ namespace enishi::platform_impl {
             info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
             info.CheckVkResultFn = [](VkResult code) {
                 if (code != VK_SUCCESS) {
-                    foundation::Logger::error(
+                    debug::Logger::error(
                         std::format("ImGui Vulkan failed ({})", static_cast<int>(code)));
                 }
             };
@@ -110,7 +110,7 @@ namespace enishi::platform_impl {
             if (vk_renderer != nullptr) {
                 const auto result = vk_renderer->get_native_context()->wait_idle();
                 if (result.is_err()) {
-                    foundation::Logger::error(result.unwrap_err().get_message());
+                    debug::Logger::error(result.unwrap_err().get_message());
                 }
             }
             ImGui_ImplVulkan_Shutdown();

@@ -36,13 +36,13 @@ add_library(bone_layer_runtime STATIC
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/renderer/render_handle.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/handle/physics/physics_handle.cpp"
     "${ENGINE_ROOT}/engine_types/src/engine_types/assets/model/addons/bone.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/logger.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/log_level.cpp"
+    "${ENGINE_ROOT}/debug/src/debug/log/logger.cpp"
+    "${ENGINE_ROOT}/debug/src/debug/log/log_entry.cpp"
+    "${ENGINE_ROOT}/debug/src/debug/log/log_level.cpp"
     "${PMX_ROOT}/pmx_to_model_data.cpp" "${PMX_ROOT}/pmx_validation.cpp"
     "${PMX_ROOT}/pmx_runtime_support.cpp")
 target_compile_features(bone_layer_runtime PUBLIC cxx_std_23)
-foreach(module renderer animation collider core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
+foreach(module debug renderer animation collider core component ecs platform sub_system skinning_system ik_system model_controller engine_types foundation assets_system)
     target_include_directories(bone_layer_runtime PUBLIC "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(bone_layer_runtime PUBLIC "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

@@ -6,7 +6,7 @@
 #include "view/render_target_view.h"
 #include "view/shader_resource_view.h"
 #include "view/unordered_access_view.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <limits>
 #include <ranges>
@@ -154,7 +154,7 @@ namespace enishi::renderer::directx {
                         MAP_FLAGS,
                         &mapped_data);
                     if (FAILED(result)) {
-                        foundation::Logger::error("Failed to map morph vertex buffer");
+                        debug::Logger::error("Failed to map morph vertex buffer");
                         return;
                     }
                     std::memcpy(mapped_data.pData, vertices.raw_data(), vertices.byte_width());
@@ -1037,7 +1037,7 @@ namespace enishi::renderer::directx {
             }
             // エラーで落とすか警告かどっちがいいんだろうね
             // return foundation::Error(platform::RenderError::BufferError, strings.join("\n"));
-            foundation::Logger::warning(strings.join("\n"));
+            debug::Logger::warning(strings.join("\n"));
         }
 
         return mesh_handles;
@@ -1129,7 +1129,7 @@ namespace enishi::renderer::directx {
             }
 
             if (pre_size == mesh_handles.size()) {
-                foundation::Logger::warning(
+                debug::Logger::warning(
                     std::format("[未解決のテクスチャ] name: {}, height: {}, width: {}",
                         target_name,
                         texture->height,

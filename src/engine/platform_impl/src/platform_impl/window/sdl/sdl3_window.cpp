@@ -1,6 +1,6 @@
 #include "sdl3_window.h"
 #include <SDL3/SDL_init.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
 #if defined(USE_WINDOWS) || defined(_WIN32)
 #include <Windows.h>
@@ -415,7 +415,7 @@ namespace enishi::platform_impl {
         const Uint32 transparentColor = SDL_MapSurfaceRGBA(shape, 0, 0, 0, 30);
 
         if (!SDL_FillSurfaceRect(shape, nullptr, transparentColor)) {
-            foundation::Logger::error(
+            debug::Logger::error(
                 std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
@@ -426,7 +426,7 @@ namespace enishi::platform_impl {
         const Uint32 opaqueColor = SDL_MapSurfaceRGBA(shape, 255, 255, 255, 0);
 
         if (!SDL_FillSurfaceRect(shape, &interactiveRect, opaqueColor)) {
-            foundation::Logger::error(
+            debug::Logger::error(
                 std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
@@ -434,7 +434,7 @@ namespace enishi::platform_impl {
 
         const bool result = SDL_SetWindowShape(this->window.get(), shape);
         if (!result) {
-            foundation::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
         }
 
         SDL_DestroySurface(shape);

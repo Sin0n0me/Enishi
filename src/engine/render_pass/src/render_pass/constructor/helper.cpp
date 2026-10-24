@@ -1,5 +1,5 @@
 #include "helper.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <foundation/str/string_builder.h>
 

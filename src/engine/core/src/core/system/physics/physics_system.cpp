@@ -3,7 +3,7 @@
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <core/system/skinning/skinning_system.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::core {
     PhysicsSystem::PhysicsSystem(std::shared_ptr<ecs::Registry> registry,
@@ -29,7 +29,7 @@ namespace enishi::core {
                 for (const auto& handle : bodies.handles) {
                     const auto result = world->set_body_enabled(handle, false);
                     if (result.is_err()) {
-                        foundation::Logger::warning(result.unwrap_err().get_message());
+                        debug::Logger::warning(result.unwrap_err().get_message());
                         detached = false;
                     }
                 }
@@ -45,7 +45,7 @@ namespace enishi::core {
             for (const auto& handle : bodies.handles) {
                 const auto result = world->set_body_enabled(handle, bodies.enabled);
                 if (result.is_err()) {
-                    foundation::Logger::warning(result.unwrap_err().get_message());
+                    debug::Logger::warning(result.unwrap_err().get_message());
                     succeeded = false;
                 }
             }
@@ -66,7 +66,7 @@ namespace enishi::core {
                 }
                 const auto result = apply_impulse_morphs(*world, model, morph, bodies);
                 if (result.is_err()) {
-                    foundation::Logger::warning(result.unwrap_err().get_message());
+                    debug::Logger::warning(result.unwrap_err().get_message());
                 }
             }
         }

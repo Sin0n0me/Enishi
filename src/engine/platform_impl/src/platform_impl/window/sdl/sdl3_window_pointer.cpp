@@ -1,6 +1,6 @@
 #include "sdl3_window.h"
 #include <cmath>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::platform_impl {
     void SDL3Window::set_model_drag_handler(
@@ -26,7 +26,7 @@ namespace enishi::platform_impl {
         this->model_press.reset();
         this->model_dragging = false;
         if (!SDL_CaptureMouse(false)) {
-            foundation::Logger::warning(SDL_GetError());
+            debug::Logger::warning(SDL_GetError());
         }
     }
 
@@ -62,7 +62,7 @@ namespace enishi::platform_impl {
             this->set_position({position.unwrap().x + static_cast<std::int32_t>(delta.x),
                 position.unwrap().y + static_cast<std::int32_t>(delta.y)});
         if (result.is_err()) {
-            foundation::Logger::warning(result.unwrap_err().get_message());
+            debug::Logger::warning(result.unwrap_err().get_message());
         } else {
             this->applied_drag_offset = total;
         }
@@ -85,7 +85,7 @@ namespace enishi::platform_impl {
             this->applied_drag_offset = glm::vec2(0);
             this->model_dragging = false;
             if (!SDL_CaptureMouse(true)) {
-                foundation::Logger::warning(SDL_GetError());
+                debug::Logger::warning(SDL_GetError());
             }
             return true;
         }

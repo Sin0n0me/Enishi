@@ -3,7 +3,7 @@
 #include <assets_system/model/model_loader/model_loader.h>
 #include <assets_system/shader/shader_loader.h>
 #include <assets_system/texture/texture_loader.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <variant>
 
 namespace enishi::core {
@@ -95,7 +95,7 @@ namespace enishi::core {
         // 初期ディレクトリの存在, 走査確認
         std::filesystem::path root_path(target_path);
         if (!std::filesystem::is_directory(root_path, ec) || ec) {
-            foundation::Logger::warning(
+            debug::Logger::warning(
                 std::format("not a directory. find path: {}", target_path.string<char>()));
 
             return matched_files;
@@ -109,7 +109,7 @@ namespace enishi::core {
 
             auto it = std::filesystem::directory_iterator(current_dir, ec);
             if (ec) {
-                foundation::Logger::error(
+                debug::Logger::error(
                     std::format("access error. find path: {}", current_dir.string<char>()));
                 continue; // アクセス権限エラーなどはスキップ
             }
@@ -152,7 +152,7 @@ namespace enishi::core {
             for (const auto& loader : candidates) {
                 auto result = loader->load(path);
                 if (result.is_ok()) {
-                    foundation::Logger::info(std::format("loaded path: {}", path.string<char>()));
+                    debug::Logger::info(std::format("loaded path: {}", path.string<char>()));
                     this->set_asset_state(handle, types::AssetState::Loaded);
                     return result;
                 }
@@ -175,7 +175,7 @@ namespace enishi::core {
 
     void AssetManager::commit_completed_load(CompletedLoad&& completed) const noexcept {
         if (completed.result.is_err()) {
-            foundation::Logger::warning(
+            debug::Logger::warning(
                 std::format("アセットの読み込みに失敗しました. path: {}, message: {}",
                     completed.path.string<char>(),
                     completed.result.unwrap_err().get_message()));
@@ -191,7 +191,7 @@ namespace enishi::core {
         const auto insert_result = this->insert_asset(completed.handle.id, std::move(asset_data));
 
         if (insert_result.is_err()) {
-            foundation::Logger::error(insert_result.unwrap_err().get_message());
+            debug::Logger::error(insert_result.unwrap_err().get_message());
 
             this->path_to_handle.erase(completed.path);
             this->asset_registry.destroy(completed.handle.id);
@@ -225,7 +225,7 @@ namespace enishi::core {
         auto completed = this->load_scheduler.wait_and_take_completed(handle);
         if (completed.is_none()) {
             // 通常は起こらないが、万一スケジューラ側に見当たらなければ状態をFailedにして諦める
-            foundation::Logger::error("読み込み待機中に結果を取得できませんでした");
+            debug::Logger::error("読み込み待機中に結果を取得できませんでした");
             this->set_asset_state(handle, types::AssetState::Failed);
             return;
         }

@@ -1,5 +1,6 @@
 #pragma once
 #include "vulkan_result.h"
+#include <debug/vulkan/vulkan_diagnostics.h>
 #include <memory>
 #include <platform/renderer/interface_renderer.h>
 #include <renderer/vulkan/buffer/vulkan_buffer.h>
@@ -35,7 +36,7 @@ namespace enishi::renderer::vulkan {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         VkCommandPool command_pool = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
-        std::uint32_t validation_errors = 0;
+        debug::VulkanDiagnostics diagnostics;
 
       public:
         VulkanDevice();
@@ -60,11 +61,6 @@ namespace enishi::renderer::vulkan {
         platform::RenderResult<void> allocate_image(VkImage image, VkDeviceMemory& memory);
 
       private:
-        static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-            VkDebugUtilsMessageTypeFlagsEXT type,
-            const VkDebugUtilsMessengerCallbackDataEXT* data,
-            void* user);
         platform::RenderResult<void> make_instance(bool validation);
         platform::RenderResult<void> select_device();
         platform::RenderResult<void> make_commands();

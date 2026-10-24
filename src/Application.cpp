@@ -16,7 +16,7 @@
 #include <core/system/window/window_animation_sync.h>
 #include <ui/selection/selection_ui.h>
 #include <core/system/ui/ui_system.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <physics/common/physics_config.h>
 #include <platform_impl/ui/ui_factory.h>
@@ -95,7 +95,7 @@ namespace enishi {
         if (!bool(root_window)) {
             return false;
         }
-        foundation::Logger::info("ウィンドウの初期化に成功しました");
+        debug::Logger::info("ウィンドウの初期化に成功しました");
         skinning_system->set_cursor_window(root_window);
         // Final bone matrices are ready after physics (90); camera uploads occur at 100.
         constexpr core::Priority WINDOW_ANIMATION_PRIORITY = 95;
@@ -107,7 +107,7 @@ namespace enishi {
         core::ApplicationSettings settings;
         auto loaded_settings = core::load_application_settings("config/settings.cfg");
         if (loaded_settings.is_err()) {
-            foundation::Logger::warning(loaded_settings.unwrap_err().get_message());
+            debug::Logger::warning(loaded_settings.unwrap_err().get_message());
         } else {
             settings = std::move(loaded_settings).unwrap();
         }
@@ -120,14 +120,14 @@ namespace enishi {
 
         auto bone_names = core::load_bone_name_config("config/bone_names.toml");
         if (bone_names.is_err()) {
-            foundation::Logger::warning(bone_names.unwrap_err().get_message());
+            debug::Logger::warning(bone_names.unwrap_err().get_message());
         } else {
             skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
         auto morph_names = core::load_morph_name_config("config/morph_names.toml");
         if (morph_names.is_err()) {
-            foundation::Logger::warning(morph_names.unwrap_err().get_message());
+            debug::Logger::warning(morph_names.unwrap_err().get_message());
         } else {
             animation_system->set_morph_names(std::move(morph_names).unwrap());
         }
@@ -162,7 +162,7 @@ namespace enishi {
         if (!bool(renderer)) {
             return false;
         }
-        foundation::Logger::info("レンダラーの初期化に成功しました");
+        debug::Logger::info("レンダラーの初期化に成功しました");
 
         if (!this->init_physics(physics_engine)) {
             return false;
@@ -173,7 +173,7 @@ namespace enishi {
 
     void Application::run(void) {
         const auto init_time = this->app_timer.tick_unclamp();
-        foundation::Logger::info(std::format("初期化時間: {:%S}s", init_time.delta_time));
+        debug::Logger::info(std::format("初期化時間: {:%S}s", init_time.delta_time));
 
         for (; !this->root_window->should_close();) {
             const auto dt = this->app_timer.tick();
@@ -197,13 +197,13 @@ namespace enishi {
 
         auto root_window = window_manager->get_root_window().lock();
         if (!bool(root_window)) {
-            foundation::Logger::error("ルートウィンドウを取得できませんでした");
+            debug::Logger::error("ルートウィンドウを取得できませんでした");
             return {};
         }
 
         auto init_result = root_window->init();
         if (init_result.is_err()) {
-            foundation::Logger::error(init_result.unwrap_err().get_message());
+            debug::Logger::error(init_result.unwrap_err().get_message());
             return {};
         }
 
@@ -214,13 +214,13 @@ namespace enishi {
         std::shared_ptr<platform::IWindow> root_window,
         std::shared_ptr<platform::IAssetSystem> asset_system) {
         if (!bool(root_window)) {
-            foundation::Logger::error("レンダラー初期化に必要なウィンドウがありません");
+            debug::Logger::error("レンダラー初期化に必要なウィンドウがありません");
             return {};
         }
 
         auto result_renderer = platform_impl::create_renderer(root_window, INIT_WINDOW_SIZE);
         if (result_renderer.is_err()) {
-            foundation::Logger::error(result_renderer.unwrap_err().get_message());
+            debug::Logger::error(result_renderer.unwrap_err().get_message());
             return {};
         }
 
@@ -238,7 +238,7 @@ namespace enishi {
 
         auto viewport_result = renderer->create_viewport(rect);
         if (viewport_result.is_err()) {
-            foundation::Logger::error(viewport_result.unwrap_err().get_message());
+            debug::Logger::error(viewport_result.unwrap_err().get_message());
             return {};
         }
 
@@ -261,7 +261,7 @@ namespace enishi {
 
         auto&& pass_result = this->orchestra->make_render_passes(root_window.get());
         if (pass_result.is_err()) {
-            foundation::Logger::error(pass_result.unwrap_err().get_message());
+            debug::Logger::error(pass_result.unwrap_err().get_message());
             return {};
         }
 
@@ -277,7 +277,7 @@ namespace enishi {
         const auto model_render_pass = this->orchestra->get_render_pass(
             render_pass::ModelRenderPassConstructor::RENDER_PASS_NAME);
         if (model_render_pass.is_none()) {
-            foundation::Logger::error("モデル用レンダーパスが見つかりません");
+            debug::Logger::error("モデル用レンダーパスが見つかりません");
             return {};
         }
         const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(
@@ -297,7 +297,7 @@ namespace enishi {
         std::shared_ptr<sub_system::IModelSelection> models) {
         const auto result = platform_impl::create_ui(window, render_system->get_renderer());
         if (result.is_err()) {
-            foundation::Logger::error(result.unwrap_err().get_message());
+            debug::Logger::error(result.unwrap_err().get_message());
             return false;
         }
         const auto ui = result.unwrap();
@@ -323,7 +323,7 @@ namespace enishi {
     bool Application::init_physics(std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) {
         auto init_result = physics_engine->init_world();
         if (init_result.is_err()) {
-            foundation::Logger::error(init_result.unwrap_err().get_message());
+            debug::Logger::error(init_result.unwrap_err().get_message());
             return false;
         }
 

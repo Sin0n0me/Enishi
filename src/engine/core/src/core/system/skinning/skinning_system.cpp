@@ -9,7 +9,7 @@
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/animation/cursor_ray.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
 #include <numeric>
@@ -92,7 +92,7 @@ namespace enishi::core {
                 auto deltas = animation::evaluate_bone_morphs(
                     model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
                 if (deltas.is_err()) {
-                    foundation::Logger::warning(deltas.unwrap_err().get_message());
+                    debug::Logger::warning(deltas.unwrap_err().get_message());
                     continue;
                 }
                 bones.morph_delta = std::move(deltas).unwrap();

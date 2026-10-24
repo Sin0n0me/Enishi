@@ -3,7 +3,7 @@
 #include <component/physics_bodies_component.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <filesystem>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <utility>
 #include <vector>
 
@@ -35,21 +35,21 @@ namespace enishi::core {
         this->model_controller->find_model(MODEL_SEARCH_PATH);
         const auto model_names = this->model_controller->get_model_list();
         if (model_names.empty()) {
-            foundation::Logger::warning("描画するモデルが見つかりません");
+            debug::Logger::warning("描画するモデルが見つかりません");
             return;
         }
 
         std::string cached_id;
         const auto cached = load_last_model(LAST_MODEL_CACHE_PATH);
         if (cached.is_err()) {
-            foundation::Logger::warning(cached.unwrap_err().get_message());
+            debug::Logger::warning(cached.unwrap_err().get_message());
         } else if (cached.unwrap().is_some()) {
             cached_id = cached.unwrap().unwrap();
             const auto restored = this->show_model(cached_id);
             if (restored.is_ok()) {
                 return;
             }
-            foundation::Logger::warning(restored.unwrap_err().get_message());
+            debug::Logger::warning(restored.unwrap_err().get_message());
         }
         for (const auto& model_name : model_names) {
             if (model_name == cached_id) {
@@ -59,7 +59,7 @@ namespace enishi::core {
             if (result.is_ok()) {
                 break;
             }
-            foundation::Logger::error(result.unwrap_err().get_message());
+            debug::Logger::error(result.unwrap_err().get_message());
         }
     }
 
@@ -131,7 +131,7 @@ namespace enishi::core {
     void ModelRenderSystem::remember_model(const std::string& id) const {
         const auto result = save_last_model(LAST_MODEL_CACHE_PATH, id);
         if (result.is_err()) {
-            foundation::Logger::warning(result.unwrap_err().get_message());
+            debug::Logger::warning(result.unwrap_err().get_message());
         }
     }
 

@@ -1,5 +1,5 @@
 #include "opengl40_framebuffers.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <glad/gl.h>
 #include <renderer/opengl/opengl40/support/opengl40_errors.h>
 #include <renderer/opengl/opengl40/support/opengl40_helpers.h>
@@ -102,7 +102,7 @@ namespace enishi::renderer::opengl {
         const auto object = runtime.objects.find(handle);
         const auto view = resource_accessor.get_depth_stencil_view(handle.id);
         if (image == runtime.images.end() || object == runtime.objects.end() || view.is_none()) {
-            foundation::Logger::error("OpenGL depth-only view resources are missing");
+            debug::Logger::error("OpenGL depth-only view resources are missing");
             return;
         }
         auto [entry, inserted] = runtime.depth_framebuffers.try_emplace(handle, NO_GL_OBJECT);
@@ -120,7 +120,7 @@ namespace enishi::renderer::opengl {
         glReadBuffer(GL_NONE);
         const auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
-            foundation::Logger::error(
+            debug::Logger::error(
                 std::format("OpenGL depth framebuffer incomplete: {:#x}", status));
             return;
         }
@@ -130,7 +130,7 @@ namespace enishi::renderer::opengl {
         clear_framebuffer(GL_DEPTH_BUFFER_BIT);
         const auto result = check_gl_errors("depth-only framebuffer setup");
         if (result.is_err()) {
-            foundation::Logger::error(result.unwrap_err().get_message());
+            debug::Logger::error(result.unwrap_err().get_message());
             return;
         }
         runtime.active_framebuffer_complete = true;

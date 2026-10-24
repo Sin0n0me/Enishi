@@ -24,11 +24,11 @@ add_executable(animation_runtime_tests animation_runtime_tests.cpp vmd_expressio
     "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_resolver.cpp"
     "${ENGINE_ROOT}/assets_system/src/assets_system/model/bone/bone_name_map.cpp"
     "${ENGINE_ROOT}/foundation/src/foundation/str/to_utf8.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/logger.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/log_entry.cpp"
-    "${ENGINE_ROOT}/foundation/src/foundation/log/log_level.cpp")
+    "${ENGINE_ROOT}/debug/src/debug/log/logger.cpp"
+    "${ENGINE_ROOT}/debug/src/debug/log/log_entry.cpp"
+    "${ENGINE_ROOT}/debug/src/debug/log/log_level.cpp")
 target_compile_features(animation_runtime_tests PRIVATE cxx_std_23)
-foreach(module animation assets_system engine_types foundation core component ecs platform)
+foreach(module debug animation assets_system engine_types foundation core component ecs platform)
     target_include_directories(animation_runtime_tests PRIVATE "${ENGINE_ROOT}/${module}/src")
 endforeach()
 target_include_directories(animation_runtime_tests PRIVATE "${GLM_INCLUDE_DIR}" "${ICU_INCLUDE_DIR}")

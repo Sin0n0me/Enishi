@@ -123,6 +123,7 @@ set(DEPENDENCIES
     PRIVATE script
     PRIVATE ui
     PRIVATE engine_types
+    PRIVATE enishi::debug
     PRIVATE foundation
 )
 

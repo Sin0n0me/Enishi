@@ -1,6 +1,6 @@
 #include "model_event_motion_handler.h"
 #include <component/physics_bodies_component.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <limits>
 
 namespace enishi::core {
@@ -126,11 +126,11 @@ namespace enishi::core {
             this->trigger(entity, ModelMotionEvent{"click", event.hit->bone, event.hit->position});
         if (result.is_err()) {
             this->click_settings->last_result = result.unwrap_err().get_message();
-            foundation::Logger::warning(result.unwrap_err().get_message());
+            debug::Logger::warning(result.unwrap_err().get_message());
         } else if (result.unwrap() && this->click_settings->mode == types::ModelClickMode::Touch) {
             this->click_settings->last_result = "Motion started";
         }
-        foundation::Logger::info(
+        debug::Logger::info(
             this->click_settings->last_target + ": " + this->click_settings->last_result);
     }
 } // namespace enishi::core
