@@ -75,6 +75,22 @@ namespace enishi::ui {
         this->frame_ready = false;
     }
 
+    void UI::draw_lines(std::span<const debug::OverlayLine> lines) {
+        ImGui::SetCurrentContext(this->context.get());
+        const auto viewport = ImGui::GetMainViewport();
+        constexpr ImU32 OBB_COLOR = IM_COL32(64, 255, 96, 255);
+        constexpr float LINE_THICKNESS = 1.5f;
+        auto draw_list = ImGui::GetBackgroundDrawList();
+        for (const auto& line : lines) {
+            // UI position = viewport origin + normalized coordinate * logical viewport size.
+            const ImVec2 start{viewport->Pos.x + line.start.x * viewport->Size.x,
+                viewport->Pos.y + line.start.y * viewport->Size.y};
+            const ImVec2 end{viewport->Pos.x + line.end.x * viewport->Size.x,
+                viewport->Pos.y + line.end.y * viewport->Size.y};
+            draw_list->AddLine(start, end, OBB_COLOR, LINE_THICKNESS);
+        }
+    }
+
     bool UI::begin_window(const char* title) {
         ImGui::SetCurrentContext(this->context.get());
         return ImGui::Begin(title);

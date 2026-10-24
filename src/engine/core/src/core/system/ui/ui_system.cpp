@@ -15,10 +15,11 @@ namespace enishi::core {
         if (this->content != nullptr) {
             this->content(*this->ui);
         }
-        this->ui->end_frame();
     }
 
     void UISystem::post_update(void) {
+        // Debug overlays use collision bounds finalized during post_update.
+        this->ui->end_frame();
     }
 
     void UISystem::render(void) const {

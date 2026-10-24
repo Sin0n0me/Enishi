@@ -1,4 +1,5 @@
 #pragma once
+#include <debug/overlay/interface_debug_overlay.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <sub_system/ui/interface_ui.h>
@@ -11,7 +12,7 @@ namespace enishi::ui {
         void operator()(ImGuiContext* context) const noexcept;
     };
 
-    class UI final : public sub_system::IUI {
+    class UI final : public sub_system::IUI, public debug::IDebugOverlay {
       private:
         std::shared_ptr<sub_system::IUIBackend> backend;
         std::unique_ptr<ImGuiContext, ImGuiContextDeleter> context;
@@ -27,6 +28,7 @@ namespace enishi::ui {
         void begin_frame(void) override;
         void end_frame(void) override;
         void render(void) override;
+        void draw_lines(std::span<const debug::OverlayLine> lines) override;
         bool begin_window(const char* title) override;
         void end_window(void) override;
         void text(std::string_view value) override;

@@ -16,6 +16,7 @@
 #include <core/system/window/window_animation_sync.h>
 #include <ui/selection/selection_ui.h>
 #include <core/system/ui/ui_system.h>
+#include <core/system/debug/obb_debug_system.h>
 #include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <physics/common/physics_config.h>
@@ -85,9 +86,9 @@ namespace enishi {
         auto physics_system = this->system_scheduler.register_system<core::PhysicsSystem>(
             90, this->registry, physics_engine, skinning_system);
         constexpr core::Priority COLLISION_PRIORITY = 96;
-        auto collider = std::make_shared<collider::Collider>();
+        this->collider = std::make_shared<collider::Collider>();
         this->system_scheduler.register_system<core::ModelCollisionSystem>(
-            COLLISION_PRIORITY, this->registry, collider);
+            COLLISION_PRIORITY, this->registry, this->collider);
 
         // ウィンドウの初期化
         this->root_window = this->init_window();
@@ -134,7 +135,7 @@ namespace enishi {
 
         constexpr core::Priority CLICK_PRIORITY = 97;
         const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, collider, root_window, this->registry, this->click_settings,
+            CLICK_PRIORITY, this->collider, root_window, this->registry, this->click_settings,
             this->display_camera);
         clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
             this->registry, animation_system, std::move(settings.model_events),
@@ -301,6 +302,16 @@ namespace enishi {
             return false;
         }
         const auto ui = result.unwrap();
+        const auto overlay = std::dynamic_pointer_cast<debug::IDebugOverlay>(ui);
+        if (overlay == nullptr) {
+            debug::Logger::error("UI does not support debug overlays");
+            return false;
+        }
+        // Collision bounds are finalized at 96; the UI frame is finalized at 99.
+        constexpr core::Priority OBB_DEBUG_PRIORITY = 98;
+        this->system_scheduler.register_system<core::OBBDebugSystem>(
+            OBB_DEBUG_PRIORITY, this->registry, this->collider, window,
+            this->display_camera, overlay);
         constexpr core::Priority UI_PRIORITY = 99;
         const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();

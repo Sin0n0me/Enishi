@@ -6,9 +6,15 @@ include(FetchContent)
 
 FetchContent_Declare(FOUNDATION SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../foundation)
 FetchContent_MakeAvailable(FOUNDATION)
+FetchContent_Declare(ENGINE_TYPES SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engine_types)
+FetchContent_MakeAvailable(ENGINE_TYPES)
 
 set(SOURCES
     src/debug/debug.h
+    src/debug/overlay/overlay_line.h
+    src/debug/overlay/interface_debug_overlay.h
+    src/debug/overlay/obb_wireframe.h
+    src/debug/overlay/obb_wireframe.cpp
     src/debug/log/logger.h
     src/debug/log/logger.cpp
     src/debug/log/log_entry.h
@@ -22,7 +28,7 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 add_library(enishi::debug ALIAS debug)
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
-    PUBLIC_DEPENDENCIES foundation
+    PUBLIC_DEPENDENCIES foundation engine_types
 )
 
 if(MSVC)
