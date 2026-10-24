@@ -37,76 +37,14 @@ class Pattern:
         return f"{self.target_os}/{self.backend}/{self.compiler}/{self.config}"
 
 
-def visual_studio_generator() -> str:
-    vswhere = Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / (
-        "Microsoft Visual Studio/Installer/vswhere.exe")
-    if vswhere.is_file() and platform.system() == "Windows":
-        result = subprocess.run(
-            [str(vswhere), "-latest", "-products", "*", "-requires",
-             "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationVersion"],
-            capture_output=True, text=True, check=False)
-        if result.returncode == 0 and result.stdout.strip().startswith("18."):
-            return "Visual Studio 18 2026"
-    return "Visual Studio 17 2022"
-
-
-def package_options(pattern: Pattern) -> list[str]:
-    toolchain = os.environ.get("CMAKE_TOOLCHAIN_FILE")
-    if not toolchain:
-        root = os.environ.get("VCPKG_ROOT") or os.environ.get("VCPKG_INSTALLATION_ROOT")
-        executable = shutil.which("vcpkg")
-        if not root and executable:
-            root = str(Path(executable).resolve().parent)
-        if root:
-            toolchain = str(Path(root) / "scripts/buildsystems/vcpkg.cmake")
-    if not toolchain:
-        return []
-    architecture = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+def build_command(pattern: Pattern, script: Path) -> list[str]:
+    arguments = [str(script), pattern.backend, pattern.config, pattern.compiler]
     if pattern.target_os == "windows":
-        triplet = "x64-mingw-dynamic" if pattern.compiler == "gcc" else "x64-windows"
-    else:
-        suffix = "osx" if pattern.target_os == "macos" else "linux"
-        triplet = f"{architecture}-{suffix}"
-    options = [f"-DCMAKE_TOOLCHAIN_FILE={Path(toolchain).resolve()}",
-               f"-DVCPKG_TARGET_TRIPLET={triplet}"]
-    if os.environ.get("VCPKG_INSTALLED_DIR"):
-        options.append(f"-DVCPKG_INSTALLED_DIR={Path(os.environ['VCPKG_INSTALLED_DIR']).resolve()}")
-    return options
+        return ["cmd", "/d", "/c", "call", *arguments]
+    return ["bash", *arguments]
 
 
-def commands(pattern: Pattern, root: Path, jobs: int, downloads: bool,
-             vs_generator: str) -> tuple[list[str], list[str]]:
-    directory = pattern.directory(root)
-    build = directory / "build"
-    artifacts = directory / "artifacts"
-    configure = ["cmake", "-S", str(PROJECT_ROOT / "src"), "-B", str(build),
-                 f"-DUSE_OPENGL40={'ON' if pattern.backend == 'opengl' else 'OFF'}",
-                 f"-DUSE_VULKAN={'ON' if pattern.backend == 'vulkan' else 'OFF'}",
-                 f"-DCMAKE_BUILD_TYPE={pattern.config}",
-                 f"-DPython_EXECUTABLE={sys.executable}",
-                 f"-DPython3_EXECUTABLE={sys.executable}"]
-    configure += package_options(pattern)
-    configure += [f"-DFETCHCONTENT_FULLY_DISCONNECTED={'OFF' if downloads else 'ON'}",
-                  f"-DFETCHCONTENT_UPDATES_DISCONNECTED={'OFF' if downloads else 'ON'}",
-                  f"-DVCPKG_MANIFEST_INSTALL={'ON' if downloads else 'OFF'}"]
-    # Per-config overrides prevent multi-config generators from adding a second Debug/Release.
-    for kind in ("RUNTIME", "LIBRARY", "ARCHIVE", "PDB"):
-        for suffix in ("", "_" + pattern.config.upper()):
-            configure.append(f"-DCMAKE_{kind}_OUTPUT_DIRECTORY{suffix}={artifacts}")
-    if pattern.compiler == "visualstudio":
-        configure += ["-G", vs_generator, "-A", "x64"]
-    else:
-        compiler, cxx = (("clang", "clang++") if pattern.compiler == "clang" else ("gcc", "g++"))
-        configure += ["-G", "Ninja", f"-DCMAKE_C_COMPILER={compiler}", f"-DCMAKE_CXX_COMPILER={cxx}"]
-    build_command = ["cmake", "--build", str(build), "--config", pattern.config,
-                     "--parallel", str(jobs)]
-    if pattern.compiler == "visualstudio":
-        build_command += ["--", "/p:UseMultiToolTask=true", "/p:EnforceProcessCountAcrossBuilds=true",
-                          f"/p:MultiProcMaxCount={jobs}"]
-    return configure, build_command
-
-
-def run_pattern(pattern: Pattern, root: Path, command_pair: tuple[list[str], list[str]],
+def run_pattern(pattern: Pattern, root: Path, command: list[str],
                 environment: dict[str, str]) -> dict[str, object]:
     directory = pattern.directory(root)
     result: dict[str, object] = {"pattern": pattern.label(), "status": "failed",
@@ -114,33 +52,36 @@ def run_pattern(pattern: Pattern, root: Path, command_pair: tuple[list[str], lis
     try:
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / "build.log").open("w", encoding="utf-8") as log:
-            for stage, command in zip(("configure", "build"), command_pair):
-                result["stage"] = stage
-                heading = f"[{pattern.label()} / {stage}] {shlex.join(command)}"
-                print(heading, flush=True)
-                log.write(heading + "\n")
-                log.flush()
-                with subprocess.Popen(command, cwd=PROJECT_ROOT, env=environment,
-                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                      text=True, errors="replace", bufsize=1) as process:
-                    for line in process.stdout:
-                        print(line, end="", flush=True)
-                        log.write(line)
-                        log.flush()
-                    result["returncode"] = process.wait()
-                if result["returncode"] != 0:
-                    return result
+            result["stage"] = "build"
+            heading = f"[{pattern.label()} / build] {shlex.join(command)}"
+            print(heading, flush=True)
+            log.write(heading + "\n")
+            log.flush()
+            with subprocess.Popen(command, cwd=PROJECT_ROOT, env=environment,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                  text=True, errors="replace", bufsize=1) as process:
+                for line in process.stdout:
+                    print(line, end="", flush=True)
+                    log.write(line)
+                    log.flush()
+                result["returncode"] = process.wait()
+            if result["returncode"] != 0:
+                return result
         result["stage"] = "collect"
         executable = "enishi_engine.exe" if pattern.target_os == "windows" else "enishi_engine"
-        if not (directory / "artifacts" / executable).is_file():
+        executable_path = directory / "artifacts" / executable
+        if not executable_path.is_file():
             raise FileNotFoundError(f"Expected output was not produced: {executable}")
         shaders = directory / "build" / "shader"
         if shaders.is_dir():
             shutil.copytree(shaders, directory / "artifacts" / "shader", dirs_exist_ok=True)
         result["status"] = "success"
+        result["executable"] = str(executable_path)
+        print(f"  Executable: {executable_path}", flush=True)
     except OSError as error:
         result["returncode"] = 1
         result["error"] = str(error)
+        print(f"  Error: {error}", file=sys.stderr, flush=True)
     return result
 
 
@@ -160,8 +101,19 @@ def main() -> int:
     if not args.dry_run and HOST_OS.get(platform.system()) != args.os:
         parser.error("The selected OS must match the host OS; use --dry-run to inspect another OS")
     root = args.output.resolve()
-    generator = visual_studio_generator() if args.os == "windows" else ""
+    script_format = "cmd" if args.os == "windows" else "sh"
+    script = PROJECT_ROOT / "build" / f"build.{script_format}"
+    generate = [sys.executable, str(PROJECT_ROOT / "build" / "generate_build.py"),
+                "--format", script_format]
+    print(f"Generate: {shlex.join(generate)}", flush=True)
+    if not args.dry_run:
+        generated = subprocess.run(generate, cwd=PROJECT_ROOT, check=False)
+        if generated.returncode != 0:
+            return generated.returncode
     environment = os.environ.copy()
+    environment["CMAKE_BUILD_PARALLEL_LEVEL"] = str(args.jobs)
+    environment["PYTHON_EXECUTABLE"] = sys.executable
+    environment["ENISHI_OFFLINE"] = "1" if args.offline else "0"
     if args.offline:
         environment["CARGO_NET_OFFLINE"] = "true"
         environment["RUSTUP_AUTO_INSTALL"] = "0"
@@ -170,13 +122,20 @@ def main() -> int:
         for compiler in COMPILERS[args.os]:
             for config in CONFIGURATIONS:
                 pattern = Pattern(args.os, backend, compiler, config)
-                pair = commands(pattern, root, args.jobs, not args.offline, generator)
+                command = build_command(pattern, script)
+                pattern_environment = environment.copy()
+                pattern_environment["ENISHI_BUILD_DIR"] = str(pattern.directory(root) / "build")
+                pattern_environment["ENISHI_ARTIFACT_DIR"] = str(pattern.directory(root) / "artifacts")
+                if args.os == "windows":
+                    pattern_environment["VCPKG_TARGET_TRIPLET"] = (
+                        "x64-mingw-dynamic" if compiler == "gcc" else "x64-windows")
                 print(f"[{pattern.label()}]", flush=True)
                 if args.dry_run:
-                    for command in pair:
-                        print(shlex.join(command))
+                    print(f"  Build: {pattern_environment['ENISHI_BUILD_DIR']}")
+                    print(f"  Artifacts: {pattern_environment['ENISHI_ARTIFACT_DIR']}")
+                    print(shlex.join(command))
                     continue
-                result = run_pattern(pattern, root, pair, environment)
+                result = run_pattern(pattern, root, command, pattern_environment)
                 results.append(result)
                 print(f"  {result['status']}: {pattern.directory(root)}", flush=True)
     if args.dry_run:
