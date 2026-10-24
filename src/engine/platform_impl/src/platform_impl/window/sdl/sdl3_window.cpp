@@ -319,7 +319,7 @@ namespace enishi::platform_impl {
                     this->is_closing = true;
                     break;
                 case SDL_EventType::SDL_EVENT_KEY_DOWN:
-                    if (capture_keyboard) {
+                    if (event.key.repeat || (capture_keyboard && event.key.key != SDLK_F3)) {
                         break;
                     }
                     this->input.on_key_down(SDL3Input::convert_key_code(event.key.key));
@@ -372,6 +372,7 @@ namespace enishi::platform_impl {
                     this->position = {event.window.data1, event.window.data2};
                     break;
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
+                    this->input.reset_keys();
                     for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
                         button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
                         ++button) {
