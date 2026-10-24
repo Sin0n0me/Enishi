@@ -10,7 +10,7 @@ FetchContent_Declare(ENGINE_TYPES SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engi
 FetchContent_MakeAvailable(ENGINE_TYPES)
 
 set(SOURCES
-    src/debug/debug.h
+    src/debug/engine_debug.h
     src/debug/playback/playback_control.h
     src/debug/overlay/overlay_line.h
     src/debug/overlay/interface_debug_overlay.h

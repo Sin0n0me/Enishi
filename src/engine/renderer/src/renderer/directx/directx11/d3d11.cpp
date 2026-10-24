@@ -1,5 +1,5 @@
 #include "d3d11.h"
-#include <debug/debug.h>
+#include <debug/engine_debug.h>
 
 namespace enishi::renderer::directx {
     foundation::VoidResult<RendererError> D3D11::init_no_dcomp(
