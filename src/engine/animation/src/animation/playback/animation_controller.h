@@ -15,6 +15,7 @@ namespace enishi::animation {
         [[nodiscard]] bool play(const std::string& name, const bool restart = true) override;
         void pause(void) override;
         void stop(void) override;
+        void seek(float seconds) override;
         void update(const float elapsed_seconds) override;
         [[nodiscard]] const AnimationClipData* get_active_clip(void) const noexcept override;
         [[nodiscard]] float get_time(void) const noexcept override;

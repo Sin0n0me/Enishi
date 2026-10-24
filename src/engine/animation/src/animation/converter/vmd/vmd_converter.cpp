@@ -1,7 +1,7 @@
 #include "vmd_converter.h"
 #include "../../clip_data/interpolation/interpolation.h"
 #include <algorithm>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/str/to_utf8.h>
 
 namespace enishi::animation {
@@ -10,7 +10,7 @@ namespace enishi::animation {
         const assets_system::IMorphResolver* morph_resolver) {
         auto result = FrameConverter::convert_clip_data(resolver, morph_resolver, data);
         if (result.is_err()) {
-            foundation::Logger::warning(
+            debug::Logger::warning(
                 "Failed to convert VMD animation: " + result.unwrap_err().get_message());
             return {};
         }

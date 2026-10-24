@@ -2,7 +2,7 @@
 #include "rigid_body/rigid_body_impulse.h"
 #include <cmath>
 #include <format>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::physics::bullet3 {
     foundation::Result<void, sub_system::PhysicsError> PhysicsWorld::apply_impulse(
@@ -39,7 +39,7 @@ namespace enishi::physics::bullet3 {
             apply_rigid_body_impulse(native_body, impulse);
             const auto delta_velocity = native_body.getLinearVelocity() - velocity;
             const auto delta_angular_velocity = native_body.getAngularVelocity() - angular_velocity;
-            foundation::Logger::info(
+            debug::Logger::info(
                 std::format("Bullet click impulse applied: delta velocity=({}, {}, {}), delta "
                             "angular velocity=({}, {}, {})",
                     delta_velocity.x(),

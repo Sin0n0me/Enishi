@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iostream>
 
-namespace enishi::foundation {
+namespace enishi::debug {
     decltype(Logger::instance) Logger::instance = Logger{};
 
     Logger::Logger(void) {
@@ -43,7 +43,7 @@ namespace enishi::foundation {
         }
     }
 
-    void Logger::enqueue(const LogLevel& level, UTF8&& msg) {
+    void Logger::enqueue(const LogLevel& level, foundation::UTF8&& msg) {
         {
             std::lock_guard<std::mutex> lock(this->queue_mutex);
             this->queue.push(LogEntry{level, msg, std::chrono::system_clock::now()});
@@ -67,19 +67,19 @@ namespace enishi::foundation {
             reinterpret_cast<const char*>(log.data()), static_cast<std::streamsize>(log.size()));
     }
 
-    void Logger::debug(UTF8&& msg) {
+    void Logger::debug(foundation::UTF8&& msg) {
         Logger::instance.enqueue(LogLevel::Debug, std::move(msg));
     }
 
-    void Logger::info(UTF8&& msg) {
+    void Logger::info(foundation::UTF8&& msg) {
         Logger::instance.enqueue(LogLevel::Info, std::move(msg));
     }
 
-    void Logger::warning(UTF8&& msg) {
+    void Logger::warning(foundation::UTF8&& msg) {
         Logger::instance.enqueue(LogLevel::Warning, std::move(msg));
     }
 
-    void Logger::error(UTF8&& msg) {
+    void Logger::error(foundation::UTF8&& msg) {
         Logger::instance.enqueue(LogLevel::Error, std::move(msg));
     }
-} // namespace enishi::foundation
+} // namespace enishi::debug

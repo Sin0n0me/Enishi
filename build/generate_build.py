@@ -41,7 +41,7 @@ def arguments(target: Format) -> list[str]:
             'if "%TOOLCHAIN%"=="" set "TOOLCHAIN=auto"',
             'if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"',
             'if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=2"',
-            'if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS=-DPython_EXECUTABLE=%PYTHON_EXECUTABLE% -DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%"',
+            'if defined PYTHON_EXECUTABLE set "PYTHON_OPTIONS="-DPython_EXECUTABLE=%PYTHON_EXECUTABLE%" "-DPython3_EXECUTABLE=%PYTHON_EXECUTABLE%""',
             'if /I "%BACKEND%"=="opengl" set "BACKEND_OPTIONS=-DUSE_OPENGL40=ON -DUSE_VULKAN=OFF"',
             'if /I "%BACKEND%"=="directx" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF"',
             'if /I "%BACKEND%"=="vulkan" set "BACKEND_OPTIONS=-DUSE_OPENGL40=OFF -DUSE_VULKAN=ON"',
@@ -117,6 +117,7 @@ def cmd_packages(_: Format) -> list[str]:
         'set "PACKAGE_OPTIONS="',
         "if defined CMAKE_TOOLCHAIN_FILE set \"PACKAGE_OPTIONS=\"-DCMAKE_TOOLCHAIN_FILE=%CMAKE_TOOLCHAIN_FILE%\"\"",
         "if defined VCPKG_INSTALLED_DIR set \"PACKAGE_OPTIONS=%PACKAGE_OPTIONS% -DVCPKG_INSTALLED_DIR=%VCPKG_INSTALLED_DIR%\"",
+        'if defined VCPKG_TARGET_TRIPLET set "PACKAGE_OPTIONS=%PACKAGE_OPTIONS% -DVCPKG_TARGET_TRIPLET=%VCPKG_TARGET_TRIPLET%"',
         "if defined CMAKE_TOOLCHAIN_FILE exit /b 0",
         'if not defined VCPKG_ROOT if defined VCPKG_INSTALLATION_ROOT set "VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%"',
         "if not defined VCPKG_ROOT for /f \"delims=\" %%I in ('where.exe vcpkg.exe 2^>nul') do if not defined VCPKG_ROOT for %%J in (\"%%I\") do set \"VCPKG_ROOT=%%~dpJ\"",
@@ -133,22 +134,65 @@ def cmd_packages(_: Format) -> list[str]:
     ]
 
 
+def build_options(target: Format) -> list[str]:
+    if target == "cmd":
+        lines = [
+            ":configure_build",
+            'if defined ENISHI_BUILD_DIR set "BUILD_DIR=%ENISHI_BUILD_DIR%"',
+            'set "BUILD_OPTIONS="',
+            'if defined ENISHI_OFFLINE set "BUILD_OPTIONS=-DFETCHCONTENT_FULLY_DISCONNECTED=OFF -DFETCHCONTENT_UPDATES_DISCONNECTED=OFF -DVCPKG_MANIFEST_INSTALL=ON"',
+            'if "%ENISHI_OFFLINE%"=="1" set "BUILD_OPTIONS=-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_UPDATES_DISCONNECTED=ON -DVCPKG_MANIFEST_INSTALL=OFF"',
+        ]
+        for kind in ("RUNTIME", "LIBRARY", "PDB", "ARCHIVE"):
+            directory = "%BUILD_DIR%/lib" if kind == "ARCHIVE" else "%ENISHI_ARTIFACT_DIR%"
+            for suffix in ("", "_DEBUG", "_RELEASE"):
+                lines.append('if defined ENISHI_ARTIFACT_DIR set "BUILD_OPTIONS=%BUILD_OPTIONS% '
+                             f'"-DCMAKE_{kind}_OUTPUT_DIRECTORY{suffix}={directory}""')
+        return lines + ["exit /b 0"]
+    return [
+        "configure_build() {",
+        '    build_dir="${ENISHI_BUILD_DIR:-$script_dir/$backend/$toolchain}"',
+        "    build_options=()",
+        '    if [[ -n "${ENISHI_OFFLINE:-}" ]]; then',
+        "        build_options+=(-DFETCHCONTENT_FULLY_DISCONNECTED=OFF -DFETCHCONTENT_UPDATES_DISCONNECTED=OFF -DVCPKG_MANIFEST_INSTALL=ON)",
+        "    fi",
+        '    if [[ "${ENISHI_OFFLINE:-0}" == 1 ]]; then',
+        "        build_options=(-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_UPDATES_DISCONNECTED=ON -DVCPKG_MANIFEST_INSTALL=OFF)",
+        "    fi",
+        '    if [[ -n "${ENISHI_ARTIFACT_DIR:-}" ]]; then',
+        "        for kind in RUNTIME LIBRARY PDB ARCHIVE; do",
+        '            directory="$ENISHI_ARTIFACT_DIR"',
+        '            [[ "$kind" == ARCHIVE ]] && directory="$build_dir/lib"',
+        '            for suffix in "" _DEBUG _RELEASE; do',
+        '                build_options+=("-DCMAKE_${kind}_OUTPUT_DIRECTORY${suffix}=$directory")',
+        "            done",
+        "        done",
+        "    fi",
+        '    if [[ -n "${PYTHON_EXECUTABLE:-}" ]]; then',
+        '        build_options+=("-DPython_EXECUTABLE=$PYTHON_EXECUTABLE" "-DPython3_EXECUTABLE=$PYTHON_EXECUTABLE")',
+        "    fi",
+        "}",
+    ]
+
+
 def cmd_builds(_: Format) -> list[str]:
     return [
         ":build_visualstudio",
+        "call :configure_build",
         "call :configure_packages",
         "if errorlevel 1 exit /b %errorlevel%",
-        'cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G "%GENERATOR%" %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %PYTHON_OPTIONS%',
+        'cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G "%GENERATOR%" %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %PYTHON_OPTIONS% %BUILD_OPTIONS%',
         "if errorlevel 1 exit /b %errorlevel%",
         '@rem Share the compiler process limit across projects as well as parallelizing projects.',
-        'cmake --build "%BUILD_DIR%" --config "%CONFIG%" --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%" -- /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true /p:MultiProcMaxCount=%CMAKE_BUILD_PARALLEL_LEVEL%',
+        'cmake --build "%BUILD_DIR%" --target enishi_engine --config "%CONFIG%" --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%" -- /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true /p:MultiProcMaxCount=%CMAKE_BUILD_PARALLEL_LEVEL%',
         "exit /b %errorlevel%",
         ":build_ninja",
+        "call :configure_build",
         "call :configure_packages",
         "if errorlevel 1 exit /b %errorlevel%",
-        'cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %COMPILER_OPTIONS% %PYTHON_OPTIONS% -DCMAKE_BUILD_TYPE=%CONFIG%',
+        'cmake -S "%SOURCE_DIR%" -B "%BUILD_DIR%" -G Ninja %BACKEND_OPTIONS% %PACKAGE_OPTIONS% %COMPILER_OPTIONS% %PYTHON_OPTIONS% %BUILD_OPTIONS% -DCMAKE_BUILD_TYPE=%CONFIG%',
         "if errorlevel 1 exit /b %errorlevel%",
-        'cmake --build "%BUILD_DIR%" --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%"',
+        'cmake --build "%BUILD_DIR%" --target enishi_engine --parallel "%CMAKE_BUILD_PARALLEL_LEVEL%"',
         "exit /b %errorlevel%",
         ":usage",
         "echo Usage: %~nx0 ^<opengl^|directx^|vulkan^> [config] [auto^|visualstudio^|clang^|gcc]",
@@ -161,10 +205,13 @@ def sh_functions(_: Format) -> list[str]:
         "usage() { echo \"Usage: $(basename \"$0\") <opengl|directx|vulkan> [config] [auto|clang|gcc]\" >&2; exit 1; }",
         "configure_packages() {",
         "    package_options=()",
+        '    architecture="$(uname -m)"',
+        '    [[ "$architecture" == arm64 || "$architecture" == aarch64 ]] && architecture=arm64 || architecture=x64',
+        '    [[ "$(uname -s)" == Darwin ]] && triplet_os=osx || triplet_os=linux',
         '    [[ -n "${CMAKE_TOOLCHAIN_FILE:-}" ]] && { package_options=("-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"); return; }',
         '    [[ -z "${VCPKG_ROOT:-}" ]] && command -v vcpkg >/dev/null && VCPKG_ROOT="$(dirname "$(command -v vcpkg)")"',
         '    [[ -f "${VCPKG_ROOT:-}/scripts/buildsystems/vcpkg.cmake" ]] || { echo "Set VCPKG_ROOT or CMAKE_TOOLCHAIN_FILE." >&2; exit 1; }',
-        '    package_options=("-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DVCPKG_TARGET_TRIPLET=${VCPKG_TARGET_TRIPLET:-x64-linux}")',
+        '    package_options=("-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DVCPKG_TARGET_TRIPLET=${VCPKG_TARGET_TRIPLET:-$architecture-$triplet_os}")',
         "}",
     ]
 
@@ -181,18 +228,18 @@ def sh_build(_: Format) -> list[str]:
         "esac",
         'command -v "$toolchain" >/dev/null && command -v ninja >/dev/null || { echo "Compiler or Ninja was not found." >&2; exit 1; }',
         "configure_packages",
-        'build_dir="$script_dir/$backend/$toolchain"',
-        'cmake -S "$source_dir" -B "$build_dir" -G Ninja "${backend_options[@]}" "${package_options[@]}" "${compiler_options[@]}" -DCMAKE_BUILD_TYPE="$config"',
-        'cmake --build "$build_dir" --parallel "$parallel_jobs"',
+        "configure_build",
+        'cmake -S "$source_dir" -B "$build_dir" -G Ninja "${backend_options[@]}" "${package_options[@]}" "${compiler_options[@]}" "${build_options[@]}" -DCMAKE_BUILD_TYPE="$config"',
+        'cmake --build "$build_dir" --target enishi_engine --parallel "$parallel_jobs"',
     ]
 
 
 def render(target: Format) -> str:
     sections: tuple[Section, ...]
     if target == "cmd":
-        sections = (header, arguments, cmd_toolchains, cmd_packages, cmd_builds)
+        sections = (header, arguments, cmd_toolchains, cmd_packages, build_options, cmd_builds)
     else:
-        sections = (header, sh_functions, arguments, sh_build)
+        sections = (header, sh_functions, build_options, arguments, sh_build)
 
     lines: list[str] = []
     for section in sections:
@@ -208,7 +255,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
     output = arguments.output or ROOT / ("build.cmd" if arguments.format == "cmd" else "build.sh")
-    output.write_text(render(arguments.format), encoding="utf-8")
+    with output.open("w", encoding="utf-8", newline="\n") as script:
+        script.write(render(arguments.format))
 
 
 if __name__ == "__main__":

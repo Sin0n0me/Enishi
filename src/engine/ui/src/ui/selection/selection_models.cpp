@@ -1,5 +1,5 @@
 #include "selection_models.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::ui {
     void SelectionModels::reset_error() {
@@ -32,7 +32,7 @@ namespace enishi::ui {
             this->error_message.clear();
             if (result.is_err()) {
                 this->error_message = result.unwrap_err().get_message();
-                foundation::Logger::error(result.unwrap_err().get_message());
+                debug::Logger::error(result.unwrap_err().get_message());
             }
         }
         ui.end_disabled();

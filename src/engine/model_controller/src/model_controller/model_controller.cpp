@@ -2,7 +2,7 @@
 #include "model_controller.h"
 #include "model_component_builder.h"
 #include <algorithm>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <foundation/path/path_utility.h>
 #include <regex>
 #include <variant>
@@ -24,7 +24,7 @@ namespace enishi::model_controller {
 
         const auto asset_paths = model_paths.find(pattern);
         if (asset_paths.empty()) {
-            foundation::Logger::warning(
+            debug::Logger::warning(
                 std::format("モデルデータが見つかりません. path: {}", search_path.string<char>()));
             return;
         }

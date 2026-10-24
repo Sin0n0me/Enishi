@@ -3,7 +3,7 @@
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <component/physics_bodies_component.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <limits>
 #include <utility>
 
@@ -118,7 +118,7 @@ namespace enishi::core {
         if (!std::isfinite(destination.x) || !std::isfinite(destination.y) ||
             destination.x < MIN_POSITION || destination.x > MAX_POSITION ||
             destination.y < MIN_POSITION || destination.y > MAX_POSITION) {
-            foundation::Logger::warning("Window animation position is outside the supported range");
+            debug::Logger::warning("Window animation position is outside the supported range");
             this->previous.reset();
             this->remainder = glm::dvec2(0);
             return;
@@ -128,7 +128,7 @@ namespace enishi::core {
                 this->window->set_position({static_cast<std::int32_t>(destination.x),
                     static_cast<std::int32_t>(destination.y)});
             if (result.is_err()) {
-                foundation::Logger::warning(result.unwrap_err().get_message());
+                debug::Logger::warning(result.unwrap_err().get_message());
                 return;
             }
         }

@@ -1,4 +1,5 @@
 #pragma once
+#include <debug/playback/playback_control.h>
 #include "model_bones.h"
 #include <array>
 #include <component/animation_component.h>
@@ -41,6 +42,7 @@ namespace enishi::core {
         };
 
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
         std::weak_ptr<platform::IWindow> cursor_window;
         std::shared_ptr<sub_system::ICameraController> camera;
@@ -52,6 +54,7 @@ namespace enishi::core {
         explicit SkinningSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept;
 
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void update_after_physics(void);

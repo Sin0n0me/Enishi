@@ -1,6 +1,6 @@
 #include "camera_zoom_system.h"
 #include <cmath>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <utility>
 
@@ -34,7 +34,7 @@ namespace enishi::core {
         const auto view = glm::translate(glm::mat4(1), glm::vec3(0, 0, -distance)) * snapshot.view;
         const auto result = this->camera->set_view_projection(view, snapshot.projection);
         if (result.is_err()) {
-            foundation::Logger::warning(result.unwrap_err().get_message());
+            debug::Logger::warning(result.unwrap_err().get_message());
         }
     }
 

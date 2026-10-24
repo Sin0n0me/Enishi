@@ -1,6 +1,6 @@
 #include "sdl3_window.h"
 #include <SDL3/SDL_init.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
 #if defined(USE_WINDOWS) || defined(_WIN32)
 #include <Windows.h>
@@ -296,6 +296,10 @@ namespace enishi::platform_impl {
         return this->is_closing;
     }
 
+    void SDL3Window::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
+    }
+
     void SDL3Window::poll_events(void) {
         this->input.begin_frame();
         const auto position = this->get_position();
@@ -304,7 +308,14 @@ namespace enishi::platform_impl {
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (this->ui_event_handler != nullptr) {
+            const bool playback_key =
+                this->debug_playback != nullptr && this->debug_playback->enabled &&
+                (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
+                (event.key.key == SDLK_SPACE || event.key.key == SDLK_LEFT ||
+                    event.key.key == SDLK_RIGHT);
+            // Debug shortcuts must not also activate or navigate the focused UI widget.
+            if (this->ui_event_handler != nullptr &&
+                !(playback_key && event.type == SDL_EVENT_KEY_DOWN)) {
                 this->ui_event_handler(event);
             }
             const auto ui = this->ui.lock();
@@ -318,12 +329,14 @@ namespace enishi::platform_impl {
                 case SDL_EventType::SDL_EVENT_QUIT:
                     this->is_closing = true;
                     break;
-                case SDL_EventType::SDL_EVENT_KEY_DOWN:
-                    if (capture_keyboard) {
+                case SDL_EventType::SDL_EVENT_KEY_DOWN: {
+                    if (event.key.repeat ||
+                        (capture_keyboard && event.key.key != SDLK_F3 && !playback_key)) {
                         break;
                     }
                     this->input.on_key_down(SDL3Input::convert_key_code(event.key.key));
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_KEY_UP:
                     this->input.on_key_up(SDL3Input::convert_key_code(event.key.key));
                     break;
@@ -372,6 +385,7 @@ namespace enishi::platform_impl {
                     this->position = {event.window.data1, event.window.data2};
                     break;
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
+                    this->input.reset_keys();
                     for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
                         button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
                         ++button) {
@@ -415,7 +429,7 @@ namespace enishi::platform_impl {
         const Uint32 transparentColor = SDL_MapSurfaceRGBA(shape, 0, 0, 0, 30);
 
         if (!SDL_FillSurfaceRect(shape, nullptr, transparentColor)) {
-            foundation::Logger::error(
+            debug::Logger::error(
                 std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
@@ -426,7 +440,7 @@ namespace enishi::platform_impl {
         const Uint32 opaqueColor = SDL_MapSurfaceRGBA(shape, 255, 255, 255, 0);
 
         if (!SDL_FillSurfaceRect(shape, &interactiveRect, opaqueColor)) {
-            foundation::Logger::error(
+            debug::Logger::error(
                 std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
@@ -434,7 +448,7 @@ namespace enishi::platform_impl {
 
         const bool result = SDL_SetWindowShape(this->window.get(), shape);
         if (!result) {
-            foundation::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
         }
 
         SDL_DestroySurface(shape);

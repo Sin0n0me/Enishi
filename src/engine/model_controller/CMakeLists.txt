@@ -23,6 +23,9 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 set(DEPENDENCIES)
 include(FetchContent)
 
+FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
+FetchContent_MakeAvailable(ENISHI_DEBUG)
+
 FetchContent_Declare(
     ANIMATION
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../animation
@@ -88,3 +91,5 @@ if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE enishi::debug)

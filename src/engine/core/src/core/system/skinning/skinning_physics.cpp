@@ -2,7 +2,7 @@
 #include "bone_view_factory.h"
 #include <algorithm>
 #include <core/system/physics/physics_body_factory.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::core {
     void SkinningPhysics::build(ModelBones& bones,
@@ -49,7 +49,7 @@ namespace enishi::core {
                     bones.physics_cache,
                     bones.physics_updater);
                 if (built.is_err()) {
-                    foundation::Logger::warning(built.unwrap_err().get_message());
+                    debug::Logger::warning(built.unwrap_err().get_message());
                     std::fill(bones.physics_driven.begin(), bones.physics_driven.end(), false);
                 } else {
                     physics_bodies.unwrap_mut().handles = std::move(built).unwrap_mut();

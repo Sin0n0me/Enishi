@@ -16,7 +16,7 @@ namespace enishi::platform_impl {
             return false;
         }
 
-        return this->key_state[index] && !this->pre_key_state[index];
+        return this->key_pressed[index];
     }
 
     bool SDL3Input::is_key_released(const types::KeyCode key) const noexcept {
@@ -24,7 +24,7 @@ namespace enishi::platform_impl {
         if (this->key_state.size() < index + 1) {
             return false;
         }
-        return !this->key_state[index];
+        return this->key_released[index];
     }
 
     types::ScreenMousePosition SDL3Input::get_screen_mouse_position(void) const noexcept {
@@ -79,7 +79,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->pre_key_state[index] = this->key_state[index];
+        this->key_pressed[index] = this->key_pressed[index] || !this->key_state[index];
         this->key_state[index] = true;
     }
 
@@ -89,7 +89,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->pre_key_state[index] = this->key_state[index];
+        this->key_released[index] = this->key_released[index] || this->key_state[index];
         this->key_state[index] = false;
     }
 
@@ -118,7 +118,15 @@ namespace enishi::platform_impl {
         this->mouse_down[index] = false;
     }
 
+    void SDL3Input::reset_keys(void) {
+        this->key_state.fill(false);
+        this->key_pressed.fill(false);
+        this->key_released.fill(false);
+    }
+
     void SDL3Input::begin_frame(void) {
+        this->key_pressed.fill(false);
+        this->key_released.fill(false);
         this->mouse_wheel = {};
         this->mouse_pressed.fill(false);
         this->mouse_released.fill(false);

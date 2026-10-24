@@ -1,4 +1,5 @@
 #pragma once
+#include <debug/playback/playback_control.h>
 #include <animation/errors/errors.h>
 #include <animation/morph/morph_name_dictionary.h>
 #include <animation/playback/interface_animation_controller.h>
@@ -15,6 +16,7 @@ namespace enishi::core {
     class AnimationSystem : public ISystem {
       private:
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         animation::MorphNameDictionary morph_names;
         std::unordered_map<types::HandleId, std::shared_ptr<animation::IAnimationController>>
             controllers;
@@ -41,6 +43,7 @@ namespace enishi::core {
         [[nodiscard]] std::shared_ptr<animation::IAnimationController> get_controller(
             const types::HandleId& entity) const;
 
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void pre_update(void) override;
         void post_update(void) override;
         void update(const types::DeltaTime& delta_time) override;

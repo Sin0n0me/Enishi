@@ -8,7 +8,7 @@
 #include <queue>
 #include <thread>
 
-namespace enishi::foundation {
+namespace enishi::debug {
     class Logger {
       private:
         std::ofstream file_stream;
@@ -30,13 +30,13 @@ namespace enishi::foundation {
         void logging(void);
         void shutdown(void);
 
-        void enqueue(const LogLevel& level, UTF8&& msg);
+        void enqueue(const LogLevel& level, foundation::UTF8&& msg);
         void write(const LogEntry& log);
 
       public:
-        static void debug(UTF8&& msg);
-        static void info(UTF8&& msg);
-        static void warning(UTF8&& msg);
-        static void error(UTF8&& msg);
+        static void debug(foundation::UTF8&& msg);
+        static void info(foundation::UTF8&& msg);
+        static void warning(foundation::UTF8&& msg);
+        static void error(foundation::UTF8&& msg);
     };
-} // namespace enishi::foundation
+} // namespace enishi::debug

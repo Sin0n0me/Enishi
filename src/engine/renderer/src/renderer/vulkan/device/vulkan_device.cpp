@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <foundation/log/logger.h>
 #include <limits>
 #include <renderer/vulkan/device/vulkan_device.h>
 #include <renderer/vulkan/shadow/vulkan_shadow.h>
@@ -121,7 +120,7 @@ namespace enishi::renderer::vulkan {
         return check_vk(vkDeviceWaitIdle(this->device), "vkDeviceWaitIdle");
     }
     std::uint32_t VulkanDevice::validation_error_count() const noexcept {
-        return this->validation_errors;
+        return this->diagnostics.error_count();
     }
     platform::RenderResult<void> VulkanDevice::allocate_image(
         VkImage image, VkDeviceMemory& memory) {
@@ -137,19 +136,6 @@ namespace enishi::renderer::vulkan {
         allocation.memoryTypeIndex = type.unwrap();
         ENISHI_VK_TRY(vkAllocateMemory(this->device, &allocation, nullptr, &memory));
         return check_vk(vkBindImageMemory(this->device, image, memory, 0), "vkBindImageMemory");
-    }
-    VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDevice::debug_callback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-        VkDebugUtilsMessageTypeFlagsEXT,
-        const VkDebugUtilsMessengerCallbackDataEXT* data,
-        void* user) {
-        if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0) {
-            ++static_cast<VulkanDevice*>(user)->validation_errors;
-            foundation::Logger::error(data->pMessage);
-        } else {
-            foundation::Logger::warning(data->pMessage);
-        }
-        return VK_FALSE;
     }
     platform::RenderResult<void> VulkanDevice::make_instance(bool validation) {
         Uint32 count = 0;
@@ -174,15 +160,7 @@ namespace enishi::renderer::vulkan {
         info.ppEnabledLayerNames = layers.data();
         ENISHI_VK_TRY(vkCreateInstance(&info, nullptr, &this->instance));
         if (validation) {
-            VkDebugUtilsMessengerCreateInfoEXT debug{
-                VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-            debug.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-            debug.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-            debug.pfnUserCallback = &VulkanDevice::debug_callback;
-            debug.pUserData = this;
+            auto debug = this->diagnostics.make_create_info();
             const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
                 vkGetInstanceProcAddr(this->instance, "vkCreateDebugUtilsMessengerEXT"));
             if (create == nullptr) {

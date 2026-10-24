@@ -1,5 +1,5 @@
 #include "vulkan_render_resources.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <utility>
 namespace enishi::renderer::vulkan {
     VulkanRenderResources::VulkanRenderResources(std::shared_ptr<VulkanDevice> context)
@@ -9,7 +9,7 @@ namespace enishi::renderer::vulkan {
     VulkanRenderResources::~VulkanRenderResources() noexcept {
         auto result = this->context->wait_idle();
         if (result.is_err()) {
-            foundation::Logger::error(result.unwrap_err().get_message());
+            debug::Logger::error(result.unwrap_err().get_message());
         }
     }
     std::shared_ptr<VulkanDevice> VulkanRenderResources::get_context() noexcept {

@@ -1,7 +1,7 @@
 #include "ui_font.h"
 #include <array>
 #include <filesystem>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <imgui.h>
 #if defined(_WIN32)
 #include <Windows.h>
@@ -15,7 +15,7 @@ namespace enishi::platform_impl {
         const auto size =
             GetWindowsDirectoryW(directory.data(), static_cast<UINT>(directory.size()));
         if (size == 0 || !(size < directory.size())) {
-            foundation::Logger::warning("Unable to locate the system font directory");
+            debug::Logger::warning("Unable to locate the system font directory");
             return;
         }
         const auto font_directory = std::filesystem::path(directory.data()) / "Fonts";
@@ -38,6 +38,6 @@ namespace enishi::platform_impl {
                 return;
             }
         }
-        foundation::Logger::warning("No Japanese UI font is available; using the default font");
+        debug::Logger::warning("No Japanese UI font is available; using the default font");
     }
 } // namespace enishi::platform_impl

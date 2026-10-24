@@ -4,7 +4,7 @@
 #include <cmath>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::animation {
     using enum CursorPoseState::Joint;
@@ -84,7 +84,7 @@ namespace enishi::animation {
             const auto local =
                 collider::OBBMaker::make_by_covariance_matrix(model.collision_vertices[bone]);
             if (local.is_none()) {
-                foundation::Logger::warning("Cannot build cursor collision bounds");
+                debug::Logger::warning("Cannot build cursor collision bounds");
                 continue;
             }
             CursorCollisionBone bounds{bone, local.unwrap()};
@@ -213,7 +213,7 @@ namespace enishi::animation {
             bounds.upper = bounds.world->center + extent;
         } else {
             bounds.world.reset();
-            foundation::Logger::warning("Cannot transform cursor collision bounds");
+            debug::Logger::warning("Cannot transform cursor collision bounds");
         }
         return bounds;
     }

@@ -48,6 +48,10 @@ namespace enishi::core {
         return iter->second;
     }
 
+    void AnimationSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
+    }
+
     void AnimationSystem::pre_update(void) {
     }
 
@@ -55,6 +59,10 @@ namespace enishi::core {
     }
 
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
+        const bool debug_paused = this->debug_playback != nullptr && this->debug_playback->paused;
+        if (debug_paused && this->debug_playback->step_seconds == 0.0f) {
+            return;
+        }
         for (auto [entity, animation, model] :
             this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
             const auto controller = this->get_controller(entity);
@@ -73,7 +81,10 @@ namespace enishi::core {
             }
             // Sample the new clip's initial pose before advancing it. Skinning holds the
             // controller clock until its pose transition has reached that sample.
-            if (!changed && !animation.pose_transition_active) {
+            if (debug_paused) {
+                // Seek relative to the displayed instant, independent of render frame duration.
+                controller->seek(controller->get_time() + this->debug_playback->step_seconds);
+            } else if (!changed && !animation.pose_transition_active) {
                 controller->update(delta_time.to_float_second());
             }
             const auto* clip = controller->get_active_clip();
@@ -82,7 +93,10 @@ namespace enishi::core {
             if (clip == nullptr) {
                 continue;
             }
-            if (controller->get_time() < animation.elapsed_time) {
+            if (debug_paused) {
+                this->debug_playback->stepped_models.insert(entity);
+            }
+            if (!debug_paused && controller->get_time() < animation.elapsed_time) {
                 auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
                 if (bodies.is_some()) {
                     bodies.unwrap_mut().pose_reset_requested = true;

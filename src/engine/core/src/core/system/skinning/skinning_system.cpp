@@ -9,7 +9,7 @@
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/animation/cursor_ray.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
 #include <numeric>
@@ -19,6 +19,10 @@ namespace enishi::core {
     SkinningSystem::SkinningSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept
         : registry(std::move(registry)), physics_engine(std::move(physics_engine)) {
+    }
+
+    void SkinningSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
     }
 
     void SkinningSystem::pre_update(void) {
@@ -47,6 +51,10 @@ namespace enishi::core {
     }
 
     void SkinningSystem::update(const types::DeltaTime& delta_time) {
+        const bool debug_paused = this->debug_playback != nullptr && this->debug_playback->paused;
+        if (debug_paused && this->debug_playback->stepped_models.empty()) {
+            return;
+        }
         const auto window = this->cursor_window.lock();
         const auto cursor = window != nullptr && this->camera != nullptr
                                 ? read_cursor_ray(*window, this->camera->get_camera())
@@ -58,6 +66,9 @@ namespace enishi::core {
             this->registry->view<component::AnimationComponent,
                 component::ModelComponent,
                 component::SkinningComponent>()) {
+            if (debug_paused && !this->debug_playback->stepped_models.contains(entity)) {
+                continue;
+            }
             auto opt_ik = this->registry->get<component::IKComponent>(entity);
             auto opt_physics = this->registry->get<component::PhysicsComponent>(entity);
             auto opt_physics_bodies =
@@ -92,7 +103,7 @@ namespace enishi::core {
                 auto deltas = animation::evaluate_bone_morphs(
                     model.bone_node.size(), model.morph_targets.targets, morph.unwrap().weights);
                 if (deltas.is_err()) {
-                    foundation::Logger::warning(deltas.unwrap_err().get_message());
+                    debug::Logger::warning(deltas.unwrap_err().get_message());
                     continue;
                 }
                 bones.morph_delta = std::move(deltas).unwrap();
@@ -104,7 +115,12 @@ namespace enishi::core {
                     ? std::span<const types::SkinningCommand>(SkinningSystem::DEFAULT_ORDER)
                     : std::span<const types::SkinningCommand>(skinning.order);
 
-            if (bones.cursor_pose == nullptr) {
+            if (debug_paused) {
+                // Stepping samples the file pose directly, without a transition or cursor motion.
+                bones.cursor_pose.reset();
+                animation.pose_transition_active = false;
+            }
+            if (!debug_paused && bones.cursor_pose == nullptr) {
                 bones.cursor_pose = std::make_unique<animation::CursorPose>(
                     model, this->cursor_config, this->bone_names);
             }
@@ -114,6 +130,9 @@ namespace enishi::core {
                     delta_time.to_float_second(), window != nullptr && !animation.motion_playing);
             }
             for (const auto command : order) {
+                if (debug_paused && command == types::SkinningCommand::WriteBackPhysicsSimulate) {
+                    continue;
+                }
                 this->execute_command(command, bones, opt_ik);
             }
             // IK and physics retain the corrected pose; source animation stays unmodified.
@@ -162,6 +181,9 @@ namespace enishi::core {
     }
 
     bool SkinningSystem::begin_model_drag(types::ClientMousePosition cursor) {
+        if (this->debug_playback != nullptr && this->debug_playback->paused) {
+            return false;
+        }
         const auto window = this->cursor_window.lock();
         if (window == nullptr || this->camera == nullptr) {
             return false;

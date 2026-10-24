@@ -1,7 +1,7 @@
 #pragma once
-#include "../str/str.h"
+#include <foundation/str/str.h>
 
-namespace enishi ::foundation {
+namespace enishi::debug {
     enum class LogLevel {
         Debug,    //
         Info,     //
@@ -10,5 +10,5 @@ namespace enishi ::foundation {
         Critical, // 継続できないような致命的な場合
     };
 
-    const UTF8 level_to_string(const LogLevel& level);
-} // namespace enishi::foundation
+    const foundation::UTF8 level_to_string(const LogLevel& level);
+} // namespace enishi::debug

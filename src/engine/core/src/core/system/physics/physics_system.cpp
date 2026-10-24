@@ -3,7 +3,7 @@
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <core/system/skinning/skinning_system.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::core {
     PhysicsSystem::PhysicsSystem(std::shared_ptr<ecs::Registry> registry,
@@ -14,10 +14,21 @@ namespace enishi::core {
         , skinning_system(std::move(skinning_system)) {
     }
 
+    void PhysicsSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
+    }
+
     void PhysicsSystem::pre_update(void) {
     }
 
     void PhysicsSystem::update(const types::DeltaTime& delta_time) {
+        if (this->debug_playback != nullptr && this->debug_playback->paused) {
+            // Keep simulation state intact; only finalize bones sampled by a debug seek.
+            if (this->skinning_system != nullptr) {
+                this->skinning_system->update_after_physics();
+            }
+            return;
+        }
         auto* world = this->physics_engine->get_world();
         for (auto [entity, bodies] : this->registry->view<component::PhysicsBodiesComponent>()) {
             const bool reset_pose = bodies.enabled && bodies.pose_reset_requested &&
@@ -29,7 +40,7 @@ namespace enishi::core {
                 for (const auto& handle : bodies.handles) {
                     const auto result = world->set_body_enabled(handle, false);
                     if (result.is_err()) {
-                        foundation::Logger::warning(result.unwrap_err().get_message());
+                        debug::Logger::warning(result.unwrap_err().get_message());
                         detached = false;
                     }
                 }
@@ -45,7 +56,7 @@ namespace enishi::core {
             for (const auto& handle : bodies.handles) {
                 const auto result = world->set_body_enabled(handle, bodies.enabled);
                 if (result.is_err()) {
-                    foundation::Logger::warning(result.unwrap_err().get_message());
+                    debug::Logger::warning(result.unwrap_err().get_message());
                     succeeded = false;
                 }
             }
@@ -66,7 +77,7 @@ namespace enishi::core {
                 }
                 const auto result = apply_impulse_morphs(*world, model, morph, bodies);
                 if (result.is_err()) {
-                    foundation::Logger::warning(result.unwrap_err().get_message());
+                    debug::Logger::warning(result.unwrap_err().get_message());
                 }
             }
         }
