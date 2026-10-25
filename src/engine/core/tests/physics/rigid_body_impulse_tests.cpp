@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <BulletCollision/CollisionShapes/btSphereShape.h>
 #include <cstdlib>
 #include <iostream>
@@ -5,12 +6,7 @@
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 } // namespace
 
 void rigid_body_impulse_tests() {

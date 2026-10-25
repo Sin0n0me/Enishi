@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <core/system/skinning/skinning_system.h>
@@ -16,12 +17,7 @@ namespace {
     constexpr types::BoneIndex FOLLOWER = 2;
     constexpr types::BoneIndex TIP = 3;
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 
     void inheritance_test(bool local, float weight) {
         assets_system::PMXData data;

@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <core/system/skinning/skinning_system.h>
@@ -8,12 +9,7 @@
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 } // namespace
 
 void external_transform_tests() {

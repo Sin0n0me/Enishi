@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <cstdlib>
 #include <iostream>
 #include <physics/bullet3/converter/bullet_converter.h>
@@ -16,12 +17,7 @@
 using namespace enishi;
 namespace {
     constexpr float TOLERANCE = 0.0001f;
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 
     void sleeping_tests() {
         constexpr int SETTLE_FRAMES = 360;
@@ -174,15 +170,15 @@ namespace {
 
 int main() {
     extern void physics_object_tests();
-    physics_object_tests();
+    tests::run_test("physics_object_tests", physics_object_tests);
     extern void impulse_playback_tests();
-    impulse_playback_tests();
+    tests::run_test("impulse_playback_tests", impulse_playback_tests);
     extern void rigid_body_impulse_tests();
-    rigid_body_impulse_tests();
+    tests::run_test("rigid_body_impulse_tests", rigid_body_impulse_tests);
     extern void model_physics_tests();
-    model_physics_tests();
-    sleeping_tests();
-    motion_state_tests();
-    world_tests();
+    tests::run_test("model_physics_tests", model_physics_tests);
+    tests::run_test("sleeping_tests", sleeping_tests);
+    tests::run_test("motion_state_tests", motion_state_tests);
+    tests::run_test("world_tests", world_tests);
     std::cout << "Physics runtime tests passed\n";
 }
