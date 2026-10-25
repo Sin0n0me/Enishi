@@ -119,6 +119,7 @@ def run_stage(label: str, command: list[str], log: Path, env: dict[str, str], dr
 def test_command(directory: Path, args: argparse.Namespace, pattern: str | None = None) -> list[str]:
     command = ["ctest", "--test-dir", str(directory), "-C", args.config,
                "--output-on-failure", "--no-tests=error", "--timeout", str(args.timeout),
+               "--interactive-debug-mode", "0",
                "--parallel", str(args.jobs)]
     if pattern:
         command += ["-R", pattern]
