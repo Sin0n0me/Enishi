@@ -1,3 +1,4 @@
+#include "arm_direction_tests.h"
 #include <animation/playback/animation_controller.h>
 #include <chrono>
 #include <collider/collider.h>
@@ -2119,6 +2120,7 @@ namespace {
 void config_reader_tests();
 
 int main(int argc, char** argv) {
+    arm_direction_tests();
     config_reader_tests();
     window_animation_sync_tests();
     if (argc == 2 && std::string_view(argv[1]) == "--benchmark") {
