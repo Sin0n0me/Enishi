@@ -81,3 +81,7 @@ if (POLICY CMP0141)
 endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE enishi::debug)
+
+# cgltf v1.15 (360db1a95480fe102ae9c69b27c5d101167ff5ba); implementation is private to assets.
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../../third_party/cgltf")
