@@ -5,6 +5,13 @@
     "minor": 24,
     "patch": 0
   },
+  "vendor": {
+    "enishi/generator/1.0": {
+      "source": "tools/generate_cmake_presets.py",
+      "command": "python tools/generate_cmake_presets.py",
+      "notice": "Generated file. Edit the generator, then regenerate."
+    }
+  },
   "configurePresets": [
     {
       "name": "base",
