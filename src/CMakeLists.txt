@@ -135,6 +135,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
 
+set(ENISHI_SHADER_RUNTIME_ROOT "${CMAKE_CURRENT_BINARY_DIR}/shader" CACHE STRING
+    "Runtime shader root; use ./shader for a relocatable application package")
+
 if(USE_DIRECTX_11)
     target_compile_definitions(${PROJECT_NAME} PRIVATE USE_DIRECTX_11)
     include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileHLSL.cmake")
@@ -142,7 +145,7 @@ if(USE_DIRECTX_11)
         "${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
     add_dependencies(${PROJECT_NAME} enishi_hlsl_shaders)
     target_compile_definitions(platform_impl PRIVATE
-        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/directx")
 endif()
 
 if(USE_OPENGL40)
@@ -152,7 +155,7 @@ if(USE_OPENGL40)
         "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
     add_dependencies(${PROJECT_NAME} enishi_opengl_shaders)
     target_compile_definitions(platform_impl PRIVATE
-        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/opengl")
     option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
     if(ENISHI_OPENGL_TESTS)
         enable_testing()
@@ -166,7 +169,7 @@ if(USE_VULKAN)
         "${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
     add_dependencies(${PROJECT_NAME} enishi_vulkan_shaders)
     target_compile_definitions(platform_impl PRIVATE
-        ENISHI_GENERATED_SHADER_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/vulkan")
     option(ENISHI_VULKAN_TESTS "Build synthetic Vulkan rendering tests without model assets" OFF)
     if(ENISHI_VULKAN_TESTS)
         enable_testing()
