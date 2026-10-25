@@ -18,6 +18,7 @@ add_library(bone_layer_runtime STATIC
     ${COLLIDER_SOURCES}
     "${ENGINE_ROOT}/engine_types/src/engine_types/collider/ray.cpp"
     "${CORE_ROOT}/system/skinning/skinning_system.cpp"
+    "${CORE_ROOT}/system/skinning/spring_bone_update.cpp"
     "${CORE_ROOT}/system/skinning/skinning_physics.cpp"
     "${CORE_ROOT}/system/skinning/skinning_drag.cpp"
     "${CORE_ROOT}/system/skinning/bone_inheritance.cpp"
