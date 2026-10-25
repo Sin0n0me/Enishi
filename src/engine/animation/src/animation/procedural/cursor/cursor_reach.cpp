@@ -265,6 +265,11 @@ namespace enishi::animation {
             const auto right = glm::vec3(state.transforms.globals[state.body_bones[BodyRight]][3]);
             frame.center = (left + right) * 0.5f;
             width = glm::length(left - right);
+            if (width > EPSILON) {
+                // Anatomical left = (left shoulder - right shoulder) / shoulder width.
+                // Humanoid rigs do not all place the left arm on the positive X side.
+                frame.outward = (left - right) / width;
+            }
         } else {
             const float sign = side == 0 ? 1.0f : -1.0f;
             frame.center -= frame.outward * sign * width * 0.5f;
