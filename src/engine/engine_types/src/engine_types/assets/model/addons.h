@@ -7,6 +7,7 @@
 #include "addons/physics_joint.h"
 #include "addons/rigid_body.h"
 #include "addons/soft_body.h"
+#include "addons/spring_bone.h"
 #include <variant>
 #include <vector>
 
@@ -25,5 +26,6 @@ namespace enishi::types {
         AddonPhysicsJoints,
         AddonMorphTargets,
         AddonBoneConstraints,
-        AddonSoftBodies>;
+        AddonSoftBodies,
+        AddonSpringBones>;
 } // namespace enishi::types
