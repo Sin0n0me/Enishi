@@ -1,4 +1,5 @@
 #include "vrm_expression_uv.h"
+#include "vrm_schema.h"
 #include <cmath>
 #include <set>
 
@@ -21,9 +22,11 @@ namespace enishi::assets_system {
                     continue;
                 }
                 const auto& source = context.source.materials[source_index];
-                const bool matches = context.legacy ? source.name != nullptr &&
-                                                          bind["materialName"].value == source.name
-                                                    : bind["material"].index() == source_index;
+                const bool matches =
+                    context.legacy
+                        ? source.name != nullptr &&
+                              bind[vrm_schema::legacy_key::MATERIAL_NAME].value == source.name
+                        : bind[vrm_schema::key::MATERIAL].index() == source_index;
                 if (!matches) {
                     continue;
                 }
@@ -55,15 +58,17 @@ namespace enishi::assets_system {
 
     bool bind_vrm_texture_transforms(
         VRMContext& context, types::MorphTarget& target, const VRMJson& expression) {
-        const auto& binds = expression[context.legacy ? "materialValues" : "textureTransformBinds"];
+        const auto& binds = expression[context.legacy ? vrm_schema::legacy_key::MATERIAL_VALUES
+                                                      : vrm_schema::key::TEXTURE_TRANSFORM_BINDS];
         for (const auto& bind : binds.elements) {
             glm::vec2 scale(1);
             glm::vec2 offset(0);
             if (context.legacy) {
-                if (bind["propertyName"].value != "_MainTex_ST") {
+                if (bind[vrm_schema::legacy_key::PROPERTY_NAME].value !=
+                    vrm_schema::legacy_material_property::MAIN_TEXTURE_TRANSFORM) {
                     continue;
                 }
-                const auto& value = bind["targetValue"].elements;
+                const auto& value = bind[vrm_schema::key::TARGET_VALUE].elements;
                 if (value.size() != 4) {
                     return context.fail("Invalid VRM 0 texture expression");
                 }
@@ -71,15 +76,15 @@ namespace enishi::assets_system {
                 // Unity uses bottom-left UVs: glTF offset_y = 1 - scale_y - Unity offset_y.
                 offset = {value[2].number(), 1 - scale.y - value[3].number()};
             } else {
-                if (bind["scale"].valid) {
-                    const auto& value = bind["scale"].elements;
+                if (bind[vrm_schema::key::SCALE].valid) {
+                    const auto& value = bind[vrm_schema::key::SCALE].elements;
                     if (value.size() != 2) {
                         return context.fail("Invalid VRM texture expression scale");
                     }
                     scale = {value[0].number(), value[1].number()};
                 }
-                if (bind["offset"].valid) {
-                    const auto& value = bind["offset"].elements;
+                if (bind[vrm_schema::key::OFFSET].valid) {
+                    const auto& value = bind[vrm_schema::key::OFFSET].elements;
                     if (value.size() != 2) {
                         return context.fail("Invalid VRM texture expression offset");
                     }

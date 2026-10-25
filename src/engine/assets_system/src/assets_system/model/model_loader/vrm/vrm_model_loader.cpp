@@ -3,6 +3,7 @@
 #include "vrm_context.h"
 #include "vrm_expression.h"
 #include "vrm_mesh.h"
+#include "vrm_schema.h"
 #include "vrm_spring.h"
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
@@ -53,14 +54,14 @@ namespace enishi::assets_system {
         }
 
         bool supported_extensions(VRMContext& context) {
-            const std::vector<std::string_view> supported{"VRM",
-                "VRMC_vrm",
-                "VRMC_springBone",
-                "VRMC_materials_mtoon",
-                "KHR_materials_unlit",
-                "KHR_texture_transform",
-                "KHR_mesh_quantization",
-                "KHR_materials_emissive_strength"};
+            const std::vector<std::string_view> supported{vrm_schema::extension::VRM_0,
+                vrm_schema::extension::VRM_1,
+                vrm_schema::extension::SPRING_BONE,
+                vrm_schema::extension::MTOON,
+                vrm_schema::extension::KHR_MATERIALS_UNLIT,
+                vrm_schema::extension::KHR_TEXTURE_TRANSFORM,
+                vrm_schema::extension::KHR_MESH_QUANTIZATION,
+                vrm_schema::extension::KHR_MATERIALS_EMISSIVE_STRENGTH};
             for (std::size_t index = 0; index < context.source.extensions_required_count; ++index) {
                 const auto name = std::string_view(context.source.extensions_required[index]);
                 if (std::ranges::find(supported, name) == supported.end()) {
@@ -98,15 +99,16 @@ namespace enishi::assets_system {
         if (!supported_extensions(context)) {
             return foundation::Error(AssetError::UnsupportedFeature, context.error);
         }
-        context.extension =
-            vrm_extension(data->data_extensions, data->data_extensions_count, "VRMC_vrm");
+        context.extension = vrm_extension(
+            data->data_extensions, data->data_extensions_count, vrm_schema::extension::VRM_1);
         if (!context.extension.valid) {
             context.legacy = true;
-            context.extension =
-                vrm_extension(data->data_extensions, data->data_extensions_count, "VRM");
+            context.extension = vrm_extension(
+                data->data_extensions, data->data_extensions_count, vrm_schema::extension::VRM_0);
         }
         if (!context.extension.valid ||
-            (!context.legacy && context.extension["specVersion"].value != "1.0")) {
+            (!context.legacy && context.extension[vrm_schema::key::SPEC_VERSION].value !=
+                                    vrm_schema::value::SPEC_VERSION_1)) {
             return foundation::Error(AssetError::UnsupportedFeature, "Expected VRM 0.x or VRM 1.0");
         }
         // VRM 0 faces -Z; VRM 1 faces +Z. Match MMD's front (-Z), in model units.

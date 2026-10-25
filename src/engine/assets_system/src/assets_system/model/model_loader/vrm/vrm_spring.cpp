@@ -1,4 +1,5 @@
 #include "vrm_spring.h"
+#include "vrm_schema.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -11,7 +12,9 @@ namespace enishi::assets_system {
                 return fallback;
             }
             if (legacy) {
-                return {value["x"].number(), value["y"].number(), value["z"].number()};
+                return {value[vrm_schema::key::X].number(),
+                    value[vrm_schema::key::Y].number(),
+                    value[vrm_schema::key::Z].number()};
             }
             if (value.elements.size() != 3) {
                 return glm::vec3(std::numeric_limits<float>::quiet_NaN());
@@ -31,14 +34,15 @@ namespace enishi::assets_system {
             bool capsule) {
             types::SpringCollider collider;
             collider.bone = node;
-            auto offset = vector(shape["offset"], context.legacy);
+            auto offset = vector(shape[vrm_schema::key::OFFSET], context.legacy);
             if (context.legacy) {
                 // VRM 0 collider offsets use the opposite Z axis; gravity is already model-space.
                 offset.z = -offset.z;
             }
             collider.offset = glm::mat3(context.basis) * offset;
-            collider.tail = glm::mat3(context.basis) * vector(shape["tail"], context.legacy);
-            collider.radius = shape["radius"].number() * VRM_MODEL_UNITS_PER_METER;
+            collider.tail =
+                glm::mat3(context.basis) * vector(shape[vrm_schema::key::TAIL], context.legacy);
+            collider.radius = shape[vrm_schema::key::RADIUS].number() * VRM_MODEL_UNITS_PER_METER;
             collider.capsule = capsule;
             if (!(node < context.source.nodes_count) || !finite(collider.offset) ||
                 !finite(collider.tail) || !std::isfinite(collider.radius) || collider.radius < 0) {
@@ -53,25 +57,29 @@ namespace enishi::assets_system {
             types::AddonSpringBones& springs,
             std::vector<std::vector<std::size_t>>& groups) {
             if (!context.legacy) {
-                for (const auto& collider : source["colliders"].elements) {
-                    const auto& shape = collider["shape"];
-                    const bool capsule = shape["capsule"].valid;
+                for (const auto& collider : source[vrm_schema::key::COLLIDERS].elements) {
+                    const auto& shape = collider[vrm_schema::key::SHAPE];
+                    const bool capsule = shape[vrm_schema::collider_shape::CAPSULE].valid;
                     if (!add_collider(context,
                             springs,
-                            collider["node"].index(),
-                            shape[capsule ? "capsule" : "sphere"],
+                            collider[vrm_schema::key::NODE].index(),
+                            shape[capsule ? vrm_schema::collider_shape::CAPSULE
+                                          : vrm_schema::collider_shape::SPHERE],
                             capsule)) {
                         return false;
                     }
                 }
             }
-            for (const auto& group : source["colliderGroups"].elements) {
+            for (const auto& group : source[vrm_schema::key::COLLIDER_GROUPS].elements) {
                 std::vector<std::size_t> indices;
-                for (const auto& collider : group["colliders"].elements) {
+                for (const auto& collider : group[vrm_schema::key::COLLIDERS].elements) {
                     if (context.legacy) {
                         indices.push_back(springs.colliders.size());
-                        if (!add_collider(
-                                context, springs, group["node"].index(), collider, false)) {
+                        if (!add_collider(context,
+                                springs,
+                                group[vrm_schema::key::NODE].index(),
+                                collider,
+                                false)) {
                             return false;
                         }
                     } else {
@@ -124,13 +132,16 @@ namespace enishi::assets_system {
                                    glm::normalize(direction) * LEGACY_TAIL_METERS *
                                    VRM_MODEL_UNITS_PER_METER;
             }
-            joint.stiffness = source[context.legacy ? "stiffiness" : "stiffness"].number(1) *
+            joint.stiffness = source[context.legacy ? vrm_schema::legacy_key::STIFFNESS
+                                                    : vrm_schema::key::STIFFNESS]
+                                  .number(1) *
                               VRM_MODEL_UNITS_PER_METER;
-            joint.drag = source["dragForce"].number(0.4f);
-            joint.radius = source["hitRadius"].number() * VRM_MODEL_UNITS_PER_METER;
-            joint.gravity = glm::mat3(context.basis) *
-                            vector(source["gravityDir"], context.legacy, glm::vec3(0, -1, 0)) *
-                            source["gravityPower"].number();
+            joint.drag = source[vrm_schema::key::DRAG_FORCE].number(0.4f);
+            joint.radius = source[vrm_schema::key::HIT_RADIUS].number() * VRM_MODEL_UNITS_PER_METER;
+            joint.gravity =
+                glm::mat3(context.basis) *
+                vector(source[vrm_schema::key::GRAVITY_DIR], context.legacy, glm::vec3(0, -1, 0)) *
+                source[vrm_schema::key::GRAVITY_POWER].number();
             if (!finite(joint.local_tail) || !(glm::dot(joint.local_tail, joint.local_tail) > 0) ||
                 !finite(joint.gravity) || !std::isfinite(joint.stiffness) || joint.stiffness < 0 ||
                 !std::isfinite(joint.drag) || joint.drag < 0 || joint.drag > 1 ||
@@ -145,13 +156,14 @@ namespace enishi::assets_system {
             const VRMJson& source,
             const std::vector<std::vector<std::size_t>>& groups,
             types::SpringChain& chain) {
-            if (source["center"].valid && source["center"].value != "-1") {
-                chain.center = source["center"].index();
+            if (source[vrm_schema::key::CENTER].valid &&
+                source[vrm_schema::key::CENTER].value != vrm_schema::value::NO_CENTER) {
+                chain.center = source[vrm_schema::key::CENTER].index();
                 if (!(chain.center < context.source.nodes_count)) {
                     return context.fail("Invalid VRM spring center");
                 }
             }
-            for (const auto& group : source["colliderGroups"].elements) {
+            for (const auto& group : source[vrm_schema::key::COLLIDER_GROUPS].elements) {
                 const auto index = group.index();
                 if (!(index < groups.size())) {
                     return context.fail("Invalid VRM spring collider group");
@@ -161,7 +173,7 @@ namespace enishi::assets_system {
             }
             if (context.legacy) {
                 std::vector<std::size_t> pending;
-                for (const auto& root : source["bones"].elements) {
+                for (const auto& root : source[vrm_schema::legacy_key::BONES].elements) {
                     pending.push_back(root.index());
                 }
                 std::set<std::size_t> visited;
@@ -185,12 +197,12 @@ namespace enishi::assets_system {
                     }
                 }
             } else {
-                const auto& joints = source["joints"].elements;
+                const auto& joints = source[vrm_schema::key::JOINTS].elements;
                 if (joints.empty()) {
                     return context.fail("VRM spring chain contains no joints");
                 }
                 for (const auto& joint : joints) {
-                    if (!(joint["node"].index() < context.source.nodes_count)) {
+                    if (!(joint[vrm_schema::key::NODE].index() < context.source.nodes_count)) {
                         return context.fail("Invalid VRM spring joint node");
                     }
                 }
@@ -198,8 +210,8 @@ namespace enishi::assets_system {
                     if (!add_joint(context,
                             chain,
                             joints[index],
-                            joints[index]["node"].index(),
-                            joints[index + 1]["node"].index())) {
+                            joints[index][vrm_schema::key::NODE].index(),
+                            joints[index + 1][vrm_schema::key::NODE].index())) {
                         return false;
                     }
                 }
@@ -209,14 +221,16 @@ namespace enishi::assets_system {
     } // namespace
 
     bool make_vrm_springs(VRMContext& context) {
-        auto source = context.legacy ? context.extension["secondaryAnimation"]
-                                     : vrm_extension(context.source.data_extensions,
-                                           context.source.data_extensions_count,
-                                           "VRMC_springBone");
+        auto source = context.legacy
+                          ? context.extension[vrm_schema::legacy_key::SECONDARY_ANIMATION]
+                          : vrm_extension(context.source.data_extensions,
+                                context.source.data_extensions_count,
+                                vrm_schema::extension::SPRING_BONE);
         if (!source.valid) {
             return true;
         }
-        if (!context.legacy && source["specVersion"].value != "1.0") {
+        if (!context.legacy &&
+            source[vrm_schema::key::SPEC_VERSION].value != vrm_schema::value::SPEC_VERSION_1) {
             return context.fail("Unsupported VRM spring specification version");
         }
         types::AddonSpringBones springs;
@@ -225,7 +239,9 @@ namespace enishi::assets_system {
             return false;
         }
         std::set<std::size_t> assigned;
-        for (const auto& definition : source[context.legacy ? "boneGroups" : "springs"].elements) {
+        for (const auto& definition :
+            source[context.legacy ? vrm_schema::legacy_key::BONE_GROUPS : vrm_schema::key::SPRINGS]
+                .elements) {
             types::SpringChain chain;
             if (!read_chain(context, definition, groups, chain)) {
                 return false;
