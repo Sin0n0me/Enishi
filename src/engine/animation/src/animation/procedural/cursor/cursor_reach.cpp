@@ -154,11 +154,14 @@ namespace enishi::animation {
             }
         }
         if (state.body_anchor < model.bind_bone.size()) {
-            state.body_bind_inverse = glm::mat3(model.bind_bone[state.body_anchor].global_inverse);
+            // Procedural axes use inverse(rest global), not the skin's inverse bind matrix.
+            // VRM skin bind space can differ from the node's initial pose.
+            state.body_bind_inverse =
+                glm::inverse(glm::mat3(model.bind_bone[state.body_anchor].global));
         }
         if (state.body_bones[BodyHead] < model.bind_bone.size()) {
             state.head_local_up =
-                glm::mat3(model.bind_bone[state.body_bones[BodyHead]].global_inverse) *
+                glm::inverse(glm::mat3(model.bind_bone[state.body_bones[BodyHead]].global)) *
                 glm::vec3(0, 1, 0);
         }
         for (std::size_t joint = 0; joint < Count; ++joint) {
@@ -186,8 +189,10 @@ namespace enishi::animation {
                 continue;
             }
             axis = glm::normalize(axis);
-            state.hinge_axes[side] = glm::normalize(glm::mat3(joint.global_inverse) * axis);
-            state.upper_axes[side] = glm::normalize(glm::mat3(shoulder.global_inverse) * upper);
+            // Model-space directions become joint-local axes: axis_local = inverse(G_rest) * axis.
+            state.hinge_axes[side] = glm::normalize(glm::inverse(glm::mat3(joint.global)) * axis);
+            state.upper_axes[side] =
+                glm::normalize(glm::inverse(glm::mat3(shoulder.global)) * upper);
             // Signed bind flex measured around the forward-bending anatomical axis.
             state.bind_flex[side] =
                 std::atan2(glm::dot(glm::cross(glm::normalize(upper), glm::normalize(lower)), axis),
