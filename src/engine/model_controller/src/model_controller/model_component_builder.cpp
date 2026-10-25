@@ -77,6 +77,9 @@ namespace enishi::model_controller {
             } else if (const auto* joints = std::get_if<types::AddonPhysicsJoints>(&addon);
                        joints != nullptr) {
                 model.physics_joints = *joints;
+            } else if (const auto* springs = std::get_if<types::AddonSpringBones>(&addon);
+                       springs != nullptr) {
+                model.spring_bones = *springs;
             }
         }
         collect_collision_vertices(model, data);

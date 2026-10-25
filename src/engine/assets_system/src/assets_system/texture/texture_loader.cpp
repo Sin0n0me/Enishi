@@ -1,9 +1,53 @@
 #include "texture_loader.h"
+#include <limits>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <nothings_std/stb_image.h>
 
 namespace enishi::assets_system {
+    foundation::Result<types::AssetTextureData, AssetError> TextureLoader::load_memory(
+        std::span<const std::uint8_t> bytes) {
+        if (bytes.empty() ||
+            bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            return foundation::Error(AssetError::InvalidAssetData, "Invalid embedded image size");
+        }
+        int width{};
+        int height{};
+        int channels{};
+        std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
+            stbi_load_from_memory(bytes.data(),
+                static_cast<int>(bytes.size()),
+                &width,
+                &height,
+                &channels,
+                STBI_rgb_alpha),
+            stbi_image_free);
+        if (pixels == nullptr || !(width > 0) || !(height > 0)) {
+            const auto* reason = stbi_failure_reason();
+            return foundation::Error(AssetError::InvalidAssetData,
+                reason != nullptr ? reason : "Invalid embedded image");
+        }
+        constexpr std::uint32_t RGBA_CHANNELS = 4;
+        const auto pixel_count = static_cast<std::uint64_t>(width) * height;
+        if (pixel_count > std::numeric_limits<std::uint32_t>::max() / RGBA_CHANNELS) {
+            return foundation::Error(AssetError::InvalidAssetData, "Embedded image is too large");
+        }
+        auto data = std::make_shared<types::TextureData>();
+        data->format = types::TextureFormat::RGBA8_UNORM;
+        data->width = static_cast<std::uint32_t>(width);
+        data->height = static_cast<std::uint32_t>(height);
+        data->array_size = 1;
+        types::MipData mip;
+        mip.width = data->width;
+        mip.height = data->height;
+        // RGBA8 row bytes = width * 4; total bytes = row bytes * height.
+        mip.row_pitch = data->width * RGBA_CHANNELS;
+        mip.slice_pitch = mip.row_pitch * data->height;
+        mip.pixels.assign(pixels.get(), pixels.get() + mip.slice_pitch);
+        data->mips.push_back(std::move(mip));
+        return data;
+    }
+
     foundation::Result<types::AssetData, AssetError> TextureLoader::load(
         const std::filesystem::path& path) noexcept {
         // キャッシュがあれば使用

@@ -3,6 +3,7 @@
 #include <engine_types/assets/model/addons/bone_constraints.h>
 #include <engine_types/assets/model/addons/ik.h>
 #include <engine_types/assets/model/addons/morph_target.h>
+#include <engine_types/assets/model/addons/spring_bone.h>
 #include <engine_types/assets/model/material/material.h>
 #include <engine_types/handle/renderer/render_handle.h>
 #include <engine_types/physics/joint/physics_joint.h>
@@ -35,5 +36,6 @@ namespace enishi::component {
         types::AddonMorphTargets morph_targets;
         std::vector<types::PhysicsRigidBody> rigid_bodies;
         std::vector<types::PhysicsJoint> physics_joints;
+        types::AddonSpringBones spring_bones;
     };
 } // namespace enishi::component

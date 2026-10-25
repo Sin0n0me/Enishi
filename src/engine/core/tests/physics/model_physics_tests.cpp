@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <core/system/physics/physics_system.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <core/system/skinning/skinning_system.h>
@@ -10,12 +11,7 @@
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 
     component::ModelComponent make_model() {
         types::ModelData data;

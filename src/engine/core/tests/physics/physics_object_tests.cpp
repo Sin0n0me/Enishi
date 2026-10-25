@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <cstdlib>
 #include <iostream>
 #include <physics/bullet3/physics_world.h>
@@ -8,12 +9,7 @@
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
     class CountingUpdater : public skinning_system::PhysicsBonesUpdater {
       public:
         int updates = 0;

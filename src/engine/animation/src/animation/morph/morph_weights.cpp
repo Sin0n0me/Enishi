@@ -1,8 +1,54 @@
 #include "morph_weights.h"
+#include <algorithm>
 #include <cmath>
 
 namespace enishi::animation {
     namespace {
+        void apply_expression_weights(
+            std::span<const types::MorphTarget> targets, std::vector<float>& weights) {
+            constexpr float BINARY_THRESHOLD = 0.5f;
+            float blink{};
+            float mouth{};
+            float look_at{};
+            const auto accumulate = [](types::ExpressionOverride mode, float weight, float& total) {
+                if (mode == types::ExpressionOverride::Block && weight > 0) {
+                    total = 1;
+                } else if (mode == types::ExpressionOverride::Blend) {
+                    total += weight;
+                }
+            };
+            for (std::size_t index = 0; index < targets.size(); ++index) {
+                const auto& target = targets[index];
+                if (!target.expression) {
+                    continue;
+                }
+                auto& weight = weights[index];
+                weight = std::clamp(weight, 0.0f, 1.0f);
+                if (target.weight_mode == types::MorphWeightMode::Binary) {
+                    weight = weight > BINARY_THRESHOLD ? 1.0f : 0.0f;
+                }
+                accumulate(target.override_blink, weight, blink);
+                accumulate(target.override_mouth, weight, mouth);
+                accumulate(target.override_look_at, weight, look_at);
+            }
+            for (std::size_t index = 0; index < targets.size(); ++index) {
+                const auto& target = targets[index];
+                float override_weight{};
+                if (target.category == types::ExpressionCategory::Blink) {
+                    override_weight = blink;
+                } else if (target.category == types::ExpressionCategory::Mouth) {
+                    override_weight = mouth;
+                } else if (target.category == types::ExpressionCategory::LookAt) {
+                    override_weight = look_at;
+                }
+                // Procedural weight = input * max(0, 1 - sum(overrides)).
+                weights[index] *= std::max(0.0f, 1.0f - override_weight);
+                if (target.weight_mode == types::MorphWeightMode::Binary && override_weight > 0) {
+                    weights[index] = 0;
+                }
+            }
+        }
+
         bool is_selection(const types::MorphTarget& target) {
             return target.weight_mode == types::MorphWeightMode::DiscreteSelection;
         }
@@ -133,6 +179,7 @@ namespace enishi::animation {
             return valid.propagation(static_cast<MorphError>(valid.unwrap_err().get_error()));
         }
         std::vector<float> selected(weights.begin(), weights.end());
+        apply_expression_weights(targets, selected);
         for (std::size_t index = 0; index < targets.size(); ++index) {
             auto result = expand_weights(targets, {index, selected[index]}, selected, true);
             if (result.is_err()) {

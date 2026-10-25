@@ -79,6 +79,7 @@ namespace enishi::core {
                 if (found != this->model_bones.end()) {
                     found->second->cursor_pose.reset();
                     found->second->pending_after_physics = false;
+                    found->second->spring_state.chains.clear();
                 }
                 animation.pose_transition_active = false;
                 continue;
@@ -87,6 +88,7 @@ namespace enishi::core {
             auto& bones = this->get_or_build(
                 entity, model, animation, opt_ik, opt_physics, opt_physics_bodies);
             bones.pending_after_physics = false;
+            bones.spring_delta = debug_paused ? 0.0f : delta_time.to_float_second();
             for (std::size_t index = 0; index < bones.external_transforms.size(); ++index) {
                 bones.external_transforms[index] = glm::mat4(1);
                 const auto slot = bones.constraints[index].external_transform_slot;
@@ -176,6 +178,7 @@ namespace enishi::core {
             }
             this->evaluate_bone_phase(
                 bones, this->registry->get<component::IKComponent>(entity), true);
+            update_spring_bones(model, animation, bones.spring_state, bones.spring_delta);
             this->write_skinning_matrices(animation, model, skinning);
         }
     }

@@ -5,6 +5,7 @@
 #include <engine_types/assets/texture/texture_data.h>
 #include <filesystem>
 #include <foundation/result/result.h>
+#include <span>
 #include <vector>
 
 namespace enishi::assets_system {
@@ -14,6 +15,8 @@ namespace enishi::assets_system {
 
       public:
         static void generate_mip_chain(types::TextureData& data);
+        static foundation::Result<types::AssetTextureData, AssetError> load_memory(
+            std::span<const std::uint8_t> bytes);
 
       public:
         foundation::Result<types::AssetData, AssetError> load(
