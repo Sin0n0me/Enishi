@@ -1,0 +1,1475 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "vendor": {
+    "enishi/generator/1.0": {
+      "source": "tools/generate_cmake_presets.py",
+      "command": "python tools/generate_cmake_presets.py",
+      "notice": "Generated file. Edit the generator, then regenerate."
+    }
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/../build/presets/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
+      }
+    },
+    {
+      "name": "windows",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "unix",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja"
+    },
+    {
+      "name": "visualstudio",
+      "hidden": true,
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64"
+    },
+    {
+      "name": "visualstudio2026",
+      "hidden": true,
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64"
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "gcc",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "directx",
+      "hidden": true,
+      "cacheVariables": {
+        "USE_OPENGL40": false,
+        "USE_VULKAN": false
+      }
+    },
+    {
+      "name": "opengl",
+      "hidden": true,
+      "cacheVariables": {
+        "USE_OPENGL40": true,
+        "USE_VULKAN": false
+      }
+    },
+    {
+      "name": "vulkan",
+      "hidden": true,
+      "cacheVariables": {
+        "USE_OPENGL40": false,
+        "USE_VULKAN": true
+      }
+    },
+    {
+      "name": "windows-directx-visualstudio-debug",
+      "displayName": "windows / directx / visualstudio / Debug",
+      "inherits": [
+        "visualstudio",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "visualstudio",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-visualstudio-release",
+      "displayName": "windows / directx / visualstudio / Release",
+      "inherits": [
+        "visualstudio",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "visualstudio",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-visualstudio-debug",
+      "displayName": "windows / opengl / visualstudio / Debug",
+      "inherits": [
+        "visualstudio",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "visualstudio",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-visualstudio-release",
+      "displayName": "windows / opengl / visualstudio / Release",
+      "inherits": [
+        "visualstudio",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "visualstudio",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-visualstudio-debug",
+      "displayName": "windows / vulkan / visualstudio / Debug",
+      "inherits": [
+        "visualstudio",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "visualstudio",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-visualstudio-release",
+      "displayName": "windows / vulkan / visualstudio / Release",
+      "inherits": [
+        "visualstudio",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "visualstudio",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-visualstudio2026-debug",
+      "displayName": "windows / directx / visualstudio2026 / Debug",
+      "inherits": [
+        "visualstudio2026",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "visualstudio2026",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-visualstudio2026-release",
+      "displayName": "windows / directx / visualstudio2026 / Release",
+      "inherits": [
+        "visualstudio2026",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "visualstudio2026",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-visualstudio2026-debug",
+      "displayName": "windows / opengl / visualstudio2026 / Debug",
+      "inherits": [
+        "visualstudio2026",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "visualstudio2026",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-visualstudio2026-release",
+      "displayName": "windows / opengl / visualstudio2026 / Release",
+      "inherits": [
+        "visualstudio2026",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "visualstudio2026",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-visualstudio2026-debug",
+      "displayName": "windows / vulkan / visualstudio2026 / Debug",
+      "inherits": [
+        "visualstudio2026",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "visualstudio2026",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-visualstudio2026-release",
+      "displayName": "windows / vulkan / visualstudio2026 / Release",
+      "inherits": [
+        "visualstudio2026",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "visualstudio2026",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-clang-debug",
+      "displayName": "windows / directx / clang / Debug",
+      "inherits": [
+        "clang",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-clang-release",
+      "displayName": "windows / directx / clang / Release",
+      "inherits": [
+        "clang",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-clang-debug",
+      "displayName": "windows / opengl / clang / Debug",
+      "inherits": [
+        "clang",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-clang-release",
+      "displayName": "windows / opengl / clang / Release",
+      "inherits": [
+        "clang",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-clang-debug",
+      "displayName": "windows / vulkan / clang / Debug",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-clang-release",
+      "displayName": "windows / vulkan / clang / Release",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-gcc-debug",
+      "displayName": "windows / directx / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-directx-gcc-release",
+      "displayName": "windows / directx / gcc / Release",
+      "inherits": [
+        "gcc",
+        "directx",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "directx",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-gcc-debug",
+      "displayName": "windows / opengl / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-opengl-gcc-release",
+      "displayName": "windows / opengl / gcc / Release",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-gcc-debug",
+      "displayName": "windows / vulkan / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "windows-vulkan-gcc-release",
+      "displayName": "windows / vulkan / gcc / Release",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "windows"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "windows",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "linux-opengl-clang-debug",
+      "displayName": "linux / opengl / clang / Debug",
+      "inherits": [
+        "clang",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "linux-opengl-clang-release",
+      "displayName": "linux / opengl / clang / Release",
+      "inherits": [
+        "clang",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "linux-vulkan-clang-debug",
+      "displayName": "linux / vulkan / clang / Debug",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "linux-vulkan-clang-release",
+      "displayName": "linux / vulkan / clang / Release",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "linux-opengl-gcc-debug",
+      "displayName": "linux / opengl / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "linux-opengl-gcc-release",
+      "displayName": "linux / opengl / gcc / Release",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "linux-vulkan-gcc-debug",
+      "displayName": "linux / vulkan / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "linux-vulkan-gcc-release",
+      "displayName": "linux / vulkan / gcc / Release",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "linux",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "macos-opengl-clang-debug",
+      "displayName": "macos / opengl / clang / Debug",
+      "inherits": [
+        "clang",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "macos-opengl-clang-release",
+      "displayName": "macos / opengl / clang / Release",
+      "inherits": [
+        "clang",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "opengl",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "macos-vulkan-clang-debug",
+      "displayName": "macos / vulkan / clang / Debug",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "macos-vulkan-clang-release",
+      "displayName": "macos / vulkan / clang / Release",
+      "inherits": [
+        "clang",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "vulkan",
+          "compiler": "clang",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "macos-opengl-gcc-debug",
+      "displayName": "macos / opengl / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "macos-opengl-gcc-release",
+      "displayName": "macos / opengl / gcc / Release",
+      "inherits": [
+        "gcc",
+        "opengl",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "opengl",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    },
+    {
+      "name": "macos-vulkan-gcc-debug",
+      "displayName": "macos / vulkan / gcc / Debug",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Debug"
+        }
+      }
+    },
+    {
+      "name": "macos-vulkan-gcc-release",
+      "displayName": "macos / vulkan / gcc / Release",
+      "inherits": [
+        "gcc",
+        "vulkan",
+        "unix"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "vendor": {
+        "enishi/build/1.0": {
+          "os": "macos",
+          "backend": "vulkan",
+          "compiler": "gcc",
+          "config": "Release"
+        }
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-directx-visualstudio-debug",
+      "configurePreset": "windows-directx-visualstudio-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-directx-visualstudio-release",
+      "configurePreset": "windows-directx-visualstudio-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-opengl-visualstudio-debug",
+      "configurePreset": "windows-opengl-visualstudio-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-opengl-visualstudio-release",
+      "configurePreset": "windows-opengl-visualstudio-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-vulkan-visualstudio-debug",
+      "configurePreset": "windows-vulkan-visualstudio-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-vulkan-visualstudio-release",
+      "configurePreset": "windows-vulkan-visualstudio-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-directx-visualstudio2026-debug",
+      "configurePreset": "windows-directx-visualstudio2026-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-directx-visualstudio2026-release",
+      "configurePreset": "windows-directx-visualstudio2026-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-opengl-visualstudio2026-debug",
+      "configurePreset": "windows-opengl-visualstudio2026-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-opengl-visualstudio2026-release",
+      "configurePreset": "windows-opengl-visualstudio2026-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-vulkan-visualstudio2026-debug",
+      "configurePreset": "windows-vulkan-visualstudio2026-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-vulkan-visualstudio2026-release",
+      "configurePreset": "windows-vulkan-visualstudio2026-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ],
+      "nativeToolOptions": [
+        "/p:UseMultiToolTask=true",
+        "/p:EnforceProcessCountAcrossBuilds=true"
+      ]
+    },
+    {
+      "name": "windows-directx-clang-debug",
+      "configurePreset": "windows-directx-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-directx-clang-release",
+      "configurePreset": "windows-directx-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-opengl-clang-debug",
+      "configurePreset": "windows-opengl-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-opengl-clang-release",
+      "configurePreset": "windows-opengl-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-vulkan-clang-debug",
+      "configurePreset": "windows-vulkan-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-vulkan-clang-release",
+      "configurePreset": "windows-vulkan-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-directx-gcc-debug",
+      "configurePreset": "windows-directx-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-directx-gcc-release",
+      "configurePreset": "windows-directx-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-opengl-gcc-debug",
+      "configurePreset": "windows-opengl-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-opengl-gcc-release",
+      "configurePreset": "windows-opengl-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-vulkan-gcc-debug",
+      "configurePreset": "windows-vulkan-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "windows-vulkan-gcc-release",
+      "configurePreset": "windows-vulkan-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-opengl-clang-debug",
+      "configurePreset": "linux-opengl-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-opengl-clang-release",
+      "configurePreset": "linux-opengl-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-vulkan-clang-debug",
+      "configurePreset": "linux-vulkan-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-vulkan-clang-release",
+      "configurePreset": "linux-vulkan-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-opengl-gcc-debug",
+      "configurePreset": "linux-opengl-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-opengl-gcc-release",
+      "configurePreset": "linux-opengl-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-vulkan-gcc-debug",
+      "configurePreset": "linux-vulkan-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "linux-vulkan-gcc-release",
+      "configurePreset": "linux-vulkan-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-opengl-clang-debug",
+      "configurePreset": "macos-opengl-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-opengl-clang-release",
+      "configurePreset": "macos-opengl-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-vulkan-clang-debug",
+      "configurePreset": "macos-vulkan-clang-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-vulkan-clang-release",
+      "configurePreset": "macos-vulkan-clang-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-opengl-gcc-debug",
+      "configurePreset": "macos-opengl-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-opengl-gcc-release",
+      "configurePreset": "macos-opengl-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-vulkan-gcc-debug",
+      "configurePreset": "macos-vulkan-gcc-debug",
+      "configuration": "Debug",
+      "targets": [
+        "enishi_engine"
+      ]
+    },
+    {
+      "name": "macos-vulkan-gcc-release",
+      "configurePreset": "macos-vulkan-gcc-release",
+      "configuration": "Release",
+      "targets": [
+        "enishi_engine"
+      ]
+    }
+  ]
+}

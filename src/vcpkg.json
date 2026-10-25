@@ -1,0 +1,13 @@
+{
+  "name": "enishi",
+  "description": "Package-managed dependencies for the Enishi engine",
+  "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",
+  "dependencies": [
+    {
+      "name": "icu",
+      "features": [
+        "tools"
+      ]
+    }
+  ]
+}

@@ -42,17 +42,18 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: vcpkg_installed
-        key: icu-installed-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.triplet }}-${{ steps.environment.outputs.fingerprint }}-${{ hashFiles('.github/actions/setup-icu/action.yml') }}
+        key: icu-installed-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.triplet }}-${{ steps.environment.outputs.fingerprint }}-${{ hashFiles('.github/actions/setup-icu/action.yml', 'src/vcpkg.json') }}
 
     - name: Install ICU on cache miss
       id: install
       if: steps.cache.outputs.cache-hit != 'true'
       shell: pwsh
+      working-directory: src
       env:
         ICU_TRIPLET: ${{ inputs.triplet }}
       run: |
         # MinGWではターゲット側にもデータ生成用のicupkgが必要です。
-        vcpkg install "icu[tools]:$env:ICU_TRIPLET" "--x-install-root=$env:GITHUB_WORKSPACE/vcpkg_installed"
+        vcpkg install "--triplet=$env:ICU_TRIPLET" "--x-install-root=$env:GITHUB_WORKSPACE/vcpkg_installed"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # 後続のアプリビルドやテストが失敗しても、導入に成功したICUは次回再利用します。

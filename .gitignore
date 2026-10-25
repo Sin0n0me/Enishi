@@ -9,8 +9,6 @@ CMakeFiles/
 DesktopCharacter/
 lib/
 
-!/build/build.cmd
-
 *.ini
 *.ttf
 *.user
@@ -34,3 +32,9 @@ log.txt
 
 # Optional in-source SPIRV-Cross build output (normal builds use build/).
 /tools/SPIRV-Cross/build/
+
+# Developer-local CMake settings.
+CMakeUserPresets.json
+
+# Installed vcpkg packages are generated from the manifest.
+vcpkg_installed/
