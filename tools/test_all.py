@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STANDALONE = {
     "pmd": "assets_system/tests/pmd",
     "pmx": "assets_system/tests/pmx",
+    "vrm": "assets_system/tests/vrm",
     "morphs": "core/tests/morphs",
     "materials": "renderer/tests/materials",
     "animation": "animation/tests/runtime",
@@ -135,6 +136,8 @@ def standalone_commands(name: str, args: argparse.Namespace, prefixes: list[Path
                   f"-DGLM_INCLUDE_DIR={args.engine_build / '_deps' / 'glm-src'}"]
     if prefixes:
         configure += ["-DCMAKE_PREFIX_PATH=" + ";".join(str(path) for path in prefixes)]
+    if name == "vrm":
+        configure += [f"-DSTB_INCLUDE_DIR={args.engine_build / 'libs'}"]
     if name == "physics":
         configure += [f"-DBULLET_INCLUDE_DIR={args.engine_build / 'libs' / 'bullet3' / 'src'}",
                       f"-DCMAKE_LIBRARY_PATH={args.engine_build / 'lib' / args.config}"]
