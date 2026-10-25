@@ -37,3 +37,6 @@ log.txt
 
 # Developer-local CMake settings.
 CMakeUserPresets.json
+
+# Installed vcpkg packages are generated from the manifest.
+vcpkg_installed/
