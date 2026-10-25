@@ -72,8 +72,18 @@ float4 main(const PSInput input) : SV_TARGET {
     );
     
     // Retain ambient illumination and alpha; shadow only the direct specular contribution.
-    const float4 final_color = float4(
+    float4 final_color = float4(
         toon_color.rgb + (specular_color.rgb - toon_color.rgb) * visibility, toon_color.a);
+    const float alpha_mode_count = 4.0f;
+    const float opaque_mode = 1.0f;
+    const float mask_mode = 2.0f;
+    const float alpha_mode = fmod(_pad.y, alpha_mode_count);
+    if (alpha_mode == mask_mode) {
+        clip(final_color.a - _pad.x);
+        final_color.a = 1.0f;
+    } else if (alpha_mode == opaque_mode) {
+        final_color.a = 1.0f;
+    }
     
     return final_color;
 }

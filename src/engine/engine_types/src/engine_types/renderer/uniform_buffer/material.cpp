@@ -32,6 +32,9 @@ namespace enishi::types {
         }
         uniform.outline_color = material.outline_color;
         uniform.outline_parameters.x = material.outline_width;
+        constexpr float UNLIT_FLAG = 4;
+        uniform._pad = glm::vec2(material.alpha_cutoff,
+            static_cast<float>(material.alpha_mode) + (material.unlit ? UNLIT_FLAG : 0));
         return uniform;
     }
 } // namespace enishi::types
