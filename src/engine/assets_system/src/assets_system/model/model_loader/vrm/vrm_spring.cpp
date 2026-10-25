@@ -186,6 +186,14 @@ namespace enishi::assets_system {
                 }
             } else {
                 const auto& joints = source["joints"].elements;
+                if (joints.empty()) {
+                    return context.fail("VRM spring chain contains no joints");
+                }
+                for (const auto& joint : joints) {
+                    if (!(joint["node"].index() < context.source.nodes_count)) {
+                        return context.fail("Invalid VRM spring joint node");
+                    }
+                }
                 for (std::size_t index = 0; index + 1 < joints.size(); ++index) {
                     if (!add_joint(context,
                             chain,

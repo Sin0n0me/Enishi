@@ -38,6 +38,15 @@ namespace enishi::assets_system {
             // A change of basis preserves hierarchy: M_engine = C * M_gltf * inverse(C).
             bone.bind_bone.local = context.basis * bone.bind_bone.local * inverse_basis;
             bone.bind_bone.global = context.basis * bone.bind_bone.global * inverse_basis;
+            constexpr glm::length_t MATRIX_DIMENSION = 4;
+            for (glm::length_t column = 0; column < MATRIX_DIMENSION; ++column) {
+                for (glm::length_t row = 0; row < MATRIX_DIMENSION; ++row) {
+                    if (!std::isfinite(bone.bind_bone.local[column][row]) ||
+                        !std::isfinite(bone.bind_bone.global[column][row])) {
+                        return context.fail("Non-finite VRM node transform");
+                    }
+                }
+            }
             const auto determinant = glm::determinant(bone.bind_bone.global);
             if (!std::isfinite(determinant) || determinant == 0) {
                 return context.fail("VRM contains a singular or non-finite node transform");
