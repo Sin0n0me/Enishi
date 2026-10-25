@@ -47,6 +47,9 @@ namespace enishi::core {
         if (!model.morph_targets.targets.empty()) {
             component::MorphComponent morph;
             morph.weights.resize(model.morph_targets.targets.size());
+            for (std::size_t index = 0; index < morph.weights.size(); ++index) {
+                morph.weights[index] = model.morph_targets.targets[index].default_weight;
+            }
             auto result = registry.insert(entity, std::move(morph));
             if (result.is_err()) {
                 return result.propagation(ModelPoseError::RegistrationFailed);

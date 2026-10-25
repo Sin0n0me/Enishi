@@ -63,12 +63,22 @@ namespace enishi::types {
     enum class MorphWeightMode {
         Continuous,
         DiscreteSelection,
+        Binary,
     };
+
+    enum class ExpressionCategory { None, Blink, Mouth, LookAt };
+    enum class ExpressionOverride { None, Block, Blend };
 
     struct MorphTarget {
         std::string name;
         MorphWeightMode weight_mode{MorphWeightMode::Continuous};
         std::vector<MorphOffset> offsets;
+        bool expression{};
+        ExpressionCategory category{ExpressionCategory::None};
+        ExpressionOverride override_blink{ExpressionOverride::None};
+        ExpressionOverride override_mouth{ExpressionOverride::None};
+        ExpressionOverride override_look_at{ExpressionOverride::None};
+        float default_weight{};
     };
 
     struct AddonMorphTargets {
