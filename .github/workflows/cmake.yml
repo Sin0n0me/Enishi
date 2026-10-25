@@ -29,11 +29,11 @@ jobs:
             "toolchain":["visualstudio","clang","gcc"],
             "backend":["directx","opengl","vulkan"],"platform":["x64"]}' ||
           '{"include":[
-            {"os":"windows-2022","toolchain":"visualstudio","backend":"directx","config":"Debug","platform":"x64"},
-            {"os":"windows-2022","toolchain":"visualstudio","backend":"directx","config":"Release","platform":"x64"},
             {"os":"windows-2022","toolchain":"clang","backend":"directx","config":"Debug","platform":"x64"},
-            {"os":"windows-2022","toolchain":"gcc","backend":"opengl","config":"Debug","platform":"x64"},
-            {"os":"windows-2022","toolchain":"visualstudio","backend":"vulkan","config":"Debug","platform":"x64"}
+            {"os":"windows-2022","toolchain":"clang","backend":"directx","config":"Release","platform":"x64"},
+            {"os":"windows-2022","toolchain":"clang","backend":"opengl","config":"Debug","platform":"x64"},
+            {"os":"windows-2022","toolchain":"clang","backend":"vulkan","config":"Debug","platform":"x64"},
+            {"os":"windows-2022","toolchain":"visualstudio","backend":"directx","config":"Debug","platform":"x64"}
           ]}') }}
     env:
       VULKAN_SDK_VERSION: '1.4.363.0'
@@ -219,3 +219,15 @@ jobs:
             & "$env:VULKAN_SDK/Bin/spirv-val.exe" --target-env vulkan1.1 $shader.FullName
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+
+      - name: Package application
+        run: ./.github/scripts/package-build.ps1 -Backend '${{ matrix.backend }}' -Toolchain '${{ matrix.toolchain }}' -Config '${{ matrix.config }}'
+        shell: pwsh
+
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: enishi-${{ matrix.os }}-${{ matrix.platform }}-${{ matrix.toolchain }}-${{ matrix.backend }}-${{ matrix.config }}
+          path: artifacts/application/
+          if-no-files-found: error
+          retention-days: 14
