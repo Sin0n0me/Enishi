@@ -5,6 +5,9 @@
 #include "pmd/pmd_to_model_data.h"
 #include "pmx/pmx_model_loader.h"
 #include "pmx/pmx_to_model_data.h"
+#include "vrm/vrm_model_loader.h"
+#include <algorithm>
+#include <cctype>
 
 namespace enishi::assets_system {
     ModelLoader::ModelLoader(std::shared_ptr<TextureLoader> texture_loader)
@@ -12,6 +15,7 @@ namespace enishi::assets_system {
         std::vector<std::unique_ptr<IModelLoader>> loaders;
         loaders.push_back(std::make_unique<PMDModelLoader>());
         loaders.push_back(std::make_unique<PMXModelLoader>());
+        loaders.push_back(std::make_unique<VRMModelLoader>());
 
         for (auto& element : loaders) {
             if (element != nullptr) {
@@ -27,7 +31,11 @@ namespace enishi::assets_system {
             return foundation::Error(AssetError::NotFound, "不明なファイルです");
         }
 
-        const auto extension = path.extension().string<char>();
+        auto extension = path.extension().string<char>();
+        std::transform(
+            extension.begin(), extension.end(), extension.begin(), [](unsigned char value) {
+                return static_cast<char>(std::tolower(value));
+            });
         auto iter = this->loaders.find(extension);
         if (iter == this->loaders.end()) {
             return foundation::Error(AssetError::NotFound, "対応していないファイル形式です");
@@ -39,6 +47,10 @@ namespace enishi::assets_system {
                 std::format("Failed to load model: {}", path.string()));
         }
         auto&& model_data = load_data.unwrap_mut();
+        if (auto* converted = std::get_if<types::AssetModelData>(&model_data);
+            converted != nullptr) {
+            return types::AssetData{std::move(*converted)};
+        }
 
         if (const auto pmd_data = std::get_if<std::unique_ptr<PMDData>>(&model_data);
             pmd_data != nullptr) {
