@@ -2,120 +2,117 @@
 
 ## ビルド
 
-プロジェクトルートの `build\build.cmd` で、レンダリングバックエンドとツールチェーンを指定してビルドできます。
+`src/CMakePresets.json` でOS・描画方式・コンパイラ・Debug/Releaseを選択します。以下の準備はプロジェクトルートで実行してください。
 
-`build\build.cmd` は生成ファイルです。変更する場合は
-`build\generate_build.py` を編集してから、次のコマンドで再生成してください。
+### 必要なツールと依存関係
 
-```bat
-python build\generate_build.py
+- CMake 3.24以降、Git、Python 3、Rust/Cargo。
+- WindowsのClang構成：Clang、Ninja、Visual StudioのC++ビルドツールとWindows SDK。x64のDeveloper PowerShellを使用し、`clang`、`clang++`、`ninja`をPATHに追加してください。
+- Visual Studio構成：Visual Studio 2022または2026のC++ビルドツールとWindows SDK。
+- GCC構成：GCCとNinja。WindowsではMinGW-w64を使用します。
+- Windowsの依存パッケージ管理にはvcpkgを使用します。`VCPKG_ROOT`にvcpkgのルートを指定してください。
+
+```powershell
+git submodule update --init --recursive
+python -m pip install -r .github/requirements-ci.txt
+$env:VCPKG_ROOT = 'C:/tools/vcpkg'
 ```
 
-```bat
-build\build.cmd <opengl|directx|vulkan> [Debug|Release|RelWithDebInfo|MinSizeRel] [auto|visualstudio|clang|gcc]
+Rustのバージョンは `src/engine/script/rust-toolchain.toml` の `channel` に合わせて導入してください。WindowsのGCC構成には、同じツールチェーンの `x86_64-pc-windows-gnu` ターゲットも必要です。
+
+ICUは `src/vcpkg.json` の固定baselineと機能定義に従い、Windows構成のconfigure時に導入されます。Clang・Visual Studioでは `x64-windows`、GCCでは `x64-mingw-dynamic` を使用します。SDLなどの依存ソースはCMakeのFetchContent、Musubuなどはサブモジュールで管理しています。初回configure・ビルドにはネットワーク接続が必要です。
+
+### Clangでビルドする
+
+次のコマンドはWindowsのDirectX Debug構成です。
+
+```powershell
+cd src
+cmake --list-presets
+cmake --preset windows-directx-clang-debug
+cmake --build --preset windows-directx-clang-debug --parallel 4
 ```
 
-構成を省略した場合は `Debug`、ツールチェーンを省略した場合は `auto` を使用します。
-`auto` は Visual Studio、Clang、GCC の順に利用可能なツールチェーンを選択します。
+生成先は `build/presets/windows-directx-clang-debug` です。実行時の設定ファイルは作業ディレクトリから参照するため、プロジェクトルートへ戻って起動します。
 
-### 共通シェーダーの生成
-
-描画ロジックは `src/shader/hlsl` に集約しています。モデル・シャドウ・透明な壁のパスを変更する場合は、このHLSLと `common` 配下を編集してください。
-
-- DirectX11: HLSLをFXCでDXBCへ直接コンパイルします。
-- Vulkan: HLSLをDXCでSPIR-Vへコンパイルします。
-- OpenGL: HLSLをDXCでSPIR-Vへコンパイルし、SPIRV-Cross CLIでGLSL 4.0へ変換します。
-
-OpenGLにも公式Vulkan SDKの `dxc` と `spirv-val`、Python 3が必要です。SDKの `Bin` をPATHへ追加するか、`VULKAN_SDK` を設定してください。CMakeの `ENISHI_DXC_EXECUTABLE` と `ENISHI_SPIRV_VAL_EXECUTABLE` でも指定できます。
-
-初回はプロジェクトルートでサブモジュールを取得してください。
-
-```bat
-git submodule update --init tools/SPIRV-Cross
+```powershell
+cd ..
+./build/presets/windows-directx-clang-debug/enishi_engine.exe
 ```
 
-通常のアプリビルドでSPIRV-Crossもビルドされます。HLSL本体・共通include・変換スクリプト・変換ツールの更新時は、CMakeが依存関係からシェーダーを再生成します。生成GLSLを直接編集する必要はありません。
-CLIと生成シェーダーはビルドディレクトリへ出力し、中間SPIR-Vは変換後に削除します。成果物はGit管理に含めません。
+preset名は `<OS>-<描画方式>-<コンパイラ>-<構成>` です。configureとbuildには同じ名前を指定してください。
 
-### Visual Studio
+| 選択項目 | 値 |
+| --- | --- |
+| OS | `windows`、`linux`、`macos` |
+| 描画方式 | `directx`、`opengl`、`vulkan` |
+| コンパイラ | `clang`、`gcc`、`visualstudio`（2022）、`visualstudio2026` |
+| 構成 | `debug`、`release` |
 
-```bat
-build\build.cmd opengl Debug
-build\build.cmd directx Release
+DirectXとVisual StudioはWindows専用です。Linux/macOSではClangまたはGCCを使用し、ICUをCMakeから検索できる環境に準備してください。これらのpresetにはvcpkgツールチェーンを自動指定していません。
+
+たとえば、`src`ディレクトリで次のように切り替えられます。
+
+```powershell
+cmake --preset windows-directx-visualstudio2026-release
+cmake --build --preset windows-directx-visualstudio2026-release --parallel 4
+
+cmake --preset windows-opengl-gcc-debug
+cmake --build --preset windows-opengl-gcc-debug --parallel 4
 ```
 
-生成先はそれぞれ `build\opengl\visualstudio` と`build\directx\visualstudio` です。
+各presetは別のビルドディレクトリを使用します。Visual Studioの実行ファイルはその中の `Debug` または `Release` ディレクトリ、Clang/GCCではビルドディレクトリ直下に出力されます。
 
+### シェーダーとVulkan SDK
 
-Visual Studio ビルドでは、Visual Studio 18 2026 を優先して使用します。
-18 が見つからない場合は Visual Studio 17 2022 を使用します。どちらも使用できない場合、
-`auto` 指定では Clang、次に GCC へフォールバックします。
+描画ロジックは `src/shader/hlsl` とその `common` 配下で管理し、アプリのビルド時にシェーダーを生成します。
 
-### Clang + Ninja
+- DirectX：Windows SDKのFXCでDXBCへコンパイル。
+- Vulkan：Vulkan SDKのDXCでSPIR-Vへコンパイル。
+- OpenGL：DXCでSPIR-Vへコンパイルし、SPIRV-CrossでGLSL 4.0へ変換。
 
-MSBuild を使わないビルドには Clang と Ninja を使用します。`clang` と`ninja` の両方が `PATH` から実行できる状態にしてください。
+OpenGLとVulkanにはVulkan SDKの `dxc`、`spirv-val` が必要です。Vulkan構成ではヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`も使用します。`VULKAN_SDK`にSDKのルートを設定し、必要なツールをPATHへ追加してください。
 
-```bat
-build\build.cmd opengl Debug clang
-build\build.cmd directx Release clang
+```powershell
+$env:VULKAN_SDK = 'C:/VulkanSDK/<インストールしたバージョン>'
+$env:PATH = "$env:VULKAN_SDK/Bin;$env:PATH"
+# srcディレクトリで実行
+cmake --preset windows-vulkan-clang-debug
+cmake --build --preset windows-vulkan-clang-debug --parallel 4
 ```
 
-生成先はそれぞれ `build\opengl\clang` と `build\directx\clang` です。
+生成シェーダーは各ビルドディレクトリの `shader/<描画方式>` に出力します。Vulkanの実行環境にはVulkan 1.1以上に対応するGPUドライバーと、64 KiB以上のuniform buffer範囲が必要です。
 
-### Vulkan
+### Presetsの更新と検証
 
-CMake 3.24以降と、[公式Vulkan SDK](https://vulkan.lunarg.com/sdk/home)が必要です。
-SDKに含まれるVulkanヘッダー・ローダー、`dxc`、`spirv-val`、`Source/SPIRV-Reflect`を使用します。
-実行環境にはVulkan 1.1以上に対応したGPUドライバーと、64 KiB以上のuniform buffer範囲が必要です。
+構成の追加・除外は `tools/generate_cmake_presets.py` を編集し、プロジェクトルートで再生成してください。生成したJSONもcommitします。CIは `--check` で再生成漏れを検出します。
 
-```bat
-build\build.cmd vulkan Debug
+```powershell
+python tools/generate_cmake_presets.py
+python tools/generate_cmake_presets.py --check
 ```
 
-生成先は `build\vulkan\visualstudio`（Clang指定時は `build\vulkan\clang`）です。
-共通HLSLはビルド時にDXCでSPIR-Vへ変換され、ビルドディレクトリの `shader\vulkan` から読み込まれます。
-`assets` へのシェーダーのコピーや、`shader_compile.py` の実行は不要です。
+環境固有の設定にはGit管理対象外の `src/CMakeUserPresets.json` を使用できます。
 
-SDKを通常のインストーラーで導入していない場合は、ビルド前に `VULKAN_SDK` をSDKのルートに設定してください。
-今回の作業環境では `build\vulkan-sdk` にSDKを展開しているため、プロジェクトルートで次のように指定できます。
+全構成の一括ビルドと回帰テストは、プロジェクトルートから実行できます。
 
-```bat
-set "VULKAN_SDK=%CD%\build\vulkan-sdk"
-build\build.cmd vulkan Debug
+```powershell
+python tools/build_all.py windows --compiler clang --jobs 4
+python tools/test_all.py --engine-build build/presets/windows-directx-clang-debug --jobs 4
 ```
 
-assetsを使用しない描画検証は、Vulkan構成に `-DENISHI_VULKAN_TESTS=ON` を追加してビルドすると実行できます。
-検証時はSDKのValidation Layerを使用します。
+回帰テストにはconfigure済みのエンジンビルドと導入済みの依存関係が必要です。`test_all.py` は外部取得を無効にして実行します。
 
-```bat
-cmake -S src -B build\vulkan\visualstudio -DUSE_VULKAN=ON -DENISHI_VULKAN_TESTS=ON
-cmake --build build\vulkan\visualstudio --config Debug
-set "VK_LAYER_PATH=%VULKAN_SDK%\Bin"
-ctest --test-dir build\vulkan\visualstudio -C Debug --output-on-failure
-```
-### find_package のパッケージ探索
+Vulkanの描画テストのみを実行する場合は、`src`ディレクトリで次のように指定します。
 
-ビルド BAT は `find_package` の依存関係を探索するため、vcpkg の
-`scripts\buildsystems\vcpkg.cmake` を CMake ツールチェインとして指定します。
-`VCPKG_ROOT` を設定するか、`vcpkg.exe` を `PATH` に追加してください。
-
-Visual Studio と Clang では `x64-windows`、GCC では `x64-mingw-dynamic` を
-既定の vcpkg triplet として使用します。別の triplet を使う場合は、実行前に
-`VCPKG_TARGET_TRIPLET` を設定してください。
-
-vcpkg 以外のパッケージマネージャーを使用する場合は、
-`CMAKE_TOOLCHAIN_FILE` にそのツールチェインファイルを設定できます。
-
-### GCC + Ninja
-
-GCC を明示的に使用する場合も、GCC と Ninja を `PATH` から実行可能にしてください。
-
-```bat
-build\build.cmd opengl Debug gcc
-build\build.cmd directx Release gcc
+```powershell
+cmake --preset windows-vulkan-clang-debug -DENISHI_VULKAN_TESTS=ON
+cmake --build --preset windows-vulkan-clang-debug --target vulkan_render_tests --parallel 4
+$env:VK_LAYER_PATH = "$env:VULKAN_SDK/Bin"
+ctest --test-dir ../build/presets/windows-vulkan-clang-debug -C Debug -R vulkan --output-on-failure
 ```
 
-生成先はそれぞれ `build\opengl\gcc` と `build\directx\gcc` です。
+CIの成功したビルドは、GitHub Actionsの実行ページにあるArtifactsから取得できます。exe・DLL・PDB・シェーダー・設定ファイルを構成ごとにまとめ、14日間保持します。
 
 ## 設定ファイル
 
@@ -134,7 +131,7 @@ neck_yaw 10
 
 各設定は対応するセクション内に記述し、同じセクションを複数回定義しないでください。未指定の項目は既定値を使います。不正な記述がある場合は行番号をログに出し、統合ファイル全体を適用せず既定値を使います。ボーン辞書・モーフ辞書の読み込みには影響しません。
 
-旧 `camera.cfg`、`cursor_tracking.cfg`、`model_event_motions.cfg` は読み込みません。独自の設定がある場合は各ファイルの内容を対応するセクションへ移してください。モーションの相対パスは引き続き設定ファイルのある `config` ディレクトリが基準です。
+モーションの相対パスは設定ファイルのある `config` ディレクトリが基準です。
 
 ### モーフ名の辞書
 
@@ -160,8 +157,6 @@ version = 1
 [roles.neck]
 aliases = ["custom_neck", "neck", "Neck"]
 ```
-
-旧 `bone_names.cfg` / `morph_names.cfg` は読み込みません。独自設定がある場合は上記のTOML形式へ移してください。`config/settings.cfg` の形式は変更していません。
 
 コードからは `animation::MorphRole` と `animation::MorphNameDictionary` で検索できます。起動時に読み込んだ辞書を使う場合は、`AnimationSystem::find_morph(entity, animation::MorphRole::Blink)` でモデル内のモーフ番号を取得します。該当するモーフがなければ `types::INVALID_MORPH_INDEX` を返します。この辞書の追加だけで表情を自動再生することはありません。
 
@@ -241,7 +236,7 @@ push_states Dynamic DynamicAdjustBone
 例えば `arm_speed 45` で腕をよりゆっくり動かし、`neck_pitch 3` で首の上下の動きを小さくできます。
 角度を0にするとその軸の追従を止めます。首と頭の回転は親子関係で合成されます。
 ジャンプは、通常は手が届かず、上方向へ移動すれば届くカーソルに対して発動します。横移動は行いません。
-左右の脚を認識できる場合は、踏み切り前の0.24秒と着地後の0.20秒に膝を軽く曲げます。足先・足IKの目標を保ったまま腰を下げ、着地後は元の姿勢へ戻します。脚を認識できない場合は従来の上下移動を使います。
+左右の脚を認識できる場合は、踏み切り前の0.24秒と着地後の0.20秒に膝を軽く曲げます。足先・足IKの目標を保ったまま腰を下げ、着地後は元の姿勢へ戻します。脚を認識できない場合は上下移動のみを行います。
 必要な高さを腕の長さから求め、設定した上限内で放物線を描いて上昇・下降します。飛行中にカーソルが離れても着地まで続けます。
 全ルートボーン（足IKの目標を含む）へ移動を加えてからIK・物理演算へ渡し、元のモーションの位置には蓄積しません。地形との着地判定ではなく、元のモーション位置に戻る動作です。
 腕の速度制限は伸ばすとき・戻すとき・左右の切り替え時に適用します。元のモーションや物理演算の速度は変更しません。
@@ -279,7 +274,7 @@ assetsを使わない検証は `-DENISHI_CURSOR_TESTS=ON` で構成し、`enishi
 
 Musubuは `src/engine/script/Musubu` にサブモジュールとして固定されています。
 初回取得時は `git submodule update --init --recursive` を実行してください。
-ビルドにはRustのstableツールチェーン（1.88以降）とCargoが必要です。
+ビルドには `src/engine/script/rust-toolchain.toml` で指定したRustツールチェーンとCargoが必要です。
 CMakeがMusubuの接続ライブラリをビルドするため、別途DLLをコピーする必要はありません。
 依存関係がキャッシュ済みの場合は `-DENISHI_CARGO_OFFLINE=ON` でCargoの外部取得を無効にできます。
 
