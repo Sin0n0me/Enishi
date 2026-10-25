@@ -34,3 +34,6 @@ log.txt
 
 # Optional in-source SPIRV-Cross build output (normal builds use build/).
 /tools/SPIRV-Cross/build/
+
+# Developer-local CMake settings.
+CMakeUserPresets.json
