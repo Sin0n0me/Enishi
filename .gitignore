@@ -9,8 +9,6 @@ CMakeFiles/
 DesktopCharacter/
 lib/
 
-!/build/build.cmd
-
 *.ini
 *.ttf
 *.user
