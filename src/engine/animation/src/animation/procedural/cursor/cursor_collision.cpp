@@ -5,10 +5,10 @@
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <debug/log/logger.h>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
     namespace {
         bool belongs_to(
             const component::ModelComponent& model, types::BoneIndex bone, types::BoneIndex root) {
@@ -89,10 +89,15 @@ namespace enishi::animation {
             }
             CursorCollisionBone bounds{bone, local.unwrap()};
             for (std::size_t side = 0; side < state.wrists.size(); ++side) {
-                if (belongs_to(model, bone, state.joints[side == 0 ? LeftArm : RightArm])) {
+                if (belongs_to(model,
+                        bone,
+                        state.joints[side == 0 ? std::to_underlying(Joint::LeftArm)
+                                               : std::to_underlying(Joint::RightArm)])) {
                     bounds.arm = static_cast<int>(side);
-                    bounds.distal =
-                        belongs_to(model, bone, state.joints[side == 0 ? LeftElbow : RightElbow]);
+                    bounds.distal = belongs_to(model,
+                        bone,
+                        state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                               : std::to_underlying(Joint::RightElbow)]);
                     bounds.hand = belongs_to(model, bone, state.wrists[side]);
                 }
             }
@@ -127,7 +132,8 @@ namespace enishi::animation {
         if (!state.config.experimental_obb_collision) {
             return true;
         }
-        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto elbow = state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                  : std::to_underlying(Joint::RightElbow)];
         const auto start = glm::vec3(state.transforms.globals[elbow][3]);
         const auto end = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
         const auto frame = CursorReach::arm_frame(state, side);
@@ -166,7 +172,8 @@ namespace enishi::animation {
         CursorPoseState& state, const component::ModelComponent& model) {
         for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             const int owner = static_cast<int>(side);
-            const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+            const auto elbow = state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                      : std::to_underlying(Joint::RightElbow)];
             for (std::size_t index = 0; index < state.collision.bones.size(); ++index) {
                 const auto& bounds = state.collision.bones[index];
                 if (bounds.arm == owner) {

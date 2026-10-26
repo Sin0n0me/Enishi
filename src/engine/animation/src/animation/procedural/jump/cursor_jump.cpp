@@ -4,10 +4,10 @@
 #include <animation/procedural/cursor/cursor_transforms.h>
 #include <animation/procedural/legs/cursor_legs.h>
 #include <cmath>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float REACH_MARGIN = 0.95f;
@@ -28,10 +28,14 @@ namespace enishi::animation {
         if (!(state.wrists[side] < state.transforms.globals.size())) {
             return false;
         }
-        const auto shoulder =
-            glm::vec3(state.transforms.globals[state.joints[side == 0 ? LeftArm : RightArm]][3]);
+        const auto shoulder = glm::vec3(
+            state.transforms
+                .globals[state.joints[side == 0 ? std::to_underlying(Joint::LeftArm)
+                                                : std::to_underlying(Joint::RightArm)]][3]);
         const auto elbow = glm::vec3(
-            state.transforms.globals[state.joints[side == 0 ? LeftElbow : RightElbow]][3]);
+            state.transforms
+                .globals[state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                : std::to_underlying(Joint::RightElbow)]][3]);
         const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
         const float upper = glm::length(elbow - shoulder);
         const float lower = glm::length(wrist - elbow);
@@ -76,9 +80,13 @@ namespace enishi::animation {
                 continue;
             }
             const auto shoulder = glm::vec3(
-                state.transforms.globals[state.joints[side == 0 ? LeftArm : RightArm]][3]);
+                state.transforms
+                    .globals[state.joints[side == 0 ? std::to_underlying(Joint::LeftArm)
+                                                    : std::to_underlying(Joint::RightArm)]][3]);
             const auto elbow = glm::vec3(
-                state.transforms.globals[state.joints[side == 0 ? LeftElbow : RightElbow]][3]);
+                state.transforms
+                    .globals[state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                    : std::to_underlying(Joint::RightElbow)]][3]);
             const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
             const float radius =
                 (glm::length(elbow - shoulder) + glm::length(wrist - elbow)) * REACH_MARGIN;

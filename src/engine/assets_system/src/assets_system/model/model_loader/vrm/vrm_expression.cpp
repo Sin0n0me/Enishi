@@ -1,5 +1,6 @@
 #include "vrm_expression.h"
 #include "vrm_expression_uv.h"
+#include "vrm_schema.h"
 #include <algorithm>
 #include <cmath>
 #include <engine_types/renderer/uniform_buffer/material.h>
@@ -8,39 +9,43 @@
 namespace enishi::assets_system {
     namespace {
         std::string expression_name(std::string name) {
-            static const std::map<std::string, std::string> aliases{{"a", "aa"},
-                {"i", "ih"},
-                {"u", "ou"},
-                {"e", "ee"},
-                {"o", "oh"},
-                {"joy", "happy"},
-                {"sorrow", "sad"},
-                {"fun", "relaxed"},
-                {"blink_l", "blinkLeft"},
-                {"blink_r", "blinkRight"},
-                {"lookup", "lookUp"},
-                {"lookdown", "lookDown"},
-                {"lookleft", "lookLeft"},
-                {"lookright", "lookRight"}};
+            static const std::map<std::string, std::string> aliases{
+                {vrm_schema::legacy_preset::A, vrm_schema::preset::AA},
+                {vrm_schema::legacy_preset::I, vrm_schema::preset::IH},
+                {vrm_schema::legacy_preset::U, vrm_schema::preset::OU},
+                {vrm_schema::legacy_preset::E, vrm_schema::preset::EE},
+                {vrm_schema::legacy_preset::O, vrm_schema::preset::OH},
+                {vrm_schema::legacy_preset::JOY, vrm_schema::preset::HAPPY},
+                {vrm_schema::legacy_preset::SORROW, vrm_schema::preset::SAD},
+                {vrm_schema::legacy_preset::FUN, vrm_schema::preset::RELAXED},
+                {vrm_schema::legacy_preset::BLINK_L, vrm_schema::preset::BLINK_LEFT},
+                {vrm_schema::legacy_preset::BLINK_R, vrm_schema::preset::BLINK_RIGHT},
+                {vrm_schema::legacy_preset::LOOKUP, vrm_schema::preset::LOOK_UP},
+                {vrm_schema::legacy_preset::LOOKDOWN, vrm_schema::preset::LOOK_DOWN},
+                {vrm_schema::legacy_preset::LOOKLEFT, vrm_schema::preset::LOOK_LEFT},
+                {vrm_schema::legacy_preset::LOOKRIGHT, vrm_schema::preset::LOOK_RIGHT}};
             const auto found = aliases.find(name);
             return found != aliases.end() ? found->second : name;
         }
 
         types::ExpressionOverride override_mode(const VRMJson& value) {
-            if (value.value == "block") {
+            if (value.value == vrm_schema::override_mode::BLOCK) {
                 return types::ExpressionOverride::Block;
             }
-            return value.value == "blend" ? types::ExpressionOverride::Blend
-                                          : types::ExpressionOverride::None;
+            return value.value == vrm_schema::override_mode::BLEND
+                       ? types::ExpressionOverride::Blend
+                       : types::ExpressionOverride::None;
         }
 
         bool bind_morphs(
             VRMContext& context, types::MorphTarget& target, const VRMJson& expression) {
-            const auto& binds = expression[context.legacy ? "binds" : "morphTargetBinds"];
+            const auto& binds = expression[context.legacy ? vrm_schema::legacy_key::BINDS
+                                                          : vrm_schema::key::MORPH_TARGET_BINDS];
             for (const auto& bind : binds.elements) {
                 // VRM 0 stores percent weights; VRM 1 stores unit weights.
                 constexpr float PERCENT = 100;
-                const auto weight = bind["weight"].number() / (context.legacy ? PERCENT : 1.0f);
+                const auto weight =
+                    bind[vrm_schema::key::WEIGHT].number() / (context.legacy ? PERCENT : 1.0f);
                 if (!std::isfinite(weight) || weight < 0 || weight > 1) {
                     return context.fail("Invalid VRM expression weight");
                 }
@@ -49,9 +54,9 @@ namespace enishi::assets_system {
                     const auto* mesh = context.source.nodes[key.first].mesh;
                     const bool matches =
                         context.legacy ? static_cast<std::size_t>(mesh - context.source.meshes) ==
-                                             bind["mesh"].index()
-                                       : key.first == bind["node"].index();
-                    if (matches && key.second == bind["index"].index()) {
+                                             bind[vrm_schema::key::MESH].index()
+                                       : key.first == bind[vrm_schema::key::NODE].index();
+                    if (matches && key.second == bind[vrm_schema::key::INDEX].index()) {
                         target.offsets.emplace_back(types::MorphWeightOffset{index, weight});
                         found = true;
                     }
@@ -65,21 +70,27 @@ namespace enishi::assets_system {
 
         bool bind_colors(
             VRMContext& context, types::MorphTarget& target, const VRMJson& expression) {
-            const auto& binds =
-                expression[context.legacy ? "materialValues" : "materialColorBinds"];
+            const auto& binds = expression[context.legacy ? vrm_schema::legacy_key::MATERIAL_VALUES
+                                                          : vrm_schema::key::MATERIAL_COLOR_BINDS];
             for (const auto& bind : binds.elements) {
-                const auto property = bind[context.legacy ? "propertyName" : "type"].value;
-                const auto& values = bind["targetValue"].elements;
-                if (context.legacy && property == "_MainTex_ST") {
+                const auto property = bind[context.legacy ? vrm_schema::legacy_key::PROPERTY_NAME
+                                                          : vrm_schema::key::TYPE]
+                                          .value;
+                const auto& values = bind[vrm_schema::key::TARGET_VALUE].elements;
+                if (context.legacy &&
+                    property == vrm_schema::legacy_material_property::MAIN_TEXTURE_TRANSFORM) {
                     continue;
                 }
                 std::string destination;
-                if (property == "color" || property == "_Color") {
-                    destination = "diffuse";
-                } else if (property == "outlineColor" || property == "_OutlineColor") {
-                    destination = "outline_color";
-                } else if (property == "shadeColor" || property == "_ShadeColor") {
-                    destination = "ambient";
+                if (property == vrm_schema::material_property::COLOR ||
+                    property == vrm_schema::legacy_material_property::COLOR) {
+                    destination = vrm_schema::material_target::DIFFUSE;
+                } else if (property == vrm_schema::material_property::OUTLINE_COLOR ||
+                           property == vrm_schema::legacy_material_property::OUTLINE_COLOR) {
+                    destination = vrm_schema::material_target::OUTLINE_COLOR;
+                } else if (property == vrm_schema::material_property::SHADE_COLOR ||
+                           property == vrm_schema::legacy_material_property::SHADE_COLOR) {
+                    destination = vrm_schema::material_target::AMBIENT;
                 } else {
                     return context.fail(
                         "Unsupported VRM expression material property: " + property);
@@ -103,17 +114,18 @@ namespace enishi::assets_system {
                     const auto& source = context.source.materials[source_index];
                     const bool matches =
                         context.legacy
-                            ? source.name != nullptr && bind["materialName"].value == source.name
-                            : bind["material"].index() == source_index;
+                            ? source.name != nullptr &&
+                                  bind[vrm_schema::legacy_key::MATERIAL_NAME].value == source.name
+                            : bind[vrm_schema::key::MATERIAL].index() == source_index;
                     if (!matches) {
                         continue;
                     }
                     found = true;
                     const auto base = types::make_uniform_material(context.model.materials[index]);
                     glm::vec4 initial = base.diffuse;
-                    if (destination == "outline_color") {
+                    if (destination == vrm_schema::material_target::OUTLINE_COLOR) {
                         initial = base.outline_color;
-                    } else if (destination == "ambient") {
+                    } else if (destination == vrm_schema::material_target::AMBIENT) {
                         initial = glm::vec4(base.ambient, 1);
                     }
                     // VRM color = base + expression_weight * (target - base).
@@ -140,20 +152,26 @@ namespace enishi::assets_system {
                 return context.fail("Empty or duplicate VRM expression name");
             }
             target.expression = true;
-            target.weight_mode = source["isBinary"].boolean() ? types::MorphWeightMode::Binary
-                                                              : types::MorphWeightMode::Continuous;
-            target.override_blink = override_mode(source["overrideBlink"]);
-            target.override_mouth = override_mode(source["overrideMouth"]);
-            target.override_look_at = override_mode(source["overrideLookAt"]);
-            if (preset && (target.name == "blink" || target.name == "blinkLeft" ||
-                              target.name == "blinkRight")) {
+            target.weight_mode = source[vrm_schema::key::IS_BINARY].boolean()
+                                     ? types::MorphWeightMode::Binary
+                                     : types::MorphWeightMode::Continuous;
+            target.override_blink = override_mode(source[vrm_schema::key::OVERRIDE_BLINK]);
+            target.override_mouth = override_mode(source[vrm_schema::key::OVERRIDE_MOUTH]);
+            target.override_look_at = override_mode(source[vrm_schema::key::OVERRIDE_LOOK_AT]);
+            if (preset && (target.name == vrm_schema::preset::BLINK ||
+                              target.name == vrm_schema::preset::BLINK_LEFT ||
+                              target.name == vrm_schema::preset::BLINK_RIGHT)) {
                 target.category = types::ExpressionCategory::Blink;
-            } else if (preset && (target.name == "lookUp" || target.name == "lookDown" ||
-                                     target.name == "lookLeft" || target.name == "lookRight")) {
+            } else if (preset && (target.name == vrm_schema::preset::LOOK_UP ||
+                                     target.name == vrm_schema::preset::LOOK_DOWN ||
+                                     target.name == vrm_schema::preset::LOOK_LEFT ||
+                                     target.name == vrm_schema::preset::LOOK_RIGHT)) {
                 target.category = types::ExpressionCategory::LookAt;
-            } else if (preset &&
-                       (target.name == "aa" || target.name == "ih" || target.name == "ou" ||
-                           target.name == "ee" || target.name == "oh")) {
+            } else if (preset && (target.name == vrm_schema::preset::AA ||
+                                     target.name == vrm_schema::preset::IH ||
+                                     target.name == vrm_schema::preset::OU ||
+                                     target.name == vrm_schema::preset::EE ||
+                                     target.name == vrm_schema::preset::OH)) {
                 target.category = types::ExpressionCategory::Mouth;
             }
             if (!bind_morphs(context, target, source) || !bind_colors(context, target, source)) {
@@ -169,22 +187,29 @@ namespace enishi::assets_system {
 
     bool make_vrm_expressions(VRMContext& context) {
         if (context.legacy) {
-            for (const auto& expression :
-                context.extension["blendShapeMaster"]["blendShapeGroups"].elements) {
-                const auto& preset = expression["presetName"].value;
-                const auto name =
-                    preset.empty() || preset == "unknown" ? expression["name"].value : preset;
-                if (!add_expression(
-                        context, name, expression, !preset.empty() && preset != "unknown")) {
+            for (const auto& expression : context
+                                              .extension[vrm_schema::legacy_key::BLEND_SHAPE_MASTER]
+                                                        [vrm_schema::legacy_key::BLEND_SHAPE_GROUPS]
+                                              .elements) {
+                const auto& preset = expression[vrm_schema::legacy_key::PRESET_NAME].value;
+                const auto name = preset.empty() || preset == vrm_schema::legacy_preset::UNKNOWN
+                                      ? expression[vrm_schema::key::NAME].value
+                                      : preset;
+                if (!add_expression(context,
+                        name,
+                        expression,
+                        !preset.empty() && preset != vrm_schema::legacy_preset::UNKNOWN)) {
                     return false;
                 }
             }
         } else {
-            for (const auto category : {"preset", "custom"}) {
+            for (const auto category : {vrm_schema::key::PRESET, vrm_schema::key::CUSTOM}) {
                 for (const auto& [name, expression] :
-                    context.extension["expressions"][category].members) {
-                    if (!add_expression(
-                            context, name, expression, std::string_view(category) == "preset")) {
+                    context.extension[vrm_schema::key::EXPRESSIONS][category].members) {
+                    if (!add_expression(context,
+                            name,
+                            expression,
+                            std::string_view(category) == vrm_schema::key::PRESET)) {
                         return false;
                     }
                 }

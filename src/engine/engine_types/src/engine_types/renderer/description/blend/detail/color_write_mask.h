@@ -11,6 +11,7 @@ namespace enishi::types {
         ColorWriteB = 1u << 2,
         ColorWriteA = 1u << 3,
 
-        ColorWriteRGBA = ColorWriteR | ColorWriteG | ColorWriteB | ColorWriteA
+        ColorWriteRGBA = ColorWriteMask::ColorWriteR | ColorWriteMask::ColorWriteG |
+                         ColorWriteMask::ColorWriteB | ColorWriteMask::ColorWriteA
     };
 } // namespace enishi::types

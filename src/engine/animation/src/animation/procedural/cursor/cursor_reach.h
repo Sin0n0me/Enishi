@@ -2,6 +2,7 @@
 #include <animation/procedural/cursor/cursor_pose_state.h>
 #include <animation/rig/bone_name_dictionary.h>
 #include <component/model_component.h>
+#include <utility>
 
 namespace enishi::animation {
     class CursorReach {
@@ -22,7 +23,8 @@ namespace enishi::animation {
         static void limit_arm_speed(CursorPoseState& state,
             const component::ModelComponent& model,
             component::AnimationComponent& animation,
-            const std::array<glm::quat, CursorPoseState::Count>& previous,
+            const std::array<glm::quat, std::to_underlying(CursorPoseState::Joint::Count)>&
+                previous,
             float seconds);
         static void protect_arms(CursorPoseState& state,
             const component::ModelComponent& model,

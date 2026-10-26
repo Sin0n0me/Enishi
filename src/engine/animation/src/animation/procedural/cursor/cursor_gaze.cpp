@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using BodyBone = CursorPoseState::BodyBone;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float PROXIMITY_RATIO = 0.18f;
@@ -53,8 +53,8 @@ namespace enishi::animation {
 
     std::optional<glm::vec3> CursorGaze::gaze_offset(
         const CursorPoseState& state, const CursorRay& cursor) {
-        const auto head = state.body_bones[BodyHead];
-        const auto neck = state.body_bones[BodyNeck];
+        const auto head = state.body_bones[std::to_underlying(BodyBone::BodyHead)];
+        const auto neck = state.body_bones[std::to_underlying(BodyBone::BodyNeck)];
         const auto anchor = head < state.transforms.globals.size() ? head : neck;
         if (!(anchor < state.transforms.globals.size())) {
             return std::nullopt;
@@ -103,7 +103,7 @@ namespace enishi::animation {
         const glm::vec3& offset,
         float yaw_limit,
         float pitch_limit) {
-        const auto index = state.joints[joint];
+        const auto index = state.joints[std::to_underlying(joint)];
         if (!(index < state.transforms.globals.size())) {
             return;
         }

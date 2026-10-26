@@ -4,12 +4,24 @@
 #include <animation/procedural/cursor/cursor_transforms.h>
 #include <animation/procedural/jump/cursor_jump.h>
 #include <cmath>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
+    using BodyBone = CursorPoseState::BodyBone;
     namespace {
         constexpr float EPSILON = 0.00001f;
+        constexpr std::size_t LEFT_SIDE = 0;
+        constexpr std::size_t RIGHT_SIDE = 1;
+        constexpr std::size_t ARM_COUNT = 2;
+        constexpr glm::length_t TRANSLATION_COLUMN = 3;
+        constexpr glm::vec3 X_AXIS(1, 0, 0);
+        constexpr glm::vec3 UP_AXIS(0, 1, 0);
+        constexpr glm::vec3 FORWARD_AXIS(0, 0, -1);
+        constexpr float LEFT_DIRECTION_SIGN = 1.0f;
+        constexpr float RIGHT_DIRECTION_SIGN = -1.0f;
+        constexpr float MIDPOINT_WEIGHT = 0.5f;
+        constexpr float BACKTRACK_FACTOR = 0.5f;
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
         constexpr float MAX_FLEX = 135.0f;
         constexpr float MIN_FLEX = 8.0f;
@@ -50,9 +62,9 @@ namespace enishi::animation {
             to = glm::normalize(to);
             const float cosine = std::clamp(glm::dot(from, to), -1.0f, 1.0f);
             if (cosine < -1.0f + EPSILON) {
-                auto axis = glm::cross(from, glm::vec3(0, 1, 0));
+                auto axis = glm::cross(from, UP_AXIS);
                 if (!(glm::length(axis) > EPSILON)) {
-                    axis = glm::cross(from, glm::vec3(1, 0, 0));
+                    axis = glm::cross(from, X_AXIS);
                 }
                 return glm::angleAxis(glm::pi<float>(), glm::normalize(axis));
             }
@@ -123,23 +135,23 @@ namespace enishi::animation {
         const component::ModelComponent& model,
         const BoneNameDictionary& bone_names) {
         state.bind_rotations.fill(IDENTITY);
-        state.hinge_axes.fill(glm::vec3(0, 1, 0));
-        state.upper_axes.fill(glm::vec3(1, 0, 0));
+        state.hinge_axes.fill(UP_AXIS);
+        state.upper_axes.fill(X_AXIS);
         state.body_bones.fill(types::INVALID_BONE_INDEX);
         state.body_bones = {bone_names.find(model.bone_names, BoneRole::LeftUpperArm),
             bone_names.find(model.bone_names, BoneRole::RightUpperArm),
             bone_names.find(model.bone_names, BoneRole::Neck),
             bone_names.find(model.bone_names, BoneRole::Head),
             bone_names.find(model.bone_names, BoneRole::Hips)};
-        auto ancestor = state.body_bones[BodyLeft];
+        auto ancestor = state.body_bones[std::to_underlying(BodyBone::BodyLeft)];
         if (!(ancestor < model.bone_node.size())) {
-            ancestor = state.body_bones[BodyRight];
+            ancestor = state.body_bones[std::to_underlying(BodyBone::BodyRight)];
         }
         for (std::size_t step = 0;
              step < model.bone_node.size() && ancestor < model.bone_node.size();
              ++step) {
             ancestor = model.bone_node[ancestor].parent;
-            auto other = state.body_bones[BodyRight];
+            auto other = state.body_bones[std::to_underlying(BodyBone::BodyRight)];
             for (std::size_t depth = 0;
                  depth < model.bone_node.size() && other < model.bone_node.size();
                  ++depth) {
@@ -154,22 +166,29 @@ namespace enishi::animation {
             }
         }
         if (state.body_anchor < model.bind_bone.size()) {
-            state.body_bind_inverse = glm::mat3(model.bind_bone[state.body_anchor].global_inverse);
+            // Procedural axes use inverse(rest global), not the skin's inverse bind matrix.
+            // VRM skin bind space can differ from the node's initial pose.
+            state.body_bind_inverse =
+                glm::inverse(glm::mat3(model.bind_bone[state.body_anchor].global));
         }
-        if (state.body_bones[BodyHead] < model.bind_bone.size()) {
+        if (state.body_bones[std::to_underlying(BodyBone::BodyHead)] < model.bind_bone.size()) {
             state.head_local_up =
-                glm::mat3(model.bind_bone[state.body_bones[BodyHead]].global_inverse) *
-                glm::vec3(0, 1, 0);
+                glm::inverse(glm::mat3(
+                    model.bind_bone[state.body_bones[std::to_underlying(BodyBone::BodyHead)]]
+                        .global)) *
+                UP_AXIS;
         }
-        for (std::size_t joint = 0; joint < Count; ++joint) {
+        for (std::size_t joint = 0; joint < std::to_underlying(Joint::Count); ++joint) {
             if (state.joints[joint] < model.bind_bone.size()) {
                 state.bind_rotations[joint] =
                     rotation_of(model.bind_bone[state.joints[joint]].local);
             }
         }
         for (std::size_t side = 0; side < state.wrists.size(); ++side) {
-            const auto arm = side == 0 ? LeftArm : RightArm;
-            const auto elbow = side == 0 ? LeftElbow : RightElbow;
+            const auto arm = side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                               : std::to_underlying(Joint::RightArm);
+            const auto elbow = side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                 : std::to_underlying(Joint::RightElbow);
             if (!(state.wrists[side] < model.bind_bone.size()) ||
                 !(state.joints[arm] < model.bind_bone.size()) ||
                 !(state.joints[elbow] < model.bind_bone.size())) {
@@ -177,17 +196,21 @@ namespace enishi::animation {
             }
             const auto& shoulder = model.bind_bone[state.joints[arm]];
             const auto& joint = model.bind_bone[state.joints[elbow]];
-            const auto upper = glm::vec3(joint.global[3] - shoulder.global[3]);
+            const auto upper =
+                glm::vec3(joint.global[TRANSLATION_COLUMN] - shoulder.global[TRANSLATION_COLUMN]);
             const auto lower =
-                glm::vec3(model.bind_bone[state.wrists[side]].global[3] - joint.global[3]);
-            auto axis = glm::cross(upper, glm::vec3(0, 0, -1));
+                glm::vec3(model.bind_bone[state.wrists[side]].global[TRANSLATION_COLUMN] -
+                          joint.global[TRANSLATION_COLUMN]);
+            auto axis = glm::cross(upper, FORWARD_AXIS);
             if (!(glm::length(upper) > EPSILON) || !(glm::length(lower) > EPSILON) ||
                 !(glm::length(axis) > EPSILON)) {
                 continue;
             }
             axis = glm::normalize(axis);
-            state.hinge_axes[side] = glm::normalize(glm::mat3(joint.global_inverse) * axis);
-            state.upper_axes[side] = glm::normalize(glm::mat3(shoulder.global_inverse) * upper);
+            // Model-space directions become joint-local axes: axis_local = inverse(G_rest) * axis.
+            state.hinge_axes[side] = glm::normalize(glm::inverse(glm::mat3(joint.global)) * axis);
+            state.upper_axes[side] =
+                glm::normalize(glm::inverse(glm::mat3(shoulder.global)) * upper);
             // Signed bind flex measured around the forward-bending anatomical axis.
             state.bind_flex[side] =
                 std::atan2(glm::dot(glm::cross(glm::normalize(upper), glm::normalize(lower)), axis),
@@ -200,13 +223,15 @@ namespace enishi::animation {
         if (!(state.wrists[side] < state.transforms.globals.size())) {
             return false;
         }
-        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
-        const auto joint = glm::vec3(state.transforms.globals[elbow][3]);
+        const auto arm = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                                        : std::to_underlying(Joint::RightArm)];
+        const auto elbow = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                          : std::to_underlying(Joint::RightElbow)];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][TRANSLATION_COLUMN]);
+        const auto joint = glm::vec3(state.transforms.globals[elbow][TRANSLATION_COLUMN]);
         const float upper = glm::length(joint - shoulder);
-        const float lower =
-            glm::length(glm::vec3(state.transforms.globals[state.wrists[side]][3]) - joint);
+        const float lower = glm::length(
+            glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN]) - joint);
         // Each arm owns its range: |target-shoulder| < upper+lower. A 5% release
         // margin avoids repeatedly entering/leaving when the cursor grazes the boundary.
         const float release = state.active_arms[side] ? REACH_RELEASE_RATIO : 1.0f;
@@ -214,18 +239,24 @@ namespace enishi::animation {
             !(glm::length(target - shoulder) < (upper + lower) * release)) {
             return false;
         }
-        if (state.body_bones[BodyLeft] < state.transforms.globals.size() &&
-            state.body_bones[BodyRight] < state.transforms.globals.size()) {
-            const auto left = glm::vec3(state.transforms.globals[state.body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(state.transforms.globals[state.body_bones[BodyRight]][3]);
+        if (state.body_bones[std::to_underlying(BodyBone::BodyLeft)] <
+                state.transforms.globals.size() &&
+            state.body_bones[std::to_underlying(BodyBone::BodyRight)] <
+                state.transforms.globals.size()) {
+            const auto left = glm::vec3(
+                state.transforms.globals[state.body_bones[std::to_underlying(BodyBone::BodyLeft)]]
+                                        [TRANSLATION_COLUMN]);
+            const auto right = glm::vec3(
+                state.transforms.globals[state.body_bones[std::to_underlying(BodyBone::BodyRight)]]
+                                        [TRANSLATION_COLUMN]);
             const auto across = left - right;
             const float width = glm::length(across);
             if (width > EPSILON) {
                 // Project onto the shoulder axis; both ranges overlap across the torso.
                 // s=dot(target-midpoint, outward), allowed when s > -width*margin.
-                const float sign = side == 0 ? 1.0f : -1.0f;
+                const float sign = side == LEFT_SIDE ? LEFT_DIRECTION_SIGN : RIGHT_DIRECTION_SIGN;
                 const float lateral =
-                    sign * glm::dot(target - (left + right) * 0.5f, across / width);
+                    sign * glm::dot(target - (left + right) * MIDPOINT_WEIGHT, across / width);
                 const float margin =
                     state.active_arms[side] ? CROSS_BODY_RELEASE_RATIO : CROSS_BODY_RATIO;
                 return lateral > -width * margin;
@@ -235,48 +266,75 @@ namespace enishi::animation {
     }
 
     CursorArmFrame CursorReach::arm_frame(const CursorPoseState& state, std::size_t side) {
-        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
-        const float upper = glm::length(glm::vec3(state.transforms.globals[elbow][3]) - shoulder);
-        const float lower = glm::length(glm::vec3(
-            state.transforms.globals[state.wrists[side]][3] - state.transforms.globals[elbow][3]));
+        const auto arm = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                                        : std::to_underlying(Joint::RightArm)];
+        const auto elbow = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                          : std::to_underlying(Joint::RightElbow)];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][TRANSLATION_COLUMN]);
+        const float upper =
+            glm::length(glm::vec3(state.transforms.globals[elbow][TRANSLATION_COLUMN]) - shoulder);
+        const float lower =
+            glm::length(glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN] -
+                                  state.transforms.globals[elbow][TRANSLATION_COLUMN]));
         const auto basis =
             state.body_anchor < state.transforms.globals.size()
                 ? glm::mat3(state.transforms.globals[state.body_anchor]) * state.body_bind_inverse
                 : glm::mat3(1);
         CursorArmFrame frame{{},
             shoulder,
-            glm::normalize(basis * glm::vec3(1, 0, 0)),
-            glm::normalize(basis * glm::vec3(0, 1, 0)),
-            glm::normalize(basis * glm::vec3(0, 0, -1)),
+            glm::normalize(basis * X_AXIS),
+            glm::normalize(basis * UP_AXIS),
+            glm::normalize(basis * FORWARD_AXIS),
             upper + lower,
             lower * ARM_MARGIN_RATIO,
             lower * HAND_MARGIN_RATIO};
         float width = upper;
-        if (state.body_bones[BodyLeft] < state.transforms.globals.size() &&
-            state.body_bones[BodyRight] < state.transforms.globals.size()) {
-            const auto left = glm::vec3(state.transforms.globals[state.body_bones[BodyLeft]][3]);
-            const auto right = glm::vec3(state.transforms.globals[state.body_bones[BodyRight]][3]);
-            frame.center = (left + right) * 0.5f;
+        if (state.body_bones[std::to_underlying(BodyBone::BodyLeft)] <
+                state.transforms.globals.size() &&
+            state.body_bones[std::to_underlying(BodyBone::BodyRight)] <
+                state.transforms.globals.size()) {
+            const auto left = glm::vec3(
+                state.transforms.globals[state.body_bones[std::to_underlying(BodyBone::BodyLeft)]]
+                                        [TRANSLATION_COLUMN]);
+            const auto right = glm::vec3(
+                state.transforms.globals[state.body_bones[std::to_underlying(BodyBone::BodyRight)]]
+                                        [TRANSLATION_COLUMN]);
+            frame.center = (left + right) * MIDPOINT_WEIGHT;
             width = glm::length(left - right);
+            if (width > EPSILON) {
+                // Anatomical left = (left shoulder - right shoulder) / shoulder width.
+                // Humanoid rigs do not all place the left arm on the positive X side.
+                frame.outward = (left - right) / width;
+            }
         } else {
-            const float sign = side == 0 ? 1.0f : -1.0f;
-            frame.center -= frame.outward * sign * width * 0.5f;
+            const float sign = side == LEFT_SIDE ? LEFT_DIRECTION_SIGN : RIGHT_DIRECTION_SIGN;
+            frame.center -= frame.outward * sign * width * MIDPOINT_WEIGHT;
         }
-        frame.outward *= side == 0 ? 1.0f : -1.0f;
-        const auto hips = state.body_bones[BodyHips] < state.transforms.globals.size()
-                              ? glm::vec3(state.transforms.globals[state.body_bones[BodyHips]][3])
-                              : frame.center - frame.up * frame.length * TORSO_HEIGHT_RATIO;
-        const auto neck = state.body_bones[BodyNeck] < state.transforms.globals.size()
-                              ? glm::vec3(state.transforms.globals[state.body_bones[BodyNeck]][3])
-                              : frame.center;
+        frame.outward *= side == LEFT_SIDE ? LEFT_DIRECTION_SIGN : RIGHT_DIRECTION_SIGN;
+        const auto hips =
+            state.body_bones[std::to_underlying(BodyBone::BodyHips)] <
+                    state.transforms.globals.size()
+                ? glm::vec3(state.transforms
+                                .globals[state.body_bones[std::to_underlying(BodyBone::BodyHips)]]
+                                        [TRANSLATION_COLUMN])
+                : frame.center - frame.up * frame.length * TORSO_HEIGHT_RATIO;
+        const auto neck =
+            state.body_bones[std::to_underlying(BodyBone::BodyNeck)] <
+                    state.transforms.globals.size()
+                ? glm::vec3(state.transforms
+                                .globals[state.body_bones[std::to_underlying(BodyBone::BodyNeck)]]
+                                        [TRANSLATION_COLUMN])
+                : frame.center;
         frame.obstacles.push_back({hips, neck, width * TORSO_RADIUS_RATIO});
-        if (state.body_bones[BodyHead] < state.transforms.globals.size()) {
-            const auto head = glm::vec3(state.transforms.globals[state.body_bones[BodyHead]][3]);
-            const auto head_up =
-                glm::normalize(glm::mat3(state.transforms.globals[state.body_bones[BodyHead]]) *
-                               state.head_local_up);
+        if (state.body_bones[std::to_underlying(BodyBone::BodyHead)] <
+            state.transforms.globals.size()) {
+            const auto head = glm::vec3(
+                state.transforms.globals[state.body_bones[std::to_underlying(BodyBone::BodyHead)]]
+                                        [TRANSLATION_COLUMN]);
+            const auto head_up = glm::normalize(
+                glm::mat3(state.transforms
+                              .globals[state.body_bones[std::to_underlying(BodyBone::BodyHead)]]) *
+                state.head_local_up);
             frame.obstacles.push_back({head,
                 head + head_up * lower * HEAD_HEIGHT_RATIO,
                 (std::max)(width, lower) * HEAD_RADIUS_RATIO});
@@ -290,13 +348,17 @@ namespace enishi::animation {
         std::size_t side,
         const glm::vec3& target,
         const CursorArmFrame& frame) {
-        const auto arm = side == 0 ? LeftArm : RightArm;
-        const auto elbow = side == 0 ? LeftElbow : RightElbow;
-        const auto shoulder = glm::vec3(state.transforms.globals[state.joints[arm]][3]);
-        const auto joint = glm::vec3(state.transforms.globals[state.joints[elbow]][3]);
+        const auto arm = side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                           : std::to_underlying(Joint::RightArm);
+        const auto elbow = side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                             : std::to_underlying(Joint::RightElbow);
+        const auto shoulder =
+            glm::vec3(state.transforms.globals[state.joints[arm]][TRANSLATION_COLUMN]);
+        const auto joint =
+            glm::vec3(state.transforms.globals[state.joints[elbow]][TRANSLATION_COLUMN]);
         const float upper = glm::length(joint - shoulder);
-        const float lower =
-            glm::length(glm::vec3(state.transforms.globals[state.wrists[side]][3]) - joint);
+        const float lower = glm::length(
+            glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN]) - joint);
         if (!(upper > EPSILON) || !(lower > EPSILON) ||
             !(glm::length(target - shoulder) > EPSILON)) {
             return;
@@ -331,9 +393,10 @@ namespace enishi::animation {
             glm::angleAxis(flex - state.bind_flex[side], state.hinge_axes[side]);
         CursorTransforms::update_globals(state.transforms, model, animation);
         const auto current_upper =
-            glm::vec3(state.transforms.globals[state.joints[elbow]][3]) - shoulder;
-        const auto current_lower = glm::vec3(state.transforms.globals[state.wrists[side]][3] -
-                                             state.transforms.globals[state.joints[elbow]][3]);
+            glm::vec3(state.transforms.globals[state.joints[elbow]][TRANSLATION_COLUMN]) - shoulder;
+        const auto current_lower =
+            glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN] -
+                      state.transforms.globals[state.joints[elbow]][TRANSLATION_COLUMN]);
         auto correction = between(current_upper, desired_upper);
         const auto axis = glm::normalize(desired_upper);
         const auto from = glm::cross(correction * current_upper, correction * current_lower);
@@ -355,14 +418,16 @@ namespace enishi::animation {
     void CursorReach::limit_arm_speed(CursorPoseState& state,
         const component::ModelComponent& model,
         component::AnimationComponent& animation,
-        const std::array<glm::quat, Count>& previous,
+        const std::array<glm::quat, std::to_underlying(Joint::Count)>& previous,
         float seconds) {
         const float elapsed = std::isfinite(seconds) ? (std::max)(0.0f, seconds) : 0.0f;
         const float step = glm::radians(state.config.arm_speed) * elapsed;
         constexpr std::size_t BACKTRACK_STEPS = 12;
         for (std::size_t side = 0; side < state.wrists.size(); ++side) {
-            const auto arm = side == 0 ? LeftArm : RightArm;
-            const auto elbow = side == 0 ? LeftElbow : RightElbow;
+            const auto arm = side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                               : std::to_underlying(Joint::RightArm);
+            const auto elbow = side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                 : std::to_underlying(Joint::RightElbow);
             if (!(state.wrists[side] < state.transforms.globals.size())) {
                 continue;
             }
@@ -403,7 +468,7 @@ namespace enishi::animation {
                     break;
                 }
                 // A safe destination does not imply a safe interpolation. Backtrack t/=2.
-                fraction *= 0.5f;
+                fraction *= BACKTRACK_FACTOR;
             }
             if (!accepted) {
                 set_offsets(previous[arm], previous[elbow]);
@@ -422,8 +487,10 @@ namespace enishi::animation {
         component::AnimationComponent& animation) {
         CursorTransforms::update_globals(state.transforms, model, animation);
         for (std::size_t side = 0; side < state.wrists.size(); ++side) {
-            const auto arm = side == 0 ? LeftArm : RightArm;
-            const auto elbow = side == 0 ? LeftElbow : RightElbow;
+            const auto arm = side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                               : std::to_underlying(Joint::RightArm);
+            const auto elbow = side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                 : std::to_underlying(Joint::RightElbow);
             if (!(state.wrists[side] < state.transforms.globals.size()) ||
                 (glm::length(state.offsets[arm] - IDENTITY) < EPSILON &&
                     glm::length(state.offsets[elbow] - IDENTITY) < EPSILON)) {
@@ -439,7 +506,8 @@ namespace enishi::animation {
             if (!CursorReach::arm_clear(state, side, frame)) {
                 // Interpolation between two safe poses can cut through the body. Re-solve its
                 // actual intermediate hand position and keep the corrected offset for next frame.
-                const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+                const auto wrist =
+                    glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN]);
                 if (!CursorReach::reach_side(state, model, animation, side, wrist)) {
                     animation.animation[state.joints[arm]].rotation = state.originals[arm];
                     animation.animation[state.joints[elbow]].rotation = state.originals[elbow];
@@ -458,7 +526,7 @@ namespace enishi::animation {
         const component::ModelComponent& model,
         component::AnimationComponent& animation,
         const glm::vec3& target) {
-        std::array<glm::vec3, 2> goals{target, target};
+        std::array<glm::vec3, ARM_COUNT> goals{target, target};
         // Cooldown gates the next jump, not the effort to reach its target after landing.
         const bool stretch = state.locomotion.wait > 0 || state.locomotion.height > 0 ||
                              CursorJump::desired_jump_height(state, target) > 0;
@@ -469,7 +537,10 @@ namespace enishi::animation {
                 continue;
             }
             const auto shoulder = glm::vec3(
-                state.transforms.globals[state.joints[side == 0 ? LeftArm : RightArm]][3]);
+                state.transforms
+                    .globals[state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                                            : std::to_underlying(Joint::RightArm)]]
+                            [TRANSLATION_COLUMN]);
             const auto delta = target - shoulder;
             if (!(delta.y > 0)) {
                 continue;
@@ -481,9 +552,10 @@ namespace enishi::animation {
                                          CursorReach::arm_frame(state, side).length *
                                          JUMP_REACH_MARGIN;
         }
-        const std::array<bool, 2> in_range{
-            CursorReach::can_reach(state, 0, goals[0]), CursorReach::can_reach(state, 1, goals[1])};
-        const bool both = in_range[0] && in_range[1];
+        const std::array<bool, ARM_COUNT> in_range{
+            CursorReach::can_reach(state, LEFT_SIDE, goals[LEFT_SIDE]),
+            CursorReach::can_reach(state, RIGHT_SIDE, goals[RIGHT_SIDE])};
+        const bool both = in_range[LEFT_SIDE] && in_range[RIGHT_SIDE];
         for (std::size_t side = 0; side < state.wrists.size(); ++side) {
             auto goal = goals[side];
             if (both) {
@@ -499,11 +571,14 @@ namespace enishi::animation {
 
     bool CursorReach::arm_clear(
         const CursorPoseState& state, std::size_t side, const CursorArmFrame& frame) {
-        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
-        const auto shoulder = glm::vec3(state.transforms.globals[arm][3]);
-        const auto joint = glm::vec3(state.transforms.globals[elbow][3]);
-        const auto wrist = glm::vec3(state.transforms.globals[state.wrists[side]][3]);
+        const auto arm = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                                        : std::to_underlying(Joint::RightArm)];
+        const auto elbow = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                          : std::to_underlying(Joint::RightElbow)];
+        const auto shoulder = glm::vec3(state.transforms.globals[arm][TRANSLATION_COLUMN]);
+        const auto joint = glm::vec3(state.transforms.globals[elbow][TRANSLATION_COLUMN]);
+        const auto wrist =
+            glm::vec3(state.transforms.globals[state.wrists[side]][TRANSLATION_COLUMN]);
         for (const auto& capsule : frame.obstacles) {
             // Inflate centerline tests by limb thickness, and the wrist by the hand's extent.
             const float squared =
@@ -516,11 +591,15 @@ namespace enishi::animation {
                 return false;
             }
         }
-        const std::size_t other = 1 - side;
+        const std::size_t other = side == LEFT_SIDE ? RIGHT_SIDE : LEFT_SIDE;
         if (state.wrists[other] < state.transforms.globals.size()) {
-            const auto other_elbow = state.joints[other == 0 ? LeftElbow : RightElbow];
-            const auto other_joint = glm::vec3(state.transforms.globals[other_elbow][3]);
-            const auto other_wrist = glm::vec3(state.transforms.globals[state.wrists[other]][3]);
+            const auto other_elbow =
+                state.joints[other == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                : std::to_underlying(Joint::RightElbow)];
+            const auto other_joint =
+                glm::vec3(state.transforms.globals[other_elbow][TRANSLATION_COLUMN]);
+            const auto other_wrist =
+                glm::vec3(state.transforms.globals[state.wrists[other]][TRANSLATION_COLUMN]);
             const auto other_frame = CursorReach::arm_frame(state, other);
             const float limb_clearance = frame.arm_margin + other_frame.arm_margin;
             const float hand_clearance = frame.hand_margin + other_frame.hand_margin;
@@ -543,8 +622,10 @@ namespace enishi::animation {
 
     void CursorReach::constrain_arm(
         const CursorPoseState& state, component::AnimationComponent& animation, std::size_t side) {
-        const auto arm = side == 0 ? LeftArm : RightArm;
-        const auto elbow = side == 0 ? LeftElbow : RightElbow;
+        const auto arm = side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                           : std::to_underlying(Joint::RightArm);
+        const auto elbow = side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                             : std::to_underlying(Joint::RightElbow);
         auto& upper = animation.animation[state.joints[arm]].rotation;
         auto& lower = animation.animation[state.joints[elbow]].rotation;
         upper = glm::normalize(state.bind_rotations[arm] *
@@ -570,8 +651,10 @@ namespace enishi::animation {
         safe_target += frame.forward * (std::max)(0.0f,
                                            frame.length * FRONT_REACH_RATIO -
                                                glm::dot(safe_target - frame.center, frame.forward));
-        const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
-        const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+        const auto arm = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftArm)
+                                                        : std::to_underlying(Joint::RightArm)];
+        const auto elbow = state.joints[side == LEFT_SIDE ? std::to_underlying(Joint::LeftElbow)
+                                                          : std::to_underlying(Joint::RightElbow)];
         const auto original_upper = animation.animation[arm].rotation;
         const auto original_lower = animation.animation[elbow].rotation;
         for (std::size_t attempt = 0; attempt < AVOID_ATTEMPTS; ++attempt) {

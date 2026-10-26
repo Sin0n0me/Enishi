@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <utility>
 
 using namespace enishi;
 namespace {
@@ -180,7 +181,7 @@ namespace {
         const glm::vec3 offset(1, 0, 0);
         animation::CursorPoseState state{};
         state.joints.fill(types::INVALID_BONE_INDEX);
-        state.joints[animation::CursorPoseState::Head] = HEAD_BONE;
+        state.joints[std::to_underlying(animation::CursorPoseState::Joint::Head)] = HEAD_BONE;
         state.transforms.globals.resize(BONE_COUNT, glm::mat4(1));
         component::AnimationComponent first;
         first.animation.resize(BONE_COUNT);
@@ -188,7 +189,7 @@ namespace {
         const auto initial = first.animation[HEAD_BONE].rotation;
         animation::CursorGaze::look(state,
             first,
-            animation::CursorPoseState::Head,
+            animation::CursorPoseState::Joint::Head,
             offset,
             state.config.head_yaw,
             state.config.head_pitch);
@@ -198,7 +199,7 @@ namespace {
             "Gaze only modifies the supplied animation");
         animation::CursorGaze::look(state,
             second,
-            animation::CursorPoseState::Head,
+            animation::CursorPoseState::Joint::Head,
             offset,
             state.config.head_yaw,
             state.config.head_pitch);

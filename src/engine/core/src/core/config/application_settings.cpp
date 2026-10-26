@@ -8,15 +8,15 @@
 
 namespace enishi::core {
     namespace {
-        enum Section : std::size_t { Camera, Cursor, Events, Count };
-        using Sections = std::array<std::string, Count>;
-        constexpr std::array<std::string_view, Count> HEADERS{
+        enum class Section : std::size_t { Camera, Cursor, Events, Count };
+        using Sections = std::array<std::string, std::to_underlying(Section::Count)>;
+        constexpr std::array<std::string_view, std::to_underlying(Section::Count)> HEADERS{
             "[camera]", "[cursor_tracking]", "[model_events]"};
 
         foundation::Result<Sections, SettingsError> split_sections(std::istream& stream) {
             Sections sections;
-            std::array<bool, Count> seen{};
-            std::size_t current = Count;
+            std::array<bool, std::to_underlying(Section::Count)> seen{};
+            std::size_t current = std::to_underlying(Section::Count);
             std::size_t previous_line = 0;
             foundation::ConfigLineReader reader(stream);
             std::istringstream fields;
@@ -30,14 +30,14 @@ namespace enishi::core {
                 if (fields.peek() == '[') {
                     std::string header;
                     fields >> header;
-                    current = Count;
+                    current = std::to_underlying(Section::Count);
                     for (std::size_t index = 0; index < HEADERS.size(); ++index) {
                         if (header == HEADERS[index]) {
                             current = index;
                             break;
                         }
                     }
-                    if (current == Count || seen[current] ||
+                    if (current == std::to_underlying(Section::Count) || seen[current] ||
                         foundation::has_config_trailing_fields(fields)) {
                         return foundation::Error(SettingsError::InvalidSetting,
                             "Unknown, duplicate or malformed section at line " +
@@ -45,7 +45,7 @@ namespace enishi::core {
                     }
                     seen[current] = true;
                 } else {
-                    if (current == Count) {
+                    if (current == std::to_underlying(Section::Count)) {
                         return foundation::Error(SettingsError::InvalidSetting,
                             "Setting outside a section at line " + std::to_string(previous_line));
                     }
@@ -69,9 +69,9 @@ namespace enishi::core {
             return std::move(split).unwrap_err();
         }
         auto sections = std::move(split).unwrap();
-        std::istringstream camera_stream(sections[Camera]);
-        std::istringstream cursor_stream(sections[Cursor]);
-        std::istringstream event_stream(sections[Events]);
+        std::istringstream camera_stream(sections[std::to_underlying(Section::Camera)]);
+        std::istringstream cursor_stream(sections[std::to_underlying(Section::Cursor)]);
+        std::istringstream event_stream(sections[std::to_underlying(Section::Events)]);
         auto camera = parse_camera_zoom_config(camera_stream);
         if (camera.is_err()) {
             return foundation::Error(

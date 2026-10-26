@@ -1,4 +1,5 @@
 #include "vrm_context.h"
+#include "vrm_schema.h"
 #include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -54,17 +55,18 @@ namespace enishi::assets_system {
             bone.bind_bone.global_inverse = glm::inverse(bone.bind_bone.global);
         }
         const auto assign = [&](const std::string& name, const VRMJson& value) {
-            const auto index = value["node"].index();
+            const auto index = value[vrm_schema::key::NODE].index();
             if (!(index < bones.size())) {
                 return false;
             }
             bones[index].name = name;
             return true;
         };
-        const auto& humanoid = context.extension["humanoid"]["humanBones"];
+        const auto& humanoid =
+            context.extension[vrm_schema::key::HUMANOID][vrm_schema::key::HUMAN_BONES];
         if (context.legacy) {
             for (const auto& bone : humanoid.elements) {
-                if (!assign(bone["bone"].value, bone)) {
+                if (!assign(bone[vrm_schema::key::BONE].value, bone)) {
                     return context.fail("Invalid VRM humanoid node");
                 }
             }

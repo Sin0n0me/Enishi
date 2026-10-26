@@ -6,10 +6,11 @@
 #include <animation/procedural/legs/cursor_legs.h>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
+    using BodyBone = CursorPoseState::BodyBone;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float RESPONSE = 8.0f;
@@ -62,7 +63,7 @@ namespace enishi::animation {
         const CursorRay& cursor) {
         if (!state.transforms.valid || state.hanging_state.active ||
             state.hanging_state.weight > EPSILON ||
-            !(state.joints[Head] < animation.global.size())) {
+            !(state.joints[std::to_underlying(Joint::Head)] < animation.global.size())) {
             return std::nullopt;
         }
         std::optional<std::pair<std::size_t, float>> result;
@@ -80,7 +81,7 @@ namespace enishi::animation {
             const float radius = CursorReach::arm_frame(state, side).length * HAND_RADIUS_RATIO;
             const auto point = cursor.ray.origin + t * cursor.ray.direction;
             const float minimum_height =
-                animation.global[state.joints[Head]][3].y +
+                animation.global[state.joints[std::to_underlying(Joint::Head)]][3].y +
                 CursorReach::arm_frame(state, side).length * HEAD_CLEARANCE_RATIO;
             if (point.y > minimum_height && t > 0 &&
                 glm::length(cursor.ray.origin + t * cursor.ray.direction - hand) < radius &&
@@ -97,7 +98,7 @@ namespace enishi::animation {
         const CursorRay& cursor) {
         if (!(side < state.wrists.size()) || !(state.wrists[side] < animation.global.size()) ||
             state.transforms.cached_local.size() != animation.animation.size() ||
-            !(state.joints[Head] < animation.global.size())) {
+            !(state.joints[std::to_underlying(Joint::Head)] < animation.global.size())) {
             return;
         }
         state.hanging_state.side = side;
@@ -107,7 +108,7 @@ namespace enishi::animation {
         // The transform cache may still contain a temporary suspension/jump pose. Rebuild
         // the entry pose from authored animation: q_entry = q_source * q_cursor_offset.
         state.hanging_state.pose = animation.animation;
-        for (std::size_t joint = 0; joint < Count; ++joint) {
+        for (std::size_t joint = 0; joint < std::to_underlying(Joint::Count); ++joint) {
             if (state.joints[joint] < state.hanging_state.pose.size()) {
                 state.hanging_state.pose[state.joints[joint]].rotation = glm::normalize(
                     state.hanging_state.pose[state.joints[joint]].rotation * state.offsets[joint]);
@@ -124,7 +125,7 @@ namespace enishi::animation {
         state.hanging_state.entry_time = 0;
         // Keep the entry threshold fixed; moving the suspended head must not move the threshold.
         state.hanging_state.min_height =
-            animation.global[state.joints[Head]][3].y +
+            animation.global[state.joints[std::to_underlying(Joint::Head)]][3].y +
             CursorReach::arm_frame(state, side).length * HEAD_CLEARANCE_RATIO;
         state.hanging_state.active = true;
         state.locomotion.height = 0;
@@ -251,7 +252,7 @@ namespace enishi::animation {
         animation.animation = state.hanging_state.pose;
         CursorHanging::prepare_hanging_limbs(state, model, animation);
         const auto wrist = state.wrists[state.hanging_state.side];
-        const auto hips = state.body_bones[BodyHips];
+        const auto hips = state.body_bones[std::to_underlying(BodyBone::BodyHips)];
         const auto center =
             hips < state.transforms.globals.size()
                 ? glm::vec3(state.transforms.globals[hips][3])
@@ -291,13 +292,15 @@ namespace enishi::animation {
         CursorHanging::hang_limb(state,
             model,
             animation,
-            state.joints[state.hanging_state.side == 0 ? LeftArm : RightArm],
+            state.joints[state.hanging_state.side == 0 ? std::to_underlying(Joint::LeftArm)
+                                                       : std::to_underlying(Joint::RightArm)],
             wrist,
             -DOWN);
         CursorHanging::hang_limb(state,
             model,
             animation,
-            state.joints[free_side == 0 ? LeftArm : RightArm],
+            state.joints[free_side == 0 ? std::to_underlying(Joint::LeftArm)
+                                        : std::to_underlying(Joint::RightArm)],
             state.wrists[free_side],
             DOWN);
         for (const auto& leg : state.locomotion.legs) {
@@ -341,7 +344,8 @@ namespace enishi::animation {
     void CursorHanging::prepare_hanging_limbs(CursorPoseState& state,
         const component::ModelComponent& model,
         component::AnimationComponent& animation) {
-        const auto elbow = state.hanging_state.side == 0 ? LeftElbow : RightElbow;
+        const auto elbow = state.hanging_state.side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                         : std::to_underlying(Joint::RightElbow);
         // flex=0 straightens the support arm in its hinge plane without hyperextension.
         animation.animation[state.joints[elbow]].rotation =
             state.bind_rotations[elbow] * glm::angleAxis(-state.bind_flex[state.hanging_state.side],
@@ -451,7 +455,7 @@ namespace enishi::animation {
         component::AnimationComponent& animation,
         float seconds) {
         const float dt = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, MAX_DT) : 0;
-        const auto hips = state.body_bones[BodyHips];
+        const auto hips = state.body_bones[std::to_underlying(BodyBone::BodyHips)];
         const auto center_bone =
             hips < state.transforms.globals.size() ? hips : state.locomotion.roots.front();
         if (state.hanging_state.landing_time == 0) {
@@ -499,7 +503,10 @@ namespace enishi::animation {
         if (!animation.motion_playing) {
             // Blend the released pose toward lowered arms, rather than through the bind pose.
             CursorIdle::apply_idle_arms(state, model, animation, 1.0f);
-            for (const auto joint : {LeftArm, LeftElbow, RightArm, RightElbow}) {
+            for (const auto joint : {std::to_underlying(Joint::LeftArm),
+                     std::to_underlying(Joint::LeftElbow),
+                     std::to_underlying(Joint::RightArm),
+                     std::to_underlying(Joint::RightElbow)}) {
                 const auto bone = state.joints[joint];
                 if (bone < animation.animation.size()) {
                     // Carry q_offset=inverse(q_source)*q_idle into normal pose smoothing.
