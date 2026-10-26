@@ -215,8 +215,8 @@ int main() {
         runtime_test(after_physics, {0, 1, 0});
         after_physics.bones[GOAL_B].flags |= AFTER_PHYSICS;
         runtime_test(after_physics, {0, -1, 0});
-        runtime_test(
-            fixture(std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::min()),
+        runtime_test(fixture(std::numeric_limits<std::int32_t>::max(),
+                         std::numeric_limits<std::int32_t>::min()),
             {0, 1, 0});
         auto forward = fixture(20, 10);
         forward.bones[ROOT].parent = TIP;

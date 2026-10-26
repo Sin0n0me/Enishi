@@ -1,27 +1,27 @@
 #include "application.h"
-#include <script/script_engine.h>
-#include <core/system/animation/animation_system.h>
 #include <core/config/application_settings.h>
+#include <core/system/animation/animation_system.h>
 #include <core/system/animation/bone_name_config.h>
+#include <core/system/animation/model_event_motion_handler.h>
 #include <core/system/animation/morph_name_config.h>
+#include <core/system/asset/asset_system.h>
 #include <core/system/camera/camera_controller.h>
 #include <core/system/camera/camera_zoom_system.h>
-#include <core/system/animation/model_event_motion_handler.h>
-#include <core/system/asset/asset_system.h>
-#include <core/system/collision/model_collision_system.h>
 #include <core/system/collision/model_click_system.h>
+#include <core/system/collision/model_collision_system.h>
+#include <core/system/debug/obb_debug_system.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/render/model_render_system.h>
 #include <core/system/skinning/skinning_system.h>
-#include <core/system/window/window_animation_sync.h>
-#include <ui/selection/selection_ui.h>
 #include <core/system/ui/ui_system.h>
-#include <core/system/debug/obb_debug_system.h>
+#include <core/system/window/window_animation_sync.h>
 #include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <physics/common/physics_config.h>
 #include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
+#include <script/script_engine.h>
+#include <ui/selection/selection_ui.h>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -64,7 +64,8 @@ namespace enishi {
         return this->camera;
     }
 
-    std::shared_ptr<sub_system::IWindowAnimationSync> Application::get_window_animation_sync() const {
+    std::shared_ptr<sub_system::IWindowAnimationSync>
+    Application::get_window_animation_sync() const {
         return this->window_animation_sync;
     }
 
@@ -138,14 +139,21 @@ namespace enishi {
         }
 
         constexpr core::Priority CLICK_PRIORITY = 97;
-        const auto clicks = this->system_scheduler.register_system<core::ModelClickSystem>(
-            CLICK_PRIORITY, this->collider, root_window, this->registry, this->click_settings,
-            this->display_camera);
-        clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(
-            this->registry, animation_system, std::move(settings.model_events),
-            this->click_settings, physics_engine->get_shared_world()));
+        const auto clicks =
+            this->system_scheduler.register_system<core::ModelClickSystem>(CLICK_PRIORITY,
+                this->collider,
+                root_window,
+                this->registry,
+                this->click_settings,
+                this->display_camera);
+        clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(this->registry,
+            animation_system,
+            std::move(settings.model_events),
+            this->click_settings,
+            physics_engine->get_shared_world()));
         root_window->set_model_drag_handler(
-            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](types::ClientMousePosition cursor) {
+            [weak = std::weak_ptr<core::SkinningSystem>(skinning_system)](
+                types::ClientMousePosition cursor) {
                 const auto system = weak.lock();
                 return system != nullptr && system->begin_model_drag(cursor);
             },
@@ -155,11 +163,11 @@ namespace enishi {
                     system->end_model_drag();
                 }
             });
-        root_window->set_interactive_hit_test(
-            [weak = std::weak_ptr<core::ModelClickSystem>(clicks)](types::ClientMousePosition cursor) {
-                const auto system = weak.lock();
-                return system != nullptr && system->pick(cursor).has_value();
-            });
+        root_window->set_interactive_hit_test([weak = std::weak_ptr<core::ModelClickSystem>(
+                                                   clicks)](types::ClientMousePosition cursor) {
+            const auto system = weak.lock();
+            return system != nullptr && system->pick(cursor).has_value();
+        });
 
         // レンダラーの初期化
         const auto shared_asset_system = asset_system->get_asset_system();
@@ -287,9 +295,13 @@ namespace enishi {
             debug::Logger::error("モデル用レンダーパスが見つかりません");
             return {};
         }
-        const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(
-            95, this->registry, asset_system, renderer, model_render_pass.unwrap(),
-            this->orchestra->get_render_pass(render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME)
+        const auto models = this->system_scheduler.register_system<core::ModelRenderSystem>(95,
+            this->registry,
+            asset_system,
+            renderer,
+            model_render_pass.unwrap(),
+            this->orchestra
+                ->get_render_pass(render_pass::ShadowMapRenderPassConstructor::RENDER_PASS_NAME)
                 .unwrap_or(nullptr));
 
         if (!this->init_ui(root_window, render_system, models)) {
@@ -329,9 +341,7 @@ namespace enishi {
         const auto selection = std::make_shared<ui::SelectionUI>(
             std::move(models), this->click_settings, scripts, render_settings);
         this->system_scheduler.register_system<core::UISystem>(
-            UI_PRIORITY,
-            ui,
-            [selection, window](sub_system::IUI& ui) {
+            UI_PRIORITY, ui, [selection, window](sub_system::IUI& ui) {
                 selection->update(ui);
                 if (selection->is_exit_requested()) {
                     window->close();

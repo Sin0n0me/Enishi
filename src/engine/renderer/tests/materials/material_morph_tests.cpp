@@ -70,7 +70,8 @@ void material_morph_tests() {
     const auto before =
         animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse;
     std::swap(targets[0], targets[1]);
-    check(animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse == before,
+    check(animation::evaluate_material_morphs(materials, targets, weights).unwrap()[0].diffuse ==
+              before,
         "additive and multiplicative morph order does not change the result");
     weights = {0, 0, 0};
     result = animation::evaluate_material_morphs(materials, targets, weights);

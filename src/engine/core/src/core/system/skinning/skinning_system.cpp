@@ -18,7 +18,8 @@
 namespace enishi::core {
     SkinningSystem::SkinningSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept
-        : registry(std::move(registry)), physics_engine(std::move(physics_engine)) {
+        : registry(std::move(registry))
+        , physics_engine(std::move(physics_engine)) {
     }
 
     void SkinningSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
@@ -127,9 +128,11 @@ namespace enishi::core {
                     model, this->cursor_config, this->bone_names);
             }
             if (bones.cursor_pose != nullptr) {
-                bones.cursor_pose->apply_transitioned(model, animation,
+                bones.cursor_pose->apply_transitioned(model,
+                    animation,
                     bones.cursor_pose->is_hanging() ? drag_cursor : cursor,
-                    delta_time.to_float_second(), window != nullptr && !animation.motion_playing);
+                    delta_time.to_float_second(),
+                    window != nullptr && !animation.motion_playing);
             }
             for (const auto command : order) {
                 if (debug_paused && command == types::SkinningCommand::WriteBackPhysicsSimulate) {
@@ -308,7 +311,8 @@ namespace enishi::core {
             if (found == ik.ik_map.end() || !(found->second < ik.iks.size())) {
                 continue;
             }
-            if (bones.cursor_pose != nullptr && bones.cursor_pose->suppress_hanging_ik(bone_index)) {
+            if (bones.cursor_pose != nullptr &&
+                bones.cursor_pose->suppress_hanging_ik(bone_index)) {
                 continue;
             }
             ik::IKSolver::apply_ik(ik.iks[found->second],

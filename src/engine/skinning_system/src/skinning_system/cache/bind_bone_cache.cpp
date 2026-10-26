@@ -9,7 +9,8 @@ namespace enishi::skinning_system {
         return this->bind_views.size();
     }
 
-    const sub_system::IBindBoneView* BindBonesCache::at(const types::BoneIndex index) const noexcept {
+    const sub_system::IBindBoneView* BindBonesCache::at(
+        const types::BoneIndex index) const noexcept {
         return this->bind_views[index].get();
     }
 } // namespace enishi::skinning_system

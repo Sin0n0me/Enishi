@@ -1,8 +1,8 @@
 #include "physics_world.h"
 #include "rigid_body/rigid_body_impulse.h"
 #include <cmath>
-#include <format>
 #include <debug/log/logger.h>
+#include <format>
 
 namespace enishi::physics::bullet3 {
     foundation::Result<void, sub_system::PhysicsError> PhysicsWorld::apply_impulse(

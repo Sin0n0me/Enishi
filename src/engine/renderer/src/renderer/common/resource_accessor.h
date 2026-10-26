@@ -6,12 +6,12 @@
 
 namespace enishi::renderer {
     class ResourceAccessor final : public platform::IRenderResourceAccessor,
-                                         public platform::IGPUResourceAccessor,
-                                         public platform::IViewAccessor,
-                                         public platform::IBufferAccessor,
-                                         public platform::IShaderAccessor,
-                                         public platform::IMeshAccessor,
-                                         public platform::IStateAccessor {
+                                   public platform::IGPUResourceAccessor,
+                                   public platform::IViewAccessor,
+                                   public platform::IBufferAccessor,
+                                   public platform::IShaderAccessor,
+                                   public platform::IMeshAccessor,
+                                   public platform::IStateAccessor {
       private:
         using RTV = platform::IViewAccessor::RenderTargetView;
         using SRV = platform::IViewAccessor::ShaderResourceView;

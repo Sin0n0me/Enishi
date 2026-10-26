@@ -120,8 +120,7 @@ namespace enishi::renderer::opengl {
         glReadBuffer(GL_NONE);
         const auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
-            debug::Logger::error(
-                std::format("OpenGL depth framebuffer incomplete: {:#x}", status));
+            debug::Logger::error(std::format("OpenGL depth framebuffer incomplete: {:#x}", status));
             return;
         }
         glViewport(0, 0, image->second.size.x, image->second.size.y);

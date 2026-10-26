@@ -32,4 +32,4 @@ namespace enishi::skinning_system {
     const glm::mat4& PhysicsBoneView::get_physics_global(void) const noexcept {
         return *this->global;
     }
-} // namespace enishi::skeleton
+} // namespace enishi::skinning_system

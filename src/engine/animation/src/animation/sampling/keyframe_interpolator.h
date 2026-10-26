@@ -1,7 +1,7 @@
 #pragma once
 #include "../clip_data/animation.h"
-#include "../clip_data/interpolation/interpolation.h"
 #include "../clip_data/interpolation/hermite/hermite.h"
+#include "../clip_data/interpolation/interpolation.h"
 #include "../clip_data/interpolation/linear_interpolation/linear_interpolation.h"
 #include "../clip_data/interpolation/vmd/vmd_interpolation.h"
 #include <algorithm>

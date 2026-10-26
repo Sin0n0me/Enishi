@@ -387,8 +387,8 @@ namespace enishi::platform_impl {
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
                     this->input.reset_keys();
                     for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
-                        button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
-                        ++button) {
+                         button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
+                         ++button) {
                         this->input.on_mouse_button_up(static_cast<types::MouseButton>(button));
                     }
                     this->input.begin_frame();
@@ -429,8 +429,7 @@ namespace enishi::platform_impl {
         const Uint32 transparentColor = SDL_MapSurfaceRGBA(shape, 0, 0, 0, 30);
 
         if (!SDL_FillSurfaceRect(shape, nullptr, transparentColor)) {
-            debug::Logger::error(
-                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
         }
@@ -440,8 +439,7 @@ namespace enishi::platform_impl {
         const Uint32 opaqueColor = SDL_MapSurfaceRGBA(shape, 255, 255, 255, 0);
 
         if (!SDL_FillSurfaceRect(shape, &interactiveRect, opaqueColor)) {
-            debug::Logger::error(
-                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
         }

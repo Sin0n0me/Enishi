@@ -83,8 +83,8 @@ int main() {
     check(renderer::write_vertex_positions(updater, 0, {}).is_err() && !uploaded,
         "wrong vertex count must not upload");
     morphs.targets[0].offsets = {types::VertexMorphOffset{2, {1, 0, 0}}};
-    check(
-        animation::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights).is_err(),
+    check(animation::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights)
+              .is_err(),
         "invalid vertex must return an error");
     std::cout << "Vertex morph tests passed\n";
 }

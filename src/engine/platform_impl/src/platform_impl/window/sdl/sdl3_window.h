@@ -1,7 +1,7 @@
 #pragma once
-#include <debug/playback/playback_control.h>
 #include "../../input/sdl/sdl_input.h"
 #include <SDL3/SDL.h>
+#include <debug/playback/playback_control.h>
 #include <engine_types/renderer/graphics_api.h>
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
@@ -55,8 +55,8 @@ namespace enishi::platform_impl {
 
         foundation::Option<SDL_Window*> get_window_handle(void) const;
         void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
-        void set_ui(std::weak_ptr<sub_system::IUI> ui,
-            std::function<void(const SDL_Event&)> event_handler);
+        void set_ui(
+            std::weak_ptr<sub_system::IUI> ui, std::function<void(const SDL_Event&)> event_handler);
 
         foundation::VoidResult<platform::WindowError> init(void) noexcept override;
         foundation::Option<const platform::IInput*> get_input(void) const noexcept override;

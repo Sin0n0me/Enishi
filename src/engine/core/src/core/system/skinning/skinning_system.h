@@ -1,5 +1,4 @@
 #pragma once
-#include <debug/playback/playback_control.h>
 #include "model_bones.h"
 #include <array>
 #include <component/animation_component.h>
@@ -9,6 +8,7 @@
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/interface_system.h>
+#include <debug/playback/playback_control.h>
 #include <ecs/registry.h>
 #include <engine_types/skinning/skinning_command.h>
 #include <memory>

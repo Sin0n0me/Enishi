@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
-#include <sub_system/model/bone/interface_bind_bone_view_list.h>
 #include <skinning_system/views/bind_bone_view.h>
 #include <span>
+#include <sub_system/model/bone/interface_bind_bone_view_list.h>
 #include <vector>
 
 namespace enishi::skinning_system {

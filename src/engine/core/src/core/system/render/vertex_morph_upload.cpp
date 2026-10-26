@@ -30,8 +30,8 @@ namespace enishi::core {
             return foundation::Error(
                 platform::RenderError::ResolveError, "Morph vertex updater is missing");
         }
-        const auto uvs =
-            animation::evaluate_uv_morphs(model.morph_base_uvs, model.morph_targets.targets, morph.weights);
+        const auto uvs = animation::evaluate_uv_morphs(
+            model.morph_base_uvs, model.morph_targets.targets, morph.weights);
         if (uvs.is_err()) {
             return uvs.propagation(platform::RenderError::ResolveError);
         }

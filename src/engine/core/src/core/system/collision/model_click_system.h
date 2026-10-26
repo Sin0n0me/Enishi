@@ -1,8 +1,8 @@
 #pragma once
-#include <engine_types/input/model_click_settings.h>
 #include <collider/collider.h>
 #include <core/system/interface_system.h>
 #include <ecs/registry.h>
+#include <engine_types/input/model_click_settings.h>
 #include <platform/window/interface_window.h>
 #include <sub_system/camera/interface_camera_controller.h>
 #include <sub_system/collision/interface_model_click_handler.h>

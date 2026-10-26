@@ -19,7 +19,7 @@ namespace enishi::core {
         const auto inverse_world = glm::inverse(camera.world);
         // Convert both the picking ray and the camera-facing target plane to model space.
         return animation::CursorRay{{glm::vec3(inverse_world * glm::vec4(ray.origin, 1)),
-                             glm::normalize(glm::mat3(inverse_world) * ray.direction)},
+                                        glm::normalize(glm::mat3(inverse_world) * ray.direction)},
             glm::normalize(glm::mat3(inverse_world) * glm::vec3(glm::inverse(camera.view)[2]))};
     }
 } // namespace enishi::core

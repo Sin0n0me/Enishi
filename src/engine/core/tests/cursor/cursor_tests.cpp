@@ -1,11 +1,11 @@
 #include "arm_direction_tests.h"
 #include <animation/playback/animation_controller.h>
+#include <animation/procedural/cursor/cursor_pose.h>
 #include <chrono>
 #include <collider/collider.h>
 #include <collider/obb_maker.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/cursor_pose_config.h>
-#include <animation/procedural/cursor/cursor_pose.h>
 #include <core/system/skinning/skinning_system.h>
 #include <cstdlib>
 #include <engine_types/renderer/uniform_buffer/camera.h>
@@ -1970,7 +1970,8 @@ namespace {
                 const auto normal =
                     frontal ? glm::vec3(0, 0, 1) : glm::normalize(glm::vec3(0, 11, 0) - origin);
                 const glm::vec3 reachable(1, 10.95f, 0);
-                const animation::CursorRay ray{{origin, glm::normalize(reachable - origin)}, normal};
+                const animation::CursorRay ray{
+                    {origin, glm::normalize(reachable - origin)}, normal};
                 for (int frame = 0; frame < FRAMES; ++frame) {
                     pose.apply(fixture.model, fixture.animation, ray, DT);
                     check(fixture.animation.animation[std::to_underlying(Bone::Root)].position ==

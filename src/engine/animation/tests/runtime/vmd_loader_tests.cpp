@@ -28,7 +28,7 @@ namespace {
         std::filesystem::remove(path);
         return result;
     }
-}
+} // namespace
 
 void vmd_loader_tests() {
     assets_system::VMDHeader header{};
@@ -56,7 +56,8 @@ void vmd_loader_tests() {
     check(result.is_ok(), "complete VMD parses");
     check(std::string(result.unwrap()->name.data()) == "model", "model name retained");
     check(result.unwrap()->iks.size() == 1 && result.unwrap()->iks[0].frame == FRAME &&
-              result.unwrap()->iks[0].ik_infos.size() == 1, "variable IK record parses field by field");
+              result.unwrap()->iks[0].ik_infos.size() == 1,
+        "variable IK record parses field by field");
     data.pop_back();
     check(load(data).is_err(), "truncated record rejected");
     data.clear();

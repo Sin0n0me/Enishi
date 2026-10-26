@@ -94,14 +94,10 @@ namespace enishi::renderer::directx {
         return this->interfaces->get_state_accessor();
     }
 
-    platform::IBufferAccessor* NativeGPUResource::get_buffer_accessor(
-        void) noexcept {
+    platform::IBufferAccessor* NativeGPUResource::get_buffer_accessor(void) noexcept {
         return this->interfaces->get_buffer_accessor();
     }
-    const platform::IBufferAccessor*
-    NativeGPUResource::get_buffer_accessor(void) const noexcept {
+    const platform::IBufferAccessor* NativeGPUResource::get_buffer_accessor(void) const noexcept {
         return this->interfaces->get_buffer_accessor();
     }
 } // namespace enishi::renderer::directx
-
-

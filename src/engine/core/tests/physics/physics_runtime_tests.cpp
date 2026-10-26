@@ -8,8 +8,8 @@
 #include <physics/bullet3/physics_world.h>
 #include <physics/bullet3/rigid_body/rigid_body.h>
 #include <physics/bullet3/rigid_body/rigid_body_impulse.h>
-#include <physics/helper/helper.h>
 #include <physics/common/physics_config.h>
+#include <physics/helper/helper.h>
 #include <skinning_system/cache/physics_bone_cache.h>
 #include <skinning_system/updater/physics_bones_updater.h>
 #include <skinning_system/views/physics_bone_view.h>

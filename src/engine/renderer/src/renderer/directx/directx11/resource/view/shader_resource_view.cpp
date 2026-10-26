@@ -12,7 +12,8 @@ namespace enishi::renderer::directx {
     types::RenderHandle D3D11ShaderResourceView::get_handle(void) const noexcept {
         return this->handle;
     }
-    types::SamplerStateDescription D3D11ShaderResourceView::sampler_description(void) const noexcept {
+    types::SamplerStateDescription D3D11ShaderResourceView::sampler_description(
+        void) const noexcept {
         return types::SamplerStateDescription();
     }
 } // namespace enishi::renderer::directx

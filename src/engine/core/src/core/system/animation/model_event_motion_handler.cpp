@@ -50,8 +50,9 @@ namespace enishi::core {
 
     foundation::Result<bool, ModelEventError> ModelEventMotionHandler::trigger(
         types::HandleId entity, const ModelMotionEvent& event) {
-        if (event.kind == "click" && (this->click_settings == nullptr ||
-                                         this->click_settings->mode == types::ModelClickMode::None)) {
+        if (event.kind == "click" &&
+            (this->click_settings == nullptr ||
+                this->click_settings->mode == types::ModelClickMode::None)) {
             return false;
         }
         const auto model = this->registry->get<component::ModelComponent>(entity);

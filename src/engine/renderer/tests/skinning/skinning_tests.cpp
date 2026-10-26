@@ -394,4 +394,6 @@ int run_skinning_tests() {
     return EXIT_SUCCESS;
 }
 
-int main() { return run_skinning_tests(); }
+int main() {
+    return run_skinning_tests();
+}

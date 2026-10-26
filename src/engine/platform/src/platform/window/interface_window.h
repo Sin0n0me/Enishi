@@ -7,8 +7,8 @@
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
-#include <memory>
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace enishi::platform {
