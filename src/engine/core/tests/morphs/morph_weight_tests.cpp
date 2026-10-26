@@ -1,5 +1,5 @@
-#include <cmath>
 #include <animation/morph/morph_weights.h>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -57,8 +57,8 @@ void morph_weight_tests() {
     check(animation::evaluate_morph_weights(targets, weights).is_err(),
         "group cycles are rejected even at zero weight");
     targets[1].offsets = {types::MorphWeightOffset{99, 1}};
-    check(
-        animation::evaluate_morph_weights(targets, weights).is_err(), "invalid references are rejected");
+    check(animation::evaluate_morph_weights(targets, weights).is_err(),
+        "invalid references are rejected");
     targets[1].offsets = {types::MorphWeightOffset{0, std::numeric_limits<float>::max()}};
     weights = {0, std::numeric_limits<float>::max(), 0, 0};
     check(animation::evaluate_morph_weights(targets, weights).is_err(),

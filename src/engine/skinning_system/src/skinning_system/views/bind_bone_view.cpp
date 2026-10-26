@@ -12,4 +12,4 @@ namespace enishi::skinning_system {
     const glm::mat4& BindBoneView::get_bind_global_inverse(void) const noexcept {
         return *this->bind_global_inverse;
     }
-} // namespace enishi::skeleton
+} // namespace enishi::skinning_system

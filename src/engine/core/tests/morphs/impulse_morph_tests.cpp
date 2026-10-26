@@ -20,7 +20,8 @@ void impulse_morph_tests() {
         types::ImpulseMorphOffset{0, false, {}, {}, true}};
     targets[1].offsets = {types::ImpulseMorphOffset{1, false, {1, 2, 3}, {}, false}};
     targets[2].offsets = {types::MorphWeightOffset{0, 0.5f}};
-    const auto result = animation::evaluate_impulse_morphs(2, targets, std::vector<float>{0, -1, 1});
+    const auto result =
+        animation::evaluate_impulse_morphs(2, targets, std::vector<float>{0, -1, 1});
     check(result.is_ok(), "evaluate grouped impulses");
     const auto& first = result.unwrap()[0];
     check(first.world_velocity == glm::vec3(1, 0, 0) && first.world_torque == glm::vec3(0, 2, 0) &&

@@ -2,8 +2,8 @@
 #include "last_model_cache.h"
 #include <component/physics_bodies_component.h>
 #include <core/system/skinning/model_pose_initializer.h>
-#include <filesystem>
 #include <debug/log/logger.h>
+#include <filesystem>
 #include <utility>
 #include <vector>
 
@@ -89,7 +89,8 @@ namespace enishi::core {
                 }
                 loaded->second.visible = true;
                 this->registry->get<component::ModelComponent>(loaded->second.entity)
-                    .unwrap_mut().visible = true;
+                    .unwrap_mut()
+                    .visible = true;
                 auto bodies =
                     this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
                 if (bodies.is_some()) {
@@ -145,10 +146,9 @@ namespace enishi::core {
             this->shadow_render_pass->remove_mesh(loaded->second.mesh);
         }
         loaded->second.visible = false;
-        this->registry->get<component::ModelComponent>(loaded->second.entity)
-            .unwrap_mut().visible = false;
-        auto bodies =
-            this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
+        this->registry->get<component::ModelComponent>(loaded->second.entity).unwrap_mut().visible =
+            false;
+        auto bodies = this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
         if (bodies.is_some()) {
             bodies.unwrap_mut().enabled = false;
         }

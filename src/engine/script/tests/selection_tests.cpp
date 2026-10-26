@@ -1,5 +1,5 @@
-#include <ui/selection/selection_ui.h>
 #include <script/script_engine.h>
+#include <ui/selection/selection_ui.h>
 #include <utility>
 
 using namespace enishi;
@@ -100,8 +100,10 @@ void selection_tests() {
     auto receiver = std::make_shared<Receiver>();
     engine->add_result_receiver(receiver);
     auto settings = std::make_shared<sub_system::RenderSettings>();
-    ui::SelectionUI selection(
-        std::make_shared<Models>(), std::make_shared<types::ModelClickSettings>(), engine, settings);
+    ui::SelectionUI selection(std::make_shared<Models>(),
+        std::make_shared<types::ModelClickSettings>(),
+        engine,
+        settings);
     UI ui;
     ui.clicked = "スクリプト";
     selection.update(ui);

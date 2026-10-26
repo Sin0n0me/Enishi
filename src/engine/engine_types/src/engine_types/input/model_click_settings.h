@@ -1,8 +1,8 @@
 #pragma once
-#include <engine_types/physics/rigid_body/rigid_body_kind.h>
-#include <vector>
-#include <string>
 #include <cstdint>
+#include <engine_types/physics/rigid_body/rigid_body_kind.h>
+#include <string>
+#include <vector>
 
 namespace enishi::types {
     enum class ModelClickMode { None, Touch, Push };

@@ -5,8 +5,8 @@
 #include <engine_types/renderer/uniform_buffer/bones.h>
 #include <engine_types/renderer/uniform_buffer/camera.h>
 #include <engine_types/renderer/uniform_buffer/light.h>
-#include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
+#include <engine_types/renderer/uniform_buffer/shadow.h>
 #include <foundation/str/string_builder.h>
 
 #include <glm/ext/matrix_clip_space.hpp>
@@ -128,7 +128,7 @@ namespace enishi::renderer {
 
         // 残り
         for (auto vertex = model_data.vertices.begin() + 1; vertex != model_data.vertices.end();
-            vertex++) {
+             vertex++) {
             append_vertex(*vertex);
         }
 

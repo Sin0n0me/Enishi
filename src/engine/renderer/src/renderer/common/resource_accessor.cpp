@@ -8,8 +8,8 @@ namespace enishi::renderer {
         const auto handle = this->shader_reflections.emplace(std::move(shader_reflection));
         return {handle, this->shader_reflections.get(handle).unwrap_mut()};
     }
-    foundation::Option<ResourceAccessor::ShaderReflection&>
-    ResourceAccessor::get_shader_reflection(const types::HandleId handle) noexcept {
+    foundation::Option<ResourceAccessor::ShaderReflection&> ResourceAccessor::get_shader_reflection(
+        const types::HandleId handle) noexcept {
         return this->shader_reflections.get(handle);
     }
     foundation::Option<const ResourceAccessor::ShaderReflection&>
@@ -20,20 +20,20 @@ namespace enishi::renderer {
         this->shader_reflections.remove(handle);
     }
 
-    std::tuple<types::HandleId, ResourceAccessor::MeshHandles&>
-    ResourceAccessor::make_mesh_handles(void) noexcept {
+    std::tuple<types::HandleId, ResourceAccessor::MeshHandles&> ResourceAccessor::make_mesh_handles(
+        void) noexcept {
         const auto handle = this->mesh_handles.make();
         return {handle, this->mesh_handles.get(handle).unwrap_mut()};
     }
     void ResourceAccessor::remove_mesh_handles(const types::HandleId handle) noexcept {
         this->mesh_handles.remove(handle);
     }
-    foundation::Option<ResourceAccessor::MeshHandles&>
-    ResourceAccessor::get_mesh_handle(const types::HandleId handle) noexcept {
+    foundation::Option<ResourceAccessor::MeshHandles&> ResourceAccessor::get_mesh_handle(
+        const types::HandleId handle) noexcept {
         return this->mesh_handles.get(handle);
     }
-    foundation::Option<const ResourceAccessor::MeshHandles&>
-    ResourceAccessor::get_mesh_handle(const types::HandleId handle) const noexcept {
+    foundation::Option<const ResourceAccessor::MeshHandles&> ResourceAccessor::get_mesh_handle(
+        const types::HandleId handle) const noexcept {
         return this->mesh_handles.get(handle);
     }
 
@@ -48,8 +48,8 @@ namespace enishi::renderer {
         this->state_kinds.insert_or_assign(handle, kind);
     }
 
-    std::tuple<types::HandleId, platform::IBufferAccessor::Buffer&>
-    ResourceAccessor::make_buffer(void) noexcept {
+    std::tuple<types::HandleId, platform::IBufferAccessor::Buffer&> ResourceAccessor::make_buffer(
+        void) noexcept {
         static types::HandleAllocator allocator;
         const auto handle = allocator.create();
         auto [it, _] = this->buffers.emplace(handle, nullptr);
@@ -119,20 +119,20 @@ namespace enishi::renderer {
         return it == this->render_targets.end() ? foundation::Option<RTV&>()
                                                 : foundation::Option<RTV&>(it->second);
     }
-    foundation::Option<const ResourceAccessor::RTV&>
-    ResourceAccessor::get_render_target_view(const types::HandleId handle) const noexcept {
+    foundation::Option<const ResourceAccessor::RTV&> ResourceAccessor::get_render_target_view(
+        const types::HandleId handle) const noexcept {
         const auto it = this->render_targets.find(handle);
         return it == this->render_targets.end() ? foundation::Option<const RTV&>()
                                                 : foundation::Option<const RTV&>(it->second);
     }
-    foundation::Option<ResourceAccessor::SRV&>
-    ResourceAccessor::get_shader_resource_view(const types::HandleId handle) noexcept {
+    foundation::Option<ResourceAccessor::SRV&> ResourceAccessor::get_shader_resource_view(
+        const types::HandleId handle) noexcept {
         const auto it = this->shader_resources.find(handle);
         return it == this->shader_resources.end() ? foundation::Option<SRV&>()
                                                   : foundation::Option<SRV&>(it->second);
     }
-    foundation::Option<const ResourceAccessor::SRV&>
-    ResourceAccessor::get_shader_resource_view(const types::HandleId handle) const noexcept {
+    foundation::Option<const ResourceAccessor::SRV&> ResourceAccessor::get_shader_resource_view(
+        const types::HandleId handle) const noexcept {
         const auto it = this->shader_resources.find(handle);
         return it == this->shader_resources.end() ? foundation::Option<const SRV&>()
                                                   : foundation::Option<const SRV&>(it->second);
@@ -143,20 +143,20 @@ namespace enishi::renderer {
         return it == this->depth_stencils.end() ? foundation::Option<DSV&>()
                                                 : foundation::Option<DSV&>(it->second);
     }
-    foundation::Option<const ResourceAccessor::DSV&>
-    ResourceAccessor::get_depth_stencil_view(const types::HandleId handle) const noexcept {
+    foundation::Option<const ResourceAccessor::DSV&> ResourceAccessor::get_depth_stencil_view(
+        const types::HandleId handle) const noexcept {
         const auto it = this->depth_stencils.find(handle);
         return it == this->depth_stencils.end() ? foundation::Option<const DSV&>()
                                                 : foundation::Option<const DSV&>(it->second);
     }
-    foundation::Option<ResourceAccessor::UAV&>
-    ResourceAccessor::get_unordered_access_view(const types::HandleId handle) noexcept {
+    foundation::Option<ResourceAccessor::UAV&> ResourceAccessor::get_unordered_access_view(
+        const types::HandleId handle) noexcept {
         const auto it = this->unordered_accesses.find(handle);
         return it == this->unordered_accesses.end() ? foundation::Option<UAV&>()
                                                     : foundation::Option<UAV&>(it->second);
     }
-    foundation::Option<const ResourceAccessor::UAV&>
-    ResourceAccessor::get_unordered_access_view(const types::HandleId handle) const noexcept {
+    foundation::Option<const ResourceAccessor::UAV&> ResourceAccessor::get_unordered_access_view(
+        const types::HandleId handle) const noexcept {
         const auto it = this->unordered_accesses.find(handle);
         return it == this->unordered_accesses.end() ? foundation::Option<const UAV&>()
                                                     : foundation::Option<const UAV&>(it->second);
@@ -178,8 +178,7 @@ namespace enishi::renderer {
     platform::IShaderAccessor* ResourceAccessor::get_shader_accessor(void) noexcept {
         return this;
     }
-    const platform::IShaderAccessor* ResourceAccessor::get_shader_accessor(
-        void) const noexcept {
+    const platform::IShaderAccessor* ResourceAccessor::get_shader_accessor(void) const noexcept {
         return this;
     }
     platform::IMeshAccessor* ResourceAccessor::get_mesh_accessor(void) noexcept {
@@ -191,15 +190,13 @@ namespace enishi::renderer {
     platform::IStateAccessor* ResourceAccessor::get_state_accessor(void) noexcept {
         return this;
     }
-    const platform::IStateAccessor* ResourceAccessor::get_state_accessor(
-        void) const noexcept {
+    const platform::IStateAccessor* ResourceAccessor::get_state_accessor(void) const noexcept {
         return this;
     }
     platform::IBufferAccessor* ResourceAccessor::get_buffer_accessor(void) noexcept {
         return this;
     }
-    const platform::IBufferAccessor* ResourceAccessor::get_buffer_accessor(
-        void) const noexcept {
+    const platform::IBufferAccessor* ResourceAccessor::get_buffer_accessor(void) const noexcept {
         return this;
     }
     std::span<const ResourceAccessor::RTV> ResourceAccessor::get_render_target_views(

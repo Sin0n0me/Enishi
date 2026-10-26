@@ -43,8 +43,8 @@ namespace enishi::model_controller {
                     }
                     // p_bone = inverse(bind_global) * p_model; animated_global restores world
                     // space.
-                    const auto local = glm::vec3(
-                        model.bind_bone[bone].global_inverse * glm::vec4(position, 1));
+                    const auto local =
+                        glm::vec3(model.bind_bone[bone].global_inverse * glm::vec4(position, 1));
                     model.collision_vertices[bone].push_back(local);
                     model.shadow_bone_bounds[bone].include(local);
                 }

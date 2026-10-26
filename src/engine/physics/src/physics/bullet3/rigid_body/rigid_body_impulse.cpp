@@ -27,7 +27,8 @@ namespace enishi::physics::bullet3 {
             linear_vector(impulse.world_velocity) + basis * linear_vector(impulse.local_velocity);
         if (impulse.world_position.has_value()) {
             // r = hit - center of mass; Bullet applies delta-v = J/m and delta-L = r cross J.
-            const auto offset = linear_vector(*impulse.world_position) - body.getCenterOfMassPosition();
+            const auto offset =
+                linear_vector(*impulse.world_position) - body.getCenterOfMassPosition();
             body.applyImpulse(linear_impulse, offset);
         } else {
             body.applyCentralImpulse(linear_impulse);

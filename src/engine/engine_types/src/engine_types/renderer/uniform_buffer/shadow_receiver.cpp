@@ -22,9 +22,8 @@ namespace enishi::types {
         }
         constexpr float WALL_GAP_RATIO = 0.05f;
         constexpr float MINIMUM_GAP = 0.1f;
-        const auto gap =
-            (glm::max)((view_bounds.maximum.y - view_bounds.minimum.y) * WALL_GAP_RATIO,
-                MINIMUM_GAP);
+        const auto gap = (glm::max)(
+            (view_bounds.maximum.y - view_bounds.minimum.y) * WALL_GAP_RATIO, MINIMUM_GAP);
         const auto wall_depth = view_bounds.maximum.z + gap;
         const auto inverse_view = glm::inverse(camera.view);
         ShadowBounds wall_bounds;

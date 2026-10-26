@@ -99,7 +99,7 @@ namespace {
         CHECK(OBBMaker::make_by_covariance_matrix({}).is_none());
         CHECK(OBBMaker::make_by_covariance_matrix(
             {glm::vec3(std::numeric_limits<float>::quiet_NaN())})
-                .is_none());
+                  .is_none());
         CHECK(
             OBBMaker::make_by_covariance_matrix({glm::vec3(std::numeric_limits<float>::infinity())})
                 .is_none());

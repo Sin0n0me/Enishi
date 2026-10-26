@@ -1,9 +1,9 @@
 #pragma once
 #include <foundation/option/option.h>
 #include <memory>
-#include <sub_system/ik/interface_ik_bone_view_list.h>
 #include <skinning_system/views/ik_bone_view.h>
 #include <span>
+#include <sub_system/ik/interface_ik_bone_view_list.h>
 #include <vector>
 
 namespace enishi::skinning_system {

@@ -32,7 +32,8 @@ namespace enishi::core {
         const auto ray =
             types::Ray::make_ray_from_screen(size.unwrap(), cursor, this->camera->get_camera());
         const auto hit = this->collider->raycast(ray);
-        if (!apply_click_mode || this->settings->mode != types::ModelClickMode::Push || !hit.has_value()) {
+        if (!apply_click_mode || this->settings->mode != types::ModelClickMode::Push ||
+            !hit.has_value()) {
             return hit;
         }
         if (hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {

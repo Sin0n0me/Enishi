@@ -1,21 +1,21 @@
 #pragma once
 #include "settings.h"
-#include <debug/playback/playback_control.h>
 #include <collider/collider.h>
 #include <core/system/asset/asset_manager.h>
-#include <engine_types/input/model_click_settings.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
+#include <debug/playback/playback_control.h>
+#include <engine_types/input/model_click_settings.h>
 
-#include <sub_system/model/interface_model_selection.h>
-#include <sub_system/camera/interface_camera_controller.h>
-#include <sub_system/window/interface_window_animation_sync.h>
-#include <sub_system/physics/interface_physics_engine.h>
 #include <platform/renderer/interface_renderer.h>
 #include <platform/window/interface_window.h>
 #include <render_pass/render_pass_orchestra.h>
+#include <sub_system/camera/interface_camera_controller.h>
+#include <sub_system/model/interface_model_selection.h>
+#include <sub_system/physics/interface_physics_engine.h>
+#include <sub_system/window/interface_window_animation_sync.h>
 
 namespace enishi {
     class Application {

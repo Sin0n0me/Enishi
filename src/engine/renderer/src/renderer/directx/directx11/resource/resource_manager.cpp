@@ -702,8 +702,8 @@ namespace enishi::renderer::directx {
         view_desc.Texture2D.MipSlice = description.base_mip_level;
         D3D11_TEXTURE2D_DESC texture_desc{};
         texture->GetDesc(&texture_desc);
-        const auto* explicit_desc = texture_desc.Format == DXGI_FORMAT_R32_TYPELESS
-                                        ? &view_desc : nullptr;
+        const auto* explicit_desc =
+            texture_desc.Format == DXGI_FORMAT_R32_TYPELESS ? &view_desc : nullptr;
         const HRESULT hr =
             device->CreateDepthStencilView(texture.Get(), explicit_desc, dsv.GetAddressOf());
         if (FAILED(hr)) {
@@ -757,8 +757,8 @@ namespace enishi::renderer::directx {
         depth_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
         depth_desc.Texture2D.MostDetailedMip = description.base_mip_level;
         depth_desc.Texture2D.MipLevels = description.mip_Level_count;
-        const auto* view_desc = description.format == types::ImageFormat::D32_FLOAT
-                                    ? &depth_desc : nullptr;
+        const auto* view_desc =
+            description.format == types::ImageFormat::D32_FLOAT ? &depth_desc : nullptr;
         const HRESULT hr =
             device->CreateShaderResourceView(texture.Get(), view_desc, srv.GetAddressOf());
         if (FAILED(hr)) {

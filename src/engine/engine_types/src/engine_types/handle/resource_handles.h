@@ -6,8 +6,8 @@
 
 namespace enishi::types {
     struct ResourceHandles {
-        types::HandleId resource;     // リソースそのもの
-        types::HandleId binding;      // リソースを使用するために必要なパラメータ
+        types::HandleId resource; // リソースそのもの
+        types::HandleId binding;  // リソースを使用するために必要なパラメータ
         types::HandleId configurable; // 外部から変更可能なインターフェイス
     };
 } // namespace enishi::types

@@ -289,7 +289,8 @@ namespace enishi::collider {
                    std::abs(glm::dot(delta, axis)) > radius(first, axis) + radius(second, axis);
         };
         for (int axis = 0; axis < 3; ++axis) {
-            if (separated(glm::dvec3(first.axis[axis])) || separated(glm::dvec3(second.axis[axis]))) {
+            if (separated(glm::dvec3(first.axis[axis])) ||
+                separated(glm::dvec3(second.axis[axis]))) {
                 return false;
             }
         }

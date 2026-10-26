@@ -52,5 +52,6 @@ void uv_morph_tests() {
     check(renderer::stage_vertex_uvs(updater, streams, result.unwrap()).is_err(),
         "reject invalid UV layout");
     targets[0].offsets = {types::UVMorphOffset{1, 0, {1, 0, 0, 0}}};
-    check(animation::evaluate_uv_morphs(base, targets, weights).is_err(), "reject invalid UV vertex");
+    check(
+        animation::evaluate_uv_morphs(base, targets, weights).is_err(), "reject invalid UV vertex");
 }
