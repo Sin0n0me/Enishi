@@ -1,17 +1,20 @@
 #include "selection_ui.h"
 #include "selection_click_settings.h"
 #include "selection_settings.h"
+#include "selection_shell.h"
 #include <utility>
 
 namespace enishi::ui {
     SelectionUI::SelectionUI(std::shared_ptr<sub_system::IModelSelection> models,
         std::shared_ptr<types::ModelClickSettings> click_settings,
         std::shared_ptr<sub_system::IScriptEngine> scripts,
-        std::shared_ptr<sub_system::RenderSettings> render_settings)
+        std::shared_ptr<sub_system::RenderSettings> render_settings,
+        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor)
         : models(std::move(models))
         , click_settings(std::move(click_settings))
         , scripts(std::move(scripts))
-        , render_settings(std::move(render_settings)) {
+        , render_settings(std::move(render_settings))
+        , shell_monitor(std::move(shell_monitor)) {
     }
 
     bool SelectionUI::is_exit_requested(void) const {
@@ -20,14 +23,14 @@ namespace enishi::ui {
 
     void SelectionUI::update(sub_system::IUI& ui) {
         constexpr float ACTION_WIDTH = 240.0f;
-        constexpr float ACTION_HEIGHT = 220.0f;
+        constexpr float ACTION_HEIGHT = 260.0f;
         constexpr float SETTINGS_WIDTH = 560.0f;
         constexpr float SETTINGS_HEIGHT = 360.0f;
         constexpr float SCRIPT_WIDTH = 640.0f;
         constexpr float SCRIPT_HEIGHT = 460.0f;
         float width = ACTION_WIDTH;
         float height = ACTION_HEIGHT;
-        if (this->page == Page::Script) {
+        if (this->page == Page::Script || this->page == Page::Shell) {
             width = SCRIPT_WIDTH;
             height = SCRIPT_HEIGHT;
         } else if (this->page != Page::Actions) {
@@ -46,6 +49,9 @@ namespace enishi::ui {
     }
 
     void SelectionUI::draw_actions(sub_system::IUI& ui) {
+        if (this->shell_monitor != nullptr && ui.button("シェル")) {
+            this->page = Page::Shell;
+        }
         if (ui.button("モデルの切り替え")) {
             this->page = Page::Models;
         }
@@ -69,6 +75,11 @@ namespace enishi::ui {
             return;
         }
         switch (this->page) {
+            case Page::Shell:
+                if (this->shell_monitor != nullptr) {
+                    SelectionShell::draw(ui, *this->shell_monitor);
+                }
+                break;
             case Page::Actions:
                 this->draw_actions(ui);
                 break;
