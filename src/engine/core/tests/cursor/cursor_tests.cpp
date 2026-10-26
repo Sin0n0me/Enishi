@@ -13,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <string_view>
+#include <utility>
 
 using namespace enishi;
 
@@ -22,7 +23,7 @@ namespace {
     constexpr float TOLERANCE = 0.001f;
     constexpr float SETTLE_SECONDS = 3.0f;
     constexpr glm::quat IDENTITY(1, 0, 0, 0);
-    enum Bone : std::size_t {
+    enum class Bone : std::size_t {
         Root,
         Neck,
         Head,
@@ -62,21 +63,22 @@ namespace {
     Fixture::Fixture() {
         this->model.bone_names = {
             "root", "首", "頭", "左腕", "twist", "左ひじ", "左手首", "右腕", "右ひじ", "右手首"};
-        this->model.bone_node.resize(Count);
-        this->model.bind_bone.resize(Count);
-        this->animation.animation.resize(Count);
-        this->animation.global.resize(Count, glm::mat4(1));
-        const std::array<types::BoneIndex, Count> parents{types::INVALID_BONE_INDEX,
-            Root,
-            Neck,
-            Root,
-            Arm,
-            Twist,
-            Elbow,
-            Root,
-            OtherArm,
-            OtherElbow};
-        const std::array<glm::vec3, Count> positions{glm::vec3(0),
+        this->model.bone_node.resize(std::to_underlying(Bone::Count));
+        this->model.bind_bone.resize(std::to_underlying(Bone::Count));
+        this->animation.animation.resize(std::to_underlying(Bone::Count));
+        this->animation.global.resize(std::to_underlying(Bone::Count), glm::mat4(1));
+        const std::array<types::BoneIndex, std::to_underlying(Bone::Count)> parents{
+            types::INVALID_BONE_INDEX,
+            std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::Neck),
+            std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::Arm),
+            std::to_underlying(Bone::Twist),
+            std::to_underlying(Bone::Elbow),
+            std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::OtherArm),
+            std::to_underlying(Bone::OtherElbow)};
+        const std::array<glm::vec3, std::to_underlying(Bone::Count)> positions{glm::vec3(0),
             glm::vec3(0, 8, 0),
             glm::vec3(0, 1, 0),
             glm::vec3(1, 7, 0),
@@ -86,15 +88,15 @@ namespace {
             glm::vec3(-1, 7, 0),
             glm::vec3(-2, 0, 0),
             glm::vec3(-2, 0, 0)};
-        for (std::size_t index = 0; index < Count; ++index) {
+        for (std::size_t index = 0; index < std::to_underlying(Bone::Count); ++index) {
             this->model.bone_node[index].parent = parents[index];
-            if (parents[index] < Count) {
+            if (parents[index] < std::to_underlying(Bone::Count)) {
                 this->model.bone_node[parents[index]].children.push_back(index);
             }
             this->animation.animation[index].position = positions[index];
             this->model.bind_bone[index].local = glm::translate(glm::mat4(1), positions[index]);
         }
-        for (std::size_t index = 0; index < Count; ++index) {
+        for (std::size_t index = 0; index < std::to_underlying(Bone::Count); ++index) {
             const auto matrix = global(this->model, this->animation, index);
             this->model.bind_bone[index].global = matrix;
             this->model.bind_bone[index].global_inverse = glm::inverse(matrix);
@@ -111,14 +113,18 @@ namespace {
         animation::CursorPose pose(fixture.model);
         const auto before = fixture.animation.animation;
         const glm::vec3 target(3, 7, -1.08f);
-        const auto original_hand = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
+        const auto original_hand =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3]);
         pose.apply(fixture.model, fixture.animation, cursor(target.x, target.y), SETTLE_SECONDS);
-        const auto head = global(fixture.model, fixture.animation, Head);
+        const auto head = global(fixture.model, fixture.animation, std::to_underlying(Bone::Head));
         const auto facing = glm::normalize(glm::mat3(head) * glm::vec3(0, 0, -1));
         check(facing.x > 0 && facing.y < 0, "Head must turn toward the cursor");
-        const auto shoulder = glm::vec3(global(fixture.model, fixture.animation, Arm)[3]);
-        const auto elbow = glm::vec3(global(fixture.model, fixture.animation, Elbow)[3]);
-        const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
+        const auto shoulder =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Arm))[3]);
+        const auto elbow =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Elbow))[3]);
+        const auto wrist =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3]);
         check(glm::length(wrist - target) < glm::length(original_hand - target),
             "Hand must approach the cursor");
         check(glm::length(wrist - target) < TOLERANCE,
@@ -126,16 +132,18 @@ namespace {
         check(std::abs(glm::length(elbow - shoulder) - 2.0f) < TOLERANCE &&
                   std::abs(glm::length(wrist - elbow) - 2.0f) < TOLERANCE,
             "Arm lengths must not change");
-        check(fixture.animation.animation[OtherArm].rotation == IDENTITY,
+        check(fixture.animation.animation[std::to_underlying(Bone::OtherArm)].rotation == IDENTITY,
             "Only the near arm should reach");
-        const auto neck_forward = fixture.animation.animation[Neck].rotation * glm::vec3(0, 0, -1);
+        const auto neck_forward =
+            fixture.animation.animation[std::to_underlying(Bone::Neck)].rotation *
+            glm::vec3(0, 0, -1);
         check(std::abs(std::atan2(-neck_forward.x, -neck_forward.z)) <
                   glm::radians(animation::CursorPoseConfig{}.neck_yaw) + TOLERANCE,
             "Neck yaw must stay within its limit");
-        check(fixture.animation.animation[Twist].rotation == IDENTITY,
+        check(fixture.animation.animation[std::to_underlying(Bone::Twist)].rotation == IDENTITY,
             "Do not write intermediate or unrelated bones");
         pose.restore(fixture.animation);
-        for (std::size_t index = 0; index < Count; ++index) {
+        for (std::size_t index = 0; index < std::to_underlying(Bone::Count); ++index) {
             check(fixture.animation.animation[index].rotation == before[index].rotation &&
                       fixture.animation.animation[index].position == before[index].position,
                 "Source pose must be restored exactly");
@@ -154,17 +162,21 @@ namespace {
             }
         }
         coarse_pose.apply(coarse.model, coarse.animation, cursor(3, 8), 1.0f);
-        check(glm::length(fine.animation.animation[Head].rotation -
-                          coarse.animation.animation[Head].rotation) < TOLERANCE,
+        check(glm::length(fine.animation.animation[std::to_underlying(Bone::Head)].rotation -
+                          coarse.animation.animation[std::to_underlying(Bone::Head)].rotation) <
+                  TOLERANCE,
             "Smoothing must be frame-rate independent and must not accumulate corrections");
         fine_pose.restore(fine.animation);
         fine_pose.apply(fine.model, fine.animation, std::nullopt, 0.016f);
-        check(glm::length(fine.animation.animation[Head].rotation - IDENTITY) > 0.01f,
+        check(glm::length(fine.animation.animation[std::to_underlying(Bone::Head)].rotation -
+                          IDENTITY) > 0.01f,
             "Leaving the window should fade rather than snap");
         fine_pose.restore(fine.animation);
         fine_pose.apply(fine.model, fine.animation, cursor(100, 100), SETTLE_SECONDS);
-        check(glm::length(fine.animation.animation[Head].rotation - IDENTITY) < TOLERANCE &&
-                  glm::length(fine.animation.animation[Arm].rotation - IDENTITY) < TOLERANCE,
+        check(glm::length(fine.animation.animation[std::to_underlying(Bone::Head)].rotation -
+                          IDENTITY) < TOLERANCE &&
+                  glm::length(fine.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                              IDENTITY) < TOLERANCE,
             "A distant cursor must restore the original pose");
     }
 
@@ -172,34 +184,37 @@ namespace {
         Fixture fixture;
         animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(6, 8), SETTLE_SECONDS);
-        const auto shoulder = glm::vec3(global(fixture.model, fixture.animation, Arm)[3]);
-        const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
+        const auto shoulder =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Arm))[3]);
+        const auto wrist =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3]);
         check(glm::length(wrist - shoulder) < 4.0f + TOLERANCE,
             "Unreachable targets must not stretch the arm");
-        check(fixture.animation.animation[Arm].rotation == IDENTITY,
+        check(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation == IDENTITY,
             "An out-of-range arm must remain in its authored pose");
         pose.restore(fixture.animation);
-        fixture.model.bone_names[Elbow] = "unrecognized";
-        fixture.model.bone_names[Neck] = "unrecognized neck";
+        fixture.model.bone_names[std::to_underlying(Bone::Elbow)] = "unrecognized";
+        fixture.model.bone_names[std::to_underlying(Bone::Neck)] = "unrecognized neck";
         types::PhysicsRigidBody body{};
-        body.relate_bone_index = Head;
+        body.relate_bone_index = std::to_underlying(Bone::Head);
         body.kind = types::RigidBodyKind::Dynamic;
         fixture.model.rigid_bodies.push_back(body);
         animation::CursorPose unsupported(fixture.model);
         unsupported.apply(fixture.model, fixture.animation, cursor(3, 8), SETTLE_SECONDS);
-        check(fixture.animation.animation[Head].rotation == IDENTITY,
+        check(fixture.animation.animation[std::to_underlying(Bone::Head)].rotation == IDENTITY,
             "Physics-owned head must be untouched");
-        check(fixture.animation.animation[Arm].rotation == IDENTITY,
+        check(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation == IDENTITY,
             "Incomplete chains must be skipped");
         unsupported.restore(fixture.animation);
         unsupported.apply(fixture.model, fixture.animation, cursor(0, 7), SETTLE_SECONDS);
-        check(
-            fixture.animation.animation[Arm].rotation == IDENTITY &&
-                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) > TOLERANCE,
+        check(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation == IDENTITY &&
+                  glm::length(
+                      fixture.animation.animation[std::to_underlying(Bone::OtherArm)].rotation -
+                      IDENTITY) > TOLERANCE,
             "A missing arm chain must not prevent the valid arm from tracking the center");
         unsupported.restore(fixture.animation);
         Fixture zero;
-        zero.animation.animation[Wrist].position = glm::vec3(0);
+        zero.animation.animation[std::to_underlying(Bone::Wrist)].position = glm::vec3(0);
         animation::CursorPose degenerate(zero.model);
         degenerate.apply(zero.model, zero.animation, cursor(3, 8), SETTLE_SECONDS);
         for (const auto& bone : zero.animation.animation) {
@@ -209,21 +224,23 @@ namespace {
 
     void animated_pose() {
         Fixture fixture;
-        fixture.animation.animation[Root].position = glm::vec3(2, 0, 0);
-        fixture.animation.animation[Root].rotation =
+        fixture.animation.animation[std::to_underlying(Bone::Root)].position = glm::vec3(2, 0, 0);
+        fixture.animation.animation[std::to_underlying(Bone::Root)].rotation =
             glm::angleAxis(glm::radians(15.0f), glm::vec3(0, 1, 0));
-        fixture.animation.animation[Arm].rotation =
+        fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation =
             glm::angleAxis(glm::radians(-25.0f), glm::vec3(0, 0, 1));
         const auto before = fixture.animation.animation;
         animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(5, 7), SETTLE_SECONDS);
-        check(fixture.animation.animation[Root].rotation == before[Root].rotation,
+        check(fixture.animation.animation[std::to_underlying(Bone::Root)].rotation ==
+                  before[std::to_underlying(Bone::Root)].rotation,
             "Animated root must be preserved");
-        check(glm::length(fixture.animation.animation[Arm].rotation - before[Arm].rotation) >
-                  TOLERANCE,
+        check(glm::length(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                          before[std::to_underlying(Bone::Arm)].rotation) > TOLERANCE,
             "Cursor pose must layer over an animated arm");
         pose.restore(fixture.animation);
-        check(fixture.animation.animation[Arm].rotation == before[Arm].rotation,
+        check(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation ==
+                  before[std::to_underlying(Bone::Arm)].rotation,
             "Restore must retain the clip's rotation, not reset to bind pose");
     }
 
@@ -237,12 +254,12 @@ namespace {
             "Insert animation");
         check(registry->emplace<component::SkinningComponent>(entity).is_ok(), "Insert skinning");
         component::IKComponent ik;
-        ik.rotation.resize(Count, IDENTITY);
+        ik.rotation.resize(std::to_underlying(Bone::Count), IDENTITY);
         ik.globals = fixture.animation.global;
         check(registry->emplace<component::IKComponent>(entity, ik).is_ok(), "Insert IK");
         component::PhysicsComponent physics;
         physics.global = fixture.animation.global;
-        physics.local.resize(Count, glm::mat4(1));
+        physics.local.resize(std::to_underlying(Bone::Count), glm::mat4(1));
         check(registry->emplace<component::PhysicsComponent>(entity, physics).is_ok(),
             "Insert physics pose");
         auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
@@ -255,28 +272,33 @@ namespace {
             pose.apply(model, animation, cursor(0, 11.5f), 0.05f);
             pose.restore(animation);
             pose.apply(model, animation, cursor(0, 11.5f), 0.05f);
-            check(animation.animation[Root].position.y > 0, "Integration pose must be airborne");
+            check(animation.animation[std::to_underlying(Bone::Root)].position.y > 0,
+                "Integration pose must be airborne");
         } else {
             pose.apply(model, animation, cursor(3, 7), SETTLE_SECONDS);
         }
-        const auto expected = global(model, animation, Wrist);
+        const auto expected = global(model, animation, std::to_underlying(Bone::Wrist));
         skinning.update(types::DeltaTime(0.016f));
         pose.restore(animation);
         const auto& matrices =
             registry->get<component::SkinningComponent>(entity).unwrap().skinning_matrices;
-        const auto result = matrices[Wrist] * model.bind_bone[Wrist].global;
-        const auto& physics_result =
-            registry->get<component::PhysicsComponent>(entity).unwrap().global[Wrist];
+        const auto result = matrices[std::to_underlying(Bone::Wrist)] *
+                            model.bind_bone[std::to_underlying(Bone::Wrist)].global;
+        const auto& physics_result = registry->get<component::PhysicsComponent>(entity)
+                                         .unwrap()
+                                         .global[std::to_underlying(Bone::Wrist)];
         check(glm::length(glm::vec3(result[3] - expected[3])) < TOLERANCE,
             "Render pose must retain cursor IK after the source pose is restored");
         check(glm::length(glm::vec3(physics_result[3] - expected[3])) < TOLERANCE,
             "Physics must receive the corrected pose before simulation");
-        check(animation.animation[Arm].rotation == IDENTITY, "Source pose must remain reusable");
+        check(animation.animation[std::to_underlying(Bone::Arm)].rotation == IDENTITY,
+            "Source pose must remain reusable");
         model.visible = false;
-        const auto hidden_matrix = matrices[Wrist];
-        animation.animation[Root].position = glm::vec3(100);
+        const auto hidden_matrix = matrices[std::to_underlying(Bone::Wrist)];
+        animation.animation[std::to_underlying(Bone::Root)].position = glm::vec3(100);
         skinning.update(types::DeltaTime(0.016f));
-        check(matrices[Wrist] == hidden_matrix, "Hidden model must not be updated");
+        check(matrices[std::to_underlying(Bone::Wrist)] == hidden_matrix,
+            "Hidden model must not be updated");
     }
 
     float distance_to_axis(const glm::vec3& point, const glm::vec3& start, const glm::vec3& end) {
@@ -292,19 +314,25 @@ namespace {
         constexpr float LIMB_CLEARANCE = 0.15f;
         constexpr float HAND_CLEARANCE = 0.8f;
         constexpr int SEGMENT_SAMPLES = 40;
-        const auto root = global(fixture.model, fixture.animation, Root);
+        const auto root = global(fixture.model, fixture.animation, std::to_underlying(Bone::Root));
         const auto up = glm::normalize(glm::mat3(root) * glm::vec3(0, 1, 0));
         const auto chest = glm::vec3(root * glm::vec4(0, 7, 0, 1));
         const auto pelvis = chest - up * 3.2f;
-        const auto neck = glm::vec3(global(fixture.model, fixture.animation, Neck)[3]);
-        const auto head = glm::vec3(global(fixture.model, fixture.animation, Head)[3]);
+        const auto neck =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Neck))[3]);
+        const auto head =
+            glm::vec3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Head))[3]);
         const auto head_up = glm::normalize(
-            glm::mat3(global(fixture.model, fixture.animation, Head)) * glm::vec3(0, 1, 0));
+            glm::mat3(global(fixture.model, fixture.animation, std::to_underlying(Bone::Head))) *
+            glm::vec3(0, 1, 0));
         const auto head_top = head + head_up * 1.1f;
         for (std::size_t side = 0; side < 2; ++side) {
-            const auto arm = side == 0 ? Arm : OtherArm;
-            const auto elbow = side == 0 ? Elbow : OtherElbow;
-            const auto wrist = side == 0 ? Wrist : OtherWrist;
+            const auto arm =
+                side == 0 ? std::to_underlying(Bone::Arm) : std::to_underlying(Bone::OtherArm);
+            const auto elbow =
+                side == 0 ? std::to_underlying(Bone::Elbow) : std::to_underlying(Bone::OtherElbow);
+            const auto wrist =
+                side == 0 ? std::to_underlying(Bone::Wrist) : std::to_underlying(Bone::OtherWrist);
             const auto shoulder_position =
                 glm::vec3(global(fixture.model, fixture.animation, arm)[3]);
             const auto elbow_position =
@@ -361,9 +389,11 @@ namespace {
                 cursor(2.5f * std::sin(phase), 7.0f + 2.8f * std::sin(phase * 0.7f)),
                 FRAME_SECONDS);
             check_arm_safety(fixture);
-            if (glm::length(fixture.animation.animation[Arm].rotation - IDENTITY) > TOLERANCE ||
-                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) >
-                    TOLERANCE) {
+            if (glm::length(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                            IDENTITY) > TOLERANCE ||
+                glm::length(
+                    fixture.animation.animation[std::to_underlying(Bone::OtherArm)].rotation -
+                    IDENTITY) > TOLERANCE) {
                 ++moving_frames;
             }
             pose.restore(fixture.animation);
@@ -379,7 +409,7 @@ namespace {
 
     void rotated_body_avoidance() {
         Fixture fixture;
-        fixture.animation.animation[Root].rotation =
+        fixture.animation.animation[std::to_underlying(Bone::Root)].rotation =
             glm::angleAxis(glm::radians(35.0f), glm::vec3(0, 0, 1)) *
             glm::angleAxis(glm::radians(25.0f), glm::vec3(0, 1, 0));
         animation::CursorPose pose(fixture.model);
@@ -393,7 +423,7 @@ namespace {
     void release_to_authored_elbow() {
         Fixture fixture;
         const auto authored = glm::angleAxis(glm::radians(15.0f), glm::vec3(1, 0, 0));
-        fixture.animation.animation[Elbow].rotation = authored;
+        fixture.animation.animation[std::to_underlying(Bone::Elbow)].rotation = authored;
         animation::CursorPose pose(fixture.model);
         pose.apply(fixture.model, fixture.animation, cursor(3, 7), SETTLE_SECONDS);
         pose.restore(fixture.animation);
@@ -404,7 +434,8 @@ namespace {
                 pose.restore(fixture.animation);
             }
         }
-        check(glm::length(fixture.animation.animation[Elbow].rotation - authored) < TOLERANCE,
+        check(glm::length(fixture.animation.animation[std::to_underlying(Bone::Elbow)].rotation -
+                          authored) < TOLERANCE,
             "After release, procedural hinge limits must not keep modifying the authored clip");
     }
     void configurable_limits() {
@@ -437,13 +468,15 @@ namespace {
         Fixture fixture;
         animation::CursorPose pose(fixture.model, config);
         pose.apply(fixture.model, fixture.animation, cursor(5, 3), SETTLE_SECONDS);
-        for (const auto bone : {Neck, Head}) {
+        for (const auto bone : {std::to_underlying(Bone::Neck), std::to_underlying(Bone::Head)}) {
             const auto direction = fixture.animation.animation[bone].rotation * glm::vec3(0, 0, -1);
             // qYaw*qPitch facing -Z yields yaw=atan2(-x,-z), pitch=asin(y).
             const float yaw = glm::degrees(std::atan2(-direction.x, -direction.z));
             const float pitch = glm::degrees(std::asin(direction.y));
-            const float yaw_limit = bone == Neck ? config.neck_yaw : config.head_yaw;
-            const float pitch_limit = bone == Neck ? config.neck_pitch : config.head_pitch;
+            const float yaw_limit =
+                bone == std::to_underlying(Bone::Neck) ? config.neck_yaw : config.head_yaw;
+            const float pitch_limit =
+                bone == std::to_underlying(Bone::Neck) ? config.neck_pitch : config.head_pitch;
             check(
                 std::abs(yaw) < yaw_limit + TOLERANCE && std::abs(pitch) < pitch_limit + TOLERANCE,
                 "Configured neck and head angle limits must be respected");
@@ -460,7 +493,10 @@ namespace {
             config.arm_speed = SPEED;
             animation::CursorPose pose(fixture.model, config);
             std::array<glm::quat, 4> previous{IDENTITY, IDENTITY, IDENTITY, IDENTITY};
-            constexpr std::array<Bone, 4> ARMS{Arm, Elbow, OtherArm, OtherElbow};
+            constexpr std::array<Bone, 4> ARMS{std::to_underlying(Bone::Arm),
+                std::to_underlying(Bone::Elbow),
+                std::to_underlying(Bone::OtherArm),
+                std::to_underlying(Bone::OtherElbow)};
             float total_motion = 0;
             for (int frame = 0; frame < FRAMES; ++frame) {
                 // Enter/leave the boundary, switch sides, then move to the face and torso.
@@ -496,8 +532,10 @@ namespace {
         for (const float side : {-1.0f, 1.0f}) {
             Fixture fixture;
             animation::CursorPose pose(fixture.model);
-            const auto first = side > 0 ? Arm : OtherArm;
-            const auto other = side > 0 ? OtherArm : Arm;
+            const auto first =
+                side > 0 ? std::to_underlying(Bone::Arm) : std::to_underlying(Bone::OtherArm);
+            const auto other =
+                side > 0 ? std::to_underlying(Bone::OtherArm) : std::to_underlying(Bone::Arm);
             pose.apply(fixture.model,
                 fixture.animation,
                 cursor(side * START_X, TARGET_HEIGHT),
@@ -530,13 +568,15 @@ namespace {
             check_arm_safety(fixture);
             pose.restore(fixture.animation);
             pose.apply(fixture.model, fixture.animation, cursor(0, TARGET_HEIGHT), SETTLE_SECONDS);
-            for (const auto arm : {Arm, OtherArm}) {
+            for (const auto arm :
+                {std::to_underlying(Bone::Arm), std::to_underlying(Bone::OtherArm)}) {
                 check(glm::length(fixture.animation.animation[arm].rotation - IDENTITY) > TOLERANCE,
                     "Both hands must resume tracking after returning to the center");
             }
             pose.restore(fixture.animation);
             pose.apply(fixture.model, fixture.animation, std::nullopt, SETTLE_SECONDS);
-            for (const auto arm : {Arm, OtherArm}) {
+            for (const auto arm :
+                {std::to_underlying(Bone::Arm), std::to_underlying(Bone::OtherArm)}) {
                 check(glm::length(fixture.animation.animation[arm].rotation - IDENTITY) < TOLERANCE,
                     "Both hands must release when the cursor leaves");
             }
@@ -545,11 +585,12 @@ namespace {
 
     void hands_and_clothing_clearance(bool physics_clothing, bool attached = false) {
         Fixture fixture;
-        types::BoneIndex clothing = Root;
+        types::BoneIndex clothing = std::to_underlying(Bone::Root);
         if (physics_clothing || attached) {
-            clothing = Count;
+            clothing = std::to_underlying(Bone::Count);
             fixture.model.bone_node.emplace_back();
-            const auto parent = attached ? Wrist : Root;
+            const auto parent =
+                attached ? std::to_underlying(Bone::Wrist) : std::to_underlying(Bone::Root);
             fixture.model.bone_node.back().parent = parent;
             fixture.model.bone_node[parent].children.push_back(clothing);
             fixture.model.bone_names.push_back("garment");
@@ -581,13 +622,17 @@ namespace {
         // A garment protrudes in front of the torso capsule and covers the old hand targets.
         fixture.model.collision_vertices[clothing] =
             box(physics_clothing ? glm::vec3(0) : glm::vec3(0, 7, -1.1f), {1.3f, 1.5f, 0.3f});
-        fixture.model.collision_vertices[Wrist] = box({0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
-        fixture.model.collision_vertices[OtherWrist] = box({-0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
+        fixture.model.collision_vertices[std::to_underlying(Bone::Wrist)] =
+            box({0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
+        fixture.model.collision_vertices[std::to_underlying(Bone::OtherWrist)] =
+            box({-0.4f, 0, 0}, {0.4f, 0.2f, 0.3f});
         if (attached) {
-            fixture.model.collision_vertices[clothing] = fixture.model.collision_vertices[Wrist];
+            fixture.model.collision_vertices[clothing] =
+                fixture.model.collision_vertices[std::to_underlying(Bone::Wrist)];
         }
         std::array<types::OBB, 3> local;
-        const std::array<types::BoneIndex, 3> BONES{clothing, Wrist, OtherWrist};
+        const std::array<types::BoneIndex, 3> BONES{
+            clothing, std::to_underlying(Bone::Wrist), std::to_underlying(Bone::OtherWrist)};
         for (std::size_t index = 0; index < BONES.size(); ++index) {
             auto bounds = collider::OBBMaker::make_by_covariance_matrix(
                 fixture.model.collision_vertices[BONES[index]]);
@@ -625,9 +670,11 @@ namespace {
                     "Hands must avoid clothing outside the torso capsule during interpolation");
             }
             if (!release &&
-                glm::length(fixture.animation.animation[Arm].rotation - IDENTITY) > TOLERANCE &&
-                glm::length(fixture.animation.animation[OtherArm].rotation - IDENTITY) >
-                    TOLERANCE) {
+                glm::length(fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                            IDENTITY) > TOLERANCE &&
+                glm::length(
+                    fixture.animation.animation[std::to_underlying(Bone::OtherArm)].rotation -
+                    IDENTITY) > TOLERANCE) {
                 ++both_reaching;
             }
             check_arm_safety(fixture);
@@ -649,8 +696,9 @@ namespace {
                         static_cast<types::BoneIndex>(fixture.model.bone_node.size());
                     fixture.model.bone_names.push_back(side < 0 ? "左目" : "右目");
                     fixture.model.bone_node.emplace_back();
-                    fixture.model.bone_node.back().parent = Head;
-                    fixture.model.bone_node[Head].children.push_back(index);
+                    fixture.model.bone_node.back().parent = std::to_underlying(Bone::Head);
+                    fixture.model.bone_node[std::to_underlying(Bone::Head)].children.push_back(
+                        index);
                     fixture.animation.animation.emplace_back();
                     fixture.animation.animation.back().position =
                         glm::vec3(side * FACE_OFFSET, FACE_OFFSET, FACE_DEPTH);
@@ -681,7 +729,8 @@ namespace {
                 SETTLE_SECONDS);
             pose.restore(fixture.animation);
             pose.apply(fixture.model, fixture.animation, ray_at(center), SETTLE_SECONDS);
-            for (const auto bone : {Neck, Head}) {
+            for (const auto bone :
+                {std::to_underlying(Bone::Neck), std::to_underlying(Bone::Head)}) {
                 check(
                     glm::length(fixture.animation.animation[bone].rotation - IDENTITY) < TOLERANCE,
                     "A cursor at the projected face center must restore neutral neck and head");
@@ -695,7 +744,8 @@ namespace {
                         ray_at(center + axis * sign * CROSSING_STEP),
                         SETTLE_SECONDS);
                     std::size_t joint = 0;
-                    for (const auto bone : {Neck, Head}) {
+                    for (const auto bone :
+                        {std::to_underlying(Bone::Neck), std::to_underlying(Bone::Head)}) {
                         const auto rotation = fixture.animation.animation[bone].rotation;
                         check(glm::length(rotation - previous[joint]) < CONTINUITY_TOLERANCE,
                             "Crossing the face center must not flip gaze between angular limits");
@@ -714,8 +764,8 @@ namespace {
             const animation::CursorRay screen_ray{
                 types::Ray::make_ray_from_screen(size, pixel, camera), normal};
             pose.apply(fixture.model, fixture.animation, screen_ray, SETTLE_SECONDS);
-            check(glm::length(fixture.animation.animation[Head].rotation - IDENTITY) <
-                      CONTINUITY_TOLERANCE,
+            check(glm::length(fixture.animation.animation[std::to_underlying(Bone::Head)].rotation -
+                              IDENTITY) < CONTINUITY_TOLERANCE,
                 "A pixel near the face center must produce nearly neutral gaze");
         }
     }
@@ -730,8 +780,14 @@ namespace {
             "rightFoot",
             "LeftFootIK",
             "RightFootIK"};
-        const std::array<types::BoneIndex, LEG_BONES> parents{
-            Root, Count, Count + 1, Root, Count + 3, Count + 4, Root, Root};
+        const std::array<types::BoneIndex, LEG_BONES> parents{std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::Count),
+            std::to_underlying(Bone::Count) + 1,
+            std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::Count) + 3,
+            std::to_underlying(Bone::Count) + 4,
+            std::to_underlying(Bone::Root),
+            std::to_underlying(Bone::Root)};
         const std::array<glm::vec3, LEG_BONES> positions{glm::vec3(1, 6, 0),
             glm::vec3(0, -3, 0),
             glm::vec3(0, -3, 0),
@@ -740,12 +796,12 @@ namespace {
             glm::vec3(0, -3, 0),
             glm::vec3(1, 0, 0),
             glm::vec3(-1, 0, 0)};
-        fixture.model.bone_node.resize(Count + LEG_BONES);
-        fixture.model.bind_bone.resize(Count + LEG_BONES);
-        fixture.animation.animation.resize(Count + LEG_BONES);
-        fixture.animation.global.resize(Count + LEG_BONES);
+        fixture.model.bone_node.resize(std::to_underlying(Bone::Count) + LEG_BONES);
+        fixture.model.bind_bone.resize(std::to_underlying(Bone::Count) + LEG_BONES);
+        fixture.animation.animation.resize(std::to_underlying(Bone::Count) + LEG_BONES);
+        fixture.animation.global.resize(std::to_underlying(Bone::Count) + LEG_BONES);
         for (std::size_t i = 0; i < LEG_BONES; ++i) {
-            const auto bone = Count + i;
+            const auto bone = std::to_underlying(Bone::Count) + i;
             fixture.model.bone_names.emplace_back(names[i]);
             fixture.model.bone_node[bone].parent = parents[i];
             fixture.model.bone_node[parents[i]].children.push_back(bone);
@@ -757,11 +813,12 @@ namespace {
             fixture.model.bind_bone[bone].global_inverse = glm::inverse(matrix);
         }
         for (std::size_t side = 0; side < 2; ++side) {
-            const auto hip = static_cast<types::BoneIndex>(Count + side * 3);
+            const auto hip =
+                static_cast<types::BoneIndex>(std::to_underlying(Bone::Count) + side * 3);
             types::CCDIK ccd{};
             ccd.iterations = 40;
             ccd.target = hip + 2;
-            ccd.ik_bone = static_cast<types::BoneIndex>(Count + 6 + side);
+            ccd.ik_bone = static_cast<types::BoneIndex>(std::to_underlying(Bone::Count) + 6 + side);
             ccd.chain = {hip + 1, hip};
             ccd.limit = types::IKLimitAngle{0.5f};
             ccd.link_limits = {{true, {-glm::pi<float>(), 0, 0}, {0, 0, 0}}, {}};
@@ -789,7 +846,9 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply_transitioned(fixture.model, fixture.animation, cursor(2, 10), DT, true);
             if (frame == FRAMES - 1) {
-                check(global(fixture.model, fixture.animation, Wrist)[3].y > 8,
+                check(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3].y >
+                        8,
                     "Removing cursor transitions preserves the reach motion");
             }
             pose.restore(fixture.animation);
@@ -824,21 +883,22 @@ namespace {
         animation_system.update(quarter);
         skinning.update(quarter);
         check(controller->get_time() == 0 && pose.pose_transition_active &&
-                  pose.global[Root][3].x == 0,
+                  pose.global[std::to_underlying(Bone::Root)][3].x == 0,
             "File motion initially holds playback and preserves the preceding pose");
         animation_system.update(quarter);
         skinning.update(quarter);
-        check(controller->get_time() == 0 && std::abs(pose.global[Root][3].x - 5) < TOLERANCE,
+        check(controller->get_time() == 0 &&
+                  std::abs(pose.global[std::to_underlying(Bone::Root)][3].x - 5) < TOLERANCE,
             "File transition reaches the midpoint without advancing its controller");
         animation_system.update(quarter);
         skinning.update(quarter);
         check(controller->get_time() == 0 && !pose.pose_transition_active &&
-                  std::abs(pose.global[Root][3].x - 10) < TOLERANCE,
+                  std::abs(pose.global[std::to_underlying(Bone::Root)][3].x - 10) < TOLERANCE,
             "File transition reaches time zero after half a second");
         animation_system.update(quarter);
         skinning.update(quarter);
         check(controller->get_time() == 0.25f &&
-                  std::abs(pose.global[Root][3].x - 10.25f) < TOLERANCE,
+                  std::abs(pose.global[std::to_underlying(Bone::Root)][3].x - 10.25f) < TOLERANCE,
             "File playback begins only after the transition completes");
         for (int frame = 0; frame < 3; ++frame) {
             animation_system.update(quarter);
@@ -846,7 +906,7 @@ namespace {
         }
         check(!pose.motion_playing && pose.pose_transition_active,
             "Finishing a file motion starts the outgoing pose transition");
-        const float displayed = pose.global[Root][3].x;
+        const float displayed = pose.global[std::to_underlying(Bone::Root)][3].x;
         auto replacement = std::make_shared<animation::AnimationClipData>(*clip);
         replacement->bone_tracks[0].positions.values = {{20, 0, 0}, {21, 0, 0}};
         controller->add_clip("replacement", replacement);
@@ -854,11 +914,13 @@ namespace {
         animation_system.update(quarter);
         skinning.update(quarter);
         check(
-            controller->get_time() == 0 && std::abs(pose.global[Root][3].x - displayed) < TOLERANCE,
+            controller->get_time() == 0 &&
+                std::abs(pose.global[std::to_underlying(Bone::Root)][3].x - displayed) < TOLERANCE,
             "Replacing a clip mid-transition preserves the displayed pose");
         animation_system.update(quarter);
         skinning.update(quarter);
-        check(std::abs(pose.global[Root][3].x - (displayed + 20) * 0.5f) < TOLERANCE,
+        check(std::abs(pose.global[std::to_underlying(Bone::Root)][3].x - (displayed + 20) * 0.5f) <
+                  TOLERANCE,
             "Replacement clip uses a new linear transition from the interrupted pose");
     }
 
@@ -867,14 +929,16 @@ namespace {
         const auto torso = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
         fixture.model.bone_names.emplace_back("spine");
         fixture.model.bone_node.emplace_back();
-        fixture.model.bone_node.back().parent = Root;
-        fixture.model.bone_node[Root].children.push_back(torso);
+        fixture.model.bone_node.back().parent = std::to_underlying(Bone::Root);
+        fixture.model.bone_node[std::to_underlying(Bone::Root)].children.push_back(torso);
         fixture.model.bind_bone.emplace_back();
         fixture.model.bind_bone.back().local = glm::mat4(1);
         fixture.animation.animation.emplace_back();
         fixture.animation.global.emplace_back(1.0f);
-        for (const auto child : {Neck, Arm, OtherArm}) {
-            auto& children = fixture.model.bone_node[Root].children;
+        for (const auto child : {std::to_underlying(Bone::Neck),
+                 std::to_underlying(Bone::Arm),
+                 std::to_underlying(Bone::OtherArm)}) {
+            auto& children = fixture.model.bone_node[std::to_underlying(Bone::Root)].children;
             children.erase(std::remove(children.begin(), children.end(), child), children.end());
             fixture.model.bone_node[child].parent = torso;
             fixture.model.bone_node[torso].children.push_back(child);
@@ -930,10 +994,12 @@ namespace {
                 step(ray);
                 reference_pose.apply(reference.model, reference.animation, ray, DT, true);
                 if (transitions == 0) {
-                    check(glm::length(
-                              glm::vec3(fixture.animation.global[Root][3]) -
-                              glm::vec3(global(reference.model, reference.animation, Root)[3])) <
-                              TOLERANCE,
+                    check(
+                        glm::length(
+                            glm::vec3(fixture.animation.global[std::to_underlying(Bone::Root)][3]) -
+                            glm::vec3(global(reference.model,
+                                reference.animation,
+                                std::to_underlying(Bone::Root))[3])) < TOLERANCE,
                         "Preparation, flight and landing retain the uninterrupted jump trajectory");
                 }
                 reference_pose.restore(reference.animation);
@@ -944,7 +1010,7 @@ namespace {
         for (int frame = 0; frame < WARMUP; ++frame) {
             step(cursor(2, 10));
         }
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
         for (int frame = 0; frame < WARMUP; ++frame) {
             step(cursor(hand.x + 3, hand.y + 3));
@@ -963,7 +1029,8 @@ namespace {
         fixture.animation.motion_playing = true;
         ++fixture.animation.motion_revision;
         pose.apply_transitioned(fixture.model, fixture.animation, std::nullopt, DT, false);
-        check(!pose.suppress_hanging_ik(Count + 6) && !pose.suppress_hanging_ik(Count + 7),
+        check(!pose.suppress_hanging_ik(std::to_underlying(Bone::Count) + 6) &&
+                  !pose.suppress_hanging_ik(std::to_underlying(Bone::Count) + 7),
             "File transitions retain authored foot IK instead of enabling it abruptly afterward");
         pose.restore(fixture.animation);
     }
@@ -982,23 +1049,31 @@ namespace {
             max_sway =
                 (std::max)(max_sway, glm::angle(fixture.animation.animation[torso].rotation));
             for (std::size_t side = 0; side < max_foot_lift.size(); ++side) {
-                const auto foot = static_cast<types::BoneIndex>(Count + side * 3 + 2);
+                const auto foot =
+                    static_cast<types::BoneIndex>(std::to_underlying(Bone::Count) + side * 3 + 2);
                 max_foot_lift[side] = (std::max)(
                     max_foot_lift[side], global(fixture.model, fixture.animation, foot)[3].y);
             }
             constexpr int SETTLED_FRAME = 180;
             if (frame > SETTLED_FRAME) {
-                check(global(fixture.model, fixture.animation, Wrist)[3].y < 5 &&
-                          global(fixture.model, fixture.animation, OtherWrist)[3].y < 5,
+                check(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3].y <
+                            5 &&
+                        global(fixture.model,
+                            fixture.animation,
+                            std::to_underlying(Bone::OtherWrist))[3]
+                                .y < 5,
                     "Idle lowers both hands from the T pose toward the thighs");
-                check(glm::length(fixture.animation.animation[Root].position) < 0.2f,
+                check(glm::length(
+                          fixture.animation.animation[std::to_underlying(Bone::Root)].position) <
+                          0.2f,
                     "Idle weight shifts remain small and do not walk away");
-                const auto upper =
-                    glm::normalize(glm::vec3(global(fixture.model, fixture.animation, Elbow)[3] -
-                                             global(fixture.model, fixture.animation, Arm)[3]));
-                const auto lower =
-                    glm::normalize(glm::vec3(global(fixture.model, fixture.animation, Wrist)[3] -
-                                             global(fixture.model, fixture.animation, Elbow)[3]));
+                const auto upper = glm::normalize(glm::vec3(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Elbow))[3] -
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Arm))[3]));
+                const auto lower = glm::normalize(glm::vec3(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3] -
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Elbow))[3]));
                 constexpr float MAX_IDLE_FLEX = 15.0f;
                 check(glm::dot(upper, lower) > std::cos(glm::radians(MAX_IDLE_FLEX)),
                     "Idle elbows retain only a slight bend");
@@ -1018,7 +1093,9 @@ namespace {
         for (int frame = 0; frame < REACH_FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(2, 10), DT, true);
             if (frame == REACH_FRAMES - 1) {
-                check(global(fixture.model, fixture.animation, Wrist)[3].y > 8,
+                check(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3].y >
+                        8,
                     "Cursor reaching takes priority after the idle arms have settled");
                 check(glm::angle(fixture.animation.animation[torso].rotation) > glm::radians(0.1f),
                     "Idle torso animation continues while reaching for the cursor");
@@ -1030,8 +1107,9 @@ namespace {
         for (int frame = 0; frame < FADE_FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT, false);
             if (frame == FADE_FRAMES - 1) {
-                check(glm::length(fixture.animation.animation[Arm].rotation -
-                                  source[Arm].rotation) < TOLERANCE &&
+                check(glm::length(
+                          fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                          source[std::to_underlying(Bone::Arm)].rotation) < TOLERANCE &&
                           fixture.animation.animation[torso].rotation == source[torso].rotation,
                     "Motion playback takes priority over idle animation");
             }
@@ -1053,7 +1131,8 @@ namespace {
             pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT, true);
             airborne_idle =
                 airborne_idle ||
-                (fixture.animation.animation[Root].position.y > TOLERANCE &&
+                (fixture.animation.animation[std::to_underlying(Bone::Root)].position.y >
+                        TOLERANCE &&
                     glm::angle(fixture.animation.animation[torso].rotation) > glm::radians(0.1f));
             for (types::BoneIndex bone = 0; bone < source.size(); ++bone) {
                 fixture.animation.global[bone] = global(fixture.model, fixture.animation, bone);
@@ -1061,7 +1140,7 @@ namespace {
             pose.restore(fixture.animation);
         }
         check(airborne_idle, "Idle torso animation continues in flight");
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
         constexpr float LIFT = 0.48f;
         const glm::vec3 destination(hand.x, hand.y + 3, hand.z);
@@ -1074,7 +1153,8 @@ namespace {
                 first_sway = fixture.animation.animation[torso].rotation;
             }
             if (frame > SETTLED) {
-                const auto wrist = glm::vec3(global(fixture.model, fixture.animation, Wrist)[3]);
+                const auto wrist = glm::vec3(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Wrist))[3]);
                 check(glm::length(wrist - destination - glm::vec3(0, LIFT, 0)) < TOLERANCE,
                     "Idle sway keeps the suspended hand anchored");
             }
@@ -1090,9 +1170,13 @@ namespace {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT, true);
             constexpr int CONTACT_FRAME = 18;
             if (frame > CONTACT_FRAME) {
-                for (const auto wrist : {Wrist, OtherWrist}) {
+                for (const auto wrist :
+                    {std::to_underlying(Bone::Wrist), std::to_underlying(Bone::OtherWrist)}) {
                     check(global(fixture.model, fixture.animation, wrist)[3].y <
-                              global(fixture.model, fixture.animation, Count)[3].y,
+                              global(fixture.model,
+                                  fixture.animation,
+                                  std::to_underlying(Bone::Count))[3]
+                                  .y,
                         "Return walking transitions to idle without raising the arms again");
                 }
             }
@@ -1138,18 +1222,20 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(
                 model, animation, frame == 0 ? std::optional(cursor(0, 11.5f)) : std::nullopt, DT);
-            const float height = animation.animation[Root].position.y;
+            const float height = animation.animation[std::to_underlying(Bone::Root)].position.y;
             if (height < -TOLERANCE) {
                 prepared = prepared || !airborne;
                 landed = landed || airborne;
-                for (const auto knee : {Count + 1, Count + 4}) {
+                for (const auto knee :
+                    {std::to_underlying(Bone::Count) + 1, std::to_underlying(Bone::Count) + 4}) {
                     check(glm::length(animation.animation[knee].rotation - IDENTITY) > TOLERANCE,
                         "Crouching must bend both knees");
                 }
             }
             airborne = airborne || height > TOLERANCE;
             skinning.update(types::DeltaTime(DT));
-            for (const auto foot : {Count + 2, Count + 5}) {
+            for (const auto foot :
+                {std::to_underlying(Bone::Count) + 2, std::to_underlying(Bone::Count) + 5}) {
                 const auto position = glm::vec3(animation.global[foot][3]);
                 const auto bind = glm::vec3(model.bind_bone[foot].global[3]);
                 check(glm::length(glm::vec2(position.x - bind.x, position.z - bind.z)) < TOLERANCE,
@@ -1189,9 +1275,11 @@ namespace {
             jump_pose.apply(jumping.model, jumping.animation, target, DT);
             waiting_pose.apply(waiting.model, waiting.animation, target, DT);
             if (frame > SETTLED_FRAME && frame < TRACK_FRAMES) {
-                check(jumping.animation.animation[Root].position == glm::vec3(0),
+                check(jumping.animation.animation[std::to_underlying(Bone::Root)].position ==
+                          glm::vec3(0),
                     "Reach regression must cover the grounded cooldown");
-                for (const auto arm : {Arm, OtherArm}) {
+                for (const auto arm :
+                    {std::to_underlying(Bone::Arm), std::to_underlying(Bone::OtherArm)}) {
                     check(glm::length(waiting.animation.animation[arm].rotation - IDENTITY) >
                               POSE_TOLERANCE,
                         "Reference pose must keep reaching upward");
@@ -1201,7 +1289,8 @@ namespace {
                 }
             }
             if (frame == TRACK_FRAMES + RELEASE_FRAMES - 1) {
-                for (const auto arm : {Arm, OtherArm}) {
+                for (const auto arm :
+                    {std::to_underlying(Bone::Arm), std::to_underlying(Bone::OtherArm)}) {
                     check(glm::length(jumping.animation.animation[arm].rotation - IDENTITY) <
                               POSE_TOLERANCE,
                         "Arms must still release when the cursor leaves");
@@ -1214,8 +1303,10 @@ namespace {
 
     void check_hanging_limbs(
         const Fixture& fixture, std::size_t selected_side, types::BoneIndex wrist) {
-        const auto shoulder = selected_side == 0 ? Arm : OtherArm;
-        const auto elbow = selected_side == 0 ? Elbow : OtherElbow;
+        const auto shoulder =
+            selected_side == 0 ? std::to_underlying(Bone::Arm) : std::to_underlying(Bone::OtherArm);
+        const auto elbow = selected_side == 0 ? std::to_underlying(Bone::Elbow)
+                                              : std::to_underlying(Bone::OtherElbow);
         const auto upper = glm::vec3(global(fixture.model, fixture.animation, elbow)[3] -
                                      global(fixture.model, fixture.animation, shoulder)[3]);
         const auto lower = glm::vec3(global(fixture.model, fixture.animation, wrist)[3] -
@@ -1225,7 +1316,8 @@ namespace {
         check(glm::normalize(upper).y > 0.99f && glm::normalize(lower).y > 0.99f,
             "The supporting arm extends upward rather than sideways");
         for (std::size_t side = 0; side < 2; ++side) {
-            const auto hip = static_cast<types::BoneIndex>(Count + side * 3);
+            const auto hip =
+                static_cast<types::BoneIndex>(std::to_underlying(Bone::Count) + side * 3);
             const auto thigh = glm::vec3(global(fixture.model, fixture.animation, hip + 1)[3] -
                                          global(fixture.model, fixture.animation, hip)[3]);
             const auto shin = glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3] -
@@ -1240,7 +1332,8 @@ namespace {
         auto fixture = idle_fixture();
         const auto torso = fixture.animation.animation.size() - 1;
         // Put the torso pivot at the hips while preserving the existing global bind pose.
-        const auto pivot = fixture.animation.animation[Count].position * glm::vec3(0, 1, 0);
+        const auto pivot = fixture.animation.animation[std::to_underlying(Bone::Count)].position *
+                           glm::vec3(0, 1, 0);
         fixture.animation.animation[torso].position = pivot;
         fixture.model.bind_bone[torso].local = glm::translate(glm::mat4(1), pivot);
         fixture.model.bind_bone[torso].global = fixture.model.bind_bone[torso].local;
@@ -1269,7 +1362,8 @@ namespace {
                 config.jump_enabled = false;
                 animation::CursorPose pose(fixture.model, config);
                 const float sign = side == 0 ? 1.0f : -1.0f;
-                const auto wrist = side == 0 ? Wrist : OtherWrist;
+                const auto wrist = side == 0 ? std::to_underlying(Bone::Wrist)
+                                             : std::to_underlying(Bone::OtherWrist);
                 for (int frame = 0; frame < FRAMES; ++frame) {
                     pose.apply_transitioned(
                         fixture.model, fixture.animation, cursor(sign * distance, 9.8f), DT, true);
@@ -1280,7 +1374,7 @@ namespace {
                     pose.restore(fixture.animation);
                 }
                 const auto hand = glm::vec3(fixture.animation.global[wrist][3]);
-                check(hand.y > fixture.animation.global[Head][3].y,
+                check(hand.y > fixture.animation.global[std::to_underlying(Bone::Head)][3].y,
                     "Lean regression starts with an extended hand above the head");
                 pose.begin_hanging(side, fixture.animation, cursor(hand.x, hand.y));
                 for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1300,16 +1394,24 @@ namespace {
                                     destination - glm::vec3(0, lift, 0)) < TOLERANCE,
                         "Supporting hand follows the pointer throughout hanging entry");
                     if (!(frame < ENTRY_FRAMES)) {
-                        check(glm::angle(fixture.animation.animation[Root].rotation) <
-                                  glm::radians(MAX_BODY_DEGREES) + TOLERANCE,
+                        check(
+                            glm::angle(fixture.animation.animation[std::to_underlying(Bone::Root)]
+                                           .rotation) < glm::radians(MAX_BODY_DEGREES) + TOLERANCE,
                             "Lateral grasp and drag cannot produce excessive body lean");
-                        const auto pelvis =
-                            (glm::vec3(global(fixture.model, fixture.animation, Count)[3]) +
-                                glm::vec3(global(fixture.model, fixture.animation, Count + 3)[3])) *
-                            0.5f;
-                        const auto down = glm::normalize(
-                            pelvis - glm::vec3(global(fixture.model, fixture.animation, Neck)[3]));
-                        for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                        const auto pelvis = (glm::vec3(global(fixture.model,
+                                                 fixture.animation,
+                                                 std::to_underlying(Bone::Count))[3]) +
+                                                glm::vec3(global(fixture.model,
+                                                    fixture.animation,
+                                                    std::to_underlying(Bone::Count) + 3)[3])) *
+                                            0.5f;
+                        const auto down =
+                            glm::normalize(pelvis - glm::vec3(global(fixture.model,
+                                                        fixture.animation,
+                                                        std::to_underlying(Bone::Neck))[3]));
+                        for (const auto hip :
+                            std::array<types::BoneIndex, 2>{std::to_underlying(Bone::Count),
+                                std::to_underlying(Bone::Count) + 3}) {
                             const auto leg = glm::normalize(
                                 glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3] -
                                           global(fixture.model, fixture.animation, hip)[3]));
@@ -1324,7 +1426,8 @@ namespace {
                         check_hanging_limbs(fixture, side, wrist);
                     }
                     pose.restore(fixture.animation);
-                    check(fixture.animation.animation[Root].rotation == source[Root].rotation,
+                    check(fixture.animation.animation[std::to_underlying(Bone::Root)].rotation ==
+                              source[std::to_underlying(Bone::Root)].rotation,
                         "Limited hanging corrections never accumulate into the source pose");
                 }
             }
@@ -1336,9 +1439,9 @@ namespace {
         constexpr int FRAMES = 120;
         auto fixture = leg_fixture();
         constexpr float CROUCH_DEGREES = 45;
-        fixture.animation.animation[Count + 1].rotation =
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 1].rotation =
             glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
-        fixture.animation.animation[Count + 4].rotation =
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 4].rotation =
             glm::angleAxis(glm::radians(CROUCH_DEGREES), glm::vec3(1, 0, 0));
         animation::CursorPoseConfig config;
         config.jump_enabled = false;
@@ -1352,7 +1455,8 @@ namespace {
             }
             pose.restore(fixture.animation);
         }
-        const auto low_hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto low_hand =
+            glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         check(!pose.pick_hand(fixture.animation, cursor(low_hand.x, low_hand.y)).has_value(),
             "Dragging a hand below the head must not start suspension");
         auto entry_pose = fixture.animation.animation;
@@ -1364,14 +1468,15 @@ namespace {
             }
             pose.restore(fixture.animation);
         }
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         const auto grab = cursor(hand.x, hand.y);
         const auto hit = pose.pick_hand(fixture.animation, grab);
         check(hit.has_value(), "The extended hand can be grabbed");
         pose.begin_hanging(hit->first, fixture.animation, grab);
         check(pose.is_hanging(), "Drag starts suspension");
         const auto source = fixture.animation.animation;
-        const auto wrist = hit->first == 0 ? Wrist : OtherWrist;
+        const auto wrist = hit->first == 0 ? std::to_underlying(Bone::Wrist)
+                                           : std::to_underlying(Bone::OtherWrist);
         const glm::vec3 destination(hand.x + 2, hand.y + 3, hand.z);
         glm::quat halfway_rotation = IDENTITY;
         glm::quat completed_rotation = IDENTITY;
@@ -1381,18 +1486,22 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(destination.x, destination.y), DT);
             if (frame == 0) {
-                check(glm::length(fixture.animation.animation[Arm].rotation -
-                                  entry_pose[Arm].rotation) < 0.01f,
+                check(glm::length(
+                          fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation -
+                          entry_pose[std::to_underlying(Bone::Arm)].rotation) < 0.01f,
                     "Hanging entry starts smoothly from the reached arm pose");
             }
             if (frame == QUARTER_SECOND_FRAMES - 1) {
-                halfway_rotation = fixture.animation.animation[Root].rotation;
+                halfway_rotation =
+                    fixture.animation.animation[std::to_underlying(Bone::Root)].rotation;
             }
             if (frame == HALF_SECOND_FRAMES - 1) {
-                completed_rotation = fixture.animation.animation[Root].rotation;
+                completed_rotation =
+                    fixture.animation.animation[std::to_underlying(Bone::Root)].rotation;
             }
             if (frame == FRAMES - 1) {
-                const auto final_rotation = fixture.animation.animation[Root].rotation;
+                const auto final_rotation =
+                    fixture.animation.animation[std::to_underlying(Bone::Root)].rotation;
                 check(glm::length(halfway_rotation - final_rotation) > 0.01f,
                     "Hanging entry is still transitioning at a quarter second");
                 check(glm::length(completed_rotation - final_rotation) < 0.005f,
@@ -1400,7 +1509,9 @@ namespace {
                 check(glm::length(glm::vec3(global(fixture.model, fixture.animation, wrist)[3]) -
                                   (destination + glm::vec3(0, SUSPENSION_LIFT, 0))) < 0.001f,
                     "Suspension adds a small model-relative lift above the cursor");
-                check(global(fixture.model, fixture.animation, Root)[3].y < destination.y,
+                check(
+                    global(fixture.model, fixture.animation, std::to_underlying(Bone::Root))[3].y <
+                        destination.y,
                     "The body hangs below the grabbed hand");
                 check_hanging_limbs(fixture, hit->first, wrist);
                 for (const auto& ik : fixture.model.iks) {
@@ -1423,10 +1534,12 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(hand.x, 7), DT);
             if (frame == FRAMES - 1) {
-                check(glm::length(fixture.animation.animation[Root].position -
-                                  source[Root].position) < 0.001f,
+                check(glm::length(
+                          fixture.animation.animation[std::to_underlying(Bone::Root)].position -
+                          source[std::to_underlying(Bone::Root)].position) < 0.001f,
                     "Lowering the cursor below the head fades out suspension during the drag");
-                check(!pose.suppress_hanging_ik(Count + 6), "Foot IK resumes below the head");
+                check(!pose.suppress_hanging_ik(std::to_underlying(Bone::Count) + 6),
+                    "Foot IK resumes below the head");
             }
             pose.restore(fixture.animation);
         }
@@ -1435,8 +1548,9 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
             if (frame == FRAMES - 1) {
-                check(glm::length(fixture.animation.animation[Root].position -
-                                  source[Root].position) < 0.001f,
+                check(glm::length(
+                          fixture.animation.animation[std::to_underlying(Bone::Root)].position -
+                          source[std::to_underlying(Bone::Root)].position) < 0.001f,
                     "Released body returns smoothly to its authored position");
             }
             pose.restore(fixture.animation);
@@ -1460,7 +1574,8 @@ namespace {
                 }
                 pose.restore(fixture.animation);
             }
-            const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+            const auto hand =
+                glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
             const auto grab = cursor(hand.x, hand.y);
             const auto hit = pose.pick_hand(fixture.animation, grab);
             check(hit.has_value(), "A released hand can be grabbed again without accumulated tilt");
@@ -1471,7 +1586,8 @@ namespace {
             glm::vec3 suspended_position{};
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
-                suspended_position = fixture.animation.animation[Root].position;
+                suspended_position =
+                    fixture.animation.animation[std::to_underlying(Bone::Root)].position;
                 pose.restore(fixture.animation);
             }
             pose.end_hanging();
@@ -1481,9 +1597,10 @@ namespace {
             std::array<glm::vec3, 2> previous_feet{};
             bool have_previous_feet = false;
             constexpr int RETURN_FRAMES = 360;
-            const glm::vec3 landing_offset(suspended_position.x - source[Root].position.x,
+            const glm::vec3 landing_offset(
+                suspended_position.x - source[std::to_underlying(Bone::Root)].position.x,
                 0,
-                suspended_position.z - source[Root].position.z);
+                suspended_position.z - source[std::to_underlying(Bone::Root)].position.z);
             constexpr int LANDING_FRAMES = 36;
             constexpr int WALK_RETURN_FRAMES = 60;
             constexpr int expected_return_frame = LANDING_FRAMES + WALK_RETURN_FRAMES;
@@ -1492,50 +1609,67 @@ namespace {
                 if (frame == 0) {
                     constexpr float MAX_INITIAL_DROP_RATIO = 0.05f;
                     check(glm::length(
-                              fixture.animation.animation[Root].position - suspended_position) <
+                              fixture.animation.animation[std::to_underlying(Bone::Root)].position -
+                              suspended_position) <
                               MAX_INITIAL_DROP_RATIO *
-                                  glm::length(suspended_position - source[Root].position),
+                                  glm::length(suspended_position -
+                                              source[std::to_underlying(Bone::Root)].position),
                         "Release descends from the displayed position without teleporting");
                 }
                 constexpr int CONTACT_FRAME = 18;
                 constexpr int RECOVERY_FRAME = 36;
                 if (frame > CONTACT_FRAME) {
                     if (frame < expected_return_frame - 1) {
-                        for (const auto wrist : {Wrist, OtherWrist}) {
+                        for (const auto wrist : {std::to_underlying(Bone::Wrist),
+                                 std::to_underlying(Bone::OtherWrist)}) {
                             const float hand_height =
                                 global(fixture.model, fixture.animation, wrist)[3].y;
-                            const float hips_height =
-                                global(fixture.model, fixture.animation, Count)[3].y;
+                            const float hips_height = global(fixture.model,
+                                fixture.animation,
+                                std::to_underlying(Bone::Count))[3]
+                                                          .y;
                             check(hand_height < hips_height,
                                 "Landing and return walking keep both hands near the thighs");
                         }
                     }
-                    for (const auto knee : {Count + 1, Count + 4}) {
+                    for (const auto knee : {std::to_underlying(Bone::Count) + 1,
+                             std::to_underlying(Bone::Count) + 4}) {
                         const auto rotation = fixture.animation.animation[knee].rotation;
                         check(std::abs(rotation.y) < 0.0001f && std::abs(rotation.z) < 0.0001f,
                             "Landing and walking knees rotate only around local X");
                     }
                 }
                 if (frame > CONTACT_FRAME && frame < RECOVERY_FRAME) {
-                    bent_on_landing = bent_on_landing ||
-                                      glm::length(fixture.animation.animation[Count + 1].rotation -
-                                                  source[Count + 1].rotation) > 0.01f;
-                    check(glm::length(
-                              glm::vec3(global(fixture.model, fixture.animation, Count + 2)[3]) -
-                              (glm::vec3(fixture.model.bind_bone[Count + 2].global[3]) +
-                                  landing_offset)) < 0.001f,
+                    bent_on_landing =
+                        bent_on_landing ||
+                        glm::length(fixture.animation.animation[std::to_underlying(Bone::Count) + 1]
+                                        .rotation -
+                                    source[std::to_underlying(Bone::Count) + 1].rotation) > 0.01f;
+                    check(
+                        glm::length(
+                            glm::vec3(global(fixture.model,
+                                fixture.animation,
+                                std::to_underlying(Bone::Count) + 2)[3]) -
+                            (glm::vec3(fixture.model.bind_bone[std::to_underlying(Bone::Count) + 2]
+                                           .global[3]) +
+                                landing_offset)) < 0.001f,
                         "Landing keeps the foot planted while bending the knee");
                 }
                 if (frame < RECOVERY_FRAME) {
-                    const auto position = fixture.animation.animation[Root].position;
+                    const auto position =
+                        fixture.animation.animation[std::to_underlying(Bone::Root)].position;
                     check(glm::length(glm::vec2(position.x - suspended_position.x,
                               position.z - suspended_position.z)) < 0.001f,
                         "Release lands in place before starting the return walk");
                 } else {
                     constexpr float GROUND_TOLERANCE = 0.0001f;
                     const std::array<glm::vec3, 2> feet{
-                        glm::vec3(global(fixture.model, fixture.animation, Count + 2)[3]),
-                        glm::vec3(global(fixture.model, fixture.animation, Count + 5)[3])};
+                        glm::vec3(global(fixture.model,
+                            fixture.animation,
+                            std::to_underlying(Bone::Count) + 2)[3]),
+                        glm::vec3(global(fixture.model,
+                            fixture.animation,
+                            std::to_underlying(Bone::Count) + 5)[3])};
                     check((std::min)(std::abs(feet[0].y), std::abs(feet[1].y)) < GROUND_TOLERANCE,
                         "Side stepping keeps one foot on the ground");
                     for (std::size_t side = 0; side < feet.size(); ++side) {
@@ -1547,29 +1681,38 @@ namespace {
                     }
                     previous_feet = feet;
                     have_previous_feet = true;
-                    stepped_left = stepped_left ||
-                                   global(fixture.model, fixture.animation, Count + 2)[3].y > 0.05f;
-                    stepped_right =
-                        stepped_right ||
-                        global(fixture.model, fixture.animation, Count + 5)[3].y > 0.05f;
+                    stepped_left = stepped_left || global(fixture.model,
+                                                       fixture.animation,
+                                                       std::to_underlying(Bone::Count) + 2)[3]
+                                                           .y > 0.05f;
+                    stepped_right = stepped_right || global(fixture.model,
+                                                         fixture.animation,
+                                                         std::to_underlying(Bone::Count) + 5)[3]
+                                                             .y > 0.05f;
                 }
                 if (frame == LANDING_FRAMES + WALK_RETURN_FRAMES / 2) {
-                    const auto position = fixture.animation.animation[Root].position;
-                    check(glm::length(glm::vec2(position.x - source[Root].position.x,
-                              position.z - source[Root].position.z)) > 0.001f,
+                    const auto position =
+                        fixture.animation.animation[std::to_underlying(Bone::Root)].position;
+                    check(glm::length(glm::vec2(
+                              position.x - source[std::to_underlying(Bone::Root)].position.x,
+                              position.z - source[std::to_underlying(Bone::Root)].position.z)) >
+                              0.001f,
                         "Return walking is still in progress after half a second");
                 }
                 if (frame == expected_return_frame) {
-                    check(glm::length(fixture.animation.animation[Root].position -
-                                      source[Root].position) < 0.001f,
+                    check(glm::length(
+                              fixture.animation.animation[std::to_underlying(Bone::Root)].position -
+                              source[std::to_underlying(Bone::Root)].position) < 0.001f,
                         "Return walking reaches the original position after one second");
                 }
                 if (frame == RETURN_FRAMES - 1) {
-                    check(glm::length(fixture.animation.animation[Root].rotation -
-                                      source[Root].rotation) < 0.001f,
+                    check(glm::length(
+                              fixture.animation.animation[std::to_underlying(Bone::Root)].rotation -
+                              source[std::to_underlying(Bone::Root)].rotation) < 0.001f,
                         "Release restores the displayed root rotation on every repetition");
-                    check(glm::length(fixture.animation.animation[Root].position -
-                                      source[Root].position) < 0.001f,
+                    check(glm::length(
+                              fixture.animation.animation[std::to_underlying(Bone::Root)].position -
+                              source[std::to_underlying(Bone::Root)].position) < 0.001f,
                         "Side stepping returns the model to its original position");
                 }
                 pose.restore(fixture.animation);
@@ -1590,8 +1733,8 @@ namespace {
         const auto hips = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
         fixture.model.bone_names.emplace_back("hips");
         fixture.model.bone_node.emplace_back();
-        fixture.model.bone_node.back().parent = Root;
-        fixture.model.bone_node[Root].children.push_back(hips);
+        fixture.model.bone_node.back().parent = std::to_underlying(Bone::Root);
+        fixture.model.bone_node[std::to_underlying(Bone::Root)].children.push_back(hips);
         fixture.animation.animation.emplace_back();
         fixture.animation.animation.back().position = glm::vec3(0, 6, 0);
         const auto matrix = global(fixture.model, fixture.animation, hips);
@@ -1612,7 +1755,7 @@ namespace {
             }
             pose.restore(fixture.animation);
         }
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
         glm::vec3 release_center{};
         for (int frame = 0; frame < FRAMES; ++frame) {
@@ -1635,15 +1778,20 @@ namespace {
     void offset_knees_do_not_twist_at_small_bends(bool helper_bones) {
         auto fixture = leg_fixture();
         constexpr float KNEE_LATERAL_OFFSET = 0.2f;
-        fixture.animation.animation[Count + 1].position.x = KNEE_LATERAL_OFFSET;
-        fixture.animation.animation[Count + 2].position.x = -KNEE_LATERAL_OFFSET;
-        fixture.animation.animation[Count + 4].position.x = -KNEE_LATERAL_OFFSET;
-        fixture.animation.animation[Count + 5].position.x = KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 1].position.x =
+            KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 2].position.x =
+            -KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 4].position.x =
+            -KNEE_LATERAL_OFFSET;
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 5].position.x =
+            KNEE_LATERAL_OFFSET;
         if (helper_bones) {
             constexpr float HELPER_YAW_DEGREES = 45;
             const auto rotation =
                 glm::angleAxis(glm::radians(HELPER_YAW_DEGREES), glm::vec3(0, 1, 0));
-            for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+            for (const auto hip : std::array<types::BoneIndex, 2>{
+                     std::to_underlying(Bone::Count), std::to_underlying(Bone::Count) + 3}) {
                 const auto helper = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
                 fixture.model.bone_names.emplace_back("legHelper");
                 fixture.model.bone_node.emplace_back();
@@ -1677,10 +1825,11 @@ namespace {
         pose.restore(fixture.animation);
         constexpr float SMALL_DT = 0.001f;
         pose.apply(fixture.model, fixture.animation, std::nullopt, SMALL_DT);
-        check(fixture.animation.animation[Root].position.y < 0,
+        check(fixture.animation.animation[std::to_underlying(Bone::Root)].position.y < 0,
             "The offset-knee regression must exercise the shared landing crouch solver");
         constexpr float MAX_INITIAL_HIP_DEGREES = 5;
-        for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+        for (const auto hip : std::array<types::BoneIndex, 2>{
+                 std::to_underlying(Bone::Count), std::to_underlying(Bone::Count) + 3}) {
             check(glm::angle(fixture.animation.animation[hip].rotation) <
                       glm::radians(MAX_INITIAL_HIP_DEGREES),
                 "A tiny knee bend must not yaw a leg with a lateral bind offset");
@@ -1694,7 +1843,8 @@ namespace {
         constexpr float MAX_HIP_DEGREES = 45;
         for (int frame = 0; frame < LANDING_FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
-            for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+            for (const auto hip : std::array<types::BoneIndex, 2>{
+                     std::to_underlying(Bone::Count), std::to_underlying(Bone::Count) + 3}) {
                 const auto bind = glm::quat_cast(glm::mat3(fixture.model.bind_bone[hip + 1].local));
                 const auto bend =
                     glm::inverse(bind) * fixture.animation.animation[hip + 1].rotation;
@@ -1704,7 +1854,8 @@ namespace {
                           glm::radians(MAX_HIP_DEGREES),
                     "Offset legs must not gain a large hip rotation during landing");
                 auto expected = glm::vec3(fixture.model.bind_bone[hip + 2].global[3]);
-                expected.y += (std::max)(0.0f, fixture.animation.animation[Root].position.y);
+                expected.y += (std::max)(
+                    0.0f, fixture.animation.animation[std::to_underlying(Bone::Root)].position.y);
                 check(glm::length(glm::vec3(global(fixture.model, fixture.animation, hip + 2)[3]) -
                                   expected) < 0.001f,
                     "Offset legs keep both ankles at their targets throughout flight and landing");
@@ -1717,8 +1868,8 @@ namespace {
         auto fixture = leg_fixture();
         constexpr float HIP_YAW_DEGREES = 90;
         const auto hip_rotation = glm::angleAxis(glm::radians(HIP_YAW_DEGREES), glm::vec3(0, 1, 0));
-        fixture.animation.animation[Count].rotation = hip_rotation;
-        fixture.animation.animation[Count + 3].rotation = hip_rotation;
+        fixture.animation.animation[std::to_underlying(Bone::Count)].rotation = hip_rotation;
+        fixture.animation.animation[std::to_underlying(Bone::Count) + 3].rotation = hip_rotation;
         animation::CursorPoseConfig config;
         config.jump_enabled = false;
         animation::CursorPose pose(fixture.model, config);
@@ -1731,7 +1882,7 @@ namespace {
             }
             pose.restore(fixture.animation);
         }
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         pose.begin_hanging(0, fixture.animation, cursor(hand.x, hand.y));
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(hand.x, hand.y + 3), DT);
@@ -1743,7 +1894,8 @@ namespace {
         for (int frame = 0; frame < RECOVERY_FRAME; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
             if (frame > CONTACT_FRAME) {
-                for (const auto hip : std::array<types::BoneIndex, 2>{Count, Count + 3}) {
+                for (const auto hip : std::array<types::BoneIndex, 2>{
+                         std::to_underlying(Bone::Count), std::to_underlying(Bone::Count) + 3}) {
                     const auto delta =
                         glm::inverse(hip_rotation) * fixture.animation.animation[hip].rotation;
                     check(std::abs(delta.y) < 0.001f && std::abs(delta.z) < 0.001f,
@@ -1773,14 +1925,14 @@ namespace {
             }
             pose.restore(fixture.animation);
         }
-        const auto hand = glm::vec3(fixture.animation.global[Wrist][3]);
+        const auto hand = glm::vec3(fixture.animation.global[std::to_underlying(Bone::Wrist)][3]);
         const auto grab = cursor(hand.x, hand.y);
         auto expected = IDENTITY;
         // A clip can update authored bones after the last cursor evaluation.
         constexpr float AUTHORED_TWIST_DEGREES = 10;
         const auto authored_twist =
             glm::angleAxis(glm::radians(AUTHORED_TWIST_DEGREES), glm::vec3(1, 0, 0));
-        fixture.animation.animation[Twist].rotation = authored_twist;
+        fixture.animation.animation[std::to_underlying(Bone::Twist)].rotation = authored_twist;
         for (int repeat = 0; repeat < REPETITIONS; ++repeat) {
             // Exercise the pose lifecycle independently of the window's drag hit-test gate.
             // Restore leaves temporary globals cached; a new drag must not capture them.
@@ -1788,8 +1940,10 @@ namespace {
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, cursor(hand.x + 2, hand.y + 3), DT);
                 if (frame == FRAMES - 1) {
-                    const auto actual = fixture.animation.animation[Root].rotation;
-                    check(fixture.animation.animation[Twist].rotation == authored_twist,
+                    const auto actual =
+                        fixture.animation.animation[std::to_underlying(Bone::Root)].rotation;
+                    check(fixture.animation.animation[std::to_underlying(Bone::Twist)].rotation ==
+                              authored_twist,
                         "Suspension must start from current animation, not the cached pose");
                     if (repeat == 0) {
                         expected = actual;
@@ -1820,11 +1974,15 @@ namespace {
                 const animation::CursorRay ray{{origin, glm::normalize(reachable - origin)}, normal};
                 for (int frame = 0; frame < FRAMES; ++frame) {
                     pose.apply(fixture.model, fixture.animation, ray, DT);
-                    check(fixture.animation.animation[Root].position == glm::vec3(0),
+                    check(fixture.animation.animation[std::to_underlying(Bone::Root)].position ==
+                              glm::vec3(0),
                         "A reachable screen cursor must not trigger a jump due to target-plane "
                         "depth");
                     if (frame == FRAMES - 1) {
-                        check(global(fixture.model, fixture.animation, Wrist)[3].y > 8.0f,
+                        check(global(fixture.model,
+                                  fixture.animation,
+                                  std::to_underlying(Bone::Wrist))[3]
+                                      .y > 8.0f,
                             "The arm must keep reaching toward a reachable cursor");
                     }
                     pose.restore(fixture.animation);
@@ -1834,11 +1992,13 @@ namespace {
         Fixture fixture;
         fixture.model.bone_names.push_back("fingerTip");
         fixture.model.bone_node.emplace_back();
-        fixture.model.bone_node.back().parent = Wrist;
-        fixture.model.bone_node[Wrist].children.push_back(Count);
+        fixture.model.bone_node.back().parent = std::to_underlying(Bone::Wrist);
+        fixture.model.bone_node[std::to_underlying(Bone::Wrist)].children.push_back(
+            std::to_underlying(Bone::Count));
         fixture.animation.animation.emplace_back();
         fixture.animation.animation.back().position = glm::vec3(0.6f, 0, 0);
-        fixture.animation.global.push_back(global(fixture.model, fixture.animation, Count));
+        fixture.animation.global.push_back(
+            global(fixture.model, fixture.animation, std::to_underlying(Bone::Count)));
         fixture.model.bind_bone.emplace_back();
         fixture.model.bind_bone.back().global = fixture.animation.global.back();
         animation::CursorPoseConfig config;
@@ -1846,7 +2006,8 @@ namespace {
         animation::CursorPose pose(fixture.model, config);
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, cursor(1, 11.5f), DT);
-            check(fixture.animation.animation[Root].position == glm::vec3(0),
+            check(fixture.animation.animation[std::to_underlying(Bone::Root)].position ==
+                      glm::vec3(0),
                 "Finger reach beyond the wrist must also prevent a jump");
             pose.restore(fixture.animation);
         }
@@ -1877,7 +2038,8 @@ namespace {
             float previous = 0;
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, cursor(0, 11.5f), DT);
-                const auto position = fixture.animation.animation[Root].position;
+                const auto position =
+                    fixture.animation.animation[std::to_underlying(Bone::Root)].position;
                 check(fixture.animation.animation.back().position == position,
                     "Independent IK root must receive the same jump translation");
                 check(position.x == 0 && position.z == 0 && !(position.y < 0),
@@ -1891,12 +2053,14 @@ namespace {
                 previous = position.y;
                 peak = (std::max)(peak, position.y);
                 pose.restore(fixture.animation);
-                check(fixture.animation.animation[Root].position == glm::vec3(0),
+                check(fixture.animation.animation[std::to_underlying(Bone::Root)].position ==
+                          glm::vec3(0),
                     "Jump must restore source translation every frame");
             }
             check(takeoffs == (enabled ? 1 : 0), "Cooldown must prevent immediate repeated jumps");
             check(enabled ? peak > 0 : peak == 0, "Jump toggle must control takeoff");
-            const float skeleton_height = fixture.model.bind_bone[Head].global[3].y;
+            const float skeleton_height =
+                fixture.model.bind_bone[std::to_underlying(Bone::Head)].global[3].y;
             check(!(peak > skeleton_height * config.jump_height_ratio),
                 "Jump height must stay within its configured limit");
             check(previous == 0, "Jump must land at its original height");
@@ -1906,7 +2070,8 @@ namespace {
             animation::CursorPose pose(fixture.model);
             for (int frame = 0; frame < FRAMES; ++frame) {
                 pose.apply(fixture.model, fixture.animation, target, DT);
-                check(fixture.animation.animation[Root].position == glm::vec3(0),
+                check(fixture.animation.animation[std::to_underlying(Bone::Root)].position ==
+                          glm::vec3(0),
                     "Reachable, distant and low targets must not trigger a jump");
                 pose.restore(fixture.animation);
             }
@@ -1921,7 +2086,7 @@ namespace {
         float height = 0;
         for (int frame = 0; frame < FRAMES; ++frame) {
             pose.apply(fixture.model, fixture.animation, std::nullopt, DT);
-            height = fixture.animation.animation[Root].position.y;
+            height = fixture.animation.animation[std::to_underlying(Bone::Root)].position.y;
             peak = (std::max)(peak, height);
             pose.restore(fixture.animation);
         }
@@ -1971,9 +2136,11 @@ namespace {
         }
         Fixture plain;
         Fixture bounds;
-        bounds.model.collision_vertices.resize(Count);
+        bounds.model.collision_vertices.resize(std::to_underlying(Bone::Count));
         constexpr float EXTENT = 10.0f;
-        for (const auto bone : {Root, Wrist, OtherWrist}) {
+        for (const auto bone : {std::to_underlying(Bone::Root),
+                 std::to_underlying(Bone::Wrist),
+                 std::to_underlying(Bone::OtherWrist)}) {
             for (const float x : {-EXTENT, EXTENT}) {
                 for (const float y : {-EXTENT, EXTENT}) {
                     for (const float z : {-EXTENT, EXTENT}) {
@@ -1990,7 +2157,7 @@ namespace {
         for (int frame = 0; frame < FRAMES; ++frame) {
             plain_pose.apply(plain.model, plain.animation, cursor(0, 7), FRAME_SECONDS);
             bounds_pose.apply(bounds.model, bounds.animation, cursor(0, 7), FRAME_SECONDS);
-            for (std::size_t bone = 0; bone < Count; ++bone) {
+            for (std::size_t bone = 0; bone < std::to_underlying(Bone::Count); ++bone) {
                 check(glm::length(plain.animation.animation[bone].rotation -
                                   bounds.animation.animation[bone].rotation) < TOLERANCE,
                     "Disabled OBBs must not affect cursor poses or hand size");
@@ -2035,15 +2202,22 @@ namespace {
         constexpr float MOVE_STEP = 0.03f;
         for (int frame = 0; frame < FRAMES; ++frame) {
             const float phase = static_cast<float>(frame) * MOVE_STEP;
-            fixture.animation.animation[Root].position = {phase, phase, 0};
-            fixture.animation.animation[Root].rotation = glm::angleAxis(phase, glm::vec3(0, 1, 0));
-            fixture.animation.animation[Root].scale = {1 + phase, 1, 1};
+            fixture.animation.animation[std::to_underlying(Bone::Root)].position = {
+                phase, phase, 0};
+            fixture.animation.animation[std::to_underlying(Bone::Root)].rotation =
+                glm::angleAxis(phase, glm::vec3(0, 1, 0));
+            fixture.animation.animation[std::to_underlying(Bone::Root)].scale = {1 + phase, 1, 1};
             auto fresh_animation = fixture.animation;
             animation::CursorPose fresh(fixture.model);
             const auto target = cursor(0, 7);
             warm.apply(fixture.model, fixture.animation, target, SETTLE_SECONDS);
             fresh.apply(fixture.model, fresh_animation, target, SETTLE_SECONDS);
-            for (const auto bone : {Neck, Head, Arm, Elbow, OtherArm, OtherElbow}) {
+            for (const auto bone : {std::to_underlying(Bone::Neck),
+                     std::to_underlying(Bone::Head),
+                     std::to_underlying(Bone::Arm),
+                     std::to_underlying(Bone::Elbow),
+                     std::to_underlying(Bone::OtherArm),
+                     std::to_underlying(Bone::OtherElbow)}) {
                 check(glm::length(fixture.animation.animation[bone].rotation -
                                   fresh_animation.animation[bone].rotation) < TOLERANCE,
                     "Cached transforms must follow parent translation, rotation and scale");
@@ -2061,12 +2235,12 @@ namespace {
         constexpr float FRAME_SECONDS = 1.0f / 60.0f;
         constexpr float GRID_SPACING = 0.2f;
         constexpr float BOX_EXTENT = 0.08f;
-        fixture.model.collision_vertices.resize(Count + EXTRA_BONES);
+        fixture.model.collision_vertices.resize(std::to_underlying(Bone::Count) + EXTRA_BONES);
         for (int offset = 0; offset < EXTRA_BONES; ++offset) {
             const auto bone = static_cast<types::BoneIndex>(fixture.model.bone_node.size());
             fixture.model.bone_node.emplace_back();
-            fixture.model.bone_node.back().parent = Root;
-            fixture.model.bone_node[Root].children.push_back(bone);
+            fixture.model.bone_node.back().parent = std::to_underlying(Bone::Root);
+            fixture.model.bone_node[std::to_underlying(Bone::Root)].children.push_back(bone);
             fixture.model.bone_names.push_back("synthetic");
             fixture.animation.animation.emplace_back();
             fixture.animation.animation.back().position = {
@@ -2088,8 +2262,10 @@ namespace {
                 }
             }
         }
-        for (const auto hand : {Wrist, OtherWrist}) {
-            fixture.model.collision_vertices[hand] = fixture.model.collision_vertices[Count];
+        for (const auto hand :
+            {std::to_underlying(Bone::Wrist), std::to_underlying(Bone::OtherWrist)}) {
+            fixture.model.collision_vertices[hand] =
+                fixture.model.collision_vertices[std::to_underlying(Bone::Count)];
         }
         animation::CursorPoseConfig config;
         config.experimental_obb_collision = true;
@@ -2105,7 +2281,8 @@ namespace {
                 fixture.animation,
                 cursor(std::sin(phase), 7.0f + std::sin(phase)),
                 FRAME_SECONDS);
-            movement += glm::length(fixture.animation.animation[Arm].rotation - IDENTITY);
+            movement += glm::length(
+                fixture.animation.animation[std::to_underlying(Bone::Arm)].rotation - IDENTITY);
             pose.restore(fixture.animation);
         }
         const auto elapsed =
