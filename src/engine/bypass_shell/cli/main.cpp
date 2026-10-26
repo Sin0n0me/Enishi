@@ -7,7 +7,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <platform_impl/process/native_shell_process.h>
+#include <platform_impl/process/shell_process_factory.h>
 #include <thread>
 #ifdef _WIN32
 #include <fcntl.h>
