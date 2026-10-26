@@ -1,6 +1,10 @@
 #include "state_pool.h"
 
 namespace enishi::renderer::directx {
+    StatePool::StatePool(ResourceAccessor& interfaces)
+        : interfaces(interfaces) {
+    }
+
     void StatePool::remove_native_state(const types::HandleId handle) noexcept {
         const auto opt_mapped_handle = this->handle_mapper.get(handle);
         if (opt_mapped_handle.is_none()) {
@@ -33,22 +37,28 @@ namespace enishi::renderer::directx {
                 }
                 opt_native_resource.unwrap_mut().Reset();
             } break;
+            case types::StateKind::Sampler: {
+                this->native_sampler_states.get(mapped_handle.resource_index).unwrap_mut().Reset();
+            } break;
             default:
                 return;
         }
 
+        this->interfaces.remove_state(handle);
         this->handle_mapper.remove(handle);
     }
 
     std::tuple<types::HandleId, StatePool::NativeRasterizerState&>
     StatePool::make_native_rasterizer_state(void) noexcept {
-        return this->handle_mapper.make_from(
+        auto result = this->handle_mapper.make_from(
             this->native_rasterizer_states.make(), [](const std::size_t index) {
                 return decltype(handle_mapper)::ValueType{
                     .state_kind = types::StateKind::Rasterizer,
                     .resource_index = index,
                 };
             });
+        this->interfaces.add_state(std::get<0>(result), types::StateKind::Rasterizer);
+        return result;
     }
 
     foundation::Option<StatePool::NativeRasterizerState&> StatePool::get_native_rasterizer_state(
@@ -77,13 +87,15 @@ namespace enishi::renderer::directx {
 
     std::tuple<types::HandleId, StatePool::NativeBlendState&> StatePool::make_native_blend_state(
         void) noexcept {
-        return this->handle_mapper.make_from(
+        auto result = this->handle_mapper.make_from(
             this->native_blend_states.make(), [](const std::size_t index) {
                 return decltype(handle_mapper)::ValueType{
                     .state_kind = types::StateKind::Blend,
                     .resource_index = index,
                 };
             });
+        this->interfaces.add_state(std::get<0>(result), types::StateKind::Blend);
+        return result;
     }
 
     foundation::Option<StatePool::NativeBlendState&> StatePool::get_native_blend_state(
@@ -112,13 +124,15 @@ namespace enishi::renderer::directx {
 
     std::tuple<types::HandleId, StatePool::NativeDepthStencilState&>
     StatePool::make_native_depth_stencil_state(void) noexcept {
-        return this->handle_mapper.make_from(
+        auto result = this->handle_mapper.make_from(
             this->native_depth_stencil_states.make(), [](const std::size_t index) {
                 return decltype(handle_mapper)::ValueType{
                     .state_kind = types::StateKind::DepthStencil,
                     .resource_index = index,
                 };
             });
+        this->interfaces.add_state(std::get<0>(result), types::StateKind::DepthStencil);
+        return result;
     }
 
     foundation::Option<StatePool::NativeDepthStencilState&>
@@ -147,13 +161,15 @@ namespace enishi::renderer::directx {
 
     std::tuple<types::HandleId, StatePool::NativeSamplerState&>
     StatePool::make_native_sampler_state(void) noexcept {
-        return this->handle_mapper.make_from(
+        auto result = this->handle_mapper.make_from(
             this->native_sampler_states.make(), [](const std::size_t index) {
                 return decltype(handle_mapper)::ValueType{
                     .state_kind = types::StateKind::Sampler,
                     .resource_index = index,
                 };
             });
+        this->interfaces.add_state(std::get<0>(result), types::StateKind::Sampler);
+        return result;
     }
 
     foundation::Option<StatePool::NativeSamplerState&> StatePool::get_native_sampler_state(
@@ -180,11 +196,4 @@ namespace enishi::renderer::directx {
             });
     }
 
-    foundation::Option<types::StateKind> StatePool::get_state_kind(
-        const types::HandleId& handle) const noexcept {
-        return this->handle_mapper.get(handle).map(
-            [](const decltype(handle_mapper)::ValueType& mapped_handle) {
-                return mapped_handle.state_kind;
-            });
-    }
 } // namespace enishi::renderer::directx

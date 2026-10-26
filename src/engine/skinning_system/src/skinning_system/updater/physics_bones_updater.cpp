@@ -1,28 +1,47 @@
 #include "physics_bones_updater.h"
 
 namespace enishi::skinning_system {
+    PhysicsBonesUpdater::PhysicsBonesUpdater(PhysicsBonesCache& physics_view) noexcept
+        : physics_view(&physics_view)
+        , transforms(physics_view.size()) {
+    }
+
     void PhysicsBonesUpdater::update_local(const types::BoneIndex index) noexcept {
-        if (this->physics_view->size() < index + 1) {
-            return;
-        }
         const auto nodes = this->physics_view->get_bone_nodes();
-        if (nodes.size() < index + 1) {
+        if (!(index < this->transforms.size()) || !(index < nodes.size())) {
             return;
         }
-        const auto& bone_node = nodes[index];
-        const auto& view = this->physics_view->at(index);
-
-        // 物理状態の反映(ローカル空間)
+        const auto& node = nodes[index];
+        auto* view = this->physics_view->at(index);
         const auto& global = view->get_physics_global();
-        if (bone_node.has_parent()) {
-            const auto& parent = this->physics_view->at(bone_node.parent);
-            const auto& parent_global = parent->get_physics_global();
-            const auto& local = glm::inverse(parent_global) * global;
-
-            view->set_physics_local(local);
-        } else {
-            view->set_physics_local(global);
+        const auto parent_global = node.has_parent()
+                                       ? this->physics_view->at(node.parent)->get_physics_global()
+                                       : glm::mat4(1);
+        auto& cache = this->transforms[index];
+        // Compare actual inputs, not frame IDs: animation and physics can change them in one frame.
+        if (cache.local_valid && cache.local_source == global &&
+            cache.parent_source == parent_global) {
+            if (view->get_physics_local() != cache.local) {
+                view->set_physics_local(cache.local);
+            }
+            return;
         }
+        if (node.has_parent()) {
+            auto& parent = this->transforms[node.parent];
+            if (!parent.inverse_valid || parent.inverse_source != parent_global) {
+                parent.inverse = glm::inverse(parent_global);
+                parent.inverse_source = parent_global;
+                parent.inverse_valid = true;
+            }
+            // L = inverse(G_parent) * G_child; siblings share the same cached inverse.
+            cache.local = parent.inverse * global;
+        } else {
+            cache.local = global;
+        }
+        cache.local_source = global;
+        cache.parent_source = parent_global;
+        cache.local_valid = true;
+        view->set_physics_local(cache.local);
     }
 
     void PhysicsBonesUpdater::update_global(const types::BoneIndex index) noexcept {

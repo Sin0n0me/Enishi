@@ -1,16 +1,6 @@
 #include "system_scheduler.h"
 
 namespace enishi::core {
-    bool SystemScheduler::should_close(void) {
-        for (auto& entry : this->managed_systems) {
-            if (entry.system->should_close()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     void SystemScheduler::pre_update(void) {
         for (auto& entry : this->managed_systems) {
             entry.system->pre_update();

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.24)
 project(enishi_engine)
 
 # MSVCコンパイラの場合のみ、ソースコードと実行バイナリの文字セットをUTF-8に設定
@@ -19,6 +19,15 @@ set(DEPEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+if(WIN32)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WIN32_EXECUTABLE "$<CONFIG:Release>")
+    if(MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+        # GUIサブシステムでも既存のmainをCRTの初期化後に呼び出します。
+        target_link_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Release>:LINKER:/ENTRY:mainCRTStartup>")
+    endif()
+endif()
+
 #
 # フラグ設定
 #
@@ -29,7 +38,12 @@ else()
     option(USE_OPENGL40 "Use the OpenGL 4.0 renderer" ON)
 endif()
 
-if(USE_OPENGL40)
+option(USE_VULKAN "Use the Vulkan renderer" OFF)
+if(USE_VULKAN)
+    set(USE_OPENGL40 OFF)
+    set(USE_DIRECTX_11 OFF)
+    find_package(Vulkan REQUIRED COMPONENTS glslc)
+elseif(USE_OPENGL40)
     set(USE_DIRECTX_11 OFF)
 else()
     set(USE_DIRECTX_11 ON)
@@ -109,6 +123,7 @@ set(DEPENDENCIES
     PRIVATE script
     PRIVATE ui
     PRIVATE engine_types
+    PRIVATE enishi::debug
     PRIVATE foundation
 )
 
@@ -119,6 +134,68 @@ set(DEPENDENCIES
 target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
+
+set(ENISHI_SHADER_RUNTIME_ROOT "${CMAKE_CURRENT_BINARY_DIR}/shader" CACHE STRING
+    "Runtime shader root; use ./shader for a relocatable application package")
+
+if(USE_DIRECTX_11)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_DIRECTX_11)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileHLSL.cmake")
+    enishi_compile_hlsl_shaders(enishi_hlsl_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/directx")
+    add_dependencies(${PROJECT_NAME} enishi_hlsl_shaders)
+    target_compile_definitions(platform_impl PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/directx")
+endif()
+
+if(USE_OPENGL40)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/PrepareOpenGLShaders.cmake")
+    enishi_prepare_opengl_shaders("${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/opengl")
+    add_dependencies(${PROJECT_NAME} enishi_opengl_shaders)
+    target_compile_definitions(platform_impl PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/opengl")
+    option(ENISHI_OPENGL_TESTS "Build asset-free OpenGL render-pass tests" OFF)
+    if(ENISHI_OPENGL_TESTS)
+        enable_testing()
+        add_subdirectory(engine/renderer/tests/opengl)
+    endif()
+endif()
+
+if(USE_VULKAN)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CompileVulkan.cmake")
+    enishi_compile_vulkan_shaders(enishi_vulkan_shaders "${CMAKE_CURRENT_SOURCE_DIR}/shader/hlsl"
+        "${CMAKE_CURRENT_BINARY_DIR}/shader/vulkan")
+    add_dependencies(${PROJECT_NAME} enishi_vulkan_shaders)
+    target_compile_definitions(platform_impl PRIVATE
+        ENISHI_GENERATED_SHADER_DIRECTORY="${ENISHI_SHADER_RUNTIME_ROOT}/vulkan")
+    option(ENISHI_VULKAN_TESTS "Build synthetic Vulkan rendering tests without model assets" OFF)
+    if(ENISHI_VULKAN_TESTS)
+        enable_testing()
+        add_subdirectory(engine/renderer/tests/vulkan)
+    endif()
+endif()
+
+
+option(ENISHI_SCRIPT_TESTS "Build asset-free script and UI validation" OFF)
+if(ENISHI_SCRIPT_TESTS)
+    enable_testing()
+    add_subdirectory(engine/script/tests)
+endif()
+
+option(ENISHI_CURSOR_TESTS "Build asset-free procedural cursor pose validation" OFF)
+if(ENISHI_CURSOR_TESTS)
+    enable_testing()
+    add_subdirectory(engine/animation/tests/procedural)
+    add_subdirectory(engine/core/tests/cursor)
+endif()
+
+option(ENISHI_ECS_TESTS "Build asset-free ECS and error template validation" OFF)
+if(ENISHI_ECS_TESTS)
+    enable_testing()
+    add_subdirectory(engine/ecs/tests)
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 23
@@ -136,27 +213,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
-
-
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME} ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
 endif()

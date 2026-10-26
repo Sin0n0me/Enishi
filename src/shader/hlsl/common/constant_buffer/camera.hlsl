@@ -1,4 +1,9 @@
-cbuffer Camera {
+#ifndef ENISHI_SHADER_BACKEND
+#include "common/backend.hlsl"
+#endif
+
+ENISHI_BINDING(0, 0)
+cbuffer Camera : register(b0) {
     column_major matrix world;
     column_major matrix view;
     column_major matrix proj;

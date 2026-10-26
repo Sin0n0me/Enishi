@@ -4,13 +4,15 @@
 #include <array>
 #include <platform/input/interface_input.h>
 #include <platform/input/interface_input_event.h>
-#include <vector>
 
 namespace enishi::platform_impl {
     class SDL3Input : public platform::IInput, platform::IInputEvent {
       private:
-        std::vector<bool> key_state;
-        std::vector<bool> pre_key_state;
+        static constexpr std::size_t KEY_COUNT =
+            static_cast<std::size_t>(types::KeyCode::KeyMenu) + 1;
+        std::array<bool, KEY_COUNT> key_state{};
+        std::array<bool, KEY_COUNT> key_pressed{};
+        std::array<bool, KEY_COUNT> key_released{};
         static constexpr std::size_t MOUSE_BUTTON_COUNT =
             static_cast<std::size_t>(types::MouseButton::Button8) + 1;
         std::array<bool, MOUSE_BUTTON_COUNT> mouse_down{};
@@ -19,7 +21,7 @@ namespace enishi::platform_impl {
         std::array<types::ScreenMousePosition, MOUSE_BUTTON_COUNT> mouse_press_positions{};
         types::ScreenMousePosition mouse_position{};
         types::ScreenMousePosition pre_mouse_position;
-        types::MouseWheel mouse_wheel;
+        types::MouseWheel mouse_wheel{};
         types::MouseWheel pre_mouse_wheel;
 
       public:
@@ -30,8 +32,9 @@ namespace enishi::platform_impl {
         types::ClientMousePosition get_client_mouse_position(
             const types::WindowPosition& position) const noexcept override;
         types::MouseWheel get_mouse_wheel(void) const noexcept override;
-        types::ClientMousePosition get_mouse_press_position(
-            types::MouseButton button, const types::WindowPosition& position) const noexcept override;
+        void on_mouse_wheel(types::MouseWheel delta);
+        types::ClientMousePosition get_mouse_press_position(types::MouseButton button,
+            const types::WindowPosition& position) const noexcept override;
         bool is_mouse_button_down(const types::MouseButton button) const noexcept override;
         bool is_mouse_button_pressed(const types::MouseButton button) const noexcept override;
         bool is_mouse_button_released(const types::MouseButton button) const noexcept override;
@@ -42,6 +45,7 @@ namespace enishi::platform_impl {
         void on_mouse_move(const types::ScreenMousePosition position) override;
         void on_mouse_button_down(const types::MouseButton button) override;
         void on_mouse_button_up(const types::MouseButton button) override;
+        void reset_keys(void);
         void begin_frame(void) override;
         void end_frame(void) override;
 

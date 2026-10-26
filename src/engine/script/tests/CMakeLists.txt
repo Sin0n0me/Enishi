@@ -1,0 +1,7 @@
+add_executable(enishi_script_tests script_tests.cpp popup_tests.cpp selection_tests.cpp)
+target_link_libraries(enishi_script_tests PRIVATE script ui enishi_imgui)
+target_compile_features(enishi_script_tests PRIVATE cxx_std_23)
+if(MSVC)
+    target_compile_options(enishi_script_tests PRIVATE /utf-8)
+endif()
+add_test(NAME enishi_script_tests COMMAND enishi_script_tests)

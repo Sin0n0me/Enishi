@@ -19,7 +19,9 @@ namespace enishi::renderer {
       public:
         // 大量のコピーが発生するので頻繁に呼ばないこと
         [[nodiscard]] static foundation::Result<types::MeshData, RendererError> to_mesh_data(
-            const types::ModelData& model_data, MeshConfig&& config = MeshConfig{});
+            const types::ModelData& model_data);
+        [[nodiscard]] static foundation::Result<types::MeshData, RendererError> to_mesh_data(
+            const types::ModelData& model_data, MeshConfig&& config);
 
       private:
         using Uniforms = std::unordered_map<std::string, types::OwnedRenderData>;

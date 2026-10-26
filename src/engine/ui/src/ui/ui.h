@@ -1,4 +1,5 @@
 #pragma once
+#include <debug/overlay/interface_debug_overlay.h>
 #include <foundation/result/result.h>
 #include <memory>
 #include <sub_system/ui/interface_ui.h>
@@ -11,12 +12,14 @@ namespace enishi::ui {
         void operator()(ImGuiContext* context) const noexcept;
     };
 
-    class UI final : public sub_system::IUI {
+    class UI final : public sub_system::IUI, public debug::IDebugOverlay {
       private:
         std::shared_ptr<sub_system::IUIBackend> backend;
         std::unique_ptr<ImGuiContext, ImGuiContextDeleter> context;
         bool initialized = false;
         bool frame_ready = false;
+        float popup_anchor_x = 0.0f;
+        float popup_anchor_y = 0.0f;
 
       public:
         explicit UI(std::shared_ptr<sub_system::IUIBackend> backend);
@@ -25,12 +28,15 @@ namespace enishi::ui {
         void begin_frame(void) override;
         void end_frame(void) override;
         void render(void) override;
+        void draw_lines(std::span<const debug::OverlayLine> lines) override;
+        void draw_window_border(void) override;
         bool begin_window(const char* title) override;
         void end_window(void) override;
         void text(std::string_view value) override;
         bool button(const char* label) override;
         bool input_text(const char* label, std::string& value) override;
-        bool begin_context_popup(const char* id) override;
+        bool input_text_multiline(const char* label, std::string& value, bool read_only) override;
+        bool begin_context_popup(const char* id, float width, float height) override;
         void end_popup(void) override;
         bool is_window_appearing(void) const override;
         void same_line(void) override;

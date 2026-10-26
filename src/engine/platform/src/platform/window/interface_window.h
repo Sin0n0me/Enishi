@@ -7,8 +7,8 @@
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
 #include <foundation/result/result.h>
-#include <memory>
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace enishi::platform {
@@ -46,6 +46,8 @@ namespace enishi::platform {
         [[nodiscard]] virtual bool should_close(void) const = 0;
 
         virtual void poll_events(void) = 0;
+        virtual void set_model_drag_handler(
+            std::function<bool(types::ClientMousePosition)> begin, std::function<void()> end) = 0;
         virtual void set_interactive_hit_test(
             std::function<bool(types::ClientMousePosition)> hit_test) = 0;
     };

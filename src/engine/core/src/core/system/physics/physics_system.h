@@ -1,5 +1,6 @@
 #pragma once
 #include "../interface_system.h"
+#include <debug/playback/playback_control.h>
 #include <ecs/registry.h>
 #include <foundation/str/str.h>
 #include <memory>
@@ -12,6 +13,7 @@ namespace enishi::core {
     class PhysicsSystem : public ISystem {
       private:
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
         std::shared_ptr<SkinningSystem> skinning_system;
 
@@ -23,7 +25,7 @@ namespace enishi::core {
             std::shared_ptr<SkinningSystem> skinning_system = nullptr);
 
       public:
-        bool should_close(void) override;
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void pre_update(void) override;
         void post_update(void) override;
         void update(const types::DeltaTime& delta_time) override;

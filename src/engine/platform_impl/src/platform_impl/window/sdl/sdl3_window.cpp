@@ -1,7 +1,10 @@
 #include "sdl3_window.h"
 #include <SDL3/SDL_init.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
+#if defined(USE_WINDOWS) || defined(_WIN32)
+#include <Windows.h>
+#endif
 
 namespace enishi::platform_impl {
     namespace {
@@ -31,7 +34,7 @@ namespace enishi::platform_impl {
             }
 
             [[nodiscard]] void* get_proc_address(const char* const name) const noexcept override {
-                return SDL_GL_GetProcAddress(name);
+                return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
             }
         };
     } // namespace
@@ -76,8 +79,7 @@ namespace enishi::platform_impl {
             return SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
                 size.width,
                 size.height,
-                //  SDL_WINDOW_ALWAYS_ON_TOP |
-                SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
+                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
                     SDL3Window::get_flag_from_graphics_api(graphics_api)));
         }())
         , is_closing(false)
@@ -168,12 +170,12 @@ namespace enishi::platform_impl {
                 };
             }
             case platform::WindowSystem::Windows: {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS) || defined(_WIN32)
                 const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                const HWND hwnd = (HWND)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
-                const HINSTANCE hinstance = (HINSTANCE)SDL_GetPointerProperty(
-                    props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+                const HWND hwnd = static_cast<HWND>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+                const HINSTANCE hinstance = static_cast<HINSTANCE>(
+                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr));
                 if (hwnd == nullptr || hinstance == nullptr) {
                     return {};
                 }
@@ -291,7 +293,11 @@ namespace enishi::platform_impl {
     }
 
     bool SDL3Window::should_close(void) const {
-        return !this->is_closing;
+        return this->is_closing;
+    }
+
+    void SDL3Window::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
     }
 
     void SDL3Window::poll_events(void) {
@@ -302,7 +308,14 @@ namespace enishi::platform_impl {
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (this->ui_event_handler != nullptr) {
+            const bool playback_key =
+                this->debug_playback != nullptr && this->debug_playback->enabled &&
+                (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
+                (event.key.key == SDLK_SPACE || event.key.key == SDLK_LEFT ||
+                    event.key.key == SDLK_RIGHT);
+            // Debug shortcuts must not also activate or navigate the focused UI widget.
+            if (this->ui_event_handler != nullptr &&
+                !(playback_key && event.type == SDL_EVENT_KEY_DOWN)) {
                 this->ui_event_handler(event);
             }
             const auto ui = this->ui.lock();
@@ -316,12 +329,14 @@ namespace enishi::platform_impl {
                 case SDL_EventType::SDL_EVENT_QUIT:
                     this->is_closing = true;
                     break;
-                case SDL_EventType::SDL_EVENT_KEY_DOWN:
-                    if (capture_keyboard) {
+                case SDL_EventType::SDL_EVENT_KEY_DOWN: {
+                    if (event.key.repeat ||
+                        (capture_keyboard && event.key.key != SDLK_F3 && !playback_key)) {
                         break;
                     }
                     this->input.on_key_down(SDL3Input::convert_key_code(event.key.key));
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_KEY_UP:
                     this->input.on_key_up(SDL3Input::convert_key_code(event.key.key));
                     break;
@@ -351,9 +366,18 @@ namespace enishi::platform_impl {
                         },
                         this->position));
                     break;
-                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL:
-
+                case SDL_EventType::SDL_EVENT_MOUSE_WHEEL: {
+                    if (capture_mouse ||
+                        event.wheel.windowID != SDL_GetWindowID(this->window.get())) {
+                        break;
+                    }
+                    // Normalize SDL's flipped direction before applying the user's preference.
+                    const float direction =
+                        event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+                    this->input.on_mouse_wheel(
+                        {event.wheel.x * direction, event.wheel.y * direction});
                     break;
+                }
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_GAINED:
                     // SDL_StartTextInput();
                     break;
@@ -361,6 +385,7 @@ namespace enishi::platform_impl {
                     this->position = {event.window.data1, event.window.data2};
                     break;
                 case SDL_EventType::SDL_EVENT_WINDOW_FOCUS_LOST:
+                    this->input.reset_keys();
                     for (auto button = static_cast<std::uint8_t>(types::MouseButton::Left);
                          button < static_cast<std::uint8_t>(types::MouseButton::Button8) + 1;
                          ++button) {
@@ -373,6 +398,7 @@ namespace enishi::platform_impl {
             }
         }
 
+        this->refresh_mouse_position();
         SDL_Keymod mod = SDL_GetModState();
         /*
         io.AddKeyEvent(ImGuiKey::ImGuiKey_LeftCtrl, (mod & SDL_KMOD_CTRL) != 0);
@@ -403,8 +429,7 @@ namespace enishi::platform_impl {
         const Uint32 transparentColor = SDL_MapSurfaceRGBA(shape, 0, 0, 0, 30);
 
         if (!SDL_FillSurfaceRect(shape, nullptr, transparentColor)) {
-            foundation::Logger::error(
-                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
         }
@@ -414,15 +439,14 @@ namespace enishi::platform_impl {
         const Uint32 opaqueColor = SDL_MapSurfaceRGBA(shape, 255, 255, 255, 0);
 
         if (!SDL_FillSurfaceRect(shape, &interactiveRect, opaqueColor)) {
-            foundation::Logger::error(
-                std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_FillSurfaceRect failed: {}", SDL_GetError()));
             SDL_DestroySurface(shape);
             return false;
         }
 
         const bool result = SDL_SetWindowShape(this->window.get(), shape);
         if (!result) {
-            foundation::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
+            debug::Logger::error(std::format("SDL_SetWindowShape failed: {}", SDL_GetError()));
         }
 
         SDL_DestroySurface(shape);

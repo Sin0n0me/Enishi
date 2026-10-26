@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <component/morph_component.h>
 #include <core/system/physics/physics_system.h>
@@ -7,16 +8,11 @@
 #include <iostream>
 #include <model_controller/model_component_builder.h>
 #include <physics/bullet3/physics_engine.h>
-#include <platform_impl/physics/physics_config.h>
+#include <physics/common/physics_config.h>
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 
     component::ModelComponent impulse_model() {
         assets_system::PMXData data;
@@ -51,7 +47,7 @@ void impulse_playback_tests() {
     check(registry->insert(entity, model).is_ok(), "insert impulse model");
     check(
         core::initialize_model_pose(*registry, entity, model).is_ok(), "initialize impulse model");
-    auto config = std::make_shared<platform_impl::PhysicsWorldConfig>();
+    auto config = std::make_shared<physics::PhysicsWorldConfig>();
     config->set_updatable(true);
     auto engine = std::make_shared<physics::bullet3::PhysicsEngine>(config);
     check(engine->init_world().is_ok(), "initialize impulse world");

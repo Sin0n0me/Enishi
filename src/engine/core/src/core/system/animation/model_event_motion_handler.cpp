@@ -1,13 +1,13 @@
 #include "model_event_motion_handler.h"
 #include <component/physics_bodies_component.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 #include <limits>
 
 namespace enishi::core {
     ModelEventMotionHandler::ModelEventMotionHandler(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<AnimationSystem> animation,
         std::vector<ModelEventMotionRule> rules,
-        std::shared_ptr<ModelClickSettings> click_settings,
+        std::shared_ptr<types::ModelClickSettings> click_settings,
         std::shared_ptr<sub_system::IPhysicsWorld> physics)
         : registry(std::move(registry))
         , animation(std::move(animation))
@@ -22,9 +22,9 @@ namespace enishi::core {
         for (const auto& rule : this->rules) {
             // Filter before choosing specificity so a motion cannot hide a push rule.
             if (event.kind == "click" && rule.action != ModelEventAction::None &&
-                ((this->click_settings->mode == ModelClickMode::Touch &&
+                ((this->click_settings->mode == types::ModelClickMode::Touch &&
                      rule.action != ModelEventAction::Motion) ||
-                    (this->click_settings->mode == ModelClickMode::Push &&
+                    (this->click_settings->mode == types::ModelClickMode::Push &&
                         rule.action != ModelEventAction::Impulse))) {
                 continue;
             }
@@ -50,8 +50,9 @@ namespace enishi::core {
 
     foundation::Result<bool, ModelEventError> ModelEventMotionHandler::trigger(
         types::HandleId entity, const ModelMotionEvent& event) {
-        if (event.kind == "click" && (this->click_settings == nullptr ||
-                                         this->click_settings->mode == ModelClickMode::None)) {
+        if (event.kind == "click" &&
+            (this->click_settings == nullptr ||
+                this->click_settings->mode == types::ModelClickMode::None)) {
             return false;
         }
         const auto model = this->registry->get<component::ModelComponent>(entity);
@@ -126,11 +127,11 @@ namespace enishi::core {
             this->trigger(entity, ModelMotionEvent{"click", event.hit->bone, event.hit->position});
         if (result.is_err()) {
             this->click_settings->last_result = result.unwrap_err().get_message();
-            foundation::Logger::warning(result.unwrap_err().get_message());
-        } else if (result.unwrap() && this->click_settings->mode == ModelClickMode::Touch) {
+            debug::Logger::warning(result.unwrap_err().get_message());
+        } else if (result.unwrap() && this->click_settings->mode == types::ModelClickMode::Touch) {
             this->click_settings->last_result = "Motion started";
         }
-        foundation::Logger::info(
+        debug::Logger::info(
             this->click_settings->last_target + ": " + this->click_settings->last_result);
     }
 } // namespace enishi::core

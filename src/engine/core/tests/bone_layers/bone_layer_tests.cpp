@@ -1,3 +1,4 @@
+#include "../test_runner.h"
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <core/system/render/bone_matrix_upload.h>
 #include <core/system/skinning/model_pose_initializer.h>
@@ -8,6 +9,7 @@
 #include <iostream>
 #include <limits>
 #include <model_controller/model_component_builder.h>
+#include <renderer/common/upload/buffer_upload.h>
 
 using namespace enishi;
 
@@ -20,12 +22,7 @@ namespace {
     constexpr std::uint16_t BONE_IK = 0x0020;
     constexpr float TOLERANCE = 0.0001f;
 
-    void check(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using tests::check;
 
     assets_system::PMXData fixture(std::int32_t layer_a, std::int32_t layer_b) {
         assets_system::PMXData data;
@@ -94,7 +91,7 @@ namespace {
                           expected) < TOLERANCE,
             "IK result must reach final skinning matrices");
         BufferUpdater updater(BONE_COUNT);
-        check(core::write_bone_matrices(updater, skinning.skinning_matrices).is_ok() &&
+        check(renderer::write_bone_matrices(updater, skinning.skinning_matrices).is_ok() &&
                   updater.uploaded,
             "final matrices must reach the renderer updater");
         glm::mat4 uploaded;
@@ -106,7 +103,7 @@ namespace {
         check(glm::length(glm::vec3(pose.global[tip][3]) - expected) < TOLERANCE,
             "IK corrections must not drift across frames");
         BufferUpdater too_small(1);
-        check(core::write_bone_matrices(too_small, skinning.skinning_matrices).is_err() &&
+        check(renderer::write_bone_matrices(too_small, skinning.skinning_matrices).is_err() &&
                   !too_small.uploaded,
             "undersized GPU buffer must not be uploaded");
         auto ik = registry->get<component::IKComponent>(entity);
@@ -192,46 +189,48 @@ void bone_inheritance_tests();
 void bone_morph_tests();
 
 int main() {
-    bone_inheritance_tests();
-    bone_morph_tests();
+    tests::run_test("bone_inheritance_tests", bone_inheritance_tests);
+    tests::run_test("bone_morph_tests", bone_morph_tests);
     extern void external_transform_tests();
-    external_transform_tests();
-    auto limited = fixture(20, 10);
-    limited.bones[GOAL_A].ik_links.front().limited = 1;
-    limited.bones[GOAL_A].ik_links.front().lower = {0, 0, 0};
-    limited.bones[GOAL_A].ik_links.front().upper = {0, 0, 0};
-    runtime_test(limited, {1, 0, 0});
-    auto axes = fixture(20, 10);
-    constexpr std::uint16_t manipulation_axes = 0x0c00;
-    axes.bones[ROOT].flags |= manipulation_axes;
-    axes.bones[ROOT].fixed_axis = {1, 0, 0};
-    axes.bones[ROOT].local_x = {1, 0, 0};
-    axes.bones[ROOT].local_z = {0, 0, 1};
-    runtime_test(axes, {0, 1, 0});
-    runtime_test(fixture(10, 20), {0, -1, 0});
-    runtime_test(fixture(20, 10), {0, 1, 0});
-    runtime_test(fixture(10, 10), {0, -1, 0});
-    auto after_physics = fixture(-10, 20);
-    constexpr std::uint16_t AFTER_PHYSICS = 0x1000;
-    after_physics.bones[GOAL_A].flags |= AFTER_PHYSICS;
-    runtime_test(after_physics, {0, 1, 0});
-    after_physics.bones[GOAL_B].flags |= AFTER_PHYSICS;
-    runtime_test(after_physics, {0, -1, 0});
-    runtime_test(
-        fixture(std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::min()),
-        {0, 1, 0});
-    auto forward = fixture(20, 10);
-    forward.bones[ROOT].parent = TIP;
-    forward.bones[ROOT].position = {1, 0, 0};
-    forward.bones[TIP].parent = -1;
-    forward.bones[TIP].position = {0, 0, 0};
-    for (const auto goal : {GOAL_A, GOAL_B}) {
-        forward.bones[goal].ik_target = ROOT;
-        forward.bones[goal].ik_links.front().bone = TIP;
-    }
-    runtime_test(forward, {0, 1, 0}, ROOT);
-    stable_order_test();
-    no_ik_test();
-    mixed_entities_test();
+    tests::run_test("external_transform_tests", external_transform_tests);
+    tests::run_test("bone layer ordering", [] {
+        auto limited = fixture(20, 10);
+        limited.bones[GOAL_A].ik_links.front().limited = 1;
+        limited.bones[GOAL_A].ik_links.front().lower = {0, 0, 0};
+        limited.bones[GOAL_A].ik_links.front().upper = {0, 0, 0};
+        runtime_test(limited, {1, 0, 0});
+        auto axes = fixture(20, 10);
+        constexpr std::uint16_t manipulation_axes = 0x0c00;
+        axes.bones[ROOT].flags |= manipulation_axes;
+        axes.bones[ROOT].fixed_axis = {1, 0, 0};
+        axes.bones[ROOT].local_x = {1, 0, 0};
+        axes.bones[ROOT].local_z = {0, 0, 1};
+        runtime_test(axes, {0, 1, 0});
+        runtime_test(fixture(10, 20), {0, -1, 0});
+        runtime_test(fixture(20, 10), {0, 1, 0});
+        runtime_test(fixture(10, 10), {0, -1, 0});
+        auto after_physics = fixture(-10, 20);
+        constexpr std::uint16_t AFTER_PHYSICS = 0x1000;
+        after_physics.bones[GOAL_A].flags |= AFTER_PHYSICS;
+        runtime_test(after_physics, {0, 1, 0});
+        after_physics.bones[GOAL_B].flags |= AFTER_PHYSICS;
+        runtime_test(after_physics, {0, -1, 0});
+        runtime_test(fixture(std::numeric_limits<std::int32_t>::max(),
+                         std::numeric_limits<std::int32_t>::min()),
+            {0, 1, 0});
+        auto forward = fixture(20, 10);
+        forward.bones[ROOT].parent = TIP;
+        forward.bones[ROOT].position = {1, 0, 0};
+        forward.bones[TIP].parent = -1;
+        forward.bones[TIP].position = {0, 0, 0};
+        for (const auto goal : {GOAL_A, GOAL_B}) {
+            forward.bones[goal].ik_target = ROOT;
+            forward.bones[goal].ik_links.front().bone = TIP;
+        }
+        runtime_test(forward, {0, 1, 0}, ROOT);
+    });
+    tests::run_test("stable_order_test", stable_order_test);
+    tests::run_test("no_ik_test", no_ik_test);
+    tests::run_test("mixed_entities_test", mixed_entities_test);
     std::cout << "Bone layer integration tests passed\n";
 }

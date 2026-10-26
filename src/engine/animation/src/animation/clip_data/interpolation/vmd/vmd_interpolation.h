@@ -17,10 +17,8 @@ namespace enishi::animation {
                 // VMD stores the curve for an interval on its destination key.
                 const auto& bezier =
                     std::get<VMDAnimationBezier>(keyframes.interpolation[prev_index + 1]);
-                return VMDInterpolation::lerp(bezier,
-                    keyframes.values[prev_index],
-                    keyframes.values[prev_index + 1],
-                    u);
+                return VMDInterpolation::lerp(
+                    bezier, keyframes.values[prev_index], keyframes.values[prev_index + 1], u);
             }
         }
 
@@ -29,12 +27,12 @@ namespace enishi::animation {
             const glm::vec3& prev,
             const glm::vec3& next,
             const float u) noexcept {
-            const float tx = bezier.translate_x_bezier.eval_y(
-                bezier.translate_x_bezier.find_bezier_x(u));
-            const float ty = bezier.translate_y_bezier.eval_y(
-                bezier.translate_y_bezier.find_bezier_x(u));
-            const float tz = bezier.translate_z_bezier.eval_y(
-                bezier.translate_z_bezier.find_bezier_x(u));
+            const float tx =
+                bezier.translate_x_bezier.eval_y(bezier.translate_x_bezier.find_bezier_x(u));
+            const float ty =
+                bezier.translate_y_bezier.eval_y(bezier.translate_y_bezier.find_bezier_x(u));
+            const float tz =
+                bezier.translate_z_bezier.eval_y(bezier.translate_z_bezier.find_bezier_x(u));
             return prev * (glm::vec3(1.0f) - glm::vec3(tx, ty, tz)) + next * glm::vec3(tx, ty, tz);
         }
 

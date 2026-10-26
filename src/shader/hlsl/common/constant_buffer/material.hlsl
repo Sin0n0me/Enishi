@@ -1,3 +1,8 @@
+#ifndef ENISHI_SHADER_BACKEND
+#include "common/backend.hlsl"
+#endif
+
+ENISHI_BINDING(2, 0)
 cbuffer Material {
     float4 diffuse;
     float3 specular;
@@ -6,7 +11,7 @@ cbuffer Material {
     float sphere_mul; // ifによる分岐を減らすため ０-1 で計算
     float sphere_add;
     float edge_flag; // 0-1
-    float2 _pad;
+    float2 _pad; // x: alpha cutoff; y: alpha mode (0..3), plus 4 for unlit.
     float4 base_color_texture_factor;
     float4 base_color_texture_add;
     float4 environment_texture_factor;
@@ -23,6 +28,10 @@ float4 apply_lighting(
     const float3 light_direction,
     const float3 normal
 ){    
+    const float unlit_flag = 4.0f;
+    if (_pad.y >= unlit_flag) {
+        return color * diffuse;
+    }
     const float3 normalized_normal = normalize(normal);
     const float3 normalized_light = normalize(light_direction);
   

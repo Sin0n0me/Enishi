@@ -1,4 +1,5 @@
 #include "sdl_input.h"
+#include <cmath>
 
 namespace enishi::platform_impl {
     bool SDL3Input::is_key_down(const types::KeyCode key) const noexcept {
@@ -15,7 +16,7 @@ namespace enishi::platform_impl {
             return false;
         }
 
-        return this->key_state[index] && !this->pre_key_state[index];
+        return this->key_pressed[index];
     }
 
     bool SDL3Input::is_key_released(const types::KeyCode key) const noexcept {
@@ -23,7 +24,7 @@ namespace enishi::platform_impl {
         if (this->key_state.size() < index + 1) {
             return false;
         }
-        return !this->key_state[index];
+        return this->key_released[index];
     }
 
     types::ScreenMousePosition SDL3Input::get_screen_mouse_position(void) const noexcept {
@@ -45,7 +46,15 @@ namespace enishi::platform_impl {
     }
 
     types::MouseWheel SDL3Input::get_mouse_wheel(void) const noexcept {
-        return types::MouseWheel();
+        return this->mouse_wheel;
+    }
+
+    void SDL3Input::on_mouse_wheel(types::MouseWheel delta) {
+        // Frame delta = sum(event deltas), preserving fractional touchpad ticks.
+        const types::MouseWheel total{this->mouse_wheel.x + delta.x, this->mouse_wheel.y + delta.y};
+        if (std::isfinite(total.x) && std::isfinite(total.y)) {
+            this->mouse_wheel = total;
+        }
     }
     bool SDL3Input::is_mouse_button_down(const types::MouseButton button) const noexcept {
         const auto index = static_cast<std::size_t>(button);
@@ -70,7 +79,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->pre_key_state[index] = this->key_state[index];
+        this->key_pressed[index] = this->key_pressed[index] || !this->key_state[index];
         this->key_state[index] = true;
     }
 
@@ -80,7 +89,7 @@ namespace enishi::platform_impl {
             return;
         }
 
-        this->pre_key_state[index] = this->key_state[index];
+        this->key_released[index] = this->key_released[index] || this->key_state[index];
         this->key_state[index] = false;
     }
 
@@ -109,7 +118,16 @@ namespace enishi::platform_impl {
         this->mouse_down[index] = false;
     }
 
+    void SDL3Input::reset_keys(void) {
+        this->key_state.fill(false);
+        this->key_pressed.fill(false);
+        this->key_released.fill(false);
+    }
+
     void SDL3Input::begin_frame(void) {
+        this->key_pressed.fill(false);
+        this->key_released.fill(false);
+        this->mouse_wheel = {};
         this->mouse_pressed.fill(false);
         this->mouse_released.fill(false);
     }

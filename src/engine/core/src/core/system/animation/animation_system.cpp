@@ -1,5 +1,5 @@
 #include "animation_system.h"
-#include "clip_sampler.h"
+#include <animation/sampling/clip_sampler.h>
 #include <component/physics_bodies_component.h>
 
 namespace enishi::core {
@@ -7,8 +7,22 @@ namespace enishi::core {
         : registry(registry) {
     }
 
+    void AnimationSystem::set_morph_names(const animation::MorphNameDictionary& dictionary) {
+        this->morph_names = dictionary;
+    }
+
+    types::MorphIndex AnimationSystem::find_morph(
+        types::HandleId entity, animation::MorphRole role) const {
+        const auto model = this->registry->get<component::ModelComponent>(entity);
+        if (model.is_none()) {
+            return types::INVALID_MORPH_INDEX;
+        }
+        return this->morph_names.find(model.unwrap().morph_targets.targets, role);
+    }
+
     void AnimationSystem::set_controller(
         const types::HandleId entity, std::shared_ptr<animation::IAnimationController> controller) {
+        this->playback_states.erase(entity);
         if (controller != nullptr) {
             auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
             if (bodies.is_some()) {
@@ -22,6 +36,7 @@ namespace enishi::core {
 
     void AnimationSystem::remove_controller(const types::HandleId& entity) {
         this->controllers.erase(entity);
+        this->playback_states.erase(entity);
     }
 
     std::shared_ptr<animation::IAnimationController> AnimationSystem::get_controller(
@@ -33,8 +48,8 @@ namespace enishi::core {
         return iter->second;
     }
 
-    bool AnimationSystem::should_close(void) {
-        return false;
+    void AnimationSystem::set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback) {
+        this->debug_playback = std::move(playback);
     }
 
     void AnimationSystem::pre_update(void) {
@@ -44,19 +59,44 @@ namespace enishi::core {
     }
 
     void AnimationSystem::update(const types::DeltaTime& delta_time) {
+        const bool debug_paused = this->debug_playback != nullptr && this->debug_playback->paused;
+        if (debug_paused && this->debug_playback->step_seconds == 0.0f) {
+            return;
+        }
         for (auto [entity, animation, model] :
             this->registry->view<component::AnimationComponent, component::ModelComponent>()) {
             const auto controller = this->get_controller(entity);
+            animation.motion_playing = false;
             if (controller == nullptr) {
                 continue;
             }
 
-            controller->update(delta_time.to_float_second());
+            auto& playback = this->playback_states[entity];
+            const bool changed = !playback.initialized ||
+                                 playback.clip != controller->get_active_clip() ||
+                                 controller->get_time() < playback.time ||
+                                 (controller->is_playing() && !playback.playing);
+            if (changed) {
+                ++animation.motion_revision;
+            }
+            // Sample the new clip's initial pose before advancing it. Skinning holds the
+            // controller clock until its pose transition has reached that sample.
+            if (debug_paused) {
+                // Seek relative to the displayed instant, independent of render frame duration.
+                controller->seek(controller->get_time() + this->debug_playback->step_seconds);
+            } else if (!changed && !animation.pose_transition_active) {
+                controller->update(delta_time.to_float_second());
+            }
             const auto* clip = controller->get_active_clip();
+            animation.motion_playing = clip != nullptr && controller->is_playing();
+            playback = {clip, controller->get_time(), controller->is_playing(), true};
             if (clip == nullptr) {
                 continue;
             }
-            if (controller->get_time() < animation.elapsed_time) {
+            if (debug_paused) {
+                this->debug_playback->stepped_models.insert(entity);
+            }
+            if (!debug_paused && controller->get_time() < animation.elapsed_time) {
                 auto bodies = this->registry->get<component::PhysicsBodiesComponent>(entity);
                 if (bodies.is_some()) {
                     bodies.unwrap_mut().pose_reset_requested = true;
@@ -64,7 +104,7 @@ namespace enishi::core {
             }
             auto morph = this->registry->get<component::MorphComponent>(entity);
             auto ik = this->registry->get<component::IKComponent>(entity);
-            sample_model_clip(*clip,
+            animation::sample_model_clip(*clip,
                 controller->get_time(),
                 animation,
                 morph.is_some() ? &morph.unwrap_mut() : nullptr,

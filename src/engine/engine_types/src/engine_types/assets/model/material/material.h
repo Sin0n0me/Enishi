@@ -79,6 +79,8 @@ namespace enishi::types {
         Points,
     };
 
+    enum class MaterialAlphaMode { Legacy, Opaque, Mask, Blend };
+
     struct Material {
         std::string name;
         std::vector<MaterialVariant> variants; // Vectorに渡した順序に統合されたバイト列になる
@@ -96,5 +98,8 @@ namespace enishi::types {
         float outline_width{};
         MaterialTopology topology{MaterialTopology::Triangles};
         bool vertex_color{};
+        MaterialAlphaMode alpha_mode{MaterialAlphaMode::Legacy};
+        float alpha_cutoff{0.5f};
+        bool unlit{};
     };
 } // namespace enishi::types

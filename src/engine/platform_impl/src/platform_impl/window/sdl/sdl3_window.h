@@ -1,6 +1,7 @@
 #pragma once
 #include "../../input/sdl/sdl_input.h"
 #include <SDL3/SDL.h>
+#include <debug/playback/playback_control.h>
 #include <engine_types/renderer/graphics_api.h>
 #include <engine_types/window/window_types.h>
 #include <foundation/option/option.h>
@@ -28,8 +29,13 @@ namespace enishi::platform_impl {
         bool is_closing;
         std::optional<types::ScreenMousePosition> model_press;
         types::WindowPosition drag_origin{};
+        glm::vec2 applied_drag_offset{0};
         bool model_dragging = false;
+        bool model_drag_claimed = false;
+        std::function<bool(types::ClientMousePosition)> begin_model_drag;
+        std::function<void()> end_model_drag;
         std::weak_ptr<sub_system::IUI> ui;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::function<void(const SDL_Event&)> ui_event_handler;
         std::function<bool(types::ClientMousePosition)> interactive_hit_test;
 
@@ -48,8 +54,9 @@ namespace enishi::platform_impl {
         ~SDL3Window(void) noexcept;
 
         foundation::Option<SDL_Window*> get_window_handle(void) const;
-        void set_ui(std::weak_ptr<sub_system::IUI> ui,
-            std::function<void(const SDL_Event&)> event_handler);
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
+        void set_ui(
+            std::weak_ptr<sub_system::IUI> ui, std::function<void(const SDL_Event&)> event_handler);
 
         foundation::VoidResult<platform::WindowError> init(void) noexcept override;
         foundation::Option<const platform::IInput*> get_input(void) const noexcept override;
@@ -68,6 +75,8 @@ namespace enishi::platform_impl {
         void close(void) override;
         bool should_close(void) const override;
         void poll_events(void) override;
+        void set_model_drag_handler(std::function<bool(types::ClientMousePosition)> begin,
+            std::function<void()> end) override;
         void set_interactive_hit_test(
             std::function<bool(types::ClientMousePosition)> hit_test) override;
 
@@ -78,5 +87,6 @@ namespace enishi::platform_impl {
         bool handle_model_pointer(const SDL_Event& event, bool capture_mouse);
         void update_model_drag(void);
         void cancel_model_drag(void);
+        void refresh_mouse_position(void);
     };
 } // namespace enishi::platform_impl

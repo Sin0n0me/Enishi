@@ -1,11 +1,15 @@
+#include "../test_runner.h"
 #include <cstdlib>
 #include <iostream>
 #include <physics/bullet3/converter/bullet_converter.h>
 #include <physics/bullet3/motion_state/dynamic/mmd_dynamic_and_bone_merge_motion_state.h>
 #include <physics/bullet3/motion_state/kinematic/mmd_kinematic_motion_state.h>
+#include <physics/bullet3/physics_native_resource_maker.h>
 #include <physics/bullet3/physics_world.h>
+#include <physics/bullet3/rigid_body/rigid_body.h>
+#include <physics/bullet3/rigid_body/rigid_body_impulse.h>
+#include <physics/common/physics_config.h>
 #include <physics/helper/helper.h>
-#include <platform_impl/physics/physics_config.h>
 #include <skinning_system/cache/physics_bone_cache.h>
 #include <skinning_system/updater/physics_bones_updater.h>
 #include <skinning_system/views/physics_bone_view.h>
@@ -13,10 +17,79 @@
 using namespace enishi;
 namespace {
     constexpr float TOLERANCE = 0.0001f;
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
+    using tests::check;
+
+    void sleeping_tests() {
+        constexpr int SETTLE_FRAMES = 360;
+        constexpr float STEP = 1.0f / 60.0f;
+        for (const auto kind : {types::RigidBodyKind::Dynamic,
+                 types::RigidBodyKind::DynamicAdjustBone,
+                 types::RigidBodyKind::Kinematic}) {
+            glm::mat4 local(1);
+            const auto authored = glm::translate(glm::mat4(1), glm::vec3(0, 10, 0));
+            auto global = authored;
+            auto view = std::make_shared<skinning_system::PhysicsBoneView>(local, global);
+            const std::vector<types::BoneNode> nodes(1);
+            auto cache = std::make_shared<skinning_system::PhysicsBonesCache>(
+                nodes, std::vector<std::shared_ptr<skinning_system::PhysicsBoneView>>{view});
+            auto updater = std::make_shared<skinning_system::PhysicsBonesUpdater>(*cache);
+            types::PhysicsRigidBody description{};
+            description.kind = kind;
+            description.mass = 1;
+            description.shape = types::RBShapeSphere{0.1f};
+            auto shape_result =
+                physics::bullet3::PhysicsNativeResourceMaker::make_shape(description);
+            check(shape_result.is_ok(), "create sleep test shape");
+            auto shape = std::move(shape_result).unwrap_mut();
+            auto [active, kinematic] =
+                physics::bullet3::PhysicsNativeResourceMaker::make_motion_state(description, true);
+            auto result = physics::bullet3::PhysicsNativeResourceMaker::make_rigid_body(
+                description, shape.get(), active.get(), kinematic.get());
+            check(result.is_ok(), "create sleep test body");
+            auto body = std::move(result).unwrap_mut();
+            physics::bullet3::BulletRigidBody wrapper(*body,
+                *active,
+                *kinematic,
+                physics::PhysicsBoneViews{cache, updater, view},
+                kind,
+                0);
+            wrapper.set_active(true);
+            wrapper.reset_transform();
+            btDefaultCollisionConfiguration collision;
+            btCollisionDispatcher dispatcher(&collision);
+            btDbvtBroadphase broadphase;
+            btSequentialImpulseConstraintSolver solver;
+            btDiscreteDynamicsWorld world(&dispatcher, &broadphase, &solver, &collision);
+            world.setGravity(btVector3(0, 0, 0));
+            world.addRigidBody(body.get());
+            for (int frame = 0; frame < SETTLE_FRAMES; ++frame) {
+                global = authored;
+                wrapper.sync_animation();
+                world.stepSimulation(STEP, 1, STEP);
+                wrapper.apply_global_transform();
+            }
+            check(!body->isActive(),
+                "stationary bodies must sleep despite animation synchronization");
+            global = authored;
+            global[3].x = 1;
+            wrapper.sync_animation();
+            check(body->isActive(), "changed authored pose wakes sleeping body");
+            world.stepSimulation(STEP, 1, STEP);
+            if (kind == types::RigidBodyKind::Kinematic) {
+                check(std::abs(body->getWorldTransform().getOrigin().x() - 1) < TOLERANCE,
+                    "sleeping kinematic body resumes following animation");
+            } else {
+                body->forceActivationState(ISLAND_SLEEPING);
+                types::RigidBodyImpulse impulse;
+                impulse.world_velocity = {1, 0, 0};
+                physics::bullet3::apply_rigid_body_impulse(*body, impulse);
+                check(body->isActive() && body->getLinearVelocity().x() > 0,
+                    "click impulse wakes sleeping dynamic body");
+            }
+            body->forceActivationState(ISLAND_SLEEPING);
+            wrapper.reset_transform();
+            check(body->isActive(), "pose reset wakes sleeping body");
+            world.removeRigidBody(body.get());
         }
     }
 
@@ -56,7 +129,7 @@ namespace {
     }
 
     void world_tests() {
-        auto config = std::make_shared<platform_impl::PhysicsWorldConfig>();
+        auto config = std::make_shared<physics::PhysicsWorldConfig>();
         config->set_updatable(true);
         config->set_fixed_step_time(1.0f / 60.0f);
         config->set_max_step_count(4);
@@ -97,14 +170,15 @@ namespace {
 
 int main() {
     extern void physics_object_tests();
-    physics_object_tests();
+    tests::run_test("physics_object_tests", physics_object_tests);
     extern void impulse_playback_tests();
-    impulse_playback_tests();
+    tests::run_test("impulse_playback_tests", impulse_playback_tests);
     extern void rigid_body_impulse_tests();
-    rigid_body_impulse_tests();
+    tests::run_test("rigid_body_impulse_tests", rigid_body_impulse_tests);
     extern void model_physics_tests();
-    model_physics_tests();
-    motion_state_tests();
-    world_tests();
+    tests::run_test("model_physics_tests", model_physics_tests);
+    tests::run_test("sleeping_tests", sleeping_tests);
+    tests::run_test("motion_state_tests", motion_state_tests);
+    tests::run_test("world_tests", world_tests);
     std::cout << "Physics runtime tests passed\n";
 }

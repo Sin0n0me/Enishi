@@ -35,8 +35,6 @@ namespace enishi::core {
             return system;
         }
 
-        bool should_close(void);
-
         void pre_update(void);
 
         void update(const types::DeltaTime& dt);

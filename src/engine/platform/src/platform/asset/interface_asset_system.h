@@ -10,8 +10,8 @@
 #include <platform/errors/asset_errors.h>
 #include <ranges>
 #include <regex>
-#include <vector>
 #include <variant>
+#include <vector>
 
 namespace enishi::platform {
     class IAssetSystem {

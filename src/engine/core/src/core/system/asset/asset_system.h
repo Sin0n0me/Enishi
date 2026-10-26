@@ -14,7 +14,6 @@ namespace enishi::core {
         std::shared_ptr<platform::IAssetSystem> get_asset_system(void);
 
       public:
-        bool should_close(void) override;
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void post_update(void) override;

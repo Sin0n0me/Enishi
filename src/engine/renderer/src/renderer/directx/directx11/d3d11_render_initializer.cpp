@@ -13,20 +13,21 @@ namespace enishi::renderer::directx {
                 platform::RenderError::MakeError, "Windows以外では動作しません");
         }
 
-        const auto native_handle = window_handle.native_handle.windows;
+        // Convert the borrowed transport handle once at the DirectX boundary.
+        const HWND hwnd = static_cast<HWND>(window_handle.native_handle.windows.hwnd);
 
         std::unique_ptr<D3D11> d3d11;
 
         // RenderDocで確認するとき`make_no_dcomp`で作成しないとクラッシュする
         if (this->use_dcomp) {
-            auto result = D3D11::make(native_handle.hwnd, window_size)
-                              .add_message("Rendererの初期化に失敗しました");
+            auto result =
+                D3D11::make(hwnd, window_size).add_message("Rendererの初期化に失敗しました");
             if (result.is_err()) {
                 return result.propagation(platform::RenderError::MakeError);
             }
             d3d11 = std::move(result).unwrap_mut();
         } else {
-            auto result = D3D11::make_no_dcomp(native_handle.hwnd, window_size)
+            auto result = D3D11::make_no_dcomp(hwnd, window_size)
                               .add_message("Rendererの初期化に失敗しました");
             if (result.is_err()) {
                 return result.propagation(platform::RenderError::MakeError);

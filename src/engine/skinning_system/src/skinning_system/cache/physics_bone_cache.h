@@ -1,9 +1,9 @@
 #pragma once
 #include <foundation/option/option.h>
 #include <memory>
-#include <sub_system/physics/bone/interface_physics_bone_view_list.h>
 #include <skinning_system/views/physics_bone_view.h>
 #include <span>
+#include <sub_system/physics/bone/interface_physics_bone_view_list.h>
 #include <vector>
 
 namespace enishi::skinning_system {
@@ -31,6 +31,7 @@ namespace enishi::skinning_system {
         foundation::Option<const sub_system::IPhysicsBoneView*> get(
             const types::BoneIndex index) const noexcept override;
         sub_system::IPhysicsBoneView* at(const types::BoneIndex index) noexcept override;
-        const sub_system::IPhysicsBoneView* at(const types::BoneIndex index) const noexcept override;
+        const sub_system::IPhysicsBoneView* at(
+            const types::BoneIndex index) const noexcept override;
     };
 } // namespace enishi::skinning_system

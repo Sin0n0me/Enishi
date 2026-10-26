@@ -8,6 +8,9 @@ set(DEPENDENCIES)
 set(ASSET_DEPENDENT_LIBS "${CMAKE_BINARY_DIR}/libs")
 include(FetchContent)
 
+FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
+FetchContent_MakeAvailable(ENISHI_DEBUG)
+
 FetchContent_Declare(
     ENGINE_TYPES
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../engine_types
@@ -25,8 +28,7 @@ set(NOTHINGS_STD_SOURCE_DIR "${ASSET_DEPENDENT_LIBS}/nothings_std")
 FetchContent_Declare(
     NOTHINGS_STD
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG "master"
-    GIT_SHALLOW TRUE
+    GIT_TAG "2c980bb59875b0d32144a71867fbdebb2f77cd20"
     GIT_PROGRESS ON
     SOURCE_DIR ${NOTHINGS_STD_SOURCE_DIR}
 )
@@ -78,25 +80,8 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
+target_link_libraries(${PROJECT_NAME} PRIVATE enishi::debug)
 
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    #target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
-endif()
+# cgltf v1.15 (360db1a95480fe102ae9c69b27c5d101167ff5ba); implementation is private to assets.
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../../third_party/cgltf")

@@ -5,20 +5,30 @@
 namespace enishi::assets_system {
     VMDLoader::Result VMDLoader::load_vmd(BinaryReader& reader, VMDData* const data) {
         auto result = this->load_vmd_header(reader, data);
-        if (result.is_err()) { return result; }
+        if (result.is_err()) {
+            return result;
+        }
         result = this->load_vmd_bone_key_frame(reader, data);
-        if (result.is_err()) { return result; }
+        if (result.is_err()) {
+            return result;
+        }
         const std::array optional_sections{&VMDLoader::load_vmd_morph_key_frame,
-            &VMDLoader::load_vmd_camera, &VMDLoader::load_vmd_light,
-            &VMDLoader::load_vmd_shadow, &VMDLoader::load_vmd_ik};
+            &VMDLoader::load_vmd_camera,
+            &VMDLoader::load_vmd_light,
+            &VMDLoader::load_vmd_shadow,
+            &VMDLoader::load_vmd_ik};
         for (const auto section : optional_sections) {
             const auto remaining = reader.remaining_bytes();
             if (remaining.is_err()) {
                 return remaining.propagation(IOError::ReadFailed);
             }
-            if (remaining.unwrap() == 0) { return {}; }
+            if (remaining.unwrap() == 0) {
+                return {};
+            }
             result = (this->*section)(reader, data);
-            if (result.is_err()) { return result; }
+            if (result.is_err()) {
+                return result;
+            }
         }
         return {};
     }
@@ -40,7 +50,8 @@ namespace enishi::assets_system {
         if (signature != "Vocaloid Motion Data 0002" && signature != "Vocaloid Motion Data") {
             return foundation::Error(IOError::MismatchHeader, "Invalid VMD signature");
         }
-        std::copy(std::begin(header.model_name), std::end(header.model_name), vmd_data->name.begin());
+        std::copy(
+            std::begin(header.model_name), std::end(header.model_name), vmd_data->name.begin());
         return {};
     }
 
@@ -173,13 +184,21 @@ namespace enishi::assets_system {
         vmd_data->iks.resize(size);
         for (auto& ik : vmd_data->iks) {
             auto result = binary_reader.read_to(&ik.frame);
-            if (result.is_err()) { return result; }
+            if (result.is_err()) {
+                return result;
+            }
             result = binary_reader.read_to(&ik.show_flag);
-            if (result.is_err()) { return result; }
+            if (result.is_err()) {
+                return result;
+            }
             result = binary_reader.read_to(&ik.count);
-            if (result.is_err()) { return result; }
+            if (result.is_err()) {
+                return result;
+            }
             result = binary_reader.read_to_vec(ik.ik_infos, ik.count);
-            if (result.is_err()) { return result; }
+            if (result.is_err()) {
+                return result;
+            }
         }
 
         return {};

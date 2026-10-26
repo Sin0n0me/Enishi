@@ -74,6 +74,11 @@ namespace enishi::render_pass {
         [[nodiscard]] PipelineDescriptionConstructer* add_sampler_state(
             types::SamplerStateDescription&& description) noexcept;
 
+        [[nodiscard]] PipelineDescriptionConstructer* set_sampled_depth(
+            types::RenderHandle handle) noexcept;
+        [[nodiscard]] PipelineDescriptionConstructer* add_shader_resource(
+            types::RenderHandle handle) noexcept;
+
         [[nodiscard]] foundation::Result<types::PipelineDescription, ConstructError> build(
             void) noexcept;
 

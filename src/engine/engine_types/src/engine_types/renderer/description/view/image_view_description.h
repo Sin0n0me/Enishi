@@ -43,6 +43,7 @@ namespace enishi::types {
         std::uint32_t mip_Level_count;
         std::uint32_t base_array_layer;
         std::uint32_t array_layer_count;
+        std::uint32_t shader_resource_slot = 0;
 
         // RTV用のデフォルト記述子を生成するヘルパー
         [[nodiscard]]

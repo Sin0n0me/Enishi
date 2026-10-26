@@ -1,7 +1,7 @@
 #pragma once
+#include <engine_types/collider/model_click.h>
 #include <engine_types/collider/obb.h>
 #include <engine_types/collider/ray.h>
-#include <engine_types/collider/model_click.h>
 #include <foundation/option/option.h>
 #include <functional>
 #include <memory>
@@ -48,7 +48,11 @@ namespace enishi::collider {
         // Single-threaded; handlers must not recursively call check_collisions().
         std::size_t check_collisions(void);
 
-        // Same-owner rejection precedes geometric work. Touching counts as collision.
+        // Geometry-only query for deliberate self-collision checks. Touching counts as collision.
+        [[nodiscard]] static bool overlap(const types::OBB& first, const types::OBB& second);
+        [[nodiscard]] static foundation::Option<types::OBBContact> intersect(
+            const types::OBB& first, const types::OBB& second);
+        // Same-owner rejection precedes geometric work for inter-model collision events.
         [[nodiscard]] static foundation::Option<types::OBBContact> intersect(
             const types::CollisionModelId first_model,
             const types::OBB& first,

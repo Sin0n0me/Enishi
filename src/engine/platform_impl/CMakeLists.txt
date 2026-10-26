@@ -22,6 +22,9 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 # 以下依存設定
 set(DEPENDENCIES)
 include(FetchContent)
+
+FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
+FetchContent_MakeAvailable(ENISHI_DEBUG)
 include(ExternalProject)
 
 FetchContent_Declare(
@@ -93,7 +96,10 @@ FetchContent_MakeAvailable(RENDERER)
 FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_SOURCE_DIR)
 target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui)
-if(USE_OPENGL40)
+if(USE_VULKAN)
+    target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
+elseif(USE_OPENGL40)
     target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp)
     target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENGL40)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
@@ -113,22 +119,4 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
-endif()
+target_link_libraries(${PROJECT_NAME} PUBLIC enishi::debug)

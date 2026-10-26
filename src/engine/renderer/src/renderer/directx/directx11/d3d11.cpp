@@ -1,5 +1,5 @@
 #include "d3d11.h"
-#include <foundation/debug/debug.h>
+#include <debug/engine_debug.h>
 
 namespace enishi::renderer::directx {
     foundation::VoidResult<RendererError> D3D11::init_no_dcomp(
@@ -74,7 +74,7 @@ namespace enishi::renderer::directx {
 
     foundation::VoidResult<RendererError> D3D11::make_device(void) {
         constexpr UINT DEVICE_FLAGS = D3D11_CREATE_DEVICE_BGRA_SUPPORT |
-                                      (foundation::IS_DEBUG_MODE ? D3D11_CREATE_DEVICE_DEBUG : 0);
+                                      (debug::IS_DEBUG_MODE ? D3D11_CREATE_DEVICE_DEBUG : 0);
 
         const HRESULT result_device = D3D11CreateDevice(nullptr,
             D3D_DRIVER_TYPE_HARDWARE,

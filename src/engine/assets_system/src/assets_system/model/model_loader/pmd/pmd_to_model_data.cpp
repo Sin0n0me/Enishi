@@ -1,10 +1,10 @@
 #include "pmd_to_model_data.h"
 #include "pmd_morph_converter.h"
 #include <algorithm>
+#include <debug/log/logger.h>
 #include <engine_types/renderer/texture/model_texture.h>
 #include <engine_types/renderer/uniform_buffer/material.h>
 #include <format>
-#include <foundation/log/logger.h>
 #include <foundation/option/option.h>
 #include <foundation/str/str.h>
 #include <foundation/str/to_utf8.h>
@@ -63,17 +63,17 @@ namespace enishi::assets_system {
             reinterpret_cast<const char*>(data.model_name.data()), data.model_name.size());
         auto&& utf8_name = foundation::sjis_to_utf8(sjis_name);
         if (utf8_name.is_err()) {
-            foundation::Logger::warning("utf8に変換できない文字が含まれています");
+            debug::Logger::warning("utf8に変換できない文字が含まれています");
         }
-        foundation::Logger::info(utf8_name.unwrap_or(sjis_name));
+        debug::Logger::info(utf8_name.unwrap_or(sjis_name));
 
         const std::string sjis_comment(
             reinterpret_cast<const char*>(data.comment.data()), data.comment.size());
         auto&& utf8_comment = foundation::sjis_to_utf8(sjis_comment);
         if (utf8_comment.is_err()) {
-            foundation::Logger::warning("utf8に変換できない文字が含まれています");
+            debug::Logger::warning("utf8に変換できない文字が含まれています");
         }
-        foundation::Logger::info(utf8_comment.unwrap_or(sjis_comment));
+        debug::Logger::info(utf8_comment.unwrap_or(sjis_comment));
 
         const auto parent_path = path.parent_path();
 
@@ -125,7 +125,7 @@ namespace enishi::assets_system {
                 std::find(std::begin(src_bone.name), std::end(src_bone.name), '\0'));
             const auto utf8_name = foundation::sjis_to_utf8(sjis_name);
             if (utf8_name.is_err()) {
-                foundation::Logger::warning("utf8に変換できない文字が含まれています");
+                debug::Logger::warning("utf8に変換できない文字が含まれています");
             }
             constructor.bone_names.push_back(utf8_name.unwrap_or(sjis_name));
             model_bones[i].name = constructor.bone_names.back();
@@ -274,7 +274,7 @@ namespace enishi::assets_system {
             dst.rigid_body_b = rigid_body_indices[joint.rigid_body_b];
             if (dst.rigid_body_a == INVALID_RIGID_BODY_INDEX ||
                 dst.rigid_body_b == INVALID_RIGID_BODY_INDEX) {
-                foundation::Logger::warning(std::format(
+                debug::Logger::warning(std::format(
                     "Skipping PMD joint '{}' referencing a rigid body without a related bone",
                     dst.name));
                 continue;
@@ -313,7 +313,7 @@ namespace enishi::assets_system {
             const std::string name(
                 body.name, std::find(std::begin(body.name), std::end(body.name), '\0'));
             if (body.relate_bone_index == NO_PMD_BONE) {
-                foundation::Logger::warning(
+                debug::Logger::warning(
                     std::format("Skipping PMD rigid body '{}' without a related bone",
                         foundation::sjis_to_utf8(name).unwrap_or(name)));
                 indices.push_back(INVALID_RIGID_BODY_INDEX);

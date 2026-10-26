@@ -8,13 +8,19 @@
 #include <component/physics_component.h>
 #include <component/skinning_component.h>
 #include <core/system/interface_system.h>
+#include <debug/playback/playback_control.h>
 #include <ecs/registry.h>
 #include <engine_types/skinning/skinning_command.h>
 #include <memory>
-#include <sub_system/physics/interface_physics_engine.h>
 #include <span>
+#include <sub_system/camera/interface_camera_controller.h>
+#include <sub_system/physics/interface_physics_engine.h>
 #include <unordered_map>
 #include <variant>
+
+namespace enishi::platform {
+    class IWindow;
+}
 
 namespace enishi::core {
     /**
@@ -23,30 +29,41 @@ namespace enishi::core {
      */
     class SkinningSystem final : public ISystem {
       private:
-        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
-            types::SkinningCommand::Animation,
-            types::SkinningCommand::IK,
-            types::SkinningCommand::WriteBackPhysicsSimulate,
-        };
-
         using AddonComponent = std::variant<std::monostate,
             component::IKComponent*,
             component::PhysicsComponent*,
             component::PhysicsBodiesComponent*>;
 
       private:
+        static constexpr std::array<types::SkinningCommand, 3> DEFAULT_ORDER = {
+            types::SkinningCommand::Animation,
+            types::SkinningCommand::IK,
+            types::SkinningCommand::WriteBackPhysicsSimulate,
+        };
+
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<sub_system::IPhysicsEngine> physics_engine;
+        std::weak_ptr<platform::IWindow> cursor_window;
+        std::shared_ptr<sub_system::ICameraController> camera;
+        animation::CursorPoseConfig cursor_config;
+        animation::BoneNameDictionary bone_names;
         std::unordered_map<types::HandleId, std::unique_ptr<ModelBones>> model_bones;
 
       public:
         explicit SkinningSystem(std::shared_ptr<ecs::Registry> registry,
             std::shared_ptr<sub_system::IPhysicsEngine> physics_engine) noexcept;
 
-        bool should_close(void) override;
+        void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void pre_update(void) override;
         void update(const types::DeltaTime& delta_time) override;
         void update_after_physics(void);
+        void set_cursor_window(const std::shared_ptr<platform::IWindow>& window);
+        void set_camera(std::shared_ptr<sub_system::ICameraController> camera);
+        void set_cursor_config(const animation::CursorPoseConfig& config);
+        void set_bone_names(const animation::BoneNameDictionary& dictionary);
+        bool begin_model_drag(types::ClientMousePosition cursor);
+        void end_model_drag();
         void post_update(void) override;
         void render(void) const override;
 
@@ -63,12 +80,6 @@ namespace enishi::core {
         void evaluate_bone_phase(ModelBones& bones,
             foundation::Option<component::IKComponent&> ik,
             bool after_physics) const noexcept;
-        void import_physics_pose(ModelBones& bones) const noexcept;
-        void build_physics(ModelBones& bones,
-            const component::ModelComponent& model,
-            foundation::Option<component::PhysicsComponent&> physics,
-            foundation::Option<component::PhysicsBodiesComponent&> physics_bodies) const;
-
         void execute_command(const types::SkinningCommand command,
             ModelBones& bones,
             foundation::Option<component::IKComponent&> ik) const noexcept;

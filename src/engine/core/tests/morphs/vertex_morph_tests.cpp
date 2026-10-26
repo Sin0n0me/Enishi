@@ -1,4 +1,4 @@
-#include <core/system/animation/vertex_morph.h>
+#include <animation/morph/vertex_morph.h>
 #include <core/system/render/vertex_morph_upload.h>
 #include <cstdlib>
 #include <cstring>
@@ -6,6 +6,7 @@
 #include <limits>
 #include <model_controller/model_component_builder.h>
 #include <renderer/common/converter/skinned_vertices.h>
+#include <renderer/common/upload/buffer_upload.h>
 #include <renderer/common/vertex_buffer_updater.h>
 
 using namespace enishi;
@@ -40,7 +41,7 @@ int main() {
     check(model.morph_targets.targets[0].name == "first", "model retains target names and indices");
     const std::vector<float> weights{0.5f, 0.25f};
     const auto evaluate = [&](const std::vector<float>& values) {
-        return core::evaluate_vertex_morphs(
+        return animation::evaluate_vertex_morphs(
             model.morph_base_positions, model.morph_targets.targets, values);
     };
     const auto blended = evaluate(weights);
@@ -68,21 +69,22 @@ int main() {
                 "upload preserves normal and skin weights");
             uploaded = true;
         });
-    check(core::write_vertex_positions(
+    check(renderer::write_vertex_positions(
               updater, offsetof(renderer::SkinnedVertex, position), blended.unwrap())
                   .is_ok() &&
               uploaded,
         "vertex position upload");
     uploaded = false;
-    check(core::write_vertex_positions(updater, sizeof(renderer::SkinnedVertex), blended.unwrap())
-                  .is_err() &&
-              !uploaded,
+    check(
+        renderer::write_vertex_positions(updater, sizeof(renderer::SkinnedVertex), blended.unwrap())
+                .is_err() &&
+            !uploaded,
         "bad position offset must not upload");
-    check(core::write_vertex_positions(updater, 0, {}).is_err() && !uploaded,
+    check(renderer::write_vertex_positions(updater, 0, {}).is_err() && !uploaded,
         "wrong vertex count must not upload");
     morphs.targets[0].offsets = {types::VertexMorphOffset{2, {1, 0, 0}}};
-    check(
-        core::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights).is_err(),
+    check(animation::evaluate_vertex_morphs(model.morph_base_positions, morphs.targets, weights)
+              .is_err(),
         "invalid vertex must return an error");
     std::cout << "Vertex morph tests passed\n";
 }

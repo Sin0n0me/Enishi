@@ -1,6 +1,6 @@
 #include "model_collision_system.h"
 #include <component/animation_component.h>
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::core {
     ModelCollisionSystem::ModelCollisionSystem(
@@ -21,7 +21,7 @@ namespace enishi::core {
             const bool initial = !this->registered.contains(id);
             if (initial) {
                 if (!this->collider->register_model(id)) {
-                    foundation::Logger::warning("Cannot register model collision bounds");
+                    debug::Logger::warning("Cannot register model collision bounds");
                     continue;
                 }
                 this->registered.insert(id);
@@ -35,7 +35,7 @@ namespace enishi::core {
                     initial ? this->collider->set_bone(id, bone, vertices, animation.global[bone])
                             : this->collider->update_bone(id, bone, animation.global[bone]);
                 if (!updated) {
-                    foundation::Logger::warning("Cannot update model collision bounds");
+                    debug::Logger::warning("Cannot update model collision bounds");
                 }
             }
         }
@@ -50,9 +50,6 @@ namespace enishi::core {
         this->collider->check_collisions();
     }
 
-    bool ModelCollisionSystem::should_close(void) {
-        return false;
-    }
     void ModelCollisionSystem::pre_update(void) {
     }
     void ModelCollisionSystem::update(const types::DeltaTime& delta_time) {

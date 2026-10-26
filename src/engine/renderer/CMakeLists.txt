@@ -16,10 +16,14 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-if(USE_OPENGL40)
+if(NOT USE_DIRECTX_11 AND NOT USE_DIRECTX_12)
     list(FILTER SOURCES EXCLUDE REGEX ".*/directx/.*")
-else()
+endif()
+if(NOT USE_OPENGL40)
     list(FILTER SOURCES EXCLUDE REGEX ".*/opengl/.*")
+endif()
+if(NOT USE_VULKAN)
+    list(FILTER SOURCES EXCLUDE REGEX ".*/vulkan/.*")
 endif()
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
@@ -28,6 +32,9 @@ enishi_add_library(${PROJECT_NAME} ${SOURCES})
 
 set(DEPENDENCIES)
 include(FetchContent)
+
+FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
+FetchContent_MakeAvailable(ENISHI_DEBUG)
 
 FetchContent_Declare(
     PLATFORM
@@ -92,7 +99,15 @@ elseif(USE_OPENGL40)
     endif()
 
 elseif(USE_VULKAN)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE "USE_VULKAN")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC USE_VULKAN)
+    get_filename_component(vulkan_sdk_root "${Vulkan_INCLUDE_DIR}" DIRECTORY)
+    find_path(ENISHI_SPIRV_REFLECT_SOURCE_DIR spirv_reflect.c
+        HINTS "${vulkan_sdk_root}/Source/SPIRV-Reflect" "$ENV{VULKAN_SDK}/Source/SPIRV-Reflect"
+        REQUIRED)
+    add_library(enishi_spirv_reflect STATIC "${ENISHI_SPIRV_REFLECT_SOURCE_DIR}/spirv_reflect.c")
+    target_include_directories(enishi_spirv_reflect PUBLIC "${ENISHI_SPIRV_REFLECT_SOURCE_DIR}" "${Vulkan_INCLUDE_DIR}")
+    target_compile_definitions(enishi_spirv_reflect PUBLIC SPIRV_REFLECT_USE_SYSTEM_SPIRV_H)
+    target_link_libraries(${PROJECT_NAME} PRIVATE enishi_spirv_reflect SDL3::SDL3)
     
     set(DEPENDENCIES 
         ${DEPENDENCIES} 
@@ -120,24 +135,10 @@ if (POLICY CMP0141)
 endif()
 
 
-# 以下テスト用設定
-option(BUILD_TESTING OFF)
-
-if(BUILD_TESTING)
+option(ENISHI_RENDERER_RESOURCE_TESTS "Build asset-free resource interface tests" OFF)
+if(ENISHI_RENDERER_RESOURCE_TESTS)
     enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-    add_executable(${PROJECT_NAME}_test ${SOURCES} ${TEST_SOURCES})
-
-    # テスト用exeにメインのライブラリ(lib)をリンクする
-    #target_link_libraries(tests PRIVATE my_lib)
-
-    # CTestにテストケースを登録
-    add_test(NAME RunAllTests COMMAND tests)
+    add_subdirectory(tests/resources)
 endif()
+
+target_link_libraries(${PROJECT_NAME} PUBLIC enishi::debug)

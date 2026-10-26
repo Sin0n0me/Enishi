@@ -7,9 +7,6 @@ namespace enishi::core {
     std::shared_ptr<platform::IAssetSystem> AssetSystem::get_asset_system(void) {
         return this->asset_manager;
     }
-    bool AssetSystem::should_close(void) {
-        return false;
-    }
     void AssetSystem::pre_update(void) {
         this->asset_manager->drain_completed_loads();
     }

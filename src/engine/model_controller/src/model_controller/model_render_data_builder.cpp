@@ -1,5 +1,5 @@
 #include "model_render_data_builder.h"
-#include <foundation/log/logger.h>
+#include <debug/log/logger.h>
 
 namespace enishi::model_controller {
     ModelRenderDataBuilder::ModelRenderDataBuilder(std::shared_ptr<platform::IRenderer> renderer,
@@ -39,7 +39,7 @@ namespace enishi::model_controller {
             for (const auto& material_texture : material.textures) {
                 const auto texture_handle = this->asset_system->load_asset(material_texture.path);
                 if (texture_handle.is_err()) {
-                    foundation::Logger::warning(texture_handle.unwrap_err().get_message());
+                    debug::Logger::warning(texture_handle.unwrap_err().get_message());
                 }
             }
         }

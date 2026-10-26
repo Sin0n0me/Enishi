@@ -60,7 +60,8 @@ namespace enishi::assets_system {
                 return remaining.propagation(IOError::ReadFailed);
             }
             if (count > remaining.unwrap() / sizeof(T)) {
-                return foundation::Error(IOError::UnexpectedEof, "Array exceeds remaining file bytes");
+                return foundation::Error(
+                    IOError::UnexpectedEof, "Array exceeds remaining file bytes");
             }
             std::vector<T> temp(count);
             auto&& result = this->read(temp.data(), sizeof(T) * count);

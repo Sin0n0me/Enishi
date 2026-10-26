@@ -132,8 +132,10 @@ namespace enishi::render_pass {
         }
         const auto window_size = opt_window_size.unwrap().to_glm_ivec2();
 
-        auto&& view = make_depth_stencil(
-            types::ImageDescription::make_depth_stencil(window_size), format, this->renderer);
+        auto&& view =
+            make_depth_stencil(types::ImageDescription::make_depth_stencil(window_size, format),
+                format,
+                this->renderer);
         if (view.is_err()) {
             this->has_error = true;
             this->errors.push_back(view.unwrap_err().get_message());
@@ -207,7 +209,8 @@ namespace enishi::render_pass {
 
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_depth_stencil_state(
         types::DepthStencilStateDescription&& description) noexcept {
-        auto&& depth_stencil_state = make_depth_stencil_state(std::move(description), this->renderer);
+        auto&& depth_stencil_state =
+            make_depth_stencil_state(std::move(description), this->renderer);
         if (depth_stencil_state.is_err()) {
             this->errors.push_back(depth_stencil_state.unwrap_err().get_message());
             this->has_error = true;
@@ -242,11 +245,24 @@ namespace enishi::render_pass {
         return this;
     }
 
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::set_sampled_depth(
+        types::RenderHandle handle) noexcept {
+        this->description.sampled_depth = handle;
+        return this;
+    }
+
+    PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_shader_resource(
+        types::RenderHandle handle) noexcept {
+        if (handle.is_valid()) {
+            this->description.shader_resources.push_back(handle);
+        }
+        return this;
+    }
+
     foundation::Result<types::PipelineDescription, ConstructError>
     PipelineDescriptionConstructer::build(void) noexcept {
         if (this->has_error) {
-            return foundation::Error(ConstructError::Construct,
-                this->errors.join("\n"));
+            return foundation::Error(ConstructError::Construct, this->errors.join("\n"));
         }
 
         return std::move(this->description);
@@ -261,12 +277,13 @@ namespace enishi::render_pass {
         }
 
         auto render_pass = std::make_shared<RenderPass>();
-        const auto render_pass_result = render_pass
-                                            ->make_from_description(std::move(result_description).unwrap_mut(),
-                                                constructor->get_render_pass_name(),
-                                                constructor->get_node(),
-                                                constructor->get_dependencies())
-                                            .add_message(this->errors.join("\n"));
+        const auto render_pass_result =
+            render_pass
+                ->make_from_description(std::move(result_description).unwrap_mut(),
+                    constructor->get_render_pass_name(),
+                    constructor->get_node(),
+                    constructor->get_dependencies())
+                .add_message(this->errors.join("\n"));
         if (render_pass_result.is_err()) {
             return render_pass_result.propagation(ConstructError::Construct);
         }

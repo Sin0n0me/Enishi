@@ -1,0 +1,26 @@
+# 全モデル共通のモーフ名設定です。起動時に読み込むため、編集後は再起動してください。
+# 指定した役割の既定候補を置き換えます。未指定の役割は既定値を使います。
+# 大文字と小文字を区別し、左の候補から順に検索します。
+# 文字コードはUTF-8です。候補は空でない文字列の配列で、1件以上必要です。
+# 設定に誤りがある場合はファイル全体を適用せず、既定値を使います。
+version = 1
+
+# 設定例（コメントを外すと有効になります）：
+# [roles.blink]
+# aliases = ["custom_blink", "blink"]
+
+# 指定できる役割のキー：
+# blink
+# blink_left
+# blink_right
+# eye_smile
+# mouth_a
+# mouth_i
+# mouth_u
+# mouth_e
+# mouth_o
+# mouth_smile
+# brow_up
+# brow_down
+# brow_angry
+# brow_sad

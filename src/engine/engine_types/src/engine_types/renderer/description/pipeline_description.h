@@ -20,5 +20,7 @@ namespace enishi::types {
         RenderHandle sampler_state;
         RenderHandle depth_stencil_state;
         RenderHandle blend_state;
+        RenderHandle sampled_depth;
+        std::vector<RenderHandle> shader_resources;
     };
 } // namespace enishi::types

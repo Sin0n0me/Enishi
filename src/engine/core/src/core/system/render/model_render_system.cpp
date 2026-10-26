@@ -2,8 +2,8 @@
 #include "last_model_cache.h"
 #include <component/physics_bodies_component.h>
 #include <core/system/skinning/model_pose_initializer.h>
+#include <debug/log/logger.h>
 #include <filesystem>
-#include <foundation/log/logger.h>
 #include <utility>
 #include <vector>
 
@@ -16,16 +16,14 @@ namespace enishi::core {
     ModelRenderSystem::ModelRenderSystem(std::shared_ptr<ecs::Registry> registry,
         std::shared_ptr<platform::IAssetSystem> asset_system,
         std::shared_ptr<platform::IRenderer> renderer,
-        std::shared_ptr<platform::IRenderPass> model_render_pass)
+        std::shared_ptr<platform::IRenderPass> model_render_pass,
+        std::shared_ptr<platform::IRenderPass> shadow_render_pass)
         : model_render_pass(model_render_pass)
+        , shadow_render_pass(std::move(shadow_render_pass))
         , registry(std::move(registry))
         , model_controller(std::make_shared<model_controller::ModelController>(asset_system,
               std::make_shared<model_controller::ModelRenderDataBuilder>(renderer, asset_system)))
         , is_initial_models_registered(false) {
-    }
-
-    bool ModelRenderSystem::should_close(void) {
-        return false;
     }
 
     void ModelRenderSystem::pre_update(void) {
@@ -37,21 +35,21 @@ namespace enishi::core {
         this->model_controller->find_model(MODEL_SEARCH_PATH);
         const auto model_names = this->model_controller->get_model_list();
         if (model_names.empty()) {
-            foundation::Logger::warning("描画するモデルが見つかりません");
+            debug::Logger::warning("描画するモデルが見つかりません");
             return;
         }
 
         std::string cached_id;
         const auto cached = load_last_model(LAST_MODEL_CACHE_PATH);
         if (cached.is_err()) {
-            foundation::Logger::warning(cached.unwrap_err().get_message());
+            debug::Logger::warning(cached.unwrap_err().get_message());
         } else if (cached.unwrap().is_some()) {
             cached_id = cached.unwrap().unwrap();
             const auto restored = this->show_model(cached_id);
             if (restored.is_ok()) {
                 return;
             }
-            foundation::Logger::warning(restored.unwrap_err().get_message());
+            debug::Logger::warning(restored.unwrap_err().get_message());
         }
         for (const auto& model_name : model_names) {
             if (model_name == cached_id) {
@@ -61,7 +59,7 @@ namespace enishi::core {
             if (result.is_ok()) {
                 break;
             }
-            foundation::Logger::error(result.unwrap_err().get_message());
+            debug::Logger::error(result.unwrap_err().get_message());
         }
     }
 
@@ -86,9 +84,13 @@ namespace enishi::core {
         if (loaded != this->loaded_models.end()) {
             if (!loaded->second.visible) {
                 this->model_render_pass->add_mesh(loaded->second.mesh);
+                if (this->shadow_render_pass != nullptr) {
+                    this->shadow_render_pass->add_mesh(loaded->second.mesh);
+                }
                 loaded->second.visible = true;
                 this->registry->get<component::ModelComponent>(loaded->second.entity)
-                    .unwrap_mut().visible = true;
+                    .unwrap_mut()
+                    .visible = true;
                 auto bodies =
                     this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
                 if (bodies.is_some()) {
@@ -120,6 +122,9 @@ namespace enishi::core {
         const auto mesh = inserted.unwrap_mut().render_handle;
         this->loaded_models.emplace(id, LoadedModel{entity, mesh, true});
         this->model_render_pass->add_mesh(mesh);
+        if (this->shadow_render_pass != nullptr) {
+            this->shadow_render_pass->add_mesh(mesh);
+        }
         this->remember_model(id);
         return {};
     }
@@ -127,7 +132,7 @@ namespace enishi::core {
     void ModelRenderSystem::remember_model(const std::string& id) const {
         const auto result = save_last_model(LAST_MODEL_CACHE_PATH, id);
         if (result.is_err()) {
-            foundation::Logger::warning(result.unwrap_err().get_message());
+            debug::Logger::warning(result.unwrap_err().get_message());
         }
     }
 
@@ -137,11 +142,13 @@ namespace enishi::core {
             return;
         }
         this->model_render_pass->remove_mesh(loaded->second.mesh);
+        if (this->shadow_render_pass != nullptr) {
+            this->shadow_render_pass->remove_mesh(loaded->second.mesh);
+        }
         loaded->second.visible = false;
-        this->registry->get<component::ModelComponent>(loaded->second.entity)
-            .unwrap_mut().visible = false;
-        auto bodies =
-            this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
+        this->registry->get<component::ModelComponent>(loaded->second.entity).unwrap_mut().visible =
+            false;
+        auto bodies = this->registry->get<component::PhysicsBodiesComponent>(loaded->second.entity);
         if (bodies.is_some()) {
             bodies.unwrap_mut().enabled = false;
         }

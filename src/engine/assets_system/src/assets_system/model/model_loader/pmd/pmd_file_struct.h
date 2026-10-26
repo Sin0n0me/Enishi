@@ -28,11 +28,11 @@ namespace enishi::assets_system {
     };
 
     struct PMDMaterial {
-        float diffuse[4];          // ディフューズカラー
-        float shininess;           // スペキュラ係数
-        float specular[3];         // スペキュラカラー RGB
-        float ambient[3];          // アンビエントカラー RGB
-        std::uint8_t toon_index;   // トゥーンレンダリング用のテクスチャインデックス
+        float diffuse[4];        // ディフューズカラー
+        float shininess;         // スペキュラ係数
+        float specular[3];       // スペキュラカラー RGB
+        float ambient[3];        // アンビエントカラー RGB
+        std::uint8_t toon_index; // トゥーンレンダリング用のテクスチャインデックス
         std::uint8_t edge_flag;    // 輪郭エッジフラグ
         std::uint32_t index_count; // このマテリアルの頂点インデックス数
         char texture_file[20];     // "xxx.png" or "xxx.png*sph"
