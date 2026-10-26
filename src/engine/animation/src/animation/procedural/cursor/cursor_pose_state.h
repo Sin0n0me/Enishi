@@ -121,8 +121,16 @@ namespace enishi::animation {
     };
 
     struct CursorPoseState {
-        enum Joint : std::size_t { Neck, Head, LeftArm, LeftElbow, RightArm, RightElbow, Count };
-        enum BodyBone : std::size_t {
+        enum class Joint : std::size_t {
+            Neck,
+            Head,
+            LeftArm,
+            LeftElbow,
+            RightArm,
+            RightElbow,
+            Count
+        };
+        enum class BodyBone : std::size_t {
             BodyLeft,
             BodyRight,
             BodyNeck,
@@ -137,15 +145,15 @@ namespace enishi::animation {
         CursorTransformCache transforms;
         CursorCollisionState collision;
         std::array<std::vector<types::BoneIndex>, 2> hand_reach_bones;
-        std::array<types::BoneIndex, Count> joints;
+        std::array<types::BoneIndex, std::to_underlying(Joint::Count)> joints;
         std::array<types::BoneIndex, 2> wrists;
-        std::array<types::BoneIndex, BodyCount> body_bones;
+        std::array<types::BoneIndex, std::to_underlying(BodyBone::BodyCount)> body_bones;
         types::BoneIndex body_anchor = types::INVALID_BONE_INDEX;
         std::array<types::BoneIndex, 2> eyes;
         std::optional<types::Ray> reach_ray;
-        std::array<glm::quat, Count> offsets;
-        std::array<glm::quat, Count> originals;
-        std::array<glm::quat, Count> bind_rotations;
+        std::array<glm::quat, std::to_underlying(Joint::Count)> offsets;
+        std::array<glm::quat, std::to_underlying(Joint::Count)> originals;
+        std::array<glm::quat, std::to_underlying(Joint::Count)> bind_rotations;
         std::array<glm::vec3, 2> hinge_axes;
         std::array<glm::vec3, 2> upper_axes;
         std::array<float, 2> bind_flex{};

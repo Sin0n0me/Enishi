@@ -5,10 +5,10 @@
 #include <animation/procedural/hanging/cursor_hanging.h>
 #include <animation/procedural/legs/cursor_legs.h>
 #include <cmath>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float MAX_DT = 0.05f;
@@ -93,8 +93,10 @@ namespace enishi::animation {
             if (!(state.wrists[side] < state.transforms.globals.size())) {
                 continue;
             }
-            const auto arm = state.joints[side == 0 ? LeftArm : RightArm];
-            const auto elbow = state.joints[side == 0 ? LeftElbow : RightElbow];
+            const auto arm = state.joints[side == 0 ? std::to_underlying(Joint::LeftArm)
+                                                    : std::to_underlying(Joint::RightArm)];
+            const auto elbow = state.joints[side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                                      : std::to_underlying(Joint::RightElbow)];
             const auto upper = animation.animation[arm].rotation;
             const auto lower = animation.animation[elbow].rotation;
             const auto frame = CursorReach::arm_frame(state, side);

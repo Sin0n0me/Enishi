@@ -10,10 +10,11 @@
 #include <animation/procedural/legs/cursor_legs.h>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
+    using Joint = CursorPoseState::Joint;
+    using BodyBone = CursorPoseState::BodyBone;
     namespace {
         constexpr glm::quat IDENTITY(1, 0, 0, 0);
         constexpr float EPSILON = 0.00001f;
@@ -66,8 +67,10 @@ namespace enishi::animation {
             }
         }
         for (std::size_t side = 0; side < this->state.wrists.size(); ++side) {
-            const auto arm = side == 0 ? LeftArm : RightArm;
-            const auto elbow = side == 0 ? LeftElbow : RightElbow;
+            const auto arm = side == 0 ? std::to_underlying(Joint::LeftArm)
+                                       : std::to_underlying(Joint::RightArm);
+            const auto elbow = side == 0 ? std::to_underlying(Joint::LeftElbow)
+                                         : std::to_underlying(Joint::RightElbow);
             if (!descendant(model, this->state.joints[elbow], this->state.joints[arm]) ||
                 !descendant(model, this->state.wrists[side], this->state.joints[elbow])) {
                 this->state.joints[arm] = types::INVALID_BONE_INDEX;
@@ -190,7 +193,7 @@ namespace enishi::animation {
         }
         this->state.idle.applied = false;
         this->state.reach_ray = cursor.has_value() ? std::optional(cursor->ray) : std::nullopt;
-        for (std::size_t joint = 0; joint < Count; ++joint) {
+        for (std::size_t joint = 0; joint < std::to_underlying(Joint::Count); ++joint) {
             if (this->state.joints[joint] < animation.animation.size()) {
                 this->state.originals[joint] =
                     animation.animation[this->state.joints[joint]].rotation;
@@ -221,7 +224,7 @@ namespace enishi::animation {
         if (CursorHanging::apply_hanging(this->state, model, animation, cursor, seconds)) {
             CursorIdle::apply_idle(this->state, model, animation, idle_enabled, seconds);
             if (this->state.hanging_state.active) {
-                const auto hips = this->state.body_bones[BodyHips];
+                const auto hips = this->state.body_bones[std::to_underlying(BodyBone::BodyHips)];
                 const auto center = hips < this->state.transforms.globals.size()
                                         ? hips
                                         : this->state.locomotion.roots.front();
@@ -243,14 +246,14 @@ namespace enishi::animation {
             if (gaze.has_value()) {
                 CursorGaze::look(this->state,
                     animation,
-                    Neck,
+                    Joint::Neck,
                     *gaze,
                     this->state.config.neck_yaw,
                     this->state.config.neck_pitch);
                 CursorTransforms::update_globals(this->state.transforms, model, animation);
                 CursorGaze::look(this->state,
                     animation,
-                    Head,
+                    Joint::Head,
                     *gaze,
                     this->state.config.head_yaw,
                     this->state.config.head_pitch);
@@ -268,7 +271,7 @@ namespace enishi::animation {
         if (this->state.transition_state.initializing) {
             alpha = 1;
         }
-        for (std::size_t joint = 0; joint < Count; ++joint) {
+        for (std::size_t joint = 0; joint < std::to_underlying(Joint::Count); ++joint) {
             const auto index = this->state.joints[joint];
             if (!(index < animation.animation.size())) {
                 continue;
@@ -314,7 +317,7 @@ namespace enishi::animation {
         for (const auto& [index, original] : this->state.locomotion.leg_originals) {
             animation.animation[index] = original;
         }
-        for (std::size_t joint = 0; joint < Count; ++joint) {
+        for (std::size_t joint = 0; joint < std::to_underlying(Joint::Count); ++joint) {
             if (this->state.joints[joint] < animation.animation.size()) {
                 animation.animation[this->state.joints[joint]].rotation =
                     this->state.originals[joint];
@@ -365,7 +368,7 @@ namespace enishi::animation {
     void CursorPose::remember_transition_pose(const component::AnimationComponent& animation) {
         this->state.transition_state.display = animation.animation;
         if (this->state.hanging_state.active && !this->state.locomotion.roots.empty()) {
-            const auto hips = this->state.body_bones[BodyHips];
+            const auto hips = this->state.body_bones[std::to_underlying(BodyBone::BodyHips)];
             const auto center = hips < this->state.transforms.globals.size()
                                     ? hips
                                     : this->state.locomotion.roots.front();

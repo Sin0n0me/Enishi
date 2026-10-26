@@ -4,8 +4,6 @@
 #include <cmath>
 
 namespace enishi::animation {
-    using enum CursorPoseState::Joint;
-    using enum CursorPoseState::BodyBone;
     namespace {
         constexpr float EPSILON = 0.00001f;
         constexpr float KNEE_BEND_DEGREES = 25.0f;

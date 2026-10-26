@@ -2,6 +2,7 @@
 #include "../test_runner.h"
 #include <animation/procedural/cursor/cursor_reach.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 
 namespace {
     constexpr std::size_t LEFT = 0;
@@ -23,14 +24,14 @@ namespace {
     void check_direction(float left_sign, float turn) {
         using State = enishi::animation::CursorPoseState;
         State state{};
-        state.joints[State::LeftArm] = LEFT_ARM;
-        state.joints[State::LeftElbow] = LEFT_ELBOW;
-        state.joints[State::RightArm] = RIGHT_ARM;
-        state.joints[State::RightElbow] = RIGHT_ELBOW;
+        state.joints[std::to_underlying(State::Joint::LeftArm)] = LEFT_ARM;
+        state.joints[std::to_underlying(State::Joint::LeftElbow)] = LEFT_ELBOW;
+        state.joints[std::to_underlying(State::Joint::RightArm)] = RIGHT_ARM;
+        state.joints[std::to_underlying(State::Joint::RightElbow)] = RIGHT_ELBOW;
         state.wrists = {LEFT_HAND, RIGHT_HAND};
         state.body_bones.fill(enishi::types::INVALID_BONE_INDEX);
-        state.body_bones[State::BodyLeft] = LEFT_ARM;
-        state.body_bones[State::BodyRight] = RIGHT_ARM;
+        state.body_bones[std::to_underlying(State::BodyBone::BodyLeft)] = LEFT_ARM;
+        state.body_bones[std::to_underlying(State::BodyBone::BodyRight)] = RIGHT_ARM;
         const auto rotation = glm::rotate(glm::mat4(1), glm::radians(turn), glm::vec3(0, 1, 0));
         for (const auto x : {SHOULDER_X, ELBOW_X, HAND_X, -SHOULDER_X, -ELBOW_X, -HAND_X}) {
             state.transforms.globals.push_back(
