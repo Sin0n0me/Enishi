@@ -16,7 +16,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
+# The standalone shell target owns this translation unit.
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/process/native_shell_process.cpp")
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ShellProcess.cmake)
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
+target_link_libraries(${PROJECT_NAME} PUBLIC platform_impl_shell)
 
 
 # 以下依存設定

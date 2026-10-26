@@ -7,6 +7,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <platform_impl/process/native_shell_process.h>
 #include <thread>
 #ifdef _WIN32
 #include <fcntl.h>
@@ -33,7 +34,7 @@ namespace {
     class Relay {
       public:
         enishi::bypass_shell::ShellConnection connection;
-        enishi::bypass_shell::ShellProcess process;
+        enishi::bypass_shell::ShellProcess process{enishi::platform_impl::create_shell_process()};
         std::atomic<bool> done{false};
         std::atomic<bool> failed{false};
         std::atomic<bool> disconnected{false};

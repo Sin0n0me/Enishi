@@ -1,15 +1,15 @@
 #pragma once
 #include "shell_connection.h"
 #include <optional>
+#include <platform/process/interface_shell_process.h>
 
 namespace enishi::bypass_shell {
     class ShellProcess {
       private:
-        struct Impl;
-        std::unique_ptr<Impl> impl;
+        std::unique_ptr<platform::IShellProcess> process;
 
       public:
-        ShellProcess();
+        explicit ShellProcess(std::unique_ptr<platform::IShellProcess> process);
         ~ShellProcess();
         ShellProcess(const ShellProcess&) = delete;
         ShellProcess& operator=(const ShellProcess&) = delete;
