@@ -1,0 +1,192 @@
+#include "main.h"
+#include "terminal_input.h"
+#include <atomic>
+#include <bypass_shell/shell_process.h>
+#include <charconv>
+#include <chrono>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <thread>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#endif
+
+namespace {
+    using enishi::bypass_shell::ShellEventKind;
+    constexpr auto POLL_INTERVAL = std::chrono::milliseconds(10);
+    constexpr int INTERRUPTED_EXIT = 130;
+    std::atomic<bool> interrupted{false};
+    static_assert(std::atomic<bool>::is_always_lock_free);
+#ifdef _WIN32
+    BOOL WINAPI interrupt(DWORD) {
+        interrupted.store(true);
+        return TRUE;
+    }
+#else
+    void interrupt(int) {
+        interrupted.store(true);
+    }
+#endif
+    class Relay {
+      public:
+        enishi::bypass_shell::ShellConnection connection;
+        enishi::bypass_shell::ShellProcess process;
+        std::atomic<bool> done{false};
+        std::atomic<bool> failed{false};
+        std::atomic<bool> disconnected{false};
+        inline void notify(ShellEventKind kind, std::string_view data) {
+            if (this->disconnected.load()) {
+                return;
+            }
+            do {
+                const auto chunk = data.substr(0, enishi::bypass_shell::MAX_PAYLOAD);
+                auto result = this->connection.send(kind, chunk);
+                if (!result.has_value()) {
+                    if (!this->disconnected.exchange(true)) {
+                        std::fprintf(stderr,
+                            "Enishi disconnected: %s; shell remains active.\n",
+                            result.error().c_str());
+                    }
+                    return;
+                }
+                data.remove_prefix(chunk.size());
+            } while (!data.empty());
+        }
+        inline void output(ShellEventKind kind, FILE* destination) {
+            for (;;) {
+                auto data = this->process.read(kind);
+                if (!data.has_value()) {
+                    std::fprintf(stderr, "%s\n", data.error().c_str());
+                    this->failed.store(true);
+                    return;
+                }
+                if (!data->empty()) {
+                    if (std::fwrite(data->data(), 1, data->size(), destination) != data->size() ||
+                        std::fflush(destination) != 0) {
+                        this->failed.store(true);
+                        return;
+                    }
+                    this->notify(kind, *data);
+                } else {
+                    if (this->done.load()) {
+                        return;
+                    }
+                    std::this_thread::sleep_for(POLL_INTERVAL);
+                }
+            }
+        }
+        inline int input() {
+            enishi::bypass_shell::TerminalInput terminal;
+            bool closed = false;
+            while (!interrupted.load() && !this->failed.load()) {
+                auto status = this->process.exit_code();
+                if (!status.has_value()) {
+                    std::fprintf(stderr, "%s\n", status.error().c_str());
+                    return EXIT_FAILURE;
+                }
+                if (status->has_value()) {
+                    return **status;
+                }
+                if (!closed) {
+                    auto bytes = terminal.read();
+                    if (!bytes.has_value()) {
+                        std::fprintf(stderr, "%s\n", bytes.error().c_str());
+                        return EXIT_FAILURE;
+                    }
+                    if (bytes->has_value()) {
+                        if ((**bytes).empty()) {
+                            this->process.close_input();
+                            closed = true;
+                        } else {
+                            this->notify(ShellEventKind::Input, **bytes);
+                            auto sent = this->process.write(**bytes);
+                            if (!sent.has_value()) {
+                                std::fprintf(stderr, "%s\n", sent.error().c_str());
+                                return EXIT_FAILURE;
+                            }
+                        }
+                    }
+                }
+                std::this_thread::sleep_for(POLL_INTERVAL);
+            }
+            return interrupted.load() ? INTERRUPTED_EXIT : EXIT_FAILURE;
+        }
+    };
+    int run(std::uint16_t port) {
+        Relay relay;
+        auto connected = relay.connection.connect(port);
+        if (!connected.has_value()) {
+            std::fprintf(stderr, "%s\n", connected.error().c_str());
+            return EXIT_FAILURE;
+        }
+        auto started = relay.process.start();
+        if (!started.has_value()) {
+            std::fprintf(stderr, "%s\n", started.error().c_str());
+            return EXIT_FAILURE;
+        }
+#ifdef _WIN32
+        relay.notify(ShellEventKind::Started, "cmd.exe");
+#else
+        relay.notify(ShellEventKind::Started, "/bin/sh");
+#endif
+        std::jthread output([&] { relay.output(ShellEventKind::Stdout, stdout); });
+        std::jthread errors([&] { relay.output(ShellEventKind::Stderr, stderr); });
+        // Killing the job/group also unblocks a pipe write when the child is not reading stdin.
+        std::jthread cancellation([&](std::stop_token stop) {
+            while (!stop.stop_requested()) {
+                if (interrupted.load() || relay.failed.load()) {
+                    relay.process.terminate();
+                    return;
+                }
+                std::this_thread::sleep_for(POLL_INTERVAL);
+            }
+        });
+        auto code = relay.input();
+        cancellation.request_stop();
+        cancellation.join();
+        if (interrupted.load()) {
+            code = INTERRUPTED_EXIT;
+        }
+        relay.process.terminate();
+        relay.done.store(true);
+        output.join();
+        errors.join();
+        relay.notify(ShellEventKind::Exited, std::to_string(code));
+        return code;
+    }
+} // namespace
+int main(int argc, char** argv) {
+    std::uint16_t port = enishi::bypass_shell::DEFAULT_PORT;
+    if (argc != 1) {
+        constexpr int PORT_ARGUMENT_COUNT = 3;
+        if (argc != PORT_ARGUMENT_COUNT || std::string_view(argv[1]) != "--port") {
+            std::fprintf(stderr,
+                "Usage: enishi-shell [--port NUMBER]\nStart Enishi first. Commands run in cmd.exe "
+                "(Windows) or /bin/sh (Linux).\nPipe relay: full-screen terminal programs are not "
+                "supported. Ctrl+C closes the shell session.\n");
+            return std::string_view(argv[1]) == "--help" ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+        const std::string_view argument(argv[2]);
+        const auto parsed =
+            std::from_chars(argument.data(), argument.data() + argument.size(), port);
+        if (parsed.ec != std::errc{} || parsed.ptr != argument.data() + argument.size() ||
+            port == 0) {
+            std::fprintf(stderr, "Invalid port\n");
+            return EXIT_FAILURE;
+        }
+    }
+#ifdef _WIN32
+    SetConsoleCtrlHandler(interrupt, TRUE);
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
+#else
+    std::signal(SIGINT, interrupt);
+    std::signal(SIGTERM, interrupt);
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
+    return run(port);
+}
