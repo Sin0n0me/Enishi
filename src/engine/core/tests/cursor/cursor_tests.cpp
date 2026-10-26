@@ -493,10 +493,8 @@ namespace {
             config.arm_speed = SPEED;
             animation::CursorPose pose(fixture.model, config);
             std::array<glm::quat, 4> previous{IDENTITY, IDENTITY, IDENTITY, IDENTITY};
-            constexpr std::array<Bone, 4> ARMS{std::to_underlying(Bone::Arm),
-                std::to_underlying(Bone::Elbow),
-                std::to_underlying(Bone::OtherArm),
-                std::to_underlying(Bone::OtherElbow)};
+            constexpr std::array<Bone, 4> ARMS{
+                Bone::Arm, Bone::Elbow, Bone::OtherArm, Bone::OtherElbow};
             float total_motion = 0;
             for (int frame = 0; frame < FRAMES; ++frame) {
                 // Enter/leave the boundary, switch sides, then move to the face and torso.
@@ -509,7 +507,8 @@ namespace {
                 const auto target = targets[static_cast<std::size_t>(frame / 40)];
                 pose.apply(fixture.model, fixture.animation, cursor(target.x, target.y), seconds);
                 for (std::size_t joint = 0; joint < ARMS.size(); ++joint) {
-                    const auto rotation = fixture.animation.animation[ARMS[joint]].rotation;
+                    const auto rotation =
+                        fixture.animation.animation[std::to_underlying(ARMS[joint])].rotation;
                     const auto delta = glm::inverse(previous[joint]) * rotation;
                     const float angle = glm::degrees(
                         2.0f * std::atan2(glm::length(glm::vec3(delta.x, delta.y, delta.z)),
