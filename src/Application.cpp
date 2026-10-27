@@ -55,6 +55,15 @@ int main(void) {
 }
 
 namespace enishi {
+    Application::~Application() {
+        if (this->effects != nullptr) {
+            static_cast<void>(this->effects->stop_all());
+        }
+    }
+    std::shared_ptr<effect::IEffectPlayer> Application::get_effect_player() const {
+        return this->effects;
+    }
+
     constexpr auto INIT_WINDOW_SIZE = types::WindowSize{
         .width = WINDOW_SIZE.x,
         .height = WINDOW_SIZE.y,
@@ -70,6 +79,7 @@ namespace enishi {
     }
 
     bool Application::init(void) {
+        this->effects = std::make_shared<effect::EffectManager>();
         this->registry = std::make_shared<ecs::Registry>();
         this->debug_playback = std::make_shared<debug::PlaybackControl>();
         this->click_settings = std::make_shared<types::ModelClickSettings>();
@@ -195,9 +205,22 @@ namespace enishi {
             this->system_scheduler.pre_update();
             this->system_scheduler.update(dt);
             this->system_scheduler.post_update();
+            auto updated_effects = this->effects->update(dt);
+            if (updated_effects.is_err()) {
+                debug::Logger::warning(updated_effects.unwrap_err().get_message());
+            } else {
+                for (const auto& failure : updated_effects.unwrap()) {
+                    debug::Logger::warning(std::format(
+                        "Effect {} failed: {}", failure.id.value, failure.error.get_message()));
+                }
+            }
 
             // 描画
             this->system_scheduler.render();
+        }
+        auto stopped = this->effects->stop_all();
+        if (stopped.is_err()) {
+            debug::Logger::warning(stopped.unwrap_err().get_message());
         }
     }
 

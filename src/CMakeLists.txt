@@ -54,6 +54,9 @@ endif()
 #
 include(FetchContent)
 
+FetchContent_Declare(EFFECT SOURCE_DIR ${DEPEND_DIR}/effect)
+FetchContent_MakeAvailable(EFFECT)
+
 FetchContent_Declare(
     CORE
     SOURCE_DIR ${DEPEND_DIR}/core
@@ -125,6 +128,7 @@ set(DEPENDENCIES
     PRIVATE engine_types
     PRIVATE enishi::debug
     PRIVATE foundation
+    PRIVATE effect
 )
 
 #
