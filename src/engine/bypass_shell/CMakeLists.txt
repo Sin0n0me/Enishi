@@ -1,54 +1,20 @@
-cmake_minimum_required (VERSION 3.14)
-project(bypass_shell)
-
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
-
-# 以下依存設定
-set(DEPENDENCIES)
-set(DEPENDENT_LOACAL_DIRS)
-
-# ローカル
-set(DEPENDENT_LOACAL_DIRS
-    "../platform"
-)
-
-set(DEPENDENCIES
-    platform
-    engine_types
-    foundation
-)
-
-#
-# 以降は触らなくて良い
-#
-
-# MSVCコンパイラの場合のみ、ソースコードと実行バイナリの文字セットをUTF-8に設定
+cmake_minimum_required(VERSION 3.20)
+project(bypass_shell LANGUAGES CXX)
+find_package(Threads REQUIRED)
+include(${CMAKE_CURRENT_LIST_DIR}/../platform/cmake/ShellProcess.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../platform_impl/cmake/ShellProcess.cmake)
+add_library(bypass_shell STATIC
+    src/bypass_shell/command_parser.cpp
+    src/bypass_shell/shell_connection.cpp
+    src/bypass_shell/shell_monitor.cpp
+    src/bypass_shell/shell_process.cpp)
+target_include_directories(bypass_shell PUBLIC src)
+target_compile_features(bypass_shell PUBLIC cxx_std_23)
+target_link_libraries(bypass_shell PUBLIC Threads::Threads platform_shell PRIVATE platform_impl_shell)
+add_executable(enishi-shell cli/main.cpp)
+set_target_properties(enishi-shell PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+target_link_libraries(enishi-shell PRIVATE bypass_shell platform_impl_shell)
 if(MSVC)
-    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
-    add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
-endif()
-
-# 依存しているローカルディレクトリの追加
-foreach(dir_path IN LISTS DEPENDENT_LOACAL_DIRS)
-    get_filename_component(dir_name "${dir_path}" NAME)
-    add_subdirectory("${dir_path}" "${CMAKE_CURRENT_BINARY_DIR}/build_${dir_name}")
-endforeach()
-
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
-    "src/*.h"
-    "src/*.c"
-    "src/*.hpp"
-    "src/*.cpp"
-)
-
-enishi_add_library(${PROJECT_NAME} ${SOURCES})
-enishi_configure_library(${PROJECT_NAME}
-    INCLUDE_DIRECTORIES src
-    DEPENDENCIES ${DEPENDENCIES}
-)
-
-# MSVCコンパイラのホットリロードを有効に
-if (POLICY CMP0141)
-  cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+    target_compile_options(bypass_shell PRIVATE /utf-8 /EHsc /W4)
+    target_compile_options(enishi-shell PRIVATE /utf-8 /EHsc /W4)
 endif()

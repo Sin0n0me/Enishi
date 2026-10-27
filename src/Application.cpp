@@ -22,6 +22,7 @@
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <script/script_engine.h>
 #include <ui/selection/selection_ui.h>
+#include <utility>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -55,6 +56,9 @@ int main(void) {
 }
 
 namespace enishi {
+    std::shared_ptr<bypass_shell::ShellMonitor> Application::get_shell_monitor() const {
+        return this->shell_monitor;
+    }
     constexpr auto INIT_WINDOW_SIZE = types::WindowSize{
         .width = WINDOW_SIZE.x,
         .height = WINDOW_SIZE.y,
@@ -70,6 +74,7 @@ namespace enishi {
     }
 
     bool Application::init(void) {
+        this->shell_monitor = std::make_shared<bypass_shell::ShellMonitor>();
         this->registry = std::make_shared<ecs::Registry>();
         this->debug_playback = std::make_shared<debug::PlaybackControl>();
         this->click_settings = std::make_shared<types::ModelClickSettings>();
@@ -181,6 +186,11 @@ namespace enishi {
             return false;
         }
 
+        auto shell_started = this->shell_monitor->start();
+        if (!shell_started.has_value()) {
+            debug::Logger::warning(std::move(shell_started.error()));
+        }
+
         return true;
     }
 
@@ -190,6 +200,7 @@ namespace enishi {
 
         for (; !this->root_window->should_close();) {
             const auto dt = this->app_timer.tick();
+            this->shell_monitor->poll();
 
             // 更新
             this->system_scheduler.pre_update();
@@ -339,7 +350,7 @@ namespace enishi {
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();
         render_system->set_settings(render_settings);
         const auto selection = std::make_shared<ui::SelectionUI>(
-            std::move(models), this->click_settings, scripts, render_settings);
+            std::move(models), this->click_settings, scripts, render_settings, this->shell_monitor);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY, ui, [selection, window](sub_system::IUI& ui) {
                 selection->update(ui);
