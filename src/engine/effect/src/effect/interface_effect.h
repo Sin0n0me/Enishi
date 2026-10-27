@@ -13,4 +13,4 @@ namespace enishi::effect {
         // Implementations own resources through RAII and may release partial initialization here.
         virtual void stop() noexcept = 0;
     };
-}
+} // namespace enishi::effect
