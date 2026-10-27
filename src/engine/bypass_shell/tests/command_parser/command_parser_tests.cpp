@@ -150,7 +150,25 @@ namespace enishi::tests {
                     syntax,
                     CommandParseErrorKind::TooLong,
                     COMMAND_BYTE_LIMIT);
+                for (const auto& suffix : {std::string("xy"),
+                         std::string("x&&next"),
+                         std::string(1, '\0'),
+                         std::string("\n"),
+                         std::string("\nnext")}) {
+                    expect_error(std::string(COMMAND_BYTE_LIMIT - 1, 'x') + escape + suffix,
+                        syntax,
+                        CommandParseErrorKind::TooLong,
+                        COMMAND_BYTE_LIMIT);
+                }
+                const std::string escaped_word = std::string(COMMAND_BYTE_LIMIT - 2, 'x');
+                expect_command(escaped_word + escape + "y&&next", syntax, escaped_word + "y", {});
                 expect_command("echo ok && " + name + name, syntax, "echo", {"ok"});
+            }
+            for (const auto* suffix : {"\r\n", "\r\nnext", "\r\n&&next"}) {
+                expect_error(std::string(COMMAND_BYTE_LIMIT - 2, 'x') + '^' + suffix,
+                    CommandSyntax::Cmd,
+                    CommandParseErrorKind::TooLong,
+                    COMMAND_BYTE_LIMIT);
             }
         }
     } // namespace

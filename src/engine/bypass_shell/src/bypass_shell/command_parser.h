@@ -38,6 +38,8 @@ namespace enishi::bypass_shell {
         // Variables and wildcards remain literal. These are lexical tokens, not the executed argv
         // (in particular, individual Windows programs have their own argument parsing rules).
         // Redirection, grouping and command substitution in the first command are unsupported.
+        // The parsed prefix (including whitespace/comments) is limited to 65536 bytes.
+        // TooLong points to the first byte beyond that limit; subsequent commands are not counted.
         [[nodiscard]] static CommandParseResult parse(std::string_view input, CommandSyntax syntax);
     };
 } // namespace enishi::bypass_shell

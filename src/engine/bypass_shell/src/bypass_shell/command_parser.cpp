@@ -26,6 +26,11 @@ namespace enishi::bypass_shell {
             return std::unexpected(CommandParseError{kind, offset, std::move(message)});
         }
 
+        std::unexpected<CommandParseError> size_error() {
+            return error(
+                CommandParseErrorKind::TooLong, MAX_COMMAND_BYTES, "Command exceeds size limit");
+        }
+
         bool newline(char value) {
             return value == '\r' || value == '\n';
         }
@@ -50,6 +55,9 @@ namespace enishi::bypass_shell {
                     offset,
                     "Escape has no following character");
             }
+            if (!(state.position < MAX_COMMAND_BYTES)) {
+                return size_error();
+            }
             const auto next = state.input[state.position];
             if (state.syntax == CommandSyntax::Posix && state.quote == Quote::Double &&
                 next != '$' && next != '`' && next != '"' && next != '\\' && next != '\n') {
@@ -61,6 +69,9 @@ namespace enishi::bypass_shell {
                 ++state.position;
                 if (next == '\r' && state.position < state.input.size() &&
                     state.input[state.position] == '\n') {
+                    if (!(state.position < MAX_COMMAND_BYTES)) {
+                        return size_error();
+                    }
                     ++state.position;
                 }
                 if (state.position == state.input.size()) {
@@ -189,8 +200,7 @@ namespace enishi::bypass_shell {
             if (!(state.position < MAX_COMMAND_BYTES) &&
                 !(state.quote == Quote::None && separator(input[state.position], syntax) &&
                     (!state.words.empty() || state.word_started))) {
-                return error(
-                    CommandParseErrorKind::TooLong, state.position, "Command exceeds size limit");
+                return size_error();
             }
             auto result = consume(state);
             if (!result.has_value()) {
@@ -198,8 +208,7 @@ namespace enishi::bypass_shell {
             }
         }
         if (state.position > MAX_COMMAND_BYTES) {
-            return error(
-                CommandParseErrorKind::TooLong, MAX_COMMAND_BYTES, "Command exceeds size limit");
+            return size_error();
         }
         if (state.quote != Quote::None) {
             return error(
