@@ -4,6 +4,7 @@ find_package(Threads REQUIRED)
 include(${CMAKE_CURRENT_LIST_DIR}/../platform/cmake/ShellProcess.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../platform_impl/cmake/ShellProcess.cmake)
 add_library(bypass_shell STATIC
+    src/bypass_shell/command_parser.cpp
     src/bypass_shell/shell_connection.cpp
     src/bypass_shell/shell_monitor.cpp
     src/bypass_shell/shell_process.cpp)
