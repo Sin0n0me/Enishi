@@ -35,6 +35,12 @@ namespace enishi::bypass_shell {
             return value == '\r' || value == '\n';
         }
 
+        bool invalid_control_character(char value) {
+            const auto byte = static_cast<unsigned char>(value);
+            return (byte < FIRST_PRINTABLE && value != '\t' && !newline(value)) ||
+                   byte == DELETE_CHARACTER;
+        }
+
         bool separator(char value, CommandSyntax syntax) {
             return value == '&' || value == '|' || newline(value) ||
                    (syntax == CommandSyntax::Posix && value == ';');
@@ -81,8 +87,7 @@ namespace enishi::bypass_shell {
                 }
                 return {};
             }
-            if ((static_cast<unsigned char>(next) < FIRST_PRINTABLE && next != '\t') ||
-                static_cast<unsigned char>(next) == DELETE_CHARACTER) {
+            if (invalid_control_character(next) || newline(next)) {
                 return error(CommandParseErrorKind::InvalidCharacter,
                     state.position,
                     "Control character in command");
@@ -119,25 +124,7 @@ namespace enishi::bypass_shell {
             return {};
         }
 
-        std::expected<void, CommandParseError> consume(State& state) {
-            const auto value = state.input[state.position];
-            if ((static_cast<unsigned char>(value) < FIRST_PRINTABLE && value != '\t' &&
-                    !newline(value)) ||
-                static_cast<unsigned char>(value) == DELETE_CHARACTER) {
-                return error(CommandParseErrorKind::InvalidCharacter,
-                    state.position,
-                    "Control character in command");
-            }
-            if (state.syntax == CommandSyntax::Posix && state.quote != Quote::Single &&
-                (value == '`' || (value == '$' && state.position + 1 < state.input.size() &&
-                                     state.input[state.position + 1] == '('))) {
-                return error(CommandParseErrorKind::UnsupportedSyntax,
-                    state.position,
-                    "Command substitution is not supported");
-            }
-            if (state.quote != Quote::None) {
-                return quoted(state, value);
-            }
+        std::expected<void, CommandParseError> consume_unquoted(State& state, char value) {
             if (separator(value, state.syntax)) {
                 if (newline(value) && state.words.empty() && !state.word_started) {
                     ++state.position;
@@ -188,6 +175,25 @@ namespace enishi::bypass_shell {
                 ++state.position;
             }
             return {};
+        }
+        std::expected<void, CommandParseError> consume(State& state) {
+            const auto value = state.input[state.position];
+            if (invalid_control_character(value)) {
+                return error(CommandParseErrorKind::InvalidCharacter,
+                    state.position,
+                    "Control character in command");
+            }
+            if (state.syntax == CommandSyntax::Posix && state.quote != Quote::Single &&
+                (value == '`' || (value == '$' && state.position + 1 < state.input.size() &&
+                                     state.input[state.position + 1] == '('))) {
+                return error(CommandParseErrorKind::UnsupportedSyntax,
+                    state.position,
+                    "Command substitution is not supported");
+            }
+            if (state.quote != Quote::None) {
+                return quoted(state, value);
+            }
+            return consume_unquoted(state, value);
         }
     } // namespace
 
