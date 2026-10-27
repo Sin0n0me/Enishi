@@ -1,3 +1,4 @@
+#include <engine_types/renderer/overlay_properties.h>
 #include "vulkan_swapchain.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -343,6 +344,12 @@ namespace enishi::renderer::vulkan {
         if ((caps.supportedCompositeAlpha & info.compositeAlpha) == 0) {
             return foundation::Error(platform::RenderError::MakeError,
                 "Vulkan surface does not support the renderer's composite alpha modes");
+        }
+        if (SDL_GetBooleanProperty(SDL_GetWindowProperties(this->window),
+                types::REQUIRE_TRANSPARENT_SURFACE, false) &&
+            info.compositeAlpha == VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR) {
+            return foundation::Error(platform::RenderError::MakeError,
+                "Vulkan surface does not support transparent desktop overlays");
         }
         info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         info.clipped = VK_TRUE;

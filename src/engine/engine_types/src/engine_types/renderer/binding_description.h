@@ -112,7 +112,7 @@ namespace enishi::types {
     };
 
     struct DrawBinding {
-        using DrawParameter = std::variant<DrawParameter, DrawIndexedParameter>;
+        using DrawParameter = std::variant<types::DrawParameter, types::DrawIndexedParameter>;
         DrawParameter parameter;
     };
 
