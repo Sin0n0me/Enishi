@@ -1,4 +1,6 @@
-#include "application.h"
+#include "Application.h"
+#include <effect/crack/crack_effect.h>
+#include <platform_impl/effect/crack_surface.h>
 #include <core/config/application_settings.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/bone_name_config.h>
@@ -59,6 +61,15 @@ namespace enishi {
         if (this->effects != nullptr) {
             static_cast<void>(this->effects->stop_all());
         }
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack(
+        const effect::CrackSettings& settings) {
+        if (this->effects == nullptr || this->effect_shaders == nullptr) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Application renderer is not initialized");
+        }
+        return this->effects->play(std::make_unique<effect::CrackEffect>(
+            settings, platform_impl::create_crack_surface(this->effect_shaders)));
     }
     std::shared_ptr<effect::IEffectPlayer> Application::get_effect_player() const {
         return this->effects;
@@ -282,6 +293,7 @@ namespace enishi {
 
         auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(
             asset_system, platform_impl::shader_directory());
+        this->effect_shaders = shader_data_provider;
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->registry, renderer, instance.encoder);
 

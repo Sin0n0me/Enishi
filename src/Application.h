@@ -7,6 +7,7 @@
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
 #include <debug/playback/playback_control.h>
+#include <effect/crack/crack_settings.h>
 #include <effect/effect_manager.h>
 #include <engine_types/input/model_click_settings.h>
 
@@ -32,11 +33,14 @@ namespace enishi {
         core::SystemScheduler system_scheduler;
         core::ApplicationTimer app_timer;
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
+        std::shared_ptr<platform::IShaderDataProvider> effect_shaders;
         std::shared_ptr<effect::EffectManager> effects;
 
       public:
         ~Application();
         [[nodiscard]] std::shared_ptr<effect::IEffectPlayer> get_effect_player() const;
+        [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack(
+            const effect::CrackSettings& settings = {});
         bool init(void);
         void run(void);
         [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;
