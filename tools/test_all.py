@@ -16,6 +16,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 STANDALONE = {
+    "effect": "effect/tests/runtime",
     "pmd": "assets_system/tests/pmd",
     "pmx": "assets_system/tests/pmx",
     "vrm": "assets_system/tests/vrm",

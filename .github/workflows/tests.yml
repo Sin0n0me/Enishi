@@ -65,6 +65,13 @@ jobs:
           triplet: x64-windows
           log-name: icu-logs-tests-${{ matrix.config }}
 
+      - name: Run effect runtime tests with Clang
+        run: |
+          python tools/test_all.py --suite effect --config ${{ matrix.config }} --generator Ninja `
+            --prefix "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows" `
+            --define CMAKE_CXX_COMPILER=clang-cl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Restore CMake dependencies
         id: cmake-cache
         uses: actions/cache/restore@v4
@@ -122,5 +129,7 @@ jobs:
           path: |
             build/tests/test-results.xml
             build/tests/visualstudio/Testing/Temporary/LastTest.log
+            build/regression/summary-${{ matrix.config }}.json
+            build/regression/${{ matrix.config }}/effect/*.log
           if-no-files-found: warn
           retention-days: 7
