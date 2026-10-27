@@ -1,6 +1,5 @@
 #pragma once
 #include "../../../core/tests/test_runner.h"
-#include <algorithm>
 #include <bypass_shell/command_parser.h>
 
 namespace enishi::tests {

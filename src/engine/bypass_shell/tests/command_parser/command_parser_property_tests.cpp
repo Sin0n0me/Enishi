@@ -16,6 +16,12 @@ namespace enishi::tests {
         constexpr unsigned MAX_ARGUMENTS = 8;
         constexpr unsigned MAX_FUZZ_BYTES = 256;
 
+        unsigned random_below(std::mt19937& random, unsigned exclusive_limit) {
+            // value = generator_output % exclusive_limit. Distribution bias is acceptable for
+            // coverage; avoiding uniform_int_distribution keeps cases identical across libraries.
+            return static_cast<unsigned>(random() % exclusive_limit);
+        }
+
         std::string encode(std::string_view word, CommandSyntax syntax) {
             if (syntax == CommandSyntax::Posix) {
                 std::string result = "'";
@@ -52,12 +58,12 @@ namespace enishi::tests {
         }
 
         std::string random_word(std::mt19937& random) {
-            const auto length = random() % MAX_WORD_BYTES;
+            const auto length = random_below(random, MAX_WORD_BYTES);
             std::string word;
             for (std::size_t index = 0; index < length; ++index) {
                 // Map the random integer to [FIRST_PRINTABLE, PRINTABLE_END).
                 word += static_cast<char>(
-                    FIRST_PRINTABLE + random() % (PRINTABLE_END - FIRST_PRINTABLE));
+                    FIRST_PRINTABLE + random_below(random, PRINTABLE_END - FIRST_PRINTABLE));
             }
             return word;
         }
@@ -69,7 +75,7 @@ namespace enishi::tests {
                     const auto name = "tool" + random_word(random);
                     std::string input = encode(name, syntax);
                     std::vector<std::string> arguments;
-                    const auto count = random() % MAX_ARGUMENTS;
+                    const auto count = random_below(random, MAX_ARGUMENTS);
                     for (unsigned index = 0; index < count; ++index) {
                         arguments.push_back(random_word(random));
                         input += " " + encode(arguments.back(), syntax);
@@ -77,7 +83,7 @@ namespace enishi::tests {
                     expect_command(input, syntax, name, arguments);
                     input += "&&";
                     for (unsigned index = 0; index < MAX_FUZZ_BYTES; ++index) {
-                        input += static_cast<char>(random() % ASCII_END);
+                        input += static_cast<char>(random_below(random, ASCII_END));
                     }
                     expect_command(input, syntax, name, arguments);
                 }
@@ -96,27 +102,41 @@ namespace enishi::tests {
             for (const auto syntax : {CommandSyntax::Cmd, CommandSyntax::Posix}) {
                 for (std::size_t iteration = 0; iteration < FUZZ_CASES; ++iteration) {
                     std::string input;
-                    const auto length = random() % MAX_FUZZ_BYTES;
+                    const auto length = random_below(random, MAX_FUZZ_BYTES);
                     for (unsigned index = 0; index < length; ++index) {
-                        input += static_cast<char>(random() % ASCII_END);
+                        input += static_cast<char>(random_below(random, ASCII_END));
                     }
+                    const auto verify = [&](bool condition,
+                                            const char* message,
+                                            const std::source_location location =
+                                                std::source_location::current()) {
+                        if (!condition) {
+                            std::fprintf(stderr,
+                                "Seed=%u, syntax=%s, iteration=%zu\n",
+                                RANDOM_SEED,
+                                syntax == CommandSyntax::Cmd ? "Cmd" : "Posix",
+                                iteration);
+                            print_parser_input(input);
+                        }
+                        check(condition, message, location);
+                    };
                     const auto result = CommandParser::parse(input, syntax);
                     const auto repeated = CommandParser::parse(input, syntax);
-                    check(result.has_value() == repeated.has_value(),
+                    verify(result.has_value() == repeated.has_value(),
                         "Parsing must be deterministic");
                     if (result.has_value()) {
-                        check(!result->name.empty(), "Successful command must have a name");
-                        check(result->name == repeated->name &&
-                                  result->arguments == repeated->arguments,
+                        verify(!result->name.empty(), "Successful command must have a name");
+                        verify(result->name == repeated->name &&
+                                   result->arguments == repeated->arguments,
                             "Repeated parsing must produce identical tokens");
                     } else {
-                        check(
+                        verify(
                             !(result.error().offset > input.size()), "Error offset exceeds input");
-                        check(
+                        verify(
                             !result.error().message.empty(), "Error diagnostic must not be empty");
-                        check(result.error().kind == repeated.error().kind &&
-                                  result.error().offset == repeated.error().offset &&
-                                  result.error().message == repeated.error().message,
+                        verify(result.error().kind == repeated.error().kind &&
+                                   result.error().offset == repeated.error().offset &&
+                                   result.error().message == repeated.error().message,
                             "Repeated parsing must produce identical errors");
                     }
                 }
