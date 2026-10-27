@@ -65,7 +65,8 @@ namespace enishi::platform_impl {
     SDL3Window::SDL3Window(const foundation::UTF8& window_name,
         const types::WindowSize& size,
         const platform::WindowSystem window_system,
-        const types::GraphicsAPI graphics_api)
+        const types::GraphicsAPI graphics_api,
+        SDL_WindowFlags extra_flags)
         : window_system(window_system)
         , window([&]() {
             if (graphics_api == types::GraphicsAPI::OpenGL40) {
@@ -80,7 +81,7 @@ namespace enishi::platform_impl {
                 size.width,
                 size.height,
                 SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
-                    SDL3Window::get_flag_from_graphics_api(graphics_api)));
+                    SDL3Window::get_flag_from_graphics_api(graphics_api) | extra_flags));
         }())
         , is_closing(false)
         , size()
@@ -88,9 +89,13 @@ namespace enishi::platform_impl {
     }
 
     SDL3Window::~SDL3Window(void) noexcept {
-        // TODO: ルートウィンドウの時だけ
-        SDL_QuitSubSystem(SDL_INIT_EVENTS);
-        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        this->window.reset();
+        if (this->events_initialized) {
+            SDL_QuitSubSystem(SDL_INIT_EVENTS);
+        }
+        if (this->video_initialized) {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        }
     }
 
     foundation::VoidResult<platform::WindowError> SDL3Window::init(void) noexcept {
@@ -99,15 +104,21 @@ namespace enishi::platform_impl {
             return foundation::Error(platform::WindowError::FailedMakeWindow,
                 std::format("SDL_CreateWindow failed: {}", SDL_GetError()));
         }
+        if (this->video_initialized || this->events_initialized) {
+            return foundation::Error(platform::WindowError::InitError, "Window already initialized");
+        }
         if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL video initialization failed: {}", SDL_GetError()));
         }
 
+        this->video_initialized = true;
         if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL event initialization failed: {}", SDL_GetError()));
         }
+
+        this->events_initialized = true;
 
         // ヒットテストのコールバックを登録
         if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, this)) {
@@ -308,6 +319,10 @@ namespace enishi::platform_impl {
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            const auto* event_window = SDL_GetWindowFromEvent(&event);
+            if (event_window != nullptr && event_window != this->window.get()) {
+                continue;
+            }
             const bool playback_key =
                 this->debug_playback != nullptr && this->debug_playback->enabled &&
                 (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
