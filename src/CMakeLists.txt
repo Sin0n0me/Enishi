@@ -11,8 +11,8 @@ if(MSVC)
 endif()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
-    "application.h"
-    "application.cpp"
+    "Application.h"
+    "Application.cpp"
     "settings.h"
 )
 set(DEPEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
@@ -217,4 +217,10 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+endif()
+
+option(ENISHI_EFFECT_RENDER_TESTS "Build desktop crack overlay integration tests (requires a display)" OFF)
+if(ENISHI_EFFECT_RENDER_TESTS)
+    enable_testing()
+    add_subdirectory(engine/effect/tests/render)
 endif()
