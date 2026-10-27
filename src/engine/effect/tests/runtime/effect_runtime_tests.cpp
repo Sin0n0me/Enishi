@@ -1,4 +1,5 @@
 #include "effect_runtime_tests.h"
+#include "crack_tests.h"
 #include "../../../core/tests/test_runner.h"
 #include <chrono>
 #include <effect/effect_manager.h>
@@ -294,6 +295,7 @@ namespace enishi::tests {
     } // namespace
 } // namespace enishi::tests
 int main() {
+    enishi::tests::run_crack_tests();
     enishi::tests::run_test("Lifecycle through playback interface", enishi::tests::lifecycle);
     enishi::tests::run_test("Failure diagnostics and isolation", enishi::tests::failure_isolation);
     enishi::tests::run_test("Invalid arguments and stop_all", enishi::tests::invalid_arguments);
