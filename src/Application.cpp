@@ -22,6 +22,7 @@
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <script/script_engine.h>
 #include <ui/selection/selection_ui.h>
+#include <utility>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -187,7 +188,7 @@ namespace enishi {
 
         auto shell_started = this->shell_monitor->start();
         if (!shell_started.has_value()) {
-            debug::Logger::warning(shell_started.error());
+            debug::Logger::warning(std::move(shell_started.error()));
         }
 
         return true;
