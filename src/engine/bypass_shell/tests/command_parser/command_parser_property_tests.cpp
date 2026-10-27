@@ -81,12 +81,13 @@ namespace enishi::tests {
                     }
                     expect_command(input, syntax, name, arguments);
                 }
-                const std::vector<std::string> unicode{"???", "???", "? ?", "\t", ""};
-                std::string input = encode("??", syntax);
+                const std::vector<std::string> unicode{
+                    "\u65e5\u672c\u8a9e", "\u9854\U0001f600", "\u7a7a \u767d", "\t", ""};
+                std::string input = encode("\u5b9f\u884c", syntax);
                 for (const auto& word : unicode) {
                     input += " " + encode(word, syntax);
                 }
-                expect_command(input, syntax, "??", unicode);
+                expect_command(input, syntax, "\u5b9f\u884c", unicode);
             }
         }
 
