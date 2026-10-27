@@ -6,7 +6,7 @@ function(enishi_compile_hlsl_shaders target_name source_directory output_directo
         REQUIRED)
     file(GLOB_RECURSE shader_includes CONFIGURE_DEPENDS "${source_directory}/common/*.hlsl")
     set(outputs)
-    foreach(name IN ITEMS vs_model ps_model vs_shadow_map ps_shadow_map vs_clear_wall ps_clear_wall)
+    foreach(name IN ITEMS vs_model ps_model vs_shadow_map ps_shadow_map vs_clear_wall ps_clear_wall vs_crack ps_crack)
         if(name MATCHES "^vs_")
             set(profile vs_5_0)
         else()

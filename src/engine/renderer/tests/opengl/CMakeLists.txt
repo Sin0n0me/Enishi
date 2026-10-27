@@ -14,6 +14,9 @@ if(WIN32)
     add_test(NAME opengl_shadow_shaders COMMAND "${Python3_EXECUTABLE}" -B
         "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_shadow_tests.py"
         "${CMAKE_BINARY_DIR}/shader/opengl")
+    add_test(NAME opengl_crack_shaders COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_LIST_DIR}/../../../effect/tests/shader/crack_shader_tests.py"
+        "${CMAKE_BINARY_DIR}/shader/opengl")
     add_test(NAME opengl_skinning_shaders COMMAND "${Python3_EXECUTABLE}" -B
         "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_skinning_tests.py"
         "${CMAKE_BINARY_DIR}/shader/opengl")
