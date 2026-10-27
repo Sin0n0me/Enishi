@@ -1,8 +1,10 @@
 #pragma once
-#include <bypass_shell/shell_connection.h>
+#include <expected>
+#include <memory>
 #include <optional>
+#include <string>
 
-namespace enishi::bypass_shell {
+namespace enishi::platform_impl {
     class TerminalInput {
       private:
         struct Impl;
@@ -12,6 +14,6 @@ namespace enishi::bypass_shell {
         TerminalInput();
         ~TerminalInput();
         // nullopt: no input yet; empty string: EOF.
-        ShellResult<std::optional<std::string>> read();
+        std::expected<std::optional<std::string>, std::string> read();
     };
-} // namespace enishi::bypass_shell
+} // namespace enishi::platform_impl

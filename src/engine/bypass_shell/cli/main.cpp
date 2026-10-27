@@ -1,36 +1,19 @@
 #include "main.h"
-#include "terminal_input.h"
 #include <atomic>
 #include <bypass_shell/shell_process.h>
 #include <charconv>
 #include <chrono>
-#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <platform_impl/process/shell_process_factory.h>
+#include <platform_impl/process/shell_terminal.h>
+#include <platform_impl/process/terminal_input.h>
 #include <thread>
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#include <windows.h>
-#endif
 
 namespace {
     using enishi::bypass_shell::ShellEventKind;
     constexpr auto POLL_INTERVAL = std::chrono::milliseconds(10);
     constexpr int INTERRUPTED_EXIT = 130;
-    std::atomic<bool> interrupted{false};
-    static_assert(std::atomic<bool>::is_always_lock_free);
-#ifdef _WIN32
-    BOOL WINAPI interrupt(DWORD) {
-        interrupted.store(true);
-        return TRUE;
-    }
-#else
-    void interrupt(int) {
-        interrupted.store(true);
-    }
-#endif
     class Relay {
       public:
         enishi::bypass_shell::ShellConnection connection;
@@ -80,9 +63,9 @@ namespace {
             }
         }
         inline int input() {
-            enishi::bypass_shell::TerminalInput terminal;
+            enishi::platform_impl::TerminalInput terminal;
             bool closed = false;
-            while (!interrupted.load() && !this->failed.load()) {
+            while (!enishi::platform_impl::shell_interrupted() && !this->failed.load()) {
                 auto status = this->process.exit_code();
                 if (!status.has_value()) {
                     std::fprintf(stderr, "%s\n", status.error().c_str());
@@ -113,7 +96,7 @@ namespace {
                 }
                 std::this_thread::sleep_for(POLL_INTERVAL);
             }
-            return interrupted.load() ? INTERRUPTED_EXIT : EXIT_FAILURE;
+            return enishi::platform_impl::shell_interrupted() ? INTERRUPTED_EXIT : EXIT_FAILURE;
         }
     };
     int run(std::uint16_t port) {
@@ -128,17 +111,13 @@ namespace {
             std::fprintf(stderr, "%s\n", started.error().c_str());
             return EXIT_FAILURE;
         }
-#ifdef _WIN32
-        relay.notify(ShellEventKind::Started, "cmd.exe");
-#else
-        relay.notify(ShellEventKind::Started, "/bin/sh");
-#endif
+        relay.notify(ShellEventKind::Started, enishi::platform_impl::shell_program_name());
         std::jthread output([&] { relay.output(ShellEventKind::Stdout, stdout); });
         std::jthread errors([&] { relay.output(ShellEventKind::Stderr, stderr); });
         // Killing the job/group also unblocks a pipe write when the child is not reading stdin.
         std::jthread cancellation([&](std::stop_token stop) {
             while (!stop.stop_requested()) {
-                if (interrupted.load() || relay.failed.load()) {
+                if (enishi::platform_impl::shell_interrupted() || relay.failed.load()) {
                     relay.process.terminate();
                     return;
                 }
@@ -148,7 +127,7 @@ namespace {
         auto code = relay.input();
         cancellation.request_stop();
         cancellation.join();
-        if (interrupted.load()) {
+        if (enishi::platform_impl::shell_interrupted()) {
             code = INTERRUPTED_EXIT;
         }
         relay.process.terminate();
@@ -179,15 +158,6 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
     }
-#ifdef _WIN32
-    SetConsoleCtrlHandler(interrupt, TRUE);
-    _setmode(_fileno(stdin), _O_BINARY);
-    _setmode(_fileno(stdout), _O_BINARY);
-    _setmode(_fileno(stderr), _O_BINARY);
-#else
-    std::signal(SIGINT, interrupt);
-    std::signal(SIGTERM, interrupt);
-    std::signal(SIGPIPE, SIG_IGN);
-#endif
+    enishi::platform_impl::initialize_shell_terminal();
     return run(port);
 }

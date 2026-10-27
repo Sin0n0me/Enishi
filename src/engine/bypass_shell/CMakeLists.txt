@@ -11,7 +11,7 @@ add_library(bypass_shell STATIC
 target_include_directories(bypass_shell PUBLIC src)
 target_compile_features(bypass_shell PUBLIC cxx_std_23)
 target_link_libraries(bypass_shell PUBLIC Threads::Threads platform_shell PRIVATE platform_impl_shell)
-add_executable(enishi-shell cli/main.cpp cli/terminal_input.cpp)
+add_executable(enishi-shell cli/main.cpp)
 set_target_properties(enishi-shell PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 target_link_libraries(enishi-shell PRIVATE bypass_shell platform_impl_shell)
 if(MSVC)

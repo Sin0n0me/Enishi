@@ -1,19 +1,13 @@
-#include "terminal_input.h"
+#include "windows_terminal_input.h"
 #include <algorithm>
 #include <array>
-#ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
-#else
-#include <cerrno>
-#include <poll.h>
-#include <unistd.h>
-#endif
 
-namespace enishi::bypass_shell {
+namespace enishi::platform_impl {
     namespace {
         constexpr std::size_t INPUT_CHUNK = 4096;
-#ifdef _WIN32
+        constexpr std::size_t MAX_INPUT_CHARACTERS = 16384;
         void echo(std::wstring_view text) {
             DWORD written{};
             WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE),
@@ -22,10 +16,8 @@ namespace enishi::bypass_shell {
                 &written,
                 nullptr);
         }
-#endif
     } // namespace
-    struct TerminalInput::Impl {
-#ifdef _WIN32
+    struct WindowsTerminalInput::Impl {
         HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
         bool console = false;
         std::wstring line;
@@ -33,7 +25,7 @@ namespace enishi::bypass_shell {
             DWORD mode{};
             this->console = GetConsoleMode(this->input, &mode) != FALSE;
         }
-        inline ShellResult<std::optional<std::string>> read_console() {
+        inline std::expected<std::optional<std::string>, std::string> read_console() {
             DWORD available{};
             if (GetNumberOfConsoleInputEvents(this->input, &available) == FALSE) {
                 return std::unexpected("Cannot poll console input");
@@ -87,7 +79,7 @@ namespace enishi::bypass_shell {
                             echo(L"\b \b");
                         }
                     } else if (character != 0) {
-                        if (!(this->line.size() < MAX_PAYLOAD)) {
+                        if (!(this->line.size() < MAX_INPUT_CHARACTERS)) {
                             return std::unexpected("Console command is too long");
                         }
                         this->line.push_back(character);
@@ -97,15 +89,13 @@ namespace enishi::bypass_shell {
             }
             return std::optional<std::string>{};
         }
-#endif
     };
-    TerminalInput::TerminalInput()
+    WindowsTerminalInput::WindowsTerminalInput()
         : impl(std::make_unique<Impl>()) {
     }
-    TerminalInput::~TerminalInput() = default;
-    ShellResult<std::optional<std::string>> TerminalInput::read() {
+    WindowsTerminalInput::~WindowsTerminalInput() = default;
+    std::expected<std::optional<std::string>, std::string> WindowsTerminalInput::read() {
         std::array<char, INPUT_CHUNK> buffer{};
-#ifdef _WIN32
         if (this->impl->console) {
             return this->impl->read_console();
         }
@@ -133,23 +123,6 @@ namespace enishi::bypass_shell {
             }
             return std::unexpected("Cannot read redirected input");
         }
-#else
-        pollfd input{STDIN_FILENO, POLLIN, 0};
-        const auto ready = ::poll(&input, 1, 0);
-        if (ready == 0 || (ready < 0 && errno == EINTR)) {
-            return std::optional<std::string>{};
-        }
-        if (ready < 0) {
-            return std::unexpected("Cannot poll terminal input");
-        }
-        const auto count = ::read(STDIN_FILENO, buffer.data(), buffer.size());
-        if (count < 0) {
-            if (errno == EINTR) {
-                return std::optional<std::string>{};
-            }
-            return std::unexpected("Cannot read terminal input");
-        }
-#endif
         return std::string(buffer.data(), static_cast<std::size_t>(count));
     }
-} // namespace enishi::bypass_shell
+} // namespace enishi::platform_impl
