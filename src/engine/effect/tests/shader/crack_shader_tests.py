@@ -1,11 +1,12 @@
-"""Check crack transparency, opacity and parallax using the existing hidden WGL harness."""
+"""Check production crack shader pixels using the platform's offscreen GL context."""
 import ctypes as c
 from pathlib import Path
 import math
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "renderer/tests/skinning"))
-from gl_skinning_tests import check, gl, run_with_context
+from gl_test_checks import check
+from gl_test_context import gl, run_with_context
 from gl_shadow_tests import program, object_id, texture, framebuffer, bind_texture
 
 U = c.c_uint
@@ -18,9 +19,16 @@ FLOAT = 0x1406
 RGBA = 0x1908
 RGBA32F = 0x8814
 STATIC_DRAW = 0x88E4
+GL_VERSION = 0x1F02
+GL_RENDERER = 0x1F01
 
 
 def run(directory):
+    get_string = gl("glGetString", c.c_char_p, U)
+    version = get_string(GL_VERSION)
+    renderer = get_string(GL_RENDERER)
+    check(version is not None and renderer is not None, "a current OpenGL context is required")
+    print(f"OpenGL: {version.decode()}; renderer: {renderer.decode()}", flush=True)
     pipeline = program(directory, "vs_crack_gl.glsl", "ps_crack_gl.glsl")
     block = gl("glGetUniformBlockIndex", U, U, c.c_char_p)(pipeline, b"Crack")
     check(block != 0xFFFFFFFF, "Crack uniform block must survive shader conversion")
@@ -76,7 +84,7 @@ def run(directory):
           "moving impact origin translates the mask without regenerating it")
     check(all(alpha == 0 for alpha in render(0, 1, (1, 1, 2, 2))),
           "outside the mask remains transparent instead of smearing clamped edge pixels")
-    print("PASS: crack GPU transparency, fade, finite output and POM displacement")
+    print("PASS: crack OpenGL transparency, fade, finite output and POM displacement")
 
 
 if __name__ == "__main__":

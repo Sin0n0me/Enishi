@@ -63,5 +63,3 @@ def run_with_context(test):
             opengl.wglDeleteContext(context)
         user.ReleaseDC(window, dc)
         user.DestroyWindow(window)
-
-

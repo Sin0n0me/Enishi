@@ -6,6 +6,9 @@ target_link_libraries(opengl_shadow_tests PRIVATE renderer render_pass core plat
 add_test(NAME opengl_shadow_tests COMMAND opengl_shadow_tests)
 set_tests_properties(opengl_shadow_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../effect/tests/shader"
+    "${CMAKE_CURRENT_BINARY_DIR}/crack-shaders")
+
 if(WIN32)
     add_custom_command(TARGET opengl_shadow_tests POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
@@ -13,9 +16,6 @@ if(WIN32)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_test(NAME opengl_shadow_shaders COMMAND "${Python3_EXECUTABLE}" -B
         "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_shadow_tests.py"
-        "${CMAKE_BINARY_DIR}/shader/opengl")
-    add_test(NAME opengl_crack_shaders COMMAND "${Python3_EXECUTABLE}" -B
-        "${CMAKE_CURRENT_LIST_DIR}/../../../effect/tests/shader/crack_shader_tests.py"
         "${CMAKE_BINARY_DIR}/shader/opengl")
     add_test(NAME opengl_skinning_shaders COMMAND "${Python3_EXECUTABLE}" -B
         "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_skinning_tests.py"
