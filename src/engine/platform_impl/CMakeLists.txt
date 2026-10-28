@@ -17,9 +17,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 
 if(WIN32)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_non_windows_handle.cpp")
 else()
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_windows_handle.cpp")
 endif()
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})

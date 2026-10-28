@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 project(effect_runtime_tests LANGUAGES CXX)
 find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
 add_executable(effect_runtime_tests effect_runtime_tests.cpp crack_tests.cpp ../../src/effect/effect_manager.cpp
+    ../../src/effect/interface_effect.cpp ../../src/effect/interface_effect_player.cpp
+    ../../src/effect/crack/interface_crack_surface.cpp
     ../../src/effect/crack/crack_effect.cpp ../../src/effect/crack/crack_mask.cpp)
 target_include_directories(effect_runtime_tests PRIVATE ../../src ../../../engine_types/src ../../../foundation/src "${ICU_INCLUDE_DIR}")
 target_compile_features(effect_runtime_tests PRIVATE cxx_std_23)

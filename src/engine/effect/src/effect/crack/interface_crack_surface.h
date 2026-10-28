@@ -5,7 +5,7 @@
 namespace enishi::effect {
     class ICrackSurface {
       public:
-        inline virtual ~ICrackSurface() noexcept = default;
+        virtual ~ICrackSurface() noexcept;
         virtual foundation::Result<void, EffectError> open(
             const CrackSettings& settings, types::TextureData mask) = 0;
         virtual foundation::Result<void, EffectError> draw(float opacity,

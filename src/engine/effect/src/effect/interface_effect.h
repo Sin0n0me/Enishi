@@ -9,10 +9,10 @@ namespace enishi::effect {
         friend class EffectManager;
 
       public:
-        inline IEffect() = default;
+        IEffect();
         IEffect(const IEffect&) = delete;
         IEffect& operator=(const IEffect&) = delete;
-        inline virtual ~IEffect() noexcept = default;
+        virtual ~IEffect() noexcept;
         [[nodiscard]] virtual foundation::Result<void, EffectError> start() = 0;
         [[nodiscard]] virtual foundation::Result<EffectStatus, EffectError> update(
             const types::DeltaTime& delta_time) = 0;
