@@ -11,6 +11,7 @@ namespace enishi::effect {
         bool started = false;
         bool resources_open = false;
         bool reusable = false;
+        std::optional<CrackImpact> impact;
 
       public:
         CrackEffect(CrackSettings settings, std::unique_ptr<ICrackSurface> surface);
@@ -21,6 +22,7 @@ namespace enishi::effect {
         foundation::Result<EffectStatus, EffectError> update(
             const types::DeltaTime& delta_time) override;
         void stop() noexcept override;
+        void set_impact(std::optional<CrackImpact> origin) noexcept;
 
       private:
         foundation::Result<void, EffectError> open();

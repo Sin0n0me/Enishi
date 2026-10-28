@@ -43,6 +43,7 @@ namespace enishi::platform_impl {
         }
         struct Overlay {
             std::shared_ptr<SDL3Window> window;
+            SDL_Rect bounds{};
             SDL_GLContext context = nullptr; // Borrowed; the renderer owns its context.
             std::unique_ptr<render_pass::CrackPass> pass;
         };
@@ -50,13 +51,16 @@ namespace enishi::platform_impl {
           private:
             std::shared_ptr<platform::IShaderDataProvider> shaders;
             std::vector<Overlay> overlays;
+            bool radial = false;
+            float desktop_span = 1;
 
           public:
             explicit CrackSurface(std::shared_ptr<platform::IShaderDataProvider> shaders);
             ~CrackSurface() noexcept override;
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings& settings, types::TextureData mask) override;
-            foundation::Result<void, effect::EffectError> draw(float opacity) override;
+            foundation::Result<void, effect::EffectError> draw(
+                float opacity, std::optional<effect::CrackImpact> impact) override;
             void hide() noexcept override;
             void close() noexcept override;
 
@@ -96,6 +100,7 @@ namespace enishi::platform_impl {
                 return foundation::Error(effect::EffectError::StartFailed,
                     std::string{"No displays available for crack overlay: "} + SDL_GetError());
             }
+            this->radial = settings.pattern == effect::CrackPattern::Radial;
             auto shared_mask = std::make_shared<types::TextureData>(std::move(mask));
             for (int index = 0; index < count; ++index) {
                 auto added = this->add_display(displays.get()[index], settings, shared_mask);
@@ -104,6 +109,19 @@ namespace enishi::platform_impl {
                     return added;
                 }
             }
+            double left = this->overlays.front().bounds.x;
+            double top = this->overlays.front().bounds.y;
+            double right = left;
+            double bottom = top;
+            for (const auto& overlay : this->overlays) {
+                left = (std::min)(left, static_cast<double>(overlay.bounds.x));
+                top = (std::min)(top, static_cast<double>(overlay.bounds.y));
+                right = (std::max)(right, static_cast<double>(overlay.bounds.x) + overlay.bounds.w);
+                bottom =
+                    (std::max)(bottom, static_cast<double>(overlay.bounds.y) + overlay.bounds.h);
+            }
+            // One shared scale keeps the pattern continuous across display boundaries.
+            this->desktop_span = static_cast<float>((std::max)(right - left, bottom - top));
             return {};
         }
         foundation::Result<void, effect::EffectError> CrackSurface::add_display(
@@ -120,6 +138,7 @@ namespace enishi::platform_impl {
                                     ? platform::WindowSystem::Windows
                                     : platform::WindowSystem::X11;
             auto& overlay = this->overlays.emplace_back();
+            overlay.bounds = bounds;
             overlay.window = std::make_shared<SDL3Window>("Enishi Crack",
                 types::WindowSize{bounds.w, bounds.h},
                 system,
@@ -177,7 +196,8 @@ namespace enishi::platform_impl {
             }
             return {};
         }
-        foundation::Result<void, effect::EffectError> CrackSurface::draw(float opacity) {
+        foundation::Result<void, effect::EffectError> CrackSurface::draw(
+            float opacity, std::optional<effect::CrackImpact> impact) {
             if (this->overlays.empty()) {
                 return foundation::Error(
                     effect::EffectError::UpdateFailed, "Crack surface is not open");
@@ -193,7 +213,25 @@ namespace enishi::platform_impl {
                     return foundation::Error(
                         effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
                 }
-                auto drawn = overlay.pass->draw(opacity);
+                glm::vec4 transform{1, 1, 0, 0};
+                if (this->radial) {
+                    constexpr float MASK_CENTER = 0.5f;
+                    const auto& bounds = overlay.bounds;
+                    const float span = impact.has_value()
+                                           ? this->desktop_span
+                                           : static_cast<float>((std::max)(bounds.w, bounds.h));
+                    // mask_uv = 0.5 + (desktop_pixel - impact_pixel) / (2 * desktop_span).
+                    const float scale = MASK_CENTER / span;
+                    const float origin_x = impact.has_value() ? static_cast<float>(impact->x)
+                                                              : bounds.x + bounds.w * MASK_CENTER;
+                    const float origin_y = impact.has_value() ? static_cast<float>(impact->y)
+                                                              : bounds.y + bounds.h * MASK_CENTER;
+                    transform = {bounds.w * scale,
+                        bounds.h * scale,
+                        MASK_CENTER + (bounds.x - origin_x) * scale,
+                        MASK_CENTER + (bounds.y - origin_y) * scale};
+                }
+                auto drawn = overlay.pass->draw(opacity, transform);
                 if (drawn.is_err()) {
                     return drawn.propagation(effect::EffectError::UpdateFailed);
                 }

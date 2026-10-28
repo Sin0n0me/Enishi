@@ -49,8 +49,8 @@ def run(directory):
     gl("glViewport", None, I, I, I, I)(0, 0, SIZE, SIZE)
     gl("glDisable", None, U)(0x0BE2)  # Inspect the shader's straight-alpha output before blending.
 
-    def render(view, opacity):
-        uniform = (c.c_float * 8)(view, 0, 0.1, opacity, 1 / SIZE, 1 / SIZE, 0, 0)
+    def render(view, opacity, transform=(1, 1, 0, 0)):
+        uniform = (c.c_float * 12)(view, 0, 0.1, opacity, 1 / SIZE, 1 / SIZE, 0, 0, *transform)
         gl("glBufferData", None, U, c.c_ssize_t, P, U)(UNIFORM_BUFFER, c.sizeof(uniform), uniform, STATIC_DRAW)
         gl("glDrawArrays", None, U, I, I)(4, 0, 6)
         pixels = (c.c_float * (SIZE * SIZE * 4))()
@@ -71,6 +71,11 @@ def run(directory):
     expected_shift = SIZE * 1 * 0.1 * 0.5
     check(abs(centroid(shifted) - centroid(normal) - expected_shift) < 1,
           "POM must shift the crack by slope * depth scale * sampled depth")
+    moved = render(0, 1, (1, 1, -0.125, 0))
+    check(abs(centroid(moved) - centroid(normal) - SIZE * 0.125) < 0.1,
+          "moving impact origin translates the mask without regenerating it")
+    check(all(alpha == 0 for alpha in render(0, 1, (1, 1, 2, 2))),
+          "outside the mask remains transparent instead of smearing clamped edge pixels")
     print("PASS: crack GPU transparency, fade, finite output and POM displacement")
 
 

@@ -164,6 +164,7 @@ namespace enishi::tests {
                 check(prepared_windows > original, "prepared resources exist before click");
                 for (int repeat = 0; repeat < 3; ++repeat) {
                     const auto begin = Clock::now();
+                    crack->set_impact(effect::CrackImpact{repeat * 200, 150});
                     auto id = manager.play_shared(crack);
                     check(id.is_ok(), "prepared crack starts");
                     std::cout << "Prepared crack start (ms): " << milliseconds(Clock::now() - begin)

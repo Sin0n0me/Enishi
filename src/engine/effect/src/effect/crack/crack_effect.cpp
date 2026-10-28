@@ -33,7 +33,7 @@ namespace enishi::effect {
         }
         this->elapsed_seconds = 0;
         this->started = true;
-        auto drawn = this->surface->draw(this->settings.opacity);
+        auto drawn = this->surface->draw(this->settings.opacity, this->impact);
         if (drawn.is_err()) {
             this->stop();
         }
@@ -75,11 +75,14 @@ namespace enishi::effect {
             opacity *=
                 static_cast<float>(std::clamp(remaining / this->settings.fade_seconds, 0.0, 1.0));
         }
-        auto drawn = this->surface->draw(opacity);
+        auto drawn = this->surface->draw(opacity, this->impact);
         if (drawn.is_err()) {
             return std::move(drawn).take_err();
         }
         return EffectStatus::Running;
+    }
+    void CrackEffect::set_impact(std::optional<CrackImpact> origin) noexcept {
+        this->impact = origin;
     }
     void CrackEffect::stop() noexcept {
         if (this->started) {

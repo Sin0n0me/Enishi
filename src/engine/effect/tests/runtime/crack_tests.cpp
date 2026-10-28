@@ -5,6 +5,7 @@
 #include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
 #include <limits>
+#include <numbers>
 namespace enishi::tests {
     namespace {
         struct SurfaceState {
@@ -13,6 +14,7 @@ namespace enishi::tests {
             unsigned hides = 0;
             unsigned draws = 0;
             float opacity = 0;
+            std::optional<effect::CrackImpact> impact;
             bool fail_open = false;
             bool fail_draw = false;
         };
@@ -24,7 +26,8 @@ namespace enishi::tests {
             explicit Surface(std::shared_ptr<SurfaceState> state);
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings&, types::TextureData mask) override;
-            foundation::Result<void, effect::EffectError> draw(float opacity) override;
+            foundation::Result<void, effect::EffectError> draw(
+                float opacity, std::optional<effect::CrackImpact> impact) override;
             void hide() noexcept override;
             void close() noexcept override;
         };
@@ -40,9 +43,11 @@ namespace enishi::tests {
             }
             return {};
         }
-        foundation::Result<void, effect::EffectError> Surface::draw(float opacity) {
+        foundation::Result<void, effect::EffectError> Surface::draw(
+            float opacity, std::optional<effect::CrackImpact> impact) {
             ++this->state->draws;
             this->state->opacity = opacity;
+            this->state->impact = impact;
             if (this->state->fail_draw) {
                 return foundation::Error(effect::EffectError::UpdateFailed, "draw failure");
             }
@@ -58,6 +63,7 @@ namespace enishi::tests {
             effect::CrackSettings settings;
             settings.mask_size = 64;
             settings.cells = 3;
+            settings.pattern = effect::CrackPattern::Voronoi;
             auto first = effect::make_crack_mask(settings);
             auto second = effect::make_crack_mask(settings);
             check(first.is_ok() && second.is_ok(), "valid masks generate");
@@ -88,10 +94,65 @@ namespace enishi::tests {
             check(intact && groove && feather,
                 "mask has intact regions, recessed grooves and soft edges");
         }
+        unsigned radial_crossings(const types::MipData& mip, float begin, float end) {
+            constexpr unsigned ANGLES = 96;
+            constexpr unsigned SAMPLES = 128;
+            constexpr unsigned CHANNELS = 4;
+            constexpr unsigned COVERAGE_CHANNEL = 1;
+            constexpr unsigned COVERAGE_THRESHOLD = 128;
+            unsigned crossings = 0;
+            for (unsigned direction = 0; direction < ANGLES; ++direction) {
+                const float angle =
+                    2.0f * std::numbers::pi_v<float> * static_cast<float>(direction) / ANGLES;
+                bool previous = false;
+                for (unsigned step = 0; step < SAMPLES; ++step) {
+                    const float radius = begin + (end - begin) * static_cast<float>(step) / SAMPLES;
+                    // Project equally spaced radial samples into the centered [-1, 1] mask.
+                    const auto x =
+                        static_cast<unsigned>((0.5f + 0.5f * radius * std::cos(angle)) * mip.width);
+                    const auto y = static_cast<unsigned>(
+                        (0.5f + 0.5f * radius * std::sin(angle)) * mip.height);
+                    const bool covered =
+                        mip.pixels[y * mip.row_pitch + x * CHANNELS + COVERAGE_CHANNEL] >
+                        COVERAGE_THRESHOLD;
+                    if (step != 0 && covered && !previous) {
+                        ++crossings;
+                    }
+                    previous = covered;
+                }
+            }
+            return crossings;
+        }
+        void radial_pattern() {
+            effect::CrackSettings settings;
+            auto first = effect::make_crack_mask(settings);
+            auto second = effect::make_crack_mask(settings);
+            check(first.is_ok() && second.is_ok(), "radial masks generate");
+            const auto& mip = first.unwrap().mips.front();
+            check(mip.pixels == second.unwrap().mips.front().pixels,
+                "radial pattern is reproducible");
+            const auto near = radial_crossings(mip, 0.1f, 0.35f);
+            const auto far = radial_crossings(mip, 0.65f, 0.9f);
+            check(near > far && far > 0, "equal radial spans have more fractures near the impact");
+            ++settings.seed;
+            auto changed = effect::make_crack_mask(settings);
+            check(changed.is_ok() && changed.unwrap().mips.front().pixels != mip.pixels,
+                "seed varies radial pattern");
+            settings.radial_spokes = 0;
+            check(effect::make_crack_mask(settings).is_err(), "zero spokes rejected");
+            settings.radial_spokes = 24;
+            settings.ring_growth = 1;
+            check(effect::make_crack_mask(settings).is_err(), "degenerate log growth rejected");
+            settings.ring_growth = 1.6f;
+            settings.impact_radius = 0;
+            check(effect::make_crack_mask(settings).is_err(), "zero impact radius rejected");
+        }
         void invalid_settings() {
             const std::array members{&effect::CrackSettings::width,
                 &effect::CrackSettings::feather,
                 &effect::CrackSettings::depth,
+                &effect::CrackSettings::impact_radius,
+                &effect::CrackSettings::ring_growth,
                 &effect::CrackSettings::view_x,
                 &effect::CrackSettings::view_y,
                 &effect::CrackSettings::duration_seconds,
@@ -160,7 +221,11 @@ namespace enishi::tests {
                     "preparation is idempotent");
                 check(state->opens == 1 && state->draws == 0, "prepare does not show the effect");
                 for (int repeat = 0; repeat < 3; ++repeat) {
+                    crack->set_impact(effect::CrackImpact{repeat * 100, -200});
                     auto id = manager.play_shared(crack);
+                    check(state->impact.has_value() && state->impact->x == repeat * 100 &&
+                              state->impact->y == -200,
+                        "replay forwards a new desktop origin without reopening resources");
                     check(id.is_ok(), "prepared playback starts");
                     check(manager.play_shared(crack).is_err(), "same instance cannot play twice");
                     check(crack->prepare().is_err(), "active preparation rejected");
@@ -192,6 +257,7 @@ namespace enishi::tests {
     } // namespace
     void run_crack_tests() {
         run_test("Voronoi crack mask invariants", mask_properties);
+        run_test("Radial fracture density", radial_pattern);
         run_test("Crack settings validation", invalid_settings);
         run_test("Crack fade and lifetime", crack_lifecycle);
         run_test("Crack surface failure cleanup", crack_failures);

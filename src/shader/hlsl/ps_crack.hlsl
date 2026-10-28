@@ -2,6 +2,7 @@
 ENISHI_BINDING(2, 0) cbuffer Crack {
     float4 view_depth_opacity; // xy: tangent-space view slope, z: UV depth scale, w: opacity
     float4 texel_size; // xy: reciprocal mask dimensions
+    float4 mask_transform; // xy: scale, zw: offset from screen UV to impact-centered mask UV
 };
 ENISHI_BINDING(3, 0) ENISHI_COMBINED Texture2D model_texture : register(t0);
 ENISHI_BINDING(3, 0) ENISHI_COMBINED SamplerState model_sampler : register(s0);
@@ -15,7 +16,11 @@ static const float3 RIM_COLOR = float3(0.75, 0.85, 0.95);
 static const float SPECULAR_EXPONENT = 24;
 static const float RECESS_DARKENING = 0.7;
 static const float SPECULAR_INTENSITY = 0.65;
-float depth_at(float2 uv) { return model_texture.SampleLevel(model_sampler, saturate(uv), 0).r; }
+float2 field_at(float2 uv) {
+    if (any(uv < 0) || any(uv > 1)) { return float2(0, 0); }
+    return model_texture.SampleLevel(model_sampler, uv, 0).rg;
+}
+float depth_at(float2 uv) { return field_at(uv).r; }
 float2 parallax_uv(float2 uv) {
     float2 offset = view_depth_opacity.xy * view_depth_opacity.z;
     if (dot(offset, offset) < EPSILON * EPSILON || depth_at(uv) < EPSILON) { return uv; }
@@ -39,8 +44,8 @@ float2 parallax_uv(float2 uv) {
     return current;
 }
 float4 main(Input input) : SV_TARGET {
-    float2 uv = parallax_uv(input.uv);
-    float2 field = model_texture.SampleLevel(model_sampler, saturate(uv), 0).rg;
+    float2 uv = parallax_uv(input.uv * mask_transform.xy + mask_transform.zw);
+    float2 field = field_at(uv);
     float2 dx = float2(texel_size.x, 0);
     float2 dy = float2(0, texel_size.y);
     // Central differences of the recessed height h = -depth * scale.

@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 namespace enishi::effect {
     namespace {
@@ -51,7 +52,7 @@ namespace enishi::effect {
             // Squared Euclidean distance avoids square roots in the nearest-feature search.
             return x * x + y * y;
         }
-        float boundary_distance(Point sample, std::uint32_t seed) {
+        float boundary_distance(Point sample, std::uint32_t seed, int period = 0) {
             const int cx = static_cast<int>(std::floor(sample.x));
             const int cy = static_cast<int>(std::floor(sample.y));
             constexpr std::size_t NEIGHBOR_SIDE = 2 * NEIGHBOR_RADIUS + 1;
@@ -62,7 +63,12 @@ namespace enishi::effect {
             float nearest_squared = std::numeric_limits<float>::max();
             for (int y = -NEIGHBOR_RADIUS; y < NEIGHBOR_RADIUS + 1; ++y) {
                 for (int x = -NEIGHBOR_RADIUS; x < NEIGHBOR_RADIUS + 1; ++x) {
-                    const auto point = feature(cx + x, cy + y, seed);
+                    const int column = cx + x;
+                    // Hash wrapped angular cells but keep their unwrapped positions across the
+                    // seam.
+                    const int wrapped = period == 0 ? column : (column % period + period) % period;
+                    auto point = feature(wrapped, cy + y, seed);
+                    point.x += static_cast<float>(column - wrapped);
                     const float distance = squared_distance(sample, point);
                     if (distance < nearest_squared) {
                         nearest = count;
@@ -85,6 +91,33 @@ namespace enishi::effect {
             }
             return std::max(edge, 0.0f);
         }
+        float radial_distance(Point position, const CrackSettings& settings) {
+            constexpr float FULL_TURN = 2.0f * std::numbers::pi_v<float>;
+            constexpr float IMPACT_CORE_FRACTION = 0.125f;
+            const float radius = std::sqrt(position.x * position.x + position.y * position.y);
+            if (radius < settings.impact_radius * IMPACT_CORE_FRACTION) {
+                return 0.0f;
+            }
+            const float spokes = static_cast<float>(settings.radial_spokes);
+            // Polar Voronoi coordinates: u = angle * spokes / 2pi,
+            // v = log(1 + radius / core_radius) / log(growth).
+            // Thus ring radii r(n) = core_radius * (growth^n - 1) spread out from the impact.
+            const float angle = std::atan2(position.y, position.x) / FULL_TURN * spokes;
+            const float ring =
+                std::log1p(radius / settings.impact_radius) / std::log(settings.ring_growth);
+            const int period = static_cast<int>(settings.radial_spokes);
+            float distance = boundary_distance({angle, ring}, settings.seed, period);
+            const int sector = static_cast<int>(std::floor(angle));
+            // Seeded spoke angles extend continuously from the impact; Voronoi edges connect them.
+            for (int offset = -1; offset < 2; ++offset) {
+                const int column = sector + offset;
+                const int wrapped = (column % period + period) % period;
+                const float spoke =
+                    feature(wrapped, 0, settings.seed).x + static_cast<float>(column - wrapped);
+                distance = std::min(distance, std::abs(angle - spoke));
+            }
+            return distance;
+        }
         float smooth(float value) {
             const float t = std::clamp(value, 0.0f, 1.0f);
             // Cubic Hermite interpolation s(t) = t^2 * (3 - 2t).
@@ -95,7 +128,9 @@ namespace enishi::effect {
         }
     } // namespace
     foundation::Result<void, EffectError> validate_crack_settings(const CrackSettings& settings) {
-        const std::array scalars{settings.width,
+        const std::array scalars{settings.impact_radius,
+            settings.ring_growth,
+            settings.width,
             settings.feather,
             settings.depth,
             settings.view_x,
@@ -103,7 +138,19 @@ namespace enishi::effect {
             settings.duration_seconds,
             settings.fade_seconds,
             settings.opacity};
-        if (!std::all_of(
+        constexpr std::uint32_t MIN_SPOKES = 6;
+        constexpr std::uint32_t MAX_SPOKES = 64;
+        constexpr float MIN_IMPACT_RADIUS = 0.01f;
+        constexpr float MAX_IMPACT_RADIUS = 0.2f;
+        constexpr float MIN_RING_GROWTH = 1.2f;
+        constexpr float MAX_RING_GROWTH = 3.0f;
+        if ((settings.pattern != CrackPattern::Voronoi &&
+                settings.pattern != CrackPattern::Radial) ||
+            settings.radial_spokes < MIN_SPOKES || settings.radial_spokes > MAX_SPOKES ||
+            settings.impact_radius < MIN_IMPACT_RADIUS ||
+            settings.impact_radius > MAX_IMPACT_RADIUS || settings.ring_growth < MIN_RING_GROWTH ||
+            settings.ring_growth > MAX_RING_GROWTH ||
+            !std::all_of(
                 scalars.begin(), scalars.end(), [](float value) { return std::isfinite(value); }) ||
             settings.mask_size < MIN_MASK_SIZE || settings.mask_size > MAX_MASK_SIZE ||
             settings.cells == 0 || settings.cells > MAX_CELLS || !(settings.width > 0) ||
@@ -145,7 +192,13 @@ namespace enishi::effect {
                                        static_cast<float>(texture.width),
                     (static_cast<float>(y) + 0.5f) * static_cast<float>(settings.cells) /
                         static_cast<float>(texture.height)};
-                const float distance = boundary_distance(sample, settings.seed);
+                // The impact mask covers [-1, 1]^2, independently of its eventual screen origin.
+                const Point radial_position{
+                    2.0f * (static_cast<float>(x) + 0.5f) / texture.width - 1.0f,
+                    2.0f * (static_cast<float>(y) + 0.5f) / texture.height - 1.0f};
+                const float distance = settings.pattern == CrackPattern::Radial
+                                           ? radial_distance(radial_position, settings)
+                                           : boundary_distance(sample, settings.seed);
                 const std::size_t offset = static_cast<std::size_t>(y) * mip.row_pitch +
                                            static_cast<std::size_t>(x) * CHANNELS;
                 // Groove depth and edge coverage are independent, avoiding a solid polygon fill.

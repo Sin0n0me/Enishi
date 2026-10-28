@@ -75,6 +75,10 @@ namespace enishi {
             settings, platform_impl::create_crack_surface(this->effect_shaders)));
     }
     foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack() {
+        return this->play_screen_crack_at(std::nullopt);
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack_at(
+        std::optional<effect::CrackImpact> impact) {
         if (this->prepared_crack == nullptr || this->effects == nullptr) {
             return foundation::Error(effect::EffectError::StartFailed,
                 "Default crack effect could not be prepared during initialization");
@@ -85,6 +89,7 @@ namespace enishi {
                 return std::move(stopped).take_err();
             }
         }
+        this->prepared_crack->set_impact(impact);
         auto started = this->effects->play_shared(this->prepared_crack);
         if (started.is_ok()) {
             this->screen_crack_id = started.unwrap();
@@ -307,7 +312,8 @@ namespace enishi {
             }
             if (std::find(lower_body_bones.begin(), lower_body_bones.end(), bone) !=
                 lower_body_bones.end()) {
-                auto started = this->play_screen_crack();
+                const auto point = types::to_screen(cursor, position.unwrap());
+                auto started = this->play_screen_crack_at(effect::CrackImpact{point.x, point.y});
                 if (started.is_err()) {
                     debug::Logger::warning(started.unwrap_err().get_message());
                 }

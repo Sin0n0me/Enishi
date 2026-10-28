@@ -10,14 +10,18 @@ namespace enishi::render_pass {
         struct CrackUniform {
             glm::vec4 view_depth_opacity;
             glm::vec4 texel_size;
+            glm::vec4 mask_transform;
         };
-        static_assert(sizeof(CrackUniform) == 2 * sizeof(glm::vec4));
+        static_assert(sizeof(CrackUniform) == 3 * sizeof(glm::vec4));
         static_assert(offsetof(CrackUniform, texel_size) == sizeof(glm::vec4));
-        CrackUniform make_uniform(const CrackPass::Settings& settings, float opacity) {
+        CrackUniform make_uniform(const CrackPass::Settings& settings,
+            float opacity,
+            glm::vec4 mask_transform = {1, 1, 0, 0}) {
             // Texture-space finite differences use a one-texel displacement, 1 / resolution.
             const float texel = 1.0f / static_cast<float>(settings.mask_size);
-            return {
-                {settings.view_x, settings.view_y, settings.depth, opacity}, {texel, texel, 0, 0}};
+            return {{settings.view_x, settings.view_y, settings.depth, opacity},
+                {texel, texel, 0, 0},
+                mask_transform};
         }
         types::ModelData make_quad(
             const CrackPass::Settings& settings, std::shared_ptr<types::TextureData> mask) {
@@ -37,7 +41,8 @@ namespace enishi::render_pass {
             material.count = QUAD_INDEX_COUNT;
             material.instance_count = 1;
             const auto uniform = make_uniform(settings, settings.opacity);
-            material.variants = {uniform.view_depth_opacity, uniform.texel_size};
+            material.variants = {
+                uniform.view_depth_opacity, uniform.texel_size, uniform.mask_transform};
             // The shared Vulkan descriptor layout requires all three texture slots to be bound.
             material.textures = {{MASK_PATH,
                                      types::ModelTexture::MODEL_TEXTURE_NAME,
@@ -106,7 +111,8 @@ namespace enishi::render_pass {
         this->pass.add_mesh(this->mesh);
         return {};
     }
-    platform::RenderResult<void> CrackPass::update_uniform(float opacity) {
+    platform::RenderResult<void> CrackPass::update_uniform(
+        float opacity, glm::vec4 mask_transform) {
         const auto mapped = this->renderer->get_handle_mapper()->get(this->mesh);
         if (mapped.is_none()) {
             return foundation::Error(platform::RenderError::ResolveError, "Crack mesh is missing");
@@ -124,7 +130,7 @@ namespace enishi::render_pass {
             return foundation::Error(
                 platform::RenderError::ResolveError, "Crack uniform is missing");
         }
-        const auto uniform = make_uniform(this->settings, opacity);
+        const auto uniform = make_uniform(this->settings, opacity, mask_transform);
         for (const auto handle : found->second) {
             auto updater = resources->get_buffer_accessor()->get_buffer(handle);
             if (updater.is_none() || updater.unwrap() == nullptr ||
@@ -137,8 +143,8 @@ namespace enishi::render_pass {
         }
         return {};
     }
-    platform::RenderResult<void> CrackPass::draw(float opacity) {
-        auto updated = this->update_uniform(opacity);
+    platform::RenderResult<void> CrackPass::draw(float opacity, glm::vec4 mask_transform) {
+        auto updated = this->update_uniform(opacity, mask_transform);
         if (updated.is_err()) {
             return updated;
         }

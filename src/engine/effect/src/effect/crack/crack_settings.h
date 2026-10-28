@@ -1,10 +1,21 @@
 #pragma once
 #include <cstdint>
 namespace enishi::effect {
+    enum class CrackPattern { Voronoi, Radial };
+    // Desktop coordinates in the same logical units used by window positions.
+    struct CrackImpact {
+        std::int32_t x;
+        std::int32_t y;
+    };
     struct CrackSettings {
+        CrackPattern pattern = CrackPattern::Radial;
         std::uint32_t seed = 1;
         std::uint32_t mask_size = 512;
         std::uint32_t cells = 8;
+        std::uint32_t radial_spokes = 24;
+        // Radius is measured relative to half the mask width. Successive rings grow geometrically.
+        float impact_radius = 0.025f;
+        float ring_growth = 1.6f;
         // Width and feather are in Voronoi cell units; depth is in texture UV units.
         float width = 0.025f;
         float feather = 0.012f;

@@ -32,10 +32,10 @@ namespace enishi::render_pass {
             const platform::IShaderDataProvider& shaders,
             const platform::RenderBackendDescription& backend,
             std::shared_ptr<types::TextureData> mask);
-        platform::RenderResult<void> draw(float opacity);
+        platform::RenderResult<void> draw(float opacity, glm::vec4 mask_transform = {1, 1, 0, 0});
 
       private:
-        platform::RenderResult<void> update_uniform(float opacity);
+        platform::RenderResult<void> update_uniform(float opacity, glm::vec4 mask_transform);
         void submit();
     };
 } // namespace enishi::render_pass
