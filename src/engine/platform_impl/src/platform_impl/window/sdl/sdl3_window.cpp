@@ -3,7 +3,9 @@
 #include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
 #if defined(USE_WINDOWS) || defined(_WIN32)
-#include <Windows.h>
+#include "sdl_windows_handle.h"
+#else
+#include "sdl_non_windows_handle.h"
 #endif
 
 namespace enishi::platform_impl {
@@ -170,45 +172,24 @@ namespace enishi::platform_impl {
         SDL_Window* const window, const platform::WindowSystem window_system) {
         switch (window_system) {
             case platform::WindowSystem::Wayland: {
-#if defined(USE_WAYLAND)
                 const auto handle = platform::NativeWaylandHandle{};
-#else
-                const auto handle = platform::NativeWaylandHandle{};
-#endif
 
                 return platform::NativeWindowHandle{
                     .wayland = handle,
                 };
             }
             case platform::WindowSystem::Windows: {
-#if defined(USE_WINDOWS) || defined(_WIN32)
-                const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                const HWND hwnd = static_cast<HWND>(
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-                const HINSTANCE hinstance = static_cast<HINSTANCE>(
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr));
-                if (hwnd == nullptr || hinstance == nullptr) {
+                const auto handle = read_windows_handle(window);
+                if (handle.is_none()) {
                     return {};
                 }
 
-                const auto handle = platform::NativeWindowsHandle{
-                    .hwnd = hwnd,
-                    .hinstance = hinstance,
-                };
-#else
-                const auto handle = platform::NativeWindowsHandle{};
-#endif
-
                 return platform::NativeWindowHandle{
-                    .windows = handle,
+                    .windows = handle.unwrap(),
                 };
             }
             case platform::WindowSystem::X11: {
-#if defined(USE_X11)
                 const auto handle = platform::NativeX11Handle{};
-#else
-                const auto handle = platform::NativeX11Handle{};
-#endif
 
                 return platform::NativeWindowHandle{
                     .x11 = handle,
