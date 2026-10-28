@@ -3,12 +3,14 @@
 #include <array>
 #include <cmath>
 #include <effect/crack/crack_effect.h>
+#include <effect/effect_manager.h>
 #include <limits>
 namespace enishi::tests {
     namespace {
         struct SurfaceState {
             unsigned opens = 0;
             unsigned closes = 0;
+            unsigned hides = 0;
             unsigned draws = 0;
             float opacity = 0;
             bool fail_open = false;
@@ -23,6 +25,7 @@ namespace enishi::tests {
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings&, types::TextureData mask) override;
             foundation::Result<void, effect::EffectError> draw(float opacity) override;
+            void hide() noexcept override;
             void close() noexcept override;
         };
         Surface::Surface(std::shared_ptr<SurfaceState> state)
@@ -44,6 +47,9 @@ namespace enishi::tests {
                 return foundation::Error(effect::EffectError::UpdateFailed, "draw failure");
             }
             return {};
+        }
+        void Surface::hide() noexcept {
+            ++this->state->hides;
         }
         void Surface::close() noexcept {
             ++this->state->closes;
@@ -142,6 +148,31 @@ namespace enishi::tests {
             check(effect.start().is_ok(), "stopped effect can restart");
             check(state->opacity == settings.opacity, "restart resets fade");
         }
+        void prepared_playback() {
+            auto state = std::make_shared<SurfaceState>();
+            effect::CrackSettings settings;
+            settings.mask_size = 32;
+            {
+                auto crack = std::make_shared<effect::CrackEffect>(
+                    settings, std::make_unique<Surface>(state));
+                effect::EffectManager manager;
+                check(crack->prepare().is_ok() && crack->prepare().is_ok(),
+                    "preparation is idempotent");
+                check(state->opens == 1 && state->draws == 0, "prepare does not show the effect");
+                for (int repeat = 0; repeat < 3; ++repeat) {
+                    auto id = manager.play_shared(crack);
+                    check(id.is_ok(), "prepared playback starts");
+                    check(manager.play_shared(crack).is_err(), "same instance cannot play twice");
+                    check(crack->prepare().is_err(), "active preparation rejected");
+                    check(state->hides == static_cast<unsigned>(repeat),
+                        "rejection does not stop active playback");
+                    check(manager.stop(id.unwrap()).is_ok(), "prepared playback stops");
+                    check(state->opens == 1 && state->closes == 0, "restart reuses resources");
+                }
+            }
+            check(state->closes == 1 && state->hides == 3,
+                "retained resources released on destruction");
+        }
         void crack_failures() {
             for (const bool fail_open : {false, true}) {
                 auto state = std::make_shared<SurfaceState>();
@@ -164,5 +195,6 @@ namespace enishi::tests {
         run_test("Crack settings validation", invalid_settings);
         run_test("Crack fade and lifetime", crack_lifecycle);
         run_test("Crack surface failure cleanup", crack_failures);
+        run_test("Prepared crack playback", prepared_playback);
     }
 } // namespace enishi::tests

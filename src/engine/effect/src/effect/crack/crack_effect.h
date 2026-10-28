@@ -9,13 +9,20 @@ namespace enishi::effect {
         std::unique_ptr<ICrackSurface> surface;
         double elapsed_seconds = 0;
         bool started = false;
+        bool resources_open = false;
+        bool reusable = false;
 
       public:
         CrackEffect(CrackSettings settings, std::unique_ptr<ICrackSurface> surface);
         ~CrackEffect() noexcept override;
+        // Prepare on the render thread before interactive playback; stop retains these resources.
+        foundation::Result<void, EffectError> prepare();
         foundation::Result<void, EffectError> start() override;
         foundation::Result<EffectStatus, EffectError> update(
             const types::DeltaTime& delta_time) override;
         void stop() noexcept override;
+
+      private:
+        foundation::Result<void, EffectError> open();
     };
 } // namespace enishi::effect

@@ -2,7 +2,9 @@
 #include "../../../core/tests/test_runner.h"
 #include <SDL3/SDL.h>
 #include <effect/crack/crack_effect.h>
+#include <effect/effect_manager.h>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <type_traits>
@@ -17,6 +19,7 @@ namespace enishi::tests {
         class Shaders final : public platform::IShaderDataProvider {
           public:
             bool force_failure = false;
+            mutable unsigned loads = 0;
 
           public:
             foundation::Result<std::vector<platform::ShaderDataEntry>, platform::RenderError> get(
@@ -26,6 +29,7 @@ namespace enishi::tests {
         foundation::Result<std::vector<platform::ShaderDataEntry>, platform::RenderError>
         Shaders::get(
             std::span<const std::tuple<types::ShaderKind, std::filesystem::path>> paths) const {
+            ++this->loads;
             if (this->force_failure) {
                 return foundation::Error(
                     platform::RenderError::MakeError, "Injected shader load failure");
@@ -134,6 +138,52 @@ namespace enishi::tests {
             surface->close();
             surface->close();
         }
+        void prepared_overlays() {
+            check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
+            const int original = window_count();
+            auto shaders = std::make_shared<Shaders>();
+            using Clock = std::chrono::steady_clock;
+            const auto milliseconds = [](Clock::duration duration) {
+                return std::chrono::duration<double, std::milli>{duration}.count();
+            };
+            {
+                effect::CrackEffect cold{{}, platform_impl::create_crack_surface(shaders)};
+                const auto begin = Clock::now();
+                check(cold.start().is_ok(), "cold reference starts");
+                std::cout << "Cold crack start (ms): " << milliseconds(Clock::now() - begin)
+                          << '\n';
+                cold.stop();
+            }
+            {
+                auto crack = std::make_shared<effect::CrackEffect>(
+                    effect::CrackSettings{}, platform_impl::create_crack_surface(shaders));
+                effect::EffectManager manager;
+                check(crack->prepare().is_ok(), "prepare real default-size crack");
+                const auto loads = shaders->loads;
+                const int prepared_windows = window_count();
+                check(prepared_windows > original, "prepared resources exist before click");
+                for (int repeat = 0; repeat < 3; ++repeat) {
+                    const auto begin = Clock::now();
+                    auto id = manager.play_shared(crack);
+                    check(id.is_ok(), "prepared crack starts");
+                    std::cout << "Prepared crack start (ms): " << milliseconds(Clock::now() - begin)
+                              << '\n';
+                    check(manager.stop(id.unwrap()).is_ok(), "prepared crack stops");
+                    check(window_count() == prepared_windows && shaders->loads == loads,
+                        "replay neither recreates windows nor reloads shaders");
+                    int count = 0;
+                    std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
+                        SDL_GetWindows(&count), SDL_free};
+                    check(windows != nullptr, SDL_GetError());
+                    for (int index = 0; index < count; ++index) {
+                        check((SDL_GetWindowFlags(windows.get()[index]) & SDL_WINDOW_HIDDEN) != 0,
+                            "stopped prepared overlay stays hidden");
+                    }
+                }
+            }
+            check(window_count() == original, "prepared resources released with owner");
+            SDL_Quit();
+        }
         void overlays() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             const int original = window_count();
@@ -195,5 +245,6 @@ namespace enishi::tests {
 int main() {
     enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
     enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
+    enishi::tests::run_test("Prepared crack renderer reuse", enishi::tests::prepared_overlays);
     enishi::tests::run_test("Crack overlay renderer lifecycle", enishi::tests::overlays);
 }

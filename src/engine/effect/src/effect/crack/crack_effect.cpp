@@ -8,11 +8,43 @@ namespace enishi::effect {
     }
     CrackEffect::~CrackEffect() noexcept {
         this->stop();
+        if (this->resources_open) {
+            this->surface->close();
+        }
+    }
+    foundation::Result<void, EffectError> CrackEffect::prepare() {
+        if (this->started) {
+            return foundation::Error{EffectError::Busy, "Cannot prepare an active crack effect"};
+        }
+        auto result = this->open();
+        if (result.is_ok()) {
+            this->reusable = true;
+        }
+        return result;
     }
     foundation::Result<void, EffectError> CrackEffect::start() {
         if (this->surface == nullptr || this->started) {
             return foundation::Error{
                 EffectError::StartFailed, "Crack surface is missing or already active"};
+        }
+        auto opened = this->open();
+        if (opened.is_err()) {
+            return opened;
+        }
+        this->elapsed_seconds = 0;
+        this->started = true;
+        auto drawn = this->surface->draw(this->settings.opacity);
+        if (drawn.is_err()) {
+            this->stop();
+        }
+        return drawn;
+    }
+    foundation::Result<void, EffectError> CrackEffect::open() {
+        if (this->resources_open) {
+            return {};
+        }
+        if (this->surface == nullptr) {
+            return foundation::Error{EffectError::StartFailed, "Crack surface is missing"};
         }
         auto mask = make_crack_mask(this->settings);
         if (mask.is_err()) {
@@ -23,13 +55,8 @@ namespace enishi::effect {
             this->surface->close();
             return std::move(opened).take_err();
         }
-        this->elapsed_seconds = 0;
-        this->started = true;
-        auto drawn = this->surface->draw(this->settings.opacity);
-        if (drawn.is_err()) {
-            this->stop();
-        }
-        return drawn;
+        this->resources_open = true;
+        return {};
     }
     foundation::Result<EffectStatus, EffectError> CrackEffect::update(const types::DeltaTime& dt) {
         if (!this->started || dt.delta_time.count() < 0) {
@@ -56,7 +83,12 @@ namespace enishi::effect {
     }
     void CrackEffect::stop() noexcept {
         if (this->started) {
-            this->surface->close();
+            if (this->reusable) {
+                this->surface->hide();
+            } else {
+                this->surface->close();
+                this->resources_open = false;
+            }
             this->started = false;
         }
     }

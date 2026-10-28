@@ -26,11 +26,11 @@ namespace enishi::effect {
         }
     } // namespace
     struct EffectManager::Entry {
-        std::unique_ptr<IEffect> effect;
-        explicit Entry(std::unique_ptr<IEffect> effect);
+        std::shared_ptr<IEffect> effect;
+        explicit Entry(std::shared_ptr<IEffect> effect);
         ~Entry();
     };
-    EffectManager::Entry::Entry(std::unique_ptr<IEffect> effect)
+    EffectManager::Entry::Entry(std::shared_ptr<IEffect> effect)
         : effect(std::move(effect)) {
     }
     EffectManager::Entry::~Entry() {
@@ -42,11 +42,20 @@ namespace enishi::effect {
         static_cast<void>(this->stop_all());
     }
     foundation::Result<EffectId, EffectError> EffectManager::play(std::unique_ptr<IEffect> effect) {
+        return this->play_shared(std::shared_ptr<IEffect>{std::move(effect)});
+    }
+    foundation::Result<EffectId, EffectError> EffectManager::play_shared(
+        std::shared_ptr<IEffect> effect) {
         if (this->busy) {
             return busy_error();
         }
         if (effect == nullptr) {
             return foundation::Error{EffectError::InvalidArgument, "Effect must not be null"};
+        }
+        for (const auto& [id, entry] : this->entries) {
+            if (entry->effect == effect) {
+                return foundation::Error{EffectError::Busy, "Effect is already playing"};
+            }
         }
         if (this->next_id == EffectId::INVALID_VALUE) {
             return foundation::Error{EffectError::IdExhausted, "Effect IDs are exhausted"};

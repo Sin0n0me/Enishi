@@ -1,6 +1,7 @@
 #include "crack_surface.h"
 #include <algorithm>
 #include <cmath>
+#include <debug/log/logger.h>
 #include <engine_types/renderer/overlay_properties.h>
 #include <platform_impl/renderer/renderer_factory.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
@@ -56,6 +57,7 @@ namespace enishi::platform_impl {
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings& settings, types::TextureData mask) override;
             foundation::Result<void, effect::EffectError> draw(float opacity) override;
+            void hide() noexcept override;
             void close() noexcept override;
 
           private:
@@ -168,6 +170,11 @@ namespace enishi::platform_impl {
             if (built.is_err()) {
                 return built.propagation(effect::EffectError::StartFailed);
             }
+            // Submit while hidden so first-use shader/upload work happens during preparation.
+            auto warmed = overlay.pass->draw(0.0f);
+            if (warmed.is_err()) {
+                return warmed.propagation(effect::EffectError::StartFailed);
+            }
             return {};
         }
         foundation::Result<void, effect::EffectError> CrackSurface::draw(float opacity) {
@@ -197,6 +204,17 @@ namespace enishi::platform_impl {
                 }
             }
             return {};
+        }
+        void CrackSurface::hide() noexcept {
+            for (auto& overlay : this->overlays) {
+                auto* window = overlay.window->get_window_handle().unwrap();
+                if (!SDL_HideWindow(window)) {
+                    debug::Logger::warning(
+                        std::string{"Failed to hide crack overlay: "} + SDL_GetError());
+                    this->close();
+                    return;
+                }
+            }
         }
         void CrackSurface::close() noexcept {
             if (this->overlays.empty()) {
