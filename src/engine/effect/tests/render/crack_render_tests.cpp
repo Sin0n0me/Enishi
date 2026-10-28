@@ -12,6 +12,7 @@
 #include <Windows.h>
 #endif
 #include <platform_impl/effect/crack_surface.h>
+#include <platform_impl/effect/effect_surface.h>
 #include <platform_impl/renderer/renderer_factory.h>
 #include <platform_impl/window/sdl/sdl_gl_context_restore.h>
 namespace enishi::tests {
@@ -61,6 +62,50 @@ namespace enishi::tests {
             }
             return entries;
         }
+        struct ContentState {
+            unsigned initialized = 0;
+            unsigned draws = 0;
+            unsigned destroyed = 0;
+            bool fail_initialize = false;
+        };
+        class ProbeContent final : public platform_impl::IEffectSurfaceContent {
+          private:
+            std::shared_ptr<ContentState> state;
+
+          public:
+            explicit ProbeContent(std::shared_ptr<ContentState> state);
+            ~ProbeContent() noexcept override;
+            platform::RenderResult<void> initialize(
+                const platform_impl::EffectSurfaceContext& context) override;
+            platform::RenderResult<void> draw(
+                const platform_impl::EffectSurfaceFrame& frame) override;
+        };
+        ProbeContent::ProbeContent(std::shared_ptr<ContentState> state)
+            : state(std::move(state)) {
+        }
+        ProbeContent::~ProbeContent() noexcept {
+            ++this->state->destroyed;
+        }
+        platform::RenderResult<void> ProbeContent::initialize(
+            const platform_impl::EffectSurfaceContext& context) {
+            ++this->state->initialized;
+            check(context.renderer != nullptr && context.encoder != nullptr &&
+                      context.window.get_size().is_some(),
+                "generic content receives renderer and window interfaces");
+            if (this->state->fail_initialize) {
+                return foundation::Error(
+                    platform::RenderError::MakeError, "Injected content initialization failure");
+            }
+            return {};
+        }
+        platform::RenderResult<void> ProbeContent::draw(
+            const platform_impl::EffectSurfaceFrame& frame) {
+            ++this->state->draws;
+            check(frame.width > 0 && frame.height > 0 && frame.desktop_span > 0,
+                "generic content receives desktop geometry");
+            return foundation::Error(
+                platform::RenderError::ResolveError, "Injected content draw failure");
+        }
         int window_count() {
             int count = 0;
             std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
@@ -88,6 +133,42 @@ namespace enishi::tests {
                     "overlay must not intercept desktop hit testing");
             }
 #endif
+        }
+        void generic_surface_lifecycle() {
+            check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
+            const auto original = window_count();
+            auto state = std::make_shared<ContentState>();
+            platform_impl::EffectSurface surface;
+            check(surface.open({}).is_err(), "empty content factory rejected");
+            check(surface.draw(effect::EffectTarget::all_displays()).is_err(),
+                "unopened generic surface cannot draw");
+            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_ok(),
+                "non-crack content opens through generic surface");
+            const auto initialized = state->initialized;
+            check(initialized > 0 && window_count() > original, "content initialized per display");
+            check(
+                surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_err(),
+                "double open rejected without recreating content");
+            auto drawn = surface.draw(effect::EffectTarget::all_displays());
+            check(drawn.is_err() && state->draws == 1, "generic draw failure propagates");
+            check(surface.hide(), "generic surface hides");
+            surface.close();
+            surface.close();
+            check(state->destroyed == initialized && window_count() == original,
+                "generic content and windows destroyed once");
+            state->fail_initialize = true;
+            check(
+                surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_err(),
+                "generic initialization failure propagates");
+            check(state->destroyed == state->initialized && window_count() == original,
+                "partial generic initialization releases resources");
+            check(
+                surface
+                    .open([]() { return std::unique_ptr<platform_impl::IEffectSurfaceContent>{}; })
+                    .is_err(),
+                "null content rejected");
+            check(window_count() == original, "null content cleanup releases windows");
+            SDL_Quit();
         }
         void context_restoration() {
             check(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
@@ -305,6 +386,8 @@ namespace enishi::tests {
     } // namespace
 } // namespace enishi::tests
 int main() {
+    enishi::tests::run_test(
+        "Generic effect surface lifecycle", enishi::tests::generic_surface_lifecycle);
     enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
     enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
     enishi::tests::run_test("Prepared crack renderer reuse", enishi::tests::prepared_overlays);

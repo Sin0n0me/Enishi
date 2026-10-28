@@ -1,8 +1,8 @@
-#pragma once
+#include "effect_overlay_windows.h"
 #include <SDL3/SDL.h>
 #include <Windows.h>
 namespace enishi::platform_impl {
-    inline bool prepare_crack_overlay(SDL_Window* window) {
+    bool prepare_effect_overlay(SDL_Window* window) {
         const auto native = static_cast<HWND>(SDL_GetPointerProperty(
             SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
         if (native == nullptr) {

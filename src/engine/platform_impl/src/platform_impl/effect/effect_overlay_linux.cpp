@@ -1,13 +1,13 @@
-#pragma once
+#include "effect_overlay_linux.h"
 #include <SDL3/SDL.h>
 #include <memory>
 #include <string_view>
 namespace enishi::platform_impl {
-    inline bool prepare_crack_overlay(SDL_Window* window) {
+    bool prepare_effect_overlay(SDL_Window* window) {
         const char* driver = SDL_GetCurrentVideoDriver();
         if (driver == nullptr || std::string_view{driver} != "x11") {
             return SDL_SetError(
-                "Desktop crack overlays require X11; Wayland global positioning is unavailable");
+                "Desktop effect overlays require X11; Wayland global positioning is unavailable");
         }
         constexpr int EMPTY_MASK_SIZE = 1;
         std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> shape{
