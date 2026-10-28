@@ -4,7 +4,9 @@ from pathlib import Path
 import math
 import struct
 import sys
-from gl_skinning_tests import check, gl, identity, run_with_context
+from gl_test_checks import check
+from gl_test_context import gl, run_with_context
+from gl_skinning_tests import identity
 
 U = c.c_uint
 I = c.c_int
