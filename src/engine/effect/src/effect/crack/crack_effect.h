@@ -12,6 +12,7 @@ namespace enishi::effect {
         bool resources_open = false;
         bool reusable = false;
         std::optional<CrackImpact> impact;
+        EffectTarget target;
 
       public:
         CrackEffect(CrackSettings settings, std::unique_ptr<ICrackSurface> surface);
@@ -23,6 +24,7 @@ namespace enishi::effect {
             const types::DeltaTime& delta_time) override;
         void stop() noexcept override;
         void set_impact(std::optional<CrackImpact> origin) noexcept;
+        void set_target(const EffectTarget& destination) noexcept;
 
       private:
         foundation::Result<void, EffectError> open();

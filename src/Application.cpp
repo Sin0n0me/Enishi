@@ -75,10 +75,29 @@ namespace enishi {
             settings, platform_impl::create_crack_surface(this->effect_shaders)));
     }
     foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack() {
-        return this->play_screen_crack_at(std::nullopt);
+        if (this->root_window == nullptr) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Model window is unavailable");
+        }
+        const auto position = this->root_window->get_position();
+        const auto size = this->root_window->get_size();
+        if (position.is_none() || size.is_none()) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Model window bounds are unavailable");
+        }
+        constexpr int CENTER_DIVISOR = 2;
+        const effect::CrackImpact center{position.unwrap().x + size.unwrap().width / CENTER_DIVISOR,
+            position.unwrap().y + size.unwrap().height / CENTER_DIVISOR};
+        return this->play_screen_crack_at(
+            std::nullopt, effect::EffectTarget::display_at(center.x, center.y));
     }
     foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack_at(
-        std::optional<effect::CrackImpact> impact) {
+        effect::CrackImpact impact) {
+        return this->play_screen_crack_at(
+            impact, effect::EffectTarget::display_at(impact.x, impact.y));
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack_at(
+        std::optional<effect::CrackImpact> impact, const effect::EffectTarget& target) {
         if (this->prepared_crack == nullptr || this->effects == nullptr) {
             return foundation::Error(effect::EffectError::StartFailed,
                 "Default crack effect could not be prepared during initialization");
@@ -90,6 +109,7 @@ namespace enishi {
             }
         }
         this->prepared_crack->set_impact(impact);
+        this->prepared_crack->set_target(target);
         auto started = this->effects->play_shared(this->prepared_crack);
         if (started.is_ok()) {
             this->screen_crack_id = started.unwrap();

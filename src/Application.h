@@ -49,7 +49,9 @@ namespace enishi {
             const effect::CrackSettings& settings);
         [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack();
         [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack_at(
-            std::optional<effect::CrackImpact> impact);
+            effect::CrackImpact impact);
+        [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack_at(
+            std::optional<effect::CrackImpact> impact, const effect::EffectTarget& target);
         bool init(void);
         void run(void);
         [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;

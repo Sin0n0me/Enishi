@@ -185,6 +185,67 @@ namespace enishi::tests {
             check(window_count() == original, "prepared resources released with owner");
             SDL_Quit();
         }
+        void check_visible_displays(SDL_DisplayID selected, int expected) {
+            int count = 0;
+            std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
+                SDL_GetWindows(&count), SDL_free};
+            check(windows != nullptr, SDL_GetError());
+            int visible = 0;
+            for (int index = 0; index < count; ++index) {
+                auto* window = windows.get()[index];
+                if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) == 0) {
+                    ++visible;
+                    check(selected == 0 || SDL_GetDisplayForWindow(window) == selected,
+                        "visible overlay belongs only to the selected display");
+                }
+            }
+            check(visible == expected, "visible overlay count matches the display target");
+        }
+        void targeted_overlays() {
+            check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
+            int display_count = 0;
+            std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays{
+                SDL_GetDisplays(&display_count), SDL_free};
+            check(displays != nullptr && display_count > 0, SDL_GetError());
+            auto shaders = std::make_shared<Shaders>();
+            {
+                effect::CrackSettings settings;
+                settings.mask_size = 64;
+                auto mask = effect::make_crack_mask(settings);
+                check(mask.is_ok(), "target mask generated");
+                auto surface = platform_impl::create_crack_surface(shaders);
+                check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+                    "target resources prepared");
+                const auto loads = shaders->loads;
+                check(surface->draw(1).is_ok(), "all-display target draws");
+                check_visible_displays(0, display_count);
+                for (int index = 0; index < display_count; ++index) {
+                    SDL_Rect bounds{};
+                    check(SDL_GetDisplayBounds(displays.get()[index], &bounds), SDL_GetError());
+                    const effect::CrackImpact center{
+                        bounds.x + bounds.w / 2, bounds.y + bounds.h / 2};
+                    check(
+                        surface
+                            ->draw(1, center, effect::EffectTarget::display_at(center.x, center.y))
+                            .is_ok(),
+                        "target changes during playback without rebuilding");
+                    check_visible_displays(displays.get()[index], 1);
+                }
+                check(surface->draw(1, std::nullopt, effect::EffectTarget::all_displays()).is_ok(),
+                    "all displays can be enabled again");
+                check_visible_displays(0, display_count);
+                effect::EffectTarget invalid;
+                invalid.kind = static_cast<effect::EffectTargetKind>(-1);
+                check(surface->draw(1, std::nullopt, invalid).is_err(), "unknown target rejected");
+                check(shaders->loads == loads && window_count() == display_count,
+                    "target changes reuse the prepared shaders and windows");
+                surface->hide();
+                check_visible_displays(0, 0);
+            }
+            check(window_count() == 0, "targeted windows released");
+            std::cout << "Validated display targeting on " << display_count << " displays\n";
+            SDL_Quit();
+        }
         void overlays() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             const int original = window_count();
@@ -247,5 +308,6 @@ int main() {
     enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
     enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
     enishi::tests::run_test("Prepared crack renderer reuse", enishi::tests::prepared_overlays);
+    enishi::tests::run_test("Crack display targeting", enishi::tests::targeted_overlays);
     enishi::tests::run_test("Crack overlay renderer lifecycle", enishi::tests::overlays);
 }

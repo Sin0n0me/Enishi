@@ -44,6 +44,7 @@ namespace enishi::platform_impl {
         struct Overlay {
             std::shared_ptr<SDL3Window> window;
             SDL_Rect bounds{};
+            SDL_DisplayID display = 0;
             SDL_GLContext context = nullptr; // Borrowed; the renderer owns its context.
             std::unique_ptr<render_pass::CrackPass> pass;
         };
@@ -59,8 +60,9 @@ namespace enishi::platform_impl {
             ~CrackSurface() noexcept override;
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings& settings, types::TextureData mask) override;
-            foundation::Result<void, effect::EffectError> draw(
-                float opacity, std::optional<effect::CrackImpact> impact) override;
+            foundation::Result<void, effect::EffectError> draw(float opacity,
+                std::optional<effect::CrackImpact> impact,
+                const effect::EffectTarget& target) override;
             void hide() noexcept override;
             void close() noexcept override;
 
@@ -139,6 +141,7 @@ namespace enishi::platform_impl {
                                     : platform::WindowSystem::X11;
             auto& overlay = this->overlays.emplace_back();
             overlay.bounds = bounds;
+            overlay.display = display;
             overlay.window = std::make_shared<SDL3Window>("Enishi Crack",
                 types::WindowSize{bounds.w, bounds.h},
                 system,
@@ -196,8 +199,9 @@ namespace enishi::platform_impl {
             }
             return {};
         }
-        foundation::Result<void, effect::EffectError> CrackSurface::draw(
-            float opacity, std::optional<effect::CrackImpact> impact) {
+        foundation::Result<void, effect::EffectError> CrackSurface::draw(float opacity,
+            std::optional<effect::CrackImpact> impact,
+            const effect::EffectTarget& target) {
             if (this->overlays.empty()) {
                 return foundation::Error(
                     effect::EffectError::UpdateFailed, "Crack surface is not open");
@@ -206,9 +210,39 @@ namespace enishi::platform_impl {
                 return foundation::Error(effect::EffectError::InvalidArgument,
                     "Crack opacity must be finite and between zero and one");
             }
+            SDL_DisplayID selected = 0;
+            switch (target.kind) {
+                case effect::EffectTargetKind::AllDisplays:
+                    break;
+                case effect::EffectTargetKind::DisplayAtPoint: {
+                    const SDL_Point point{target.x, target.y};
+                    selected = SDL_GetDisplayForPoint(&point);
+                    if (selected == 0 || std::none_of(this->overlays.begin(),
+                                             this->overlays.end(),
+                                             [selected](const auto& overlay) {
+                                                 return overlay.display == selected;
+                                             })) {
+                        return foundation::Error(effect::EffectError::UpdateFailed,
+                            "Target display is unavailable; prepare the effect again after display "
+                            "changes");
+                    }
+                    break;
+                }
+                default:
+                    return foundation::Error(
+                        effect::EffectError::InvalidArgument, "Unknown effect target");
+            }
             SDLGLContextRestore restore;
             for (auto& overlay : this->overlays) {
                 auto* window = overlay.window->get_window_handle().unwrap();
+                if (selected != 0 && overlay.display != selected) {
+                    if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) == 0 &&
+                        !SDL_HideWindow(window)) {
+                        return foundation::Error(
+                            effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
+                    }
+                    continue;
+                }
                 if (overlay.context != nullptr && !SDL_GL_MakeCurrent(window, overlay.context)) {
                     return foundation::Error(
                         effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
@@ -217,7 +251,7 @@ namespace enishi::platform_impl {
                 if (this->radial) {
                     constexpr float MASK_CENTER = 0.5f;
                     const auto& bounds = overlay.bounds;
-                    const float span = impact.has_value()
+                    const float span = impact.has_value() && selected == 0
                                            ? this->desktop_span
                                            : static_cast<float>((std::max)(bounds.w, bounds.h));
                     // mask_uv = 0.5 + (desktop_pixel - impact_pixel) / (2 * desktop_span).

@@ -15,6 +15,7 @@ namespace enishi::tests {
             unsigned draws = 0;
             float opacity = 0;
             std::optional<effect::CrackImpact> impact;
+            effect::EffectTarget target;
             bool fail_open = false;
             bool fail_draw = false;
         };
@@ -26,8 +27,9 @@ namespace enishi::tests {
             explicit Surface(std::shared_ptr<SurfaceState> state);
             foundation::Result<void, effect::EffectError> open(
                 const effect::CrackSettings&, types::TextureData mask) override;
-            foundation::Result<void, effect::EffectError> draw(
-                float opacity, std::optional<effect::CrackImpact> impact) override;
+            foundation::Result<void, effect::EffectError> draw(float opacity,
+                std::optional<effect::CrackImpact> impact,
+                const effect::EffectTarget& target) override;
             void hide() noexcept override;
             void close() noexcept override;
         };
@@ -43,11 +45,13 @@ namespace enishi::tests {
             }
             return {};
         }
-        foundation::Result<void, effect::EffectError> Surface::draw(
-            float opacity, std::optional<effect::CrackImpact> impact) {
+        foundation::Result<void, effect::EffectError> Surface::draw(float opacity,
+            std::optional<effect::CrackImpact> impact,
+            const effect::EffectTarget& target) {
             ++this->state->draws;
             this->state->opacity = opacity;
             this->state->impact = impact;
+            this->state->target = target;
             if (this->state->fail_draw) {
                 return foundation::Error(effect::EffectError::UpdateFailed, "draw failure");
             }
@@ -222,7 +226,11 @@ namespace enishi::tests {
                 check(state->opens == 1 && state->draws == 0, "prepare does not show the effect");
                 for (int repeat = 0; repeat < 3; ++repeat) {
                     crack->set_impact(effect::CrackImpact{repeat * 100, -200});
+                    crack->set_target(effect::EffectTarget::display_at(repeat * 100, -200));
                     auto id = manager.play_shared(crack);
+                    check(state->target.kind == effect::EffectTargetKind::DisplayAtPoint &&
+                              state->target.x == repeat * 100 && state->target.y == -200,
+                        "playback forwards its display target without reopening resources");
                     check(state->impact.has_value() && state->impact->x == repeat * 100 &&
                               state->impact->y == -200,
                         "replay forwards a new desktop origin without reopening resources");
