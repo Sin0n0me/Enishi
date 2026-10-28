@@ -132,6 +132,10 @@ namespace enishi::platform_impl {
             return foundation::Error(
                 effect::EffectError::UpdateFailed, "Effect surface is not open");
         }
+        if (target.layer != effect::EffectLayer::Foreground &&
+            target.layer != effect::EffectLayer::Background) {
+            return foundation::Error(effect::EffectError::InvalidArgument, "Unknown effect layer");
+        }
         auto resolved = resolve_effect_display(target);
         if (resolved.is_err()) {
             return std::move(resolved).take_err();
@@ -170,7 +174,13 @@ namespace enishi::platform_impl {
             if (drawn.is_err()) {
                 return drawn.propagation(effect::EffectError::UpdateFailed);
             }
-            if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) != 0 && !SDL_ShowWindow(window)) {
+            if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) != 0) {
+                if (!set_effect_overlay_layer(window, target.layer) || !SDL_ShowWindow(window)) {
+                    return foundation::Error(
+                        effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
+                }
+            }
+            if (!set_effect_overlay_layer(window, target.layer)) {
                 return foundation::Error(
                     effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
             }

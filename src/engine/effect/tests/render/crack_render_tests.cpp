@@ -282,6 +282,105 @@ namespace enishi::tests {
             }
             check(visible == expected, "visible overlay count matches the display target");
         }
+#if defined(_WIN32)
+        HWND native_window(SDL_Window* window) {
+            return static_cast<HWND>(SDL_GetPointerProperty(
+                SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+        }
+        bool window_is_above(HWND first, HWND second) {
+            for (auto window = GetTopWindow(nullptr); window != nullptr;
+                 window = GetWindow(window, GW_HWNDNEXT)) {
+                if (window == first) {
+                    return true;
+                }
+                if (window == second) {
+                    return false;
+                }
+            }
+            return false;
+        }
+#endif
+        void check_overlay_layer(SDL_Window* model, effect::EffectLayer layer) {
+            int count = 0;
+            std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
+                SDL_GetWindows(&count), SDL_free};
+            check(windows != nullptr, SDL_GetError());
+            for (int index = 0; index < count; ++index) {
+                auto* window = windows.get()[index];
+                if (window == model) {
+                    continue;
+                }
+                const bool foreground = layer == effect::EffectLayer::Foreground;
+                check(((SDL_GetWindowFlags(window) & SDL_WINDOW_ALWAYS_ON_TOP) != 0) == foreground,
+                    "overlay uses the requested stacking layer");
+#if defined(_WIN32)
+                check(foreground ? window_is_above(native_window(window), native_window(model))
+                                 : window_is_above(native_window(model), native_window(window)),
+                    "native Z order places the effect on the requested side of the model");
+#endif
+            }
+        }
+        void layered_overlays() {
+            check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
+            {
+                constexpr int MODEL_WINDOW_SIZE = 64;
+                std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> model{
+                    SDL_CreateWindow("Model stacking fixture",
+                        MODEL_WINDOW_SIZE,
+                        MODEL_WINDOW_SIZE,
+                        SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_NOT_FOCUSABLE),
+                    SDL_DestroyWindow};
+                check(model != nullptr, SDL_GetError());
+                auto shaders = std::make_shared<Shaders>();
+                effect::CrackSettings settings;
+                settings.mask_size = 64;
+                auto mask = effect::make_crack_mask(settings);
+                check(mask.is_ok(), "layer test mask generated");
+                auto surface = platform_impl::create_crack_surface(shaders);
+                check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+                    "layer surface prepared");
+                const auto loads = shaders->loads;
+                const auto windows = window_count();
+#if defined(_WIN32)
+                const auto focus = GetForegroundWindow();
+#endif
+                for (int repeat = 0; repeat < 3; ++repeat) {
+                    check(surface->draw(1).is_ok(), "default effect layer draws");
+#if defined(_WIN32)
+                    check(SetWindowPos(native_window(model.get()),
+                              HWND_TOPMOST,
+                              0,
+                              0,
+                              0,
+                              0,
+                              SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != 0,
+                        "simulate model being raised by a click");
+#endif
+                    check(
+                        surface->draw(1).is_ok(), "foreground order restored on subsequent frames");
+                    check_overlay_layer(model.get(), effect::EffectLayer::Foreground);
+                    check(
+                        surface
+                            ->draw(1,
+                                std::nullopt,
+                                effect::EffectTarget::all_displays(effect::EffectLayer::Background))
+                            .is_ok(),
+                        "background layer draws");
+                    check_overlay_layer(model.get(), effect::EffectLayer::Background);
+#if defined(_WIN32)
+                    check(GetForegroundWindow() == focus,
+                        "changing effect layer does not steal focus");
+#endif
+                }
+                effect::EffectTarget invalid;
+                invalid.layer = static_cast<effect::EffectLayer>(-1);
+                check(surface->draw(1, std::nullopt, invalid).is_err(), "invalid layer rejected");
+                check(shaders->loads == loads && window_count() == windows,
+                    "layer changes reuse prepared graphics and windows");
+            }
+            check(window_count() == 0, "layer test resources released");
+            SDL_Quit();
+        }
         void targeted_overlays() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             int display_count = 0;
@@ -391,6 +490,7 @@ int main() {
     enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
     enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
     enishi::tests::run_test("Prepared crack renderer reuse", enishi::tests::prepared_overlays);
+    enishi::tests::run_test("Effect foreground and background", enishi::tests::layered_overlays);
     enishi::tests::run_test("Crack display targeting", enishi::tests::targeted_overlays);
     enishi::tests::run_test("Crack overlay renderer lifecycle", enishi::tests::overlays);
 }
