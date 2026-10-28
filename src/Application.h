@@ -1,5 +1,7 @@
 #pragma once
 #include "settings.h"
+#include <animation/rig/bone_name_dictionary.h>
+#include <core/system/collision/model_click_system.h>
 #include <collider/collider.h>
 #include <core/system/asset/asset_manager.h>
 #include <core/system/render/render_system.h>
@@ -26,6 +28,8 @@ namespace enishi {
         std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<collider::Collider> collider;
         std::shared_ptr<types::ModelClickSettings> click_settings;
+        std::shared_ptr<core::ModelClickSystem> model_clicks;
+        animation::BoneNameDictionary click_bone_names;
         std::shared_ptr<sub_system::ICameraController> camera;
         std::shared_ptr<sub_system::ICameraController> display_camera;
         std::shared_ptr<sub_system::IWindowAnimationSync> window_animation_sync;
@@ -48,6 +52,7 @@ namespace enishi {
         get_window_animation_sync() const;
 
       private:
+        void update_screen_crack_click();
         std::shared_ptr<platform::IWindow> init_window(void);
         std::shared_ptr<platform::IRenderer> init_renderer(
             std::shared_ptr<platform::IWindow> root_window,

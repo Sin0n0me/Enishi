@@ -1,4 +1,7 @@
 #include "Application.h"
+#include <algorithm>
+#include <array>
+#include <limits>
 #include <effect/crack/crack_effect.h>
 #include <platform_impl/effect/crack_surface.h>
 #include <core/config/application_settings.h>
@@ -149,6 +152,7 @@ namespace enishi {
         if (bone_names.is_err()) {
             debug::Logger::warning(bone_names.unwrap_err().get_message());
         } else {
+            this->click_bone_names = bone_names.unwrap();
             skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
@@ -167,6 +171,7 @@ namespace enishi {
                 this->registry,
                 this->click_settings,
                 this->display_camera);
+        this->model_clicks = clicks;
         clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(this->registry,
             animation_system,
             std::move(settings.model_events),
@@ -214,6 +219,7 @@ namespace enishi {
 
             // 更新
             this->system_scheduler.pre_update();
+            this->update_screen_crack_click();
             this->system_scheduler.update(dt);
             this->system_scheduler.post_update();
             auto updated_effects = this->effects->update(dt);
@@ -232,6 +238,58 @@ namespace enishi {
         auto stopped = this->effects->stop_all();
         if (stopped.is_err()) {
             debug::Logger::warning(stopped.unwrap_err().get_message());
+        }
+    }
+
+    void Application::update_screen_crack_click() {
+        const auto input = this->root_window->get_input();
+        const auto position = this->root_window->get_position();
+        if (this->model_clicks == nullptr || input.is_none() || position.is_none() ||
+            !input.unwrap()->is_mouse_button_pressed(types::MouseButton::Left)) {
+            return;
+        }
+        const auto cursor =
+            input.unwrap()->get_mouse_press_position(types::MouseButton::Left, position.unwrap());
+        // This preview trigger uses the displayed pose, independently of physics push filtering.
+        const auto hit = this->model_clicks->pick(cursor, false);
+        if (!hit.has_value() ||
+            hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
+            return;
+        }
+        const auto model = this->registry->get<component::ModelComponent>(
+            types::HandleId{static_cast<types::HandleId::HandleType>(hit->model)});
+        if (model.is_none() || !model.unwrap().visible) {
+            return;
+        }
+        const auto& data = model.unwrap();
+        constexpr std::array LOWER_BODY_ROLES{animation::BoneRole::Hips,
+            animation::BoneRole::LeftUpperLeg,
+            animation::BoneRole::LeftLowerLeg,
+            animation::BoneRole::LeftFoot,
+            animation::BoneRole::RightUpperLeg,
+            animation::BoneRole::RightLowerLeg,
+            animation::BoneRole::RightFoot};
+        std::array<types::BoneIndex, LOWER_BODY_ROLES.size()> lower_body_bones{};
+        for (std::size_t index = 0; index < LOWER_BODY_ROLES.size(); ++index) {
+            lower_body_bones[index] =
+                this->click_bone_names.find(data.bone_names, LOWER_BODY_ROLES[index]);
+        }
+        const auto spine = this->click_bone_names.find(data.bone_names, animation::BoneRole::Spine);
+        auto bone = hit->bone;
+        // Spine descendants must not match hips; bound traversal also rejects cyclic hierarchies.
+        for (std::size_t visited = 0; visited < data.bone_node.size(); ++visited) {
+            if (!(bone < data.bone_node.size()) || bone == spine) {
+                return;
+            }
+            if (std::find(lower_body_bones.begin(), lower_body_bones.end(), bone) !=
+                lower_body_bones.end()) {
+                auto started = this->play_screen_crack();
+                if (started.is_err()) {
+                    debug::Logger::warning(started.unwrap_err().get_message());
+                }
+                return;
+            }
+            bone = data.bone_node[bone].parent;
         }
     }
 
