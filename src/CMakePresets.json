@@ -915,7 +915,9 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OBJCXX_COMPILER": "clang++",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"
       },
       "vendor": {
         "enishi/build/1.0": {
@@ -940,163 +942,15 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OBJCXX_COMPILER": "clang++",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"
       },
       "vendor": {
         "enishi/build/1.0": {
           "os": "macos",
           "backend": "opengl",
           "compiler": "clang",
-          "config": "Release"
-        }
-      }
-    },
-    {
-      "name": "macos-vulkan-clang-debug",
-      "displayName": "macos / vulkan / clang / Debug",
-      "inherits": [
-        "clang",
-        "vulkan",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "vulkan",
-          "compiler": "clang",
-          "config": "Debug"
-        }
-      }
-    },
-    {
-      "name": "macos-vulkan-clang-release",
-      "displayName": "macos / vulkan / clang / Release",
-      "inherits": [
-        "clang",
-        "vulkan",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "vulkan",
-          "compiler": "clang",
-          "config": "Release"
-        }
-      }
-    },
-    {
-      "name": "macos-opengl-gcc-debug",
-      "displayName": "macos / opengl / gcc / Debug",
-      "inherits": [
-        "gcc",
-        "opengl",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "opengl",
-          "compiler": "gcc",
-          "config": "Debug"
-        }
-      }
-    },
-    {
-      "name": "macos-opengl-gcc-release",
-      "displayName": "macos / opengl / gcc / Release",
-      "inherits": [
-        "gcc",
-        "opengl",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "opengl",
-          "compiler": "gcc",
-          "config": "Release"
-        }
-      }
-    },
-    {
-      "name": "macos-vulkan-gcc-debug",
-      "displayName": "macos / vulkan / gcc / Debug",
-      "inherits": [
-        "gcc",
-        "vulkan",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "vulkan",
-          "compiler": "gcc",
-          "config": "Debug"
-        }
-      }
-    },
-    {
-      "name": "macos-vulkan-gcc-release",
-      "displayName": "macos / vulkan / gcc / Release",
-      "inherits": [
-        "gcc",
-        "vulkan",
-        "unix"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      },
-      "vendor": {
-        "enishi/build/1.0": {
-          "os": "macos",
-          "backend": "vulkan",
-          "compiler": "gcc",
           "config": "Release"
         }
       }
@@ -1418,54 +1272,6 @@
     {
       "name": "macos-opengl-clang-release",
       "configurePreset": "macos-opengl-clang-release",
-      "configuration": "Release",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-vulkan-clang-debug",
-      "configurePreset": "macos-vulkan-clang-debug",
-      "configuration": "Debug",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-vulkan-clang-release",
-      "configurePreset": "macos-vulkan-clang-release",
-      "configuration": "Release",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-opengl-gcc-debug",
-      "configurePreset": "macos-opengl-gcc-debug",
-      "configuration": "Debug",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-opengl-gcc-release",
-      "configurePreset": "macos-opengl-gcc-release",
-      "configuration": "Release",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-vulkan-gcc-debug",
-      "configurePreset": "macos-vulkan-gcc-debug",
-      "configuration": "Debug",
-      "targets": [
-        "enishi_engine"
-      ]
-    },
-    {
-      "name": "macos-vulkan-gcc-release",
-      "configurePreset": "macos-vulkan-gcc-release",
       "configuration": "Release",
       "targets": [
         "enishi_engine"
