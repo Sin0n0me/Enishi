@@ -1,7 +1,7 @@
 add_executable(crack_render_tests crack_render_tests.cpp)
 target_compile_features(crack_render_tests PRIVATE cxx_std_23)
 target_compile_definitions(crack_render_tests PRIVATE NOMINMAX)
-target_link_libraries(crack_render_tests PRIVATE effect platform platform_impl render_pass SDL3::SDL3)
+target_link_libraries(crack_render_tests PRIVATE platform_impl)
 if(USE_VULKAN)
     add_dependencies(crack_render_tests enishi_vulkan_shaders)
 elseif(USE_OPENGL40)
