@@ -69,6 +69,8 @@ namespace enishi::tests {
             unsigned draws = 0;
             unsigned destroyed = 0;
             bool fail_initialize = false;
+            bool fail_draw = true;
+            std::vector<platform_impl::EffectSurfaceFrame> frames;
         };
         class ProbeContent final : public platform_impl::IEffectSurfaceContent {
           private:
@@ -103,10 +105,14 @@ namespace enishi::tests {
         platform::RenderResult<void> ProbeContent::draw(
             const platform_impl::EffectSurfaceFrame& frame) {
             ++this->state->draws;
+            this->state->frames.push_back(frame);
             check(frame.width > 0 && frame.height > 0 && frame.desktop_span > 0,
                 "generic content receives desktop geometry");
-            return foundation::Error(
-                platform::RenderError::ResolveError, "Injected content draw failure");
+            if (this->state->fail_draw) {
+                return foundation::Error(
+                    platform::RenderError::ResolveError, "Injected content draw failure");
+            }
+            return {};
         }
         int window_count() {
             int count = 0;
@@ -437,6 +443,74 @@ namespace enishi::tests {
                 }
             }
         }
+        void generic_surface_targeting() {
+            check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
+            auto state = std::make_shared<ContentState>();
+            state->fail_draw = false;
+            platform_impl::EffectSurface surface;
+            check(surface.hide(), "unopened generic surface hide is idempotent");
+            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_ok(),
+                "generic content prepares without crack resources");
+            int display_count = 0;
+            std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays{
+                SDL_GetDisplays(&display_count), SDL_free};
+            check(displays != nullptr && display_count > 0, SDL_GetError());
+            check(state->initialized == static_cast<unsigned>(display_count),
+                "generic content initialized exactly once per display");
+            check_visible_displays(0, 0);
+            check(surface.draw(effect::EffectTarget::all_displays()).is_ok(),
+                "generic content draws on all displays");
+            check_visible_displays(0, display_count);
+            check(state->frames.size() == static_cast<std::size_t>(display_count),
+                "all-display draw visits every content exactly once");
+            for (const auto& frame : state->frames) {
+                check(frame.all_displays, "all-display frame carries the correct coordinate mode");
+            }
+            for (int index = 0; index < display_count; ++index) {
+                SDL_Rect bounds{};
+                check(SDL_GetDisplayBounds(displays.get()[index], &bounds), SDL_GetError());
+                state->frames.clear();
+                check(surface.draw(effect::EffectTarget::display_at(bounds.x, bounds.y)).is_ok(),
+                    "generic content selects one display during playback");
+                check_visible_displays(displays.get()[index], 1);
+                check(state->frames.size() == 1, "unselected displays never draw their content");
+                const auto& frame = state->frames.front();
+                check(!frame.all_displays && frame.x == bounds.x && frame.y == bounds.y &&
+                          frame.width == bounds.w && frame.height == bounds.h,
+                    "selected content receives the exact logical display geometry");
+            }
+            const auto before = snapshot_windows();
+            const auto draws = state->draws;
+            auto invalid_kind = effect::EffectTarget::all_displays();
+            invalid_kind.kind = static_cast<effect::EffectTargetKind>(-1);
+            auto invalid_layer = effect::EffectTarget::all_displays();
+            invalid_layer.layer = static_cast<effect::EffectLayer>(-1);
+            for (const auto& invalid : {invalid_kind, invalid_layer}) {
+                const auto result = surface.draw(invalid);
+                check(result.is_err() &&
+                          result.unwrap_err().get_error() == effect::EffectError::InvalidArgument,
+                    "generic surface rejects invalid targets before invoking content");
+                check(state->draws == draws && snapshot_windows() == before,
+                    "invalid target changes neither content nor windows");
+            }
+            check(surface.hide(), "generic surface hides all content");
+            check_visible_displays(0, 0);
+            state->fail_draw = true;
+            const auto failed = surface.draw(effect::EffectTarget::all_displays());
+            check(failed.is_err() &&
+                      failed.unwrap_err().get_error() == effect::EffectError::UpdateFailed &&
+                      state->draws == draws + 1,
+                "generic content failure stops drawing and propagates as UpdateFailed");
+            check_visible_displays(0, 0);
+            state->fail_draw = false;
+            check(surface.draw(effect::EffectTarget::all_displays()).is_ok(),
+                "generic content can draw again after a recoverable content error");
+            check_visible_displays(0, display_count);
+            surface.close();
+            check(state->destroyed == state->initialized && window_count() == 0,
+                "all generic content and windows are released");
+            SDL_Quit();
+        }
         void layered_overlays() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             {
@@ -628,6 +702,8 @@ namespace enishi::tests {
 int main() {
     enishi::tests::run_test(
         "Generic effect surface lifecycle", enishi::tests::generic_surface_lifecycle);
+    enishi::tests::run_test(
+        "Generic effect surface targeting", enishi::tests::generic_surface_targeting);
     enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
     enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
     enishi::tests::run_test("Prepared crack renderer reuse", enishi::tests::prepared_overlays);
