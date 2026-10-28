@@ -188,15 +188,17 @@ namespace enishi::platform_impl {
         return {};
     }
     bool EffectSurface::hide() noexcept {
+        bool hidden = true;
         for (auto& overlay : this->overlays) {
             auto* window = overlay.window->get_window_handle().unwrap();
             if (!SDL_HideWindow(window)) {
                 debug::Logger::warning(
                     std::string{"Failed to hide effect overlay: "} + SDL_GetError());
-                return false;
+                // A failed display must not prevent the remaining overlays from being hidden.
+                hidden = false;
             }
         }
-        return true;
+        return hidden;
     }
     void EffectSurface::close() noexcept {
         if (this->overlays.empty()) {
