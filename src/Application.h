@@ -9,7 +9,7 @@
 #include <core/system/window/window_manager.h>
 #include <core/timer/application_timer.h>
 #include <debug/playback/playback_control.h>
-#include <effect/crack/crack_settings.h>
+#include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
 #include <engine_types/input/model_click_settings.h>
 
@@ -39,12 +39,15 @@ namespace enishi {
         std::unique_ptr<render_pass::RenderPassOrchestra> orchestra;
         std::shared_ptr<platform::IShaderDataProvider> effect_shaders;
         std::shared_ptr<effect::EffectManager> effects;
+        std::shared_ptr<effect::CrackEffect> prepared_crack;
+        effect::EffectId screen_crack_id;
 
       public:
         ~Application();
         [[nodiscard]] std::shared_ptr<effect::IEffectPlayer> get_effect_player() const;
         [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack(
-            const effect::CrackSettings& settings = {});
+            const effect::CrackSettings& settings);
+        [[nodiscard]] foundation::Result<effect::EffectId, effect::EffectError> play_screen_crack();
         bool init(void);
         void run(void);
         [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;

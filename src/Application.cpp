@@ -74,6 +74,23 @@ namespace enishi {
         return this->effects->play(std::make_unique<effect::CrackEffect>(
             settings, platform_impl::create_crack_surface(this->effect_shaders)));
     }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack() {
+        if (this->prepared_crack == nullptr || this->effects == nullptr) {
+            return foundation::Error(effect::EffectError::StartFailed,
+                "Default crack effect could not be prepared during initialization");
+        }
+        if (this->effects->is_playing(this->screen_crack_id)) {
+            auto stopped = this->effects->stop(this->screen_crack_id);
+            if (stopped.is_err()) {
+                return std::move(stopped).take_err();
+            }
+        }
+        auto started = this->effects->play_shared(this->prepared_crack);
+        if (started.is_ok()) {
+            this->screen_crack_id = started.unwrap();
+        }
+        return started;
+    }
     std::shared_ptr<effect::IEffectPlayer> Application::get_effect_player() const {
         return this->effects;
     }
@@ -207,6 +224,13 @@ namespace enishi {
             return false;
         }
 
+        this->prepared_crack = std::make_shared<effect::CrackEffect>(
+            effect::CrackSettings{}, platform_impl::create_crack_surface(this->effect_shaders));
+        auto prepared = this->prepared_crack->prepare();
+        if (prepared.is_err()) {
+            debug::Logger::warning(prepared.unwrap_err().get_message());
+            this->prepared_crack.reset();
+        }
         return true;
     }
 
