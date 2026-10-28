@@ -1,9 +1,10 @@
 #include "crack_surface.h"
 #include "crack_pass.h"
 #include <algorithm>
-#include <debug/log/logger.h>
+#include <cmath>
 #include <engine_types/renderer/overlay_properties.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
+#include <platform_impl/window/sdl/sdl_gl_context_restore.h>
 #include <string_view>
 #if defined(_WIN32)
 #include "crack_overlay_windows.h"
@@ -12,22 +13,32 @@
 #endif
 namespace enishi::platform_impl {
     namespace {
-        class ContextRestore {
-          private:
-            SDL_Window* window = SDL_GL_GetCurrentWindow();
-            SDL_GLContext context;
-
-          public:
-            inline explicit ContextRestore(bool enabled = true)
-                : context(enabled ? SDL_GL_GetCurrentContext() : nullptr) {
+        foundation::Result<void, effect::EffectError> validate_surface_input(
+            const effect::CrackSettings& settings, const types::TextureData& mask) {
+            auto valid = effect::validate_crack_settings(settings);
+            if (valid.is_err()) {
+                return valid;
             }
-            inline ~ContextRestore() {
-                if (this->context != nullptr && !SDL_GL_MakeCurrent(this->window, this->context)) {
-                    debug::Logger::warning(
-                        std::string{"Failed to restore OpenGL context: "} + SDL_GetError());
-                }
+            constexpr std::uint32_t RGBA_CHANNELS = 4;
+            // A tightly packed mask requires row_bytes = width * channels and total = row_bytes *
+            // height.
+            const auto row_bytes = settings.mask_size * RGBA_CHANNELS;
+            const auto total_bytes = row_bytes * settings.mask_size;
+            if (mask.format != types::TextureFormat::RGBA8_UNORM || mask.is_cubemap ||
+                mask.width != settings.mask_size || mask.height != settings.mask_size ||
+                mask.depth != 1 || mask.array_size != 1 || mask.mips.size() != 1) {
+                return foundation::Error(
+                    effect::EffectError::InvalidArgument, "Invalid crack surface mask layout");
             }
-        };
+            const auto& mip = mask.mips.front();
+            if (mip.width != mask.width || mip.height != mask.height ||
+                mip.row_pitch != row_bytes || mip.slice_pitch != total_bytes ||
+                mip.pixels.size() != total_bytes) {
+                return foundation::Error(
+                    effect::EffectError::InvalidArgument, "Invalid crack surface mask storage");
+            }
+            return {};
+        }
         struct Overlay {
             std::shared_ptr<SDL3Window> window;
             SDL_GLContext context = nullptr; // Borrowed; the renderer owns its context.
@@ -63,6 +74,10 @@ namespace enishi::platform_impl {
                 return foundation::Error(effect::EffectError::StartFailed,
                     "Crack surface is unavailable or already open");
             }
+            auto valid = validate_surface_input(settings, mask);
+            if (valid.is_err()) {
+                return valid;
+            }
             const char* driver = SDL_GetCurrentVideoDriver();
             if (driver == nullptr ||
                 (std::string_view{driver} != "windows" && std::string_view{driver} != "x11")) {
@@ -70,7 +85,7 @@ namespace enishi::platform_impl {
                     "Desktop crack overlays require Windows or X11; Wayland global positioning is "
                     "unavailable");
             }
-            ContextRestore restore;
+            SDLGLContextRestore restore;
             int count = 0;
             std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays{
                 SDL_GetDisplays(&count), SDL_free};
@@ -147,7 +162,15 @@ namespace enishi::platform_impl {
             return {};
         }
         foundation::Result<void, effect::EffectError> CrackSurface::draw(float opacity) {
-            ContextRestore restore;
+            if (this->overlays.empty()) {
+                return foundation::Error(
+                    effect::EffectError::UpdateFailed, "Crack surface is not open");
+            }
+            if (!std::isfinite(opacity) || opacity < 0 || opacity > 1) {
+                return foundation::Error(effect::EffectError::InvalidArgument,
+                    "Crack opacity must be finite and between zero and one");
+            }
+            SDLGLContextRestore restore;
             for (auto& overlay : this->overlays) {
                 auto* window = overlay.window->get_window_handle().unwrap();
                 if (overlay.context != nullptr && !SDL_GL_MakeCurrent(window, overlay.context)) {
@@ -177,7 +200,7 @@ namespace enishi::platform_impl {
                            overlay.window->get_window_handle().is_some() &&
                            overlay.window->get_window_handle().unwrap() == current;
                 });
-            ContextRestore restore{!owns_current};
+            SDLGLContextRestore restore{!owns_current};
             // Destroy each renderer while its window and GL context still exist.
             for (auto& overlay : this->overlays) {
                 overlay.pass.reset();

@@ -4,11 +4,14 @@
 #include <effect/crack/crack_effect.h>
 #include <fstream>
 #include <iterator>
+#include <limits>
+#include <type_traits>
 #if defined(_WIN32)
 #include <Windows.h>
 #endif
 #include <platform_impl/effect/crack_surface.h>
 #include <platform_impl/renderer/renderer_factory.h>
+#include <platform_impl/window/sdl/sdl_gl_context_restore.h>
 namespace enishi::tests {
     namespace {
         class Shaders final : public platform::IShaderDataProvider {
@@ -82,6 +85,55 @@ namespace enishi::tests {
             }
 #endif
         }
+        void context_restoration() {
+            check(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
+            constexpr int HIDDEN_WINDOW_SIZE = 16;
+            {
+                std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window{
+                    SDL_CreateWindow("Context restoration",
+                        HIDDEN_WINDOW_SIZE,
+                        HIDDEN_WINDOW_SIZE,
+                        SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN),
+                    SDL_DestroyWindow};
+                check(window != nullptr, SDL_GetError());
+                std::unique_ptr<std::remove_pointer_t<SDL_GLContext>,
+                    decltype(&SDL_GL_DestroyContext)>
+                    context{nullptr, SDL_GL_DestroyContext};
+                check(SDL_GL_GetCurrentContext() == nullptr, "fixture begins without a GL context");
+                {
+                    platform_impl::SDLGLContextRestore restore;
+                    context.reset(SDL_GL_CreateContext(window.get()));
+                    check(context != nullptr, SDL_GetError());
+                }
+                check(SDL_GL_GetCurrentContext() == nullptr && SDL_GL_GetCurrentWindow() == nullptr,
+                    "guard detaches a context when the caller had none");
+                check(SDL_GL_MakeCurrent(window.get(), context.get()), SDL_GetError());
+                {
+                    platform_impl::SDLGLContextRestore restore;
+                    check(SDL_GL_MakeCurrent(nullptr, nullptr), SDL_GetError());
+                }
+                check(SDL_GL_GetCurrentContext() == context.get() &&
+                          SDL_GL_GetCurrentWindow() == window.get(),
+                    "guard restores the caller's context and window");
+                check(SDL_GL_MakeCurrent(nullptr, nullptr), SDL_GetError());
+            }
+            SDL_Quit();
+        }
+        void surface_contract() {
+            auto surface = platform_impl::create_crack_surface(std::make_shared<Shaders>());
+            check(surface->draw(1).is_err(), "unopened surface cannot draw");
+            effect::CrackSettings settings;
+            settings.mask_size = 64;
+            auto mask = effect::make_crack_mask(settings);
+            check(mask.is_ok(), "mask fixture is valid");
+            mask.unwrap_mut().mips.front().pixels.pop_back();
+            auto invalid = surface->open(settings, std::move(mask.unwrap_mut()));
+            check(invalid.is_err() &&
+                      invalid.unwrap_err().get_error() == effect::EffectError::InvalidArgument,
+                "truncated mask rejected before creating renderer resources");
+            surface->close();
+            surface->close();
+        }
         void overlays() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             const int original = window_count();
@@ -92,14 +144,22 @@ namespace enishi::tests {
                 effect::CrackEffect first{settings, platform_impl::create_crack_surface(shaders)};
                 effect::CrackEffect second{settings, platform_impl::create_crack_surface(shaders)};
                 for (auto* effect : {&first, &second}) {
+                    const auto previous_context = SDL_GL_GetCurrentContext();
+                    auto* previous_window = SDL_GL_GetCurrentWindow();
                     auto started = effect->start();
                     if (started.is_err()) {
                         check(false, started.unwrap_err().get_message().c_str());
                     }
+                    check(SDL_GL_GetCurrentContext() == previous_context &&
+                              SDL_GL_GetCurrentWindow() == previous_window,
+                        "start restores the previous GL context, including no context");
                     auto updated = effect->update(types::DeltaTime{std::chrono::milliseconds{16}});
                     if (updated.is_err()) {
                         check(false, updated.unwrap_err().get_message().c_str());
                     }
+                    check(SDL_GL_GetCurrentContext() == previous_context &&
+                              SDL_GL_GetCurrentWindow() == previous_window,
+                        "draw restores the previous GL context");
                 }
                 check(window_count() > original, "effects own display overlays");
                 input_transparency();
@@ -109,6 +169,18 @@ namespace enishi::tests {
                 check((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) != 0,
                     "effects preserve application SDL initialization");
             }
+            auto surface = platform_impl::create_crack_surface(shaders);
+            auto mask = effect::make_crack_mask(settings);
+            check(mask.is_ok(), "opacity test mask is valid");
+            check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+                "opacity test surface opens");
+            for (const float opacity : {-1.0f, 2.0f, std::numeric_limits<float>::quiet_NaN()}) {
+                auto drawn = surface->draw(opacity);
+                check(drawn.is_err() &&
+                          drawn.unwrap_err().get_error() == effect::EffectError::InvalidArgument,
+                    "invalid opacity rejected before GPU upload");
+            }
+            surface->close();
             shaders->force_failure = true;
             effect::CrackEffect failed{settings, platform_impl::create_crack_surface(shaders)};
             check(failed.start().is_err(), "shader failure must propagate from effect start");
@@ -121,5 +193,7 @@ namespace enishi::tests {
     } // namespace
 } // namespace enishi::tests
 int main() {
+    enishi::tests::run_test("SDL GL context restoration", enishi::tests::context_restoration);
+    enishi::tests::run_test("Crack surface input contract", enishi::tests::surface_contract);
     enishi::tests::run_test("Crack overlay renderer lifecycle", enishi::tests::overlays);
 }
