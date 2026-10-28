@@ -1,4 +1,5 @@
 #include "crack_surface.h"
+#include "effect_display_target.h"
 #include <algorithm>
 #include <cmath>
 #include <debug/log/logger.h>
@@ -210,32 +211,23 @@ namespace enishi::platform_impl {
                 return foundation::Error(effect::EffectError::InvalidArgument,
                     "Crack opacity must be finite and between zero and one");
             }
-            SDL_DisplayID selected = 0;
-            switch (target.kind) {
-                case effect::EffectTargetKind::AllDisplays:
-                    break;
-                case effect::EffectTargetKind::DisplayAtPoint: {
-                    const SDL_Point point{target.x, target.y};
-                    selected = SDL_GetDisplayForPoint(&point);
-                    if (selected == 0 || std::none_of(this->overlays.begin(),
-                                             this->overlays.end(),
-                                             [selected](const auto& overlay) {
-                                                 return overlay.display == selected;
-                                             })) {
-                        return foundation::Error(effect::EffectError::UpdateFailed,
-                            "Target display is unavailable; prepare the effect again after display "
-                            "changes");
-                    }
-                    break;
-                }
-                default:
-                    return foundation::Error(
-                        effect::EffectError::InvalidArgument, "Unknown effect target");
+            auto resolved = resolve_effect_display(target);
+            if (resolved.is_err()) {
+                return std::move(resolved).take_err();
+            }
+            const auto selected = resolved.unwrap();
+            if (selected.has_value() &&
+                std::none_of(this->overlays.begin(),
+                    this->overlays.end(),
+                    [&selected](const auto& overlay) { return overlay.display == *selected; })) {
+                return foundation::Error(effect::EffectError::UpdateFailed,
+                    "Target display is unavailable; prepare the effect again after display "
+                    "changes");
             }
             SDLGLContextRestore restore;
             for (auto& overlay : this->overlays) {
                 auto* window = overlay.window->get_window_handle().unwrap();
-                if (selected != 0 && overlay.display != selected) {
+                if (selected.has_value() && overlay.display != *selected) {
                     if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) == 0 &&
                         !SDL_HideWindow(window)) {
                         return foundation::Error(
@@ -251,7 +243,7 @@ namespace enishi::platform_impl {
                 if (this->radial) {
                     constexpr float MASK_CENTER = 0.5f;
                     const auto& bounds = overlay.bounds;
-                    const float span = impact.has_value() && selected == 0
+                    const float span = impact.has_value() && !selected.has_value()
                                            ? this->desktop_span
                                            : static_cast<float>((std::max)(bounds.w, bounds.h));
                     // mask_uv = 0.5 + (desktop_pixel - impact_pixel) / (2 * desktop_span).
