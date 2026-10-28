@@ -10,7 +10,9 @@
 #include <memory>
 #include <optional>
 #include <platform/window/interface_window.h>
-#include <sub_system/ui/interface_ui.h>
+namespace enishi::sub_system {
+    class IUI;
+}
 
 namespace enishi::platform_impl {
     struct SDLWindowDeleter {
@@ -55,6 +57,8 @@ namespace enishi::platform_impl {
             SDL_WindowFlags extra_flags = 0);
 
         ~SDL3Window(void) noexcept;
+
+        [[nodiscard]] static foundation::Option<platform::WindowSystem> current_window_system();
 
         foundation::Option<SDL_Window*> get_window_handle(void) const;
         void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);

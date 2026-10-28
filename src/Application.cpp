@@ -346,7 +346,7 @@ namespace enishi {
     std::shared_ptr<platform::IWindow> Application::init_window(void) {
         const auto window = std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
             INIT_WINDOW_SIZE,
-            platform::WindowSystem::Windows,
+            platform::WindowSystem::Automatic,
             platform_impl::render_backend_description().api);
         window->set_debug_playback(this->debug_playback);
         const auto window_manager =
