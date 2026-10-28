@@ -3,7 +3,7 @@
 #include <cstring>
 #include <engine_types/renderer/texture/model_texture.h>
 #include <render_pass/constructor/pipeline_description_builder.h>
-namespace enishi::platform_impl {
+namespace enishi::render_pass {
     namespace {
         constexpr char UNIFORM_NAME[] = "Crack";
         constexpr char MASK_PATH[] = "generated-crack-mask";
@@ -13,14 +13,14 @@ namespace enishi::platform_impl {
         };
         static_assert(sizeof(CrackUniform) == 2 * sizeof(glm::vec4));
         static_assert(offsetof(CrackUniform, texel_size) == sizeof(glm::vec4));
-        CrackUniform make_uniform(const effect::CrackSettings& settings, float opacity) {
+        CrackUniform make_uniform(const CrackPass::Settings& settings, float opacity) {
             // Texture-space finite differences use a one-texel displacement, 1 / resolution.
             const float texel = 1.0f / static_cast<float>(settings.mask_size);
             return {
                 {settings.view_x, settings.view_y, settings.depth, opacity}, {texel, texel, 0, 0}};
         }
         types::ModelData make_quad(
-            const effect::CrackSettings& settings, std::shared_ptr<types::TextureData> mask) {
+            const CrackPass::Settings& settings, std::shared_ptr<types::TextureData> mask) {
             types::ModelData model;
             constexpr float CLIP_EDGE = 1.0f;
             for (const auto position : {glm::vec3{-CLIP_EDGE, -CLIP_EDGE, 0},
@@ -53,21 +53,24 @@ namespace enishi::platform_impl {
             return model;
         }
     } // namespace
-    CrackPass::CrackPass(RendererInstance graphics, effect::CrackSettings settings)
-        : graphics(std::move(graphics))
+    CrackPass::CrackPass(std::shared_ptr<platform::IRenderer> renderer,
+        std::shared_ptr<platform::IRenderCommandEncoder> encoder,
+        Settings settings)
+        : renderer(std::move(renderer))
+        , encoder(std::move(encoder))
         , settings(settings) {
     }
     platform::RenderResult<void> CrackPass::initialize(const platform::IWindow& window,
         const platform::IShaderDataProvider& shaders,
+        const platform::RenderBackendDescription& backend,
         std::shared_ptr<types::TextureData> mask) {
-        const auto backend = render_backend_description();
         const std::vector<std::tuple<types::ShaderKind, std::filesystem::path>> paths{
             {types::ShaderKind::Vertex, "vs_crack" + backend.shader_suffix},
             {types::ShaderKind::Pixel, "ps_crack" + backend.shader_suffix}};
         auto sampler = types::SamplerStateDescription::clamp_linear();
         sampler.anisotropy = types::AnisotropyLevel::None;
         auto description =
-            render_pass::PipelineDescriptionConstructer{this->graphics.renderer.get(), &window}
+            render_pass::PipelineDescriptionConstructer{this->renderer.get(), &window}
                 .add_topology(types::PrimitiveTopology::TriangleList)
                 ->add_swap_chain_render_target_view(types::ImageFormat::BGRA8_UNORM)
                 ->add_shaders(&shaders, paths)
@@ -94,7 +97,7 @@ namespace enishi::platform_impl {
             return built;
         }
         const auto reflections = this->pass.get_shader_reflections();
-        auto mesh = this->graphics.renderer->create_mesh(
+        auto mesh = this->renderer->create_mesh(
             make_quad(this->settings, std::move(mask)), {reflections.begin(), reflections.end()});
         if (mesh.is_err()) {
             return std::move(mesh).take_err();
@@ -104,11 +107,11 @@ namespace enishi::platform_impl {
         return {};
     }
     platform::RenderResult<void> CrackPass::update_uniform(float opacity) {
-        const auto mapped = this->graphics.renderer->get_handle_mapper()->get(this->mesh);
+        const auto mapped = this->renderer->get_handle_mapper()->get(this->mesh);
         if (mapped.is_none()) {
             return foundation::Error(platform::RenderError::ResolveError, "Crack mesh is missing");
         }
-        auto* resources = this->graphics.renderer->get_resource_accessor()->get_resource_accessor();
+        auto* resources = this->renderer->get_resource_accessor()->get_resource_accessor();
         const auto handles =
             resources->get_mesh_accessor()->get_mesh_handle(mapped.unwrap().resource);
         if (handles.is_none() || handles.unwrap().material_uniform_buffers.size() != 1) {
@@ -140,11 +143,11 @@ namespace enishi::platform_impl {
             return updated;
         }
         this->submit();
-        this->graphics.encoder->present();
+        this->encoder->present();
         return {};
     }
     void CrackPass::submit() {
-        const auto& encoder = this->graphics.encoder;
+        const auto& encoder = this->encoder;
         encoder->setup_viewports();
         encoder->setup_views();
         const auto target = this->pass.get_render_target();
@@ -196,4 +199,4 @@ namespace enishi::platform_impl {
             }
         }
     }
-} // namespace enishi::platform_impl
+} // namespace enishi::render_pass

@@ -1,10 +1,11 @@
 #include "crack_surface.h"
-#include "crack_pass.h"
 #include <algorithm>
 #include <cmath>
 #include <engine_types/renderer/overlay_properties.h>
+#include <platform_impl/renderer/renderer_factory.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
 #include <platform_impl/window/sdl/sdl_gl_context_restore.h>
+#include <render_pass/crack_pass.h>
 #include <string_view>
 #if defined(_WIN32)
 #include "crack_overlay_windows.h"
@@ -42,7 +43,7 @@ namespace enishi::platform_impl {
         struct Overlay {
             std::shared_ptr<SDL3Window> window;
             SDL_GLContext context = nullptr; // Borrowed; the renderer owns its context.
-            std::unique_ptr<CrackPass> pass;
+            std::unique_ptr<render_pass::CrackPass> pass;
         };
         class CrackSurface final : public effect::ICrackSurface {
           private:
@@ -154,8 +155,16 @@ namespace enishi::platform_impl {
             if (viewport.is_err()) {
                 return viewport.propagation(effect::EffectError::StartFailed);
             }
-            overlay.pass = std::make_unique<CrackPass>(std::move(graphics.unwrap_mut()), settings);
-            auto built = overlay.pass->initialize(*overlay.window, *this->shaders, std::move(mask));
+            overlay.pass =
+                std::make_unique<render_pass::CrackPass>(std::move(graphics.unwrap_mut().renderer),
+                    std::move(graphics.unwrap_mut().encoder),
+                    render_pass::CrackPass::Settings{.view_x = settings.view_x,
+                        .view_y = settings.view_y,
+                        .depth = settings.depth,
+                        .mask_size = settings.mask_size,
+                        .opacity = settings.opacity});
+            auto built =
+                overlay.pass->initialize(*overlay.window, *this->shaders, backend, std::move(mask));
             if (built.is_err()) {
                 return built.propagation(effect::EffectError::StartFailed);
             }
