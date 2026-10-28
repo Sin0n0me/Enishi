@@ -12,7 +12,7 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
+set(SOURCES
     "Application.h"
     "Application.cpp"
     "settings.h"
