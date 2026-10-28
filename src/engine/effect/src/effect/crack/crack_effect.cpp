@@ -8,9 +8,7 @@ namespace enishi::effect {
     }
     CrackEffect::~CrackEffect() noexcept {
         this->stop();
-        if (this->resources_open) {
-            this->surface->close();
-        }
+        this->release();
     }
     foundation::Result<void, EffectError> CrackEffect::prepare() {
         if (this->started) {
@@ -35,7 +33,7 @@ namespace enishi::effect {
         this->started = true;
         auto drawn = this->surface->draw(this->settings.opacity, this->impact, this->target);
         if (drawn.is_err()) {
-            this->stop();
+            this->release();
         }
         return drawn;
     }
@@ -77,6 +75,7 @@ namespace enishi::effect {
         }
         auto drawn = this->surface->draw(opacity, this->impact, this->target);
         if (drawn.is_err()) {
+            this->release();
             return std::move(drawn).take_err();
         }
         return EffectStatus::Running;
@@ -89,13 +88,17 @@ namespace enishi::effect {
     }
     void CrackEffect::stop() noexcept {
         if (this->started) {
-            if (this->reusable) {
-                this->surface->hide();
-            } else {
-                this->surface->close();
-                this->resources_open = false;
+            if (!this->reusable || !this->surface->hide()) {
+                this->release();
             }
             this->started = false;
         }
+    }
+    void CrackEffect::release() noexcept {
+        if (this->resources_open) {
+            this->surface->close();
+            this->resources_open = false;
+        }
+        this->started = false;
     }
 } // namespace enishi::effect

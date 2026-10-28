@@ -11,7 +11,7 @@ namespace enishi::effect {
         virtual foundation::Result<void, EffectError> draw(float opacity,
             std::optional<CrackImpact> impact = std::nullopt,
             const EffectTarget& target = {}) = 0;
-        virtual void hide() noexcept = 0;
+        [[nodiscard]] virtual bool hide() noexcept = 0;
         virtual void close() noexcept = 0;
     };
 } // namespace enishi::effect

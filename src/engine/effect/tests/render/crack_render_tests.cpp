@@ -239,7 +239,7 @@ namespace enishi::tests {
                 check(surface->draw(1, std::nullopt, invalid).is_err(), "unknown target rejected");
                 check(shaders->loads == loads && window_count() == display_count,
                     "target changes reuse the prepared shaders and windows");
-                surface->hide();
+                check(surface->hide(), "overlay hides successfully");
                 check_visible_displays(0, 0);
             }
             check(window_count() == 0, "targeted windows released");

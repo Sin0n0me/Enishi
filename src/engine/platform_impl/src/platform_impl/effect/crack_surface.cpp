@@ -63,7 +63,7 @@ namespace enishi::platform_impl {
             foundation::Result<void, effect::EffectError> draw(float opacity,
                 std::optional<effect::CrackImpact> impact,
                 const effect::EffectTarget& target) override;
-            void hide() noexcept override;
+            bool hide() noexcept override;
             void close() noexcept override;
 
           private:
@@ -277,16 +277,16 @@ namespace enishi::platform_impl {
             }
             return {};
         }
-        void CrackSurface::hide() noexcept {
+        bool CrackSurface::hide() noexcept {
             for (auto& overlay : this->overlays) {
                 auto* window = overlay.window->get_window_handle().unwrap();
                 if (!SDL_HideWindow(window)) {
                     debug::Logger::warning(
                         std::string{"Failed to hide crack overlay: "} + SDL_GetError());
-                    this->close();
-                    return;
+                    return false;
                 }
             }
+            return true;
         }
         void CrackSurface::close() noexcept {
             if (this->overlays.empty()) {

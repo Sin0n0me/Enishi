@@ -28,5 +28,6 @@ namespace enishi::effect {
 
       private:
         foundation::Result<void, EffectError> open();
+        void release() noexcept;
     };
 } // namespace enishi::effect

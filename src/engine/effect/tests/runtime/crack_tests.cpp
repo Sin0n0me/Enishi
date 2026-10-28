@@ -18,6 +18,7 @@ namespace enishi::tests {
             effect::EffectTarget target;
             bool fail_open = false;
             bool fail_draw = false;
+            bool fail_hide = false;
         };
         class Surface final : public effect::ICrackSurface {
           private:
@@ -30,7 +31,7 @@ namespace enishi::tests {
             foundation::Result<void, effect::EffectError> draw(float opacity,
                 std::optional<effect::CrackImpact> impact,
                 const effect::EffectTarget& target) override;
-            void hide() noexcept override;
+            bool hide() noexcept override;
             void close() noexcept override;
         };
         Surface::Surface(std::shared_ptr<SurfaceState> state)
@@ -57,8 +58,9 @@ namespace enishi::tests {
             }
             return {};
         }
-        void Surface::hide() noexcept {
+        bool Surface::hide() noexcept {
             ++this->state->hides;
+            return !this->state->fail_hide;
         }
         void Surface::close() noexcept {
             ++this->state->closes;
@@ -246,6 +248,31 @@ namespace enishi::tests {
             check(state->closes == 1 && state->hides == 3,
                 "retained resources released on destruction");
         }
+        void prepared_failure_recovery() {
+            auto state = std::make_shared<SurfaceState>();
+            effect::CrackSettings settings;
+            settings.mask_size = 32;
+            effect::CrackEffect crack{settings, std::make_unique<Surface>(state)};
+            check(crack.prepare().is_ok() && crack.start().is_ok(), "prepared fixture starts");
+            state->fail_hide = true;
+            crack.stop();
+            check(state->closes == 1, "failed hide releases unusable prepared resources");
+            state->fail_hide = false;
+            check(
+                crack.start().is_ok() && state->opens == 2, "playback recovers after hide failure");
+            state->fail_draw = true;
+            check(crack.update(types::DeltaTime{std::chrono::milliseconds{1}}).is_err(),
+                "draw failure propagates");
+            check(state->closes == 2, "draw failure invalidates prepared resources");
+            state->fail_draw = false;
+            check(crack.prepare().is_ok() && state->opens == 3,
+                "failed renderer can be prepared again");
+            state->fail_draw = true;
+            check(crack.start().is_err() && state->closes == 3,
+                "failed first draw also releases resources");
+            crack.stop();
+            check(state->closes == 3, "failure cleanup is idempotent");
+        }
         void crack_failures() {
             for (const bool fail_open : {false, true}) {
                 auto state = std::make_shared<SurfaceState>();
@@ -270,5 +297,6 @@ namespace enishi::tests {
         run_test("Crack fade and lifetime", crack_lifecycle);
         run_test("Crack surface failure cleanup", crack_failures);
         run_test("Prepared crack playback", prepared_playback);
+        run_test("Prepared failure recovery", prepared_failure_recovery);
     }
 } // namespace enishi::tests
