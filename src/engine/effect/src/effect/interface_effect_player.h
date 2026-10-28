@@ -6,7 +6,7 @@ namespace enishi::effect {
     // Main-thread API. The player must outlive every call and all effect callbacks.
     class IEffectPlayer {
       public:
-        virtual ~IEffectPlayer() noexcept = default;
+        inline virtual ~IEffectPlayer() noexcept = default;
         // Each accepted instance starts once. Rejected instances are destroyed without starting.
         [[nodiscard]] virtual foundation::Result<EffectId, EffectError> play(
             std::unique_ptr<IEffect> effect) = 0;

@@ -12,7 +12,7 @@ namespace enishi::effect {
         inline IEffect() = default;
         IEffect(const IEffect&) = delete;
         IEffect& operator=(const IEffect&) = delete;
-        virtual ~IEffect() noexcept = default;
+        inline virtual ~IEffect() noexcept = default;
         [[nodiscard]] virtual foundation::Result<void, EffectError> start() = 0;
         [[nodiscard]] virtual foundation::Result<EffectStatus, EffectError> update(
             const types::DeltaTime& delta_time) = 0;
