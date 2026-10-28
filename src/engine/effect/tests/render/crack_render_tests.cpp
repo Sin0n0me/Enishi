@@ -5,6 +5,7 @@
 #include <array>
 #include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -379,6 +380,46 @@ namespace enishi::tests {
             });
             return result;
         }
+        void check_preserved_geometry(const WindowSnapshot& before, const WindowSnapshot& after) {
+            check(after.id == before.id && after.x == before.x && after.y == before.y &&
+                      after.width == before.width && after.height == before.height,
+                std::format("layer transitions preserve window geometry: "
+                            "id {} -> {}, ({}, {}, {}, {}) -> ({}, {}, {}, {})",
+                    before.id,
+                    after.id,
+                    before.x,
+                    before.y,
+                    before.width,
+                    before.height,
+                    after.x,
+                    after.y,
+                    after.width,
+                    after.height)
+                    .c_str());
+        }
+        void check_display_coverage(SDL_Window* window) {
+            const bool synchronized = SDL_SyncWindow(window);
+            SDL_Rect bounds{};
+            SDL_Rect actual{};
+            check(SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &bounds), SDL_GetError());
+            check(SDL_GetWindowPosition(window, &actual.x, &actual.y), SDL_GetError());
+            check(SDL_GetWindowSize(window, &actual.w, &actual.h), SDL_GetError());
+            check(synchronized && actual.x == bounds.x && actual.y == bounds.y &&
+                      actual.w == bounds.w && actual.h == bounds.h,
+                std::format("visible overlay {} must cover display ({}, {}, {}, {}), got "
+                            "({}, {}, {}, {}), synchronized={} after layer transition or replay",
+                    SDL_GetWindowID(window),
+                    bounds.x,
+                    bounds.y,
+                    bounds.w,
+                    bounds.h,
+                    actual.x,
+                    actual.y,
+                    actual.w,
+                    actual.h,
+                    synchronized)
+                    .c_str());
+        }
         void check_overlay_layer(SDL_Window* model,
             effect::EffectLayer layer,
             SDL_DisplayID selected,
@@ -401,6 +442,7 @@ namespace enishi::tests {
                 if (!expected) {
                     continue;
                 }
+                check_display_coverage(window);
                 ++visible;
                 const bool foreground = layer == effect::EffectLayer::Foreground;
                 check(((SDL_GetWindowFlags(window) & SDL_WINDOW_ALWAYS_ON_TOP) != 0) == foreground,
@@ -618,12 +660,7 @@ namespace enishi::tests {
                 check(after.size() == prepared.size() && shaders->loads == loads,
                     "layer changes do not create windows or reload shaders");
                 for (std::size_t index = 0; index < prepared.size(); ++index) {
-                    check(after[index].id == prepared[index].id &&
-                              after[index].x == prepared[index].x &&
-                              after[index].y == prepared[index].y &&
-                              after[index].width == prepared[index].width &&
-                              after[index].height == prepared[index].height,
-                        "layer transitions preserve each window's identity and geometry");
+                    check_preserved_geometry(prepared[index], after[index]);
                 }
                 surface->close();
                 surface->close();

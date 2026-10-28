@@ -176,7 +176,10 @@ namespace enishi::platform_impl {
                 return drawn.propagation(effect::EffectError::UpdateFailed);
             }
             if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) != 0) {
-                if (!set_effect_overlay_layer(window, target.layer) || !SDL_ShowWindow(window)) {
+                // Window managers may apply placement rules when mapping a utility window.
+                // Restore the display origin after showing, without synchronizing every frame.
+                if (!set_effect_overlay_layer(window, target.layer) || !SDL_ShowWindow(window) ||
+                    !SDL_SetWindowPosition(window, bounds.x, bounds.y)) {
                     return foundation::Error(
                         effect::EffectError::UpdateFailed, std::string{SDL_GetError()});
                 }
