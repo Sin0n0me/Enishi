@@ -1,6 +1,6 @@
 #include "effect_runtime_tests.h"
-#include "crack_tests.h"
 #include "../../../core/tests/test_runner.h"
+#include "crack_tests.h"
 #include <chrono>
 #include <effect/effect_manager.h>
 #include <functional>
@@ -89,6 +89,36 @@ namespace enishi::tests {
             auto result = manager.update(FRAME);
             check(result.is_ok(), "update must succeed");
             check(result.unwrap().empty(), "unexpected effect failures");
+        }
+        void shared_ownership() {
+            auto state = std::make_shared<State>();
+            auto instance = std::make_shared<FakeEffect>(state);
+            EffectManager first;
+            EffectManager second;
+            state->on_start = [&]() {
+                auto rejected = second.play_shared(instance);
+                check(rejected.is_err() && rejected.unwrap_err().get_error() == EffectError::Busy,
+                    "cross-player reentrancy is rejected before start");
+            };
+            auto id = first.play_shared(instance);
+            check(id.is_ok(), "shared instance starts");
+            state->on_start = {};
+            check(second.play_shared(instance).is_err() && state->starts == 1 && state->stops == 0,
+                "another player cannot start or stop an active instance");
+            state->on_stop = [&]() {
+                check(second.play_shared(instance).is_err(),
+                    "ownership remains held during stop callback");
+            };
+            check(first.stop(id.unwrap()).is_ok(), "first player releases ownership");
+            state->on_stop = {};
+            state->fail_start = true;
+            check(second.play_shared(instance).is_err() && state->stops == 2,
+                "failed start is cleaned up exactly once");
+            state->fail_start = false;
+            auto restarted = first.play_shared(instance);
+            check(restarted.is_ok(), "failed start releases ownership for a later retry");
+            check(first.stop(restarted.unwrap()).is_ok() && state->stops == 3,
+                "new playback stops independently");
         }
         void lifecycle() {
             auto first = std::make_shared<State>();
@@ -297,6 +327,7 @@ namespace enishi::tests {
 int main() {
     enishi::tests::run_crack_tests();
     enishi::tests::run_test("Lifecycle through playback interface", enishi::tests::lifecycle);
+    enishi::tests::run_test("Shared effect ownership", enishi::tests::shared_ownership);
     enishi::tests::run_test("Failure diagnostics and isolation", enishi::tests::failure_isolation);
     enishi::tests::run_test("Invalid arguments and stop_all", enishi::tests::invalid_arguments);
     enishi::tests::run_test("ID exhaustion", enishi::tests::id_exhaustion);

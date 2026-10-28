@@ -23,6 +23,7 @@ namespace enishi::effect {
         [[nodiscard]] foundation::Result<EffectId, EffectError> play(
             std::unique_ptr<IEffect> effect) override;
         // Retains caller ownership so a prepared effect can be played again after stopping.
+        // While managed, only this player may invoke the instance's lifecycle methods.
         [[nodiscard]] foundation::Result<EffectId, EffectError> play_shared(
             std::shared_ptr<IEffect> effect);
         [[nodiscard]] foundation::Result<bool, EffectError> stop(EffectId id) override;

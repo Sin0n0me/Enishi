@@ -32,9 +32,11 @@ namespace enishi::effect {
     };
     EffectManager::Entry::Entry(std::shared_ptr<IEffect> effect)
         : effect(std::move(effect)) {
+        this->effect->managed = true;
     }
     EffectManager::Entry::~Entry() {
         this->effect->stop();
+        this->effect->managed = false;
     }
     EffectManager::EffectManager() = default;
     EffectManager::~EffectManager() noexcept {
@@ -52,10 +54,8 @@ namespace enishi::effect {
         if (effect == nullptr) {
             return foundation::Error{EffectError::InvalidArgument, "Effect must not be null"};
         }
-        for (const auto& [id, entry] : this->entries) {
-            if (entry->effect == effect) {
-                return foundation::Error{EffectError::Busy, "Effect is already playing"};
-            }
+        if (effect->managed) {
+            return foundation::Error{EffectError::Busy, "Effect is already managed by a player"};
         }
         if (this->next_id == EffectId::INVALID_VALUE) {
             return foundation::Error{EffectError::IdExhausted, "Effect IDs are exhausted"};
