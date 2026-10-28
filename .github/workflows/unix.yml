@@ -1,0 +1,147 @@
+name: Linux and macOS
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CC: clang-19
+      CXX: clang++-19
+      LIBGL_ALWAYS_SOFTWARE: '1'
+      SDL_VIDEO_DRIVER: x11
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install build and desktop test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev python3-jinja2 \
+            spirv-tools libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libxss-dev libxtst-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libasound2-dev libpulse-dev xvfb xauth openbox xcompmgr
+          rustup toolchain install 1.88.0 --profile minimal
+      - name: Install pinned shader compiler
+        run: |
+          mkdir -p "$RUNNER_TEMP/dxc"
+          curl --fail --location --retry 3 \
+            https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/linux_dxc_2025_07_14.x86_64.tar.gz \
+            -o "$RUNNER_TEMP/dxc.tar.gz"
+          tar -xzf "$RUNNER_TEMP/dxc.tar.gz" -C "$RUNNER_TEMP/dxc"
+          echo "$RUNNER_TEMP/dxc/bin" >> "$GITHUB_PATH"
+      - name: Check presets
+        run: python3 tools/generate_cmake_presets.py --check
+      - name: Configure
+        run: |
+          cmake --preset linux-opengl-clang-debug -S src \
+            -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 \
+            -DSDL_WAYLAND=OFF -DSDL_SHARED=OFF -DSDL_STATIC=ON \
+            -DENISHI_SHADER_RUNTIME_ROOT=./shader \
+            -DENISHI_OPENGL_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON \
+            -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON -DENISHI_ECS_TESTS=ON
+      - name: Build application and tests
+        run: |
+          cmake --build build/presets/linux-opengl-clang-debug --parallel 3 \
+            --target enishi_engine crack_render_tests opengl_shadow_tests \
+            enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests
+      - name: Test under an X11 compositor
+        run: |
+          xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX +render -noreset' bash -e -c '
+            openbox > /tmp/enishi-openbox.log 2>&1 & wm=$!
+            xcompmgr > /tmp/enishi-compositor.log 2>&1 & compositor=$!
+            trap "kill $wm $compositor 2>/dev/null || true" EXIT
+            ready=false
+            for attempt in {1..50}; do
+              if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q "window id"; then ready=true; break; fi
+              sleep 0.1
+            done
+            $ready
+            ctest --test-dir build/presets/linux-opengl-clang-debug --output-on-failure \
+              --no-tests=error --output-junit test-results.xml
+          '
+      - name: Upload validated portable shaders
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-opengl-shaders
+          path: build/presets/linux-opengl-clang-debug/shader/opengl/
+          if-no-files-found: error
+      - name: Package Linux executable
+        run: |
+          tar -czf build/enishi-linux-debug.tar.gz \
+            -C "$GITHUB_WORKSPACE/build/presets/linux-opengl-clang-debug" enishi_engine shader \
+            -C "$GITHUB_WORKSPACE" config
+      - name: Upload Linux executable and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enishi-linux-debug
+          path: |
+            build/enishi-linux-debug.tar.gz
+            build/presets/linux-opengl-clang-debug/test-results.xml
+            build/presets/linux-opengl-clang-debug/Testing/Temporary/LastTest.log
+          retention-days: 7
+
+  macos:
+    needs: linux
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install build tools
+        run: |
+          brew install llvm@21 ninja icu4c
+          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
+          rustup toolchain install 1.88.0 --profile minimal
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-opengl-shaders
+          path: build/portable-shaders
+      - name: Configure
+        run: |
+          cmake --preset macos-opengl-clang-debug -S src \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix icu4c)" \
+            -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix llvm@21)/lib/c++" \
+            -DCMAKE_BUILD_RPATH="$(brew --prefix llvm@21)/lib/c++" \
+            -DSDL_SHARED=OFF -DSDL_STATIC=ON \
+            -DENISHI_SHADER_RUNTIME_ROOT=./shader \
+            -DENISHI_PRECOMPILED_SHADER_DIRECTORY="$GITHUB_WORKSPACE/build/portable-shaders" \
+            -DENISHI_OPENGL_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON \
+            -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON -DENISHI_ECS_TESTS=ON
+      - name: Build application and tests
+        run: |
+          cmake --build build/presets/macos-opengl-clang-debug --parallel 3 \
+            --target enishi_engine crack_render_tests opengl_shadow_tests \
+            enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests
+      - name: Test on Cocoa and CGL
+        run: |
+          ctest --test-dir build/presets/macos-opengl-clang-debug --output-on-failure \
+            --no-tests=error --output-junit test-results.xml
+      - name: Package macOS executable
+        run: |
+          tar -czf build/enishi-macos-debug.tar.gz \
+            -C "$GITHUB_WORKSPACE/build/presets/macos-opengl-clang-debug" enishi_engine shader \
+            -C "$GITHUB_WORKSPACE" config
+      - name: Upload macOS executable and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enishi-macos-debug
+          path: |
+            build/enishi-macos-debug.tar.gz
+            build/presets/macos-opengl-clang-debug/test-results.xml
+            build/presets/macos-opengl-clang-debug/Testing/Temporary/LastTest.log
+          retention-days: 7
