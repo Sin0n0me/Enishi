@@ -228,10 +228,12 @@ namespace enishi::tests {
                 check(state->opens == 1 && state->draws == 0, "prepare does not show the effect");
                 for (int repeat = 0; repeat < 3; ++repeat) {
                     crack->set_impact(effect::CrackImpact{repeat * 100, -200});
-                    crack->set_target(effect::EffectTarget::display_at(repeat * 100, -200));
+                    crack->set_target(effect::EffectTarget::display_at(
+                        repeat * 100, -200, effect::EffectLayer::Background));
                     auto id = manager.play_shared(crack);
                     check(state->target.kind == effect::EffectTargetKind::DisplayAtPoint &&
-                              state->target.x == repeat * 100 && state->target.y == -200,
+                              state->target.x == repeat * 100 && state->target.y == -200 &&
+                              state->target.layer == effect::EffectLayer::Background,
                         "playback forwards its display target without reopening resources");
                     check(state->impact.has_value() && state->impact->x == repeat * 100 &&
                               state->impact->y == -200,
