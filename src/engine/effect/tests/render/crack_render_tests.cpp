@@ -1,6 +1,8 @@
 #include "crack_render_tests.h"
 #include "../../../core/tests/test_runner.h"
 #include <SDL3/SDL.h>
+#include <algorithm>
+#include <array>
 #include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
 #include <fstream>
@@ -288,6 +290,9 @@ namespace enishi::tests {
                 SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
         }
         bool window_is_above(HWND first, HWND second) {
+            check(first != nullptr && second != nullptr && first != second &&
+                      IsWindow(first) != 0 && IsWindow(second) != 0,
+                "Z-order comparison requires two distinct live windows");
             for (auto window = GetTopWindow(nullptr); window != nullptr;
                  window = GetWindow(window, GW_HWNDNEXT)) {
                 if (window == first) {
@@ -300,16 +305,59 @@ namespace enishi::tests {
             return false;
         }
 #endif
-        void check_overlay_layer(SDL_Window* model, effect::EffectLayer layer) {
+        struct WindowSnapshot {
+            SDL_WindowID id = 0;
+            SDL_WindowFlags flags = 0;
+            int x = 0;
+            int y = 0;
+            int width = 0;
+            int height = 0;
+
+            bool operator==(const WindowSnapshot&) const = default;
+        };
+        std::vector<WindowSnapshot> snapshot_windows() {
             int count = 0;
             std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
                 SDL_GetWindows(&count), SDL_free};
             check(windows != nullptr, SDL_GetError());
+            std::vector<WindowSnapshot> result;
+            for (int index = 0; index < count; ++index) {
+                auto* window = windows.get()[index];
+                WindowSnapshot snapshot;
+                snapshot.id = SDL_GetWindowID(window);
+                snapshot.flags = SDL_GetWindowFlags(window);
+                check(SDL_GetWindowPosition(window, &snapshot.x, &snapshot.y), SDL_GetError());
+                check(SDL_GetWindowSize(window, &snapshot.width, &snapshot.height), SDL_GetError());
+                result.push_back(snapshot);
+            }
+            std::sort(result.begin(), result.end(), [](const auto& left, const auto& right) {
+                return left.id < right.id;
+            });
+            return result;
+        }
+        void check_overlay_layer(SDL_Window* model,
+            effect::EffectLayer layer,
+            SDL_DisplayID selected,
+            int expected_visible) {
+            int count = 0;
+            std::unique_ptr<SDL_Window*, decltype(&SDL_free)> windows{
+                SDL_GetWindows(&count), SDL_free};
+            check(windows != nullptr, SDL_GetError());
+            int visible = 0;
             for (int index = 0; index < count; ++index) {
                 auto* window = windows.get()[index];
                 if (window == model) {
                     continue;
                 }
+                const bool expected =
+                    expected_visible > 0 &&
+                    (selected == 0 || SDL_GetDisplayForWindow(window) == selected);
+                check(((SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) == 0) == expected,
+                    "only the requested displays are visible at each layer transition");
+                if (!expected) {
+                    continue;
+                }
+                ++visible;
                 const bool foreground = layer == effect::EffectLayer::Foreground;
                 check(((SDL_GetWindowFlags(window) & SDL_WINDOW_ALWAYS_ON_TOP) != 0) == foreground,
                     "overlay uses the requested stacking layer");
@@ -317,7 +365,76 @@ namespace enishi::tests {
                 check(foreground ? window_is_above(native_window(window), native_window(model))
                                  : window_is_above(native_window(model), native_window(window)),
                     "native Z order places the effect on the requested side of the model");
+                RECT bounds{};
+                const auto native = native_window(window);
+                check(GetWindowRect(native, &bounds) != 0, "visible overlay has native bounds");
+                // The hit-test point is the rectangle midpoint: origin + extent / 2.
+                const POINT center{bounds.left + (bounds.right - bounds.left) / 2,
+                    bounds.top + (bounds.bottom - bounds.top) / 2};
+                check(WindowFromPoint(center) != native,
+                    "layer transitions preserve overlay input transparency");
 #endif
+            }
+            check(visible == expected_visible, "layer assertions cover every expected overlay");
+        }
+        void verify_layer_draw(effect::ICrackSurface& surface,
+            SDL_Window* model,
+            const effect::EffectTarget& target,
+            SDL_DisplayID selected,
+            int expected_visible) {
+#if defined(_WIN32)
+            const auto focus = GetForegroundWindow();
+#endif
+            auto drawn = surface.draw(1, std::nullopt, target);
+            check(drawn.is_ok(), "layer draw succeeds");
+            check_overlay_layer(model, target.layer, selected, expected_visible);
+#if defined(_WIN32)
+            check(GetForegroundWindow() == focus, "each layer draw preserves foreground focus");
+#endif
+        }
+        void reject_invalid_layers(effect::ICrackSurface& surface) {
+            const auto before = snapshot_windows();
+            constexpr std::array INVALID_LAYERS{static_cast<effect::EffectLayer>(-1),
+                static_cast<effect::EffectLayer>(2),
+                static_cast<effect::EffectLayer>(std::numeric_limits<int>::max())};
+            for (const auto layer : INVALID_LAYERS) {
+#if defined(_WIN32)
+                const auto focus = GetForegroundWindow();
+#endif
+                const auto rejected =
+                    surface.draw(1, std::nullopt, effect::EffectTarget::all_displays(layer));
+                check(rejected.is_err() &&
+                          rejected.unwrap_err().get_error() == effect::EffectError::InvalidArgument,
+                    "invalid layer returns InvalidArgument");
+                check(snapshot_windows() == before,
+                    "invalid layer preserves visibility, flags, identity and geometry");
+#if defined(_WIN32)
+                check(GetForegroundWindow() == focus, "invalid layer preserves foreground focus");
+#endif
+            }
+        }
+        void exercise_layer_transitions(effect::ICrackSurface& surface,
+            SDL_Window* model,
+            effect::EffectTarget target,
+            SDL_DisplayID selected,
+            int expected_visible) {
+            constexpr std::array LAYERS{
+                effect::EffectLayer::Foreground, effect::EffectLayer::Background};
+            for (const auto initial : LAYERS) {
+                check(surface.hide(), "hide before testing each initial layer");
+                check_overlay_layer(model, initial, 0, 0);
+                reject_invalid_layers(surface);
+                target.layer = initial;
+                verify_layer_draw(surface, model, target, selected, expected_visible);
+                for (const auto next : LAYERS) {
+                    target.layer = next;
+                    constexpr int REPEATED_DRAWS = 2;
+                    for (int repeat = 0; repeat < REPEATED_DRAWS; ++repeat) {
+                        verify_layer_draw(surface, model, target, selected, expected_visible);
+                        reject_invalid_layers(surface);
+                        check_overlay_layer(model, next, selected, expected_visible);
+                    }
+                }
             }
         }
         void layered_overlays() {
@@ -340,43 +457,67 @@ namespace enishi::tests {
                 check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
                     "layer surface prepared");
                 const auto loads = shaders->loads;
-                const auto windows = window_count();
+                const auto prepared = snapshot_windows();
+                int display_count = 0;
+                std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays{
+                    SDL_GetDisplays(&display_count), SDL_free};
+                check(displays != nullptr && display_count > 0, SDL_GetError());
+                check(window_count() == display_count + 1,
+                    "exactly one overlay per display plus the model fixture");
+                check_overlay_layer(model.get(), effect::EffectLayer::Foreground, 0, 0);
+                check(surface->draw(1).is_ok(), "default effect layer draws");
+                check_overlay_layer(model.get(), effect::EffectLayer::Foreground, 0, display_count);
 #if defined(_WIN32)
-                const auto focus = GetForegroundWindow();
-#endif
-                for (int repeat = 0; repeat < 3; ++repeat) {
-                    check(surface->draw(1).is_ok(), "default effect layer draws");
-#if defined(_WIN32)
-                    check(SetWindowPos(native_window(model.get()),
-                              HWND_TOPMOST,
-                              0,
-                              0,
-                              0,
-                              0,
-                              SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != 0,
-                        "simulate model being raised by a click");
-#endif
-                    check(
-                        surface->draw(1).is_ok(), "foreground order restored on subsequent frames");
-                    check_overlay_layer(model.get(), effect::EffectLayer::Foreground);
-                    check(
-                        surface
-                            ->draw(1,
-                                std::nullopt,
-                                effect::EffectTarget::all_displays(effect::EffectLayer::Background))
-                            .is_ok(),
-                        "background layer draws");
-                    check_overlay_layer(model.get(), effect::EffectLayer::Background);
-#if defined(_WIN32)
-                    check(GetForegroundWindow() == focus,
-                        "changing effect layer does not steal focus");
-#endif
+                check(SetWindowPos(native_window(model.get()),
+                          HWND_TOPMOST,
+                          0,
+                          0,
+                          0,
+                          0,
+                          SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != 0,
+                    "simulate model being raised by a click");
+                // Prove the perturbation happened before checking that drawing repairs it.
+                for (const auto& snapshot : prepared) {
+                    if (snapshot.id != SDL_GetWindowID(model.get())) {
+                        check(window_is_above(native_window(model.get()),
+                                  native_window(SDL_GetWindowFromID(snapshot.id))),
+                            "fixture actually places the model above every overlay");
+                    }
                 }
-                effect::EffectTarget invalid;
-                invalid.layer = static_cast<effect::EffectLayer>(-1);
-                check(surface->draw(1, std::nullopt, invalid).is_err(), "invalid layer rejected");
-                check(shaders->loads == loads && window_count() == windows,
-                    "layer changes reuse prepared graphics and windows");
+#endif
+                verify_layer_draw(
+                    *surface, model.get(), effect::EffectTarget::all_displays(), 0, display_count);
+                exercise_layer_transitions(
+                    *surface, model.get(), effect::EffectTarget::all_displays(), 0, display_count);
+                for (int index = 0; index < display_count; ++index) {
+                    SDL_Rect bounds{};
+                    check(SDL_GetDisplayBounds(displays.get()[index], &bounds), SDL_GetError());
+                    exercise_layer_transitions(*surface,
+                        model.get(),
+                        effect::EffectTarget::display_at(bounds.x, bounds.y),
+                        displays.get()[index],
+                        1);
+                }
+                verify_layer_draw(
+                    *surface, model.get(), effect::EffectTarget::all_displays(), 0, display_count);
+                check(surface->hide() && surface->hide(), "repeated hide succeeds");
+                check_overlay_layer(model.get(), effect::EffectLayer::Foreground, 0, 0);
+                const auto after = snapshot_windows();
+                check(after.size() == prepared.size() && shaders->loads == loads,
+                    "layer changes do not create windows or reload shaders");
+                for (std::size_t index = 0; index < prepared.size(); ++index) {
+                    check(after[index].id == prepared[index].id &&
+                              after[index].x == prepared[index].x &&
+                              after[index].y == prepared[index].y &&
+                              after[index].width == prepared[index].width &&
+                              after[index].height == prepared[index].height,
+                        "layer transitions preserve each window's identity and geometry");
+                }
+                surface->close();
+                surface->close();
+                check(window_count() == 1 && SDL_GetWindowID(model.get()) != 0,
+                    "closing overlays preserves the model window");
+                check(surface->draw(1).is_err(), "closed surface rejects drawing");
             }
             check(window_count() == 0, "layer test resources released");
             SDL_Quit();
