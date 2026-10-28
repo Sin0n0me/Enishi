@@ -1,32 +1,19 @@
 #include "ui_font.h"
-#include <array>
 #include <debug/log/logger.h>
 #include <filesystem>
 #include <imgui.h>
 #if defined(_WIN32)
-#include <Windows.h>
+#include "font_paths_windows.h"
+#elif defined(__APPLE__)
+#include "font_paths_macos.h"
+#else
+#include "font_paths_linux.h"
 #endif
 
 namespace enishi::platform_impl {
     void load_ui_font(void) {
         constexpr float FONT_SIZE = 18.0f;
-#if defined(_WIN32)
-        std::array<wchar_t, MAX_PATH> directory{};
-        const auto size =
-            GetWindowsDirectoryW(directory.data(), static_cast<UINT>(directory.size()));
-        if (size == 0 || !(size < directory.size())) {
-            debug::Logger::warning("Unable to locate the system font directory");
-            return;
-        }
-        const auto font_directory = std::filesystem::path(directory.data()) / "Fonts";
-        const std::array candidates{font_directory / "YuGothM.ttc",
-            font_directory / "meiryo.ttc",
-            font_directory / "msgothic.ttc"};
-#else
-        const std::array candidates{
-            std::filesystem::path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
-            std::filesystem::path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc")};
-#endif
+        const auto candidates = system_font_candidates();
         for (const auto& path : candidates) {
             std::error_code error;
             if (!std::filesystem::is_regular_file(path, error)) {

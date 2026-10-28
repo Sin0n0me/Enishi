@@ -16,15 +16,25 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-if(WIN32)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_non_windows_handle.cpp")
-else()
+if(APPLE)
+    enable_language(OBJCXX)
+    list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_macos.mm")
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_windows_handle.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp")
+    list(FILTER SOURCES EXCLUDE REGEX "/font_paths_(windows|linux)\\.cpp$")
+elseif(WIN32)
+    list(FILTER SOURCES EXCLUDE REGEX "/font_paths_(linux|macos)\\.cpp$")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp")
+else()
+    list(FILTER SOURCES EXCLUDE REGEX "/font_paths_(windows|macos)\\.cpp$")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp")
 endif()
 
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES OBJCXX_STANDARD 23 OBJCXX_STANDARD_REQUIRED ON)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework AppKit")
+endif()
 
 
 # 以下依存設定

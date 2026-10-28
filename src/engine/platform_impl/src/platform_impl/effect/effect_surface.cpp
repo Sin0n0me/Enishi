@@ -9,6 +9,8 @@
 #include <string_view>
 #if defined(_WIN32)
 #include "effect_overlay_windows.h"
+#elif defined(__APPLE__)
+#include "effect_overlay_macos.h"
 #else
 #include "effect_overlay_linux.h"
 #endif
@@ -33,9 +35,11 @@ namespace enishi::platform_impl {
         }
         const char* driver = SDL_GetCurrentVideoDriver();
         if (driver == nullptr ||
-            (std::string_view{driver} != "windows" && std::string_view{driver} != "x11")) {
+            (std::string_view{driver} != "windows" && std::string_view{driver} != "x11" &&
+                std::string_view{driver} != "cocoa")) {
             return foundation::Error(effect::EffectError::StartFailed,
-                "Desktop effect overlays require Windows or X11; Wayland global positioning is "
+                "Desktop effect overlays require Windows, Cocoa or X11; Wayland global positioning "
+                "is "
                 "unavailable");
         }
         SDLGLContextRestore restore;
@@ -74,15 +78,12 @@ namespace enishi::platform_impl {
             return foundation::Error(effect::EffectError::StartFailed, std::string{SDL_GetError()});
         }
         const auto backend = render_backend_description();
-        const auto system = std::string_view{SDL_GetCurrentVideoDriver()} == "windows"
-                                ? platform::WindowSystem::Windows
-                                : platform::WindowSystem::X11;
         auto& overlay = this->overlays.emplace_back();
         overlay.bounds = bounds;
         overlay.display = display;
         overlay.window = std::make_shared<SDL3Window>("Enishi Effect",
             types::WindowSize{bounds.w, bounds.h},
-            system,
+            platform::WindowSystem::Automatic,
             backend.api,
             SDL_WINDOW_HIDDEN | SDL_WINDOW_NOT_FOCUSABLE | SDL_WINDOW_UTILITY);
         auto initialized = overlay.window->init();
