@@ -1,0 +1,137 @@
+name: Unix CMake job
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        type: string
+        required: true
+      run-tests:
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.preset }} / ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      BUILD_DIR: build/presets/${{ matrix.preset }}
+      PRESET: ${{ matrix.preset }}
+      BACKEND: ${{ matrix.backend }}
+      CONFIGURATION: ${{ matrix.config }}
+      ARTIFACT: ${{ matrix.artifact }}
+      ENABLE_TESTS: ${{ inputs.run-tests && 'ON' || 'OFF' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Linux build and desktop test tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev python3-jinja2 \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libxss-dev libxtst-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libasound2-dev libpulse-dev mesa-vulkan-drivers xvfb xauth x11-utils openbox xcompmgr
+          echo 'LIBGL_ALWAYS_SOFTWARE=1' >> "$GITHUB_ENV"
+          echo 'SDL_VIDEO_DRIVER=x11' >> "$GITHUB_ENV"
+      - name: Restore Linux Vulkan SDK
+        if: matrix.backend == 'vulkan'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/enishi-vulkan
+          key: linux-x64-vulkan-${{ hashFiles('.github/scripts/setup_linux_vulkan.sh') }}
+      - name: Set up Linux Vulkan SDK
+        if: matrix.backend == 'vulkan'
+        run: bash .github/scripts/setup_linux_vulkan.sh
+      - name: Install macOS build tools
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm@21 ninja icu4c
+          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
+      - name: Install project Rust toolchain
+        run: rustup toolchain install 1.88.0 --profile minimal
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-${{ matrix.backend }}-shaders
+          path: build/portable-shaders
+      - name: Configure
+        run: |
+          options=()
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            options+=(-DSDL_WAYLAND=OFF)
+          else
+            options+=("-DCMAKE_PREFIX_PATH=$(brew --prefix icu4c)"
+              "-DCMAKE_EXE_LINKER_FLAGS=-L$(brew --prefix llvm@21)/lib/c++"
+              "-DCMAKE_BUILD_RPATH=$(brew --prefix llvm@21)/lib/c++")
+          fi
+          if [[ "$BACKEND" == vulkan ]]; then
+            options+=("-DENISHI_VULKAN_TESTS=$ENABLE_TESTS"
+              "-DENISHI_SPIRV_REFLECT_SOURCE_DIR=$ENISHI_SPIRV_REFLECT_SOURCE_DIR")
+          else
+            options+=("-DENISHI_OPENGL_TESTS=$ENABLE_TESTS")
+          fi
+          cmake --preset "$PRESET" -S src \
+            "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_CXX_COMPILER=$CXX" \
+            -DSDL_SHARED=OFF -DSDL_STATIC=ON -DENISHI_SHADER_RUNTIME_ROOT=./shader \
+            "-DENISHI_PRECOMPILED_SHADER_DIRECTORY=$GITHUB_WORKSPACE/build/portable-shaders" \
+            "-DENISHI_EFFECT_RENDER_TESTS=$ENABLE_TESTS" "-DENISHI_SCRIPT_TESTS=$ENABLE_TESTS" \
+            "-DENISHI_CURSOR_TESTS=$ENABLE_TESTS" "-DENISHI_ECS_TESTS=$ENABLE_TESTS" "${options[@]}"
+      - name: Build application and shell
+        if: ${{ !inputs.run-tests }}
+        run: cmake --build "$BUILD_DIR" --parallel 3 --target enishi_engine enishi-shell
+      - name: Build integration tests
+        if: inputs.run-tests
+        run: |
+          render_test=opengl_shadow_tests
+          if [[ "$BACKEND" == vulkan ]]; then render_test=vulkan_render_tests; fi
+          cmake --build "$BUILD_DIR" --parallel 3 \
+            --target crack_render_tests "$render_test" \
+            enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests
+      - name: Test under an X11 compositor
+        if: inputs.run-tests && runner.os == 'Linux'
+        run: |
+          xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX +render -noreset' \
+            bash .github/scripts/test_x11.sh
+      - name: Test on Cocoa and CGL
+        if: inputs.run-tests && runner.os == 'macOS'
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error \
+            --timeout 120 --output-junit test-results.xml
+      - name: Package application and shell
+        if: ${{ !inputs.run-tests }}
+        run: |
+          tar -czf "build/$ARTIFACT.tar.gz" \
+            -C "$GITHUB_WORKSPACE/$BUILD_DIR" enishi_engine enishi-shell shader \
+            -C "$GITHUB_WORKSPACE" config
+      - name: Upload executables
+        if: ${{ !inputs.run-tests }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload diagnostic and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-${{ inputs.run-tests && 'tests' || 'build' }}-logs
+          path: |
+            build/presets/${{ matrix.preset }}/test-results.xml
+            build/presets/${{ matrix.preset }}/Testing/Temporary/
+            build/presets/${{ matrix.preset }}/CMakeFiles/CMakeConfigureLog.yaml
+            build/presets/${{ matrix.preset }}/*.log
+          retention-days: 7
