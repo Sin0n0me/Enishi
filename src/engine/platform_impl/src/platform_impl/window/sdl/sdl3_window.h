@@ -10,9 +10,7 @@
 #include <memory>
 #include <optional>
 #include <platform/window/interface_window.h>
-namespace enishi::sub_system {
-    class IUI;
-}
+#include <sub_system/ui/interface_ui.h>
 
 namespace enishi::platform_impl {
     struct SDLWindowDeleter {

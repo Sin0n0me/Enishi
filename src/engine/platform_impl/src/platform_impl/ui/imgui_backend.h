@@ -1,10 +1,9 @@
 #pragma once
+#include <imgui.h>
 #include <memory>
 #include <platform/renderer/interface_renderer.h>
 #include <platform_impl/window/sdl/sdl3_window.h>
 #include <sub_system/ui/interface_ui_backend.h>
-
-struct ImGuiContext;
 
 namespace enishi::platform_impl {
     class ImGuiBackend final : public sub_system::IUIBackend {
