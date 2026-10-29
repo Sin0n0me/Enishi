@@ -1,4 +1,4 @@
-name: Linux and macOS
+name: Linux and macOS Build and Tests
 
 on:
   push:
@@ -62,7 +62,7 @@ jobs:
 
   build:
     needs: [matrix, shaders]
-    name: ${{ matrix.preset }} / ${{ matrix.arch }}
+    name: Build and test / ${{ matrix.preset }} / ${{ matrix.arch }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.builds) }}
