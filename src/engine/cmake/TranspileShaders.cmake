@@ -29,7 +29,7 @@ function(enishi_transpile_shaders target_name source_directory output_directory 
     file(GLOB_RECURSE shader_includes CONFIGURE_DEPENDS "${source_directory}/common/*.hlsl")
     set(generator "${repository}/tools/transpile_shader.py")
     set(outputs)
-    foreach(name IN ITEMS vs_model ps_model vs_shadow_map ps_shadow_map vs_clear_wall ps_clear_wall)
+    foreach(name IN ITEMS vs_model ps_model vs_shadow_map ps_shadow_map vs_clear_wall ps_clear_wall vs_crack ps_crack)
         set(source "${source_directory}/${name}.hlsl")
         set(output "${output_directory}/${name}${suffix}")
         add_custom_command(OUTPUT "${output}"

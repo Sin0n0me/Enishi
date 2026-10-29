@@ -16,6 +16,14 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
+if(WIN32)
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_non_windows_handle.cpp")
+else()
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_windows_handle.cpp")
+endif()
+
 # The standalone shell target selects and owns the platform process sources.
 list(FILTER SOURCES EXCLUDE REGEX "/platform_impl/process/.*[.]cpp$")
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/ShellProcess.cmake)
@@ -99,7 +107,7 @@ FetchContent_MakeAvailable(RENDERER)
 
 FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_SOURCE_DIR)
 target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui)
+target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui PUBLIC effect platform render_pass)
 if(USE_VULKAN)
     target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
     target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)

@@ -158,9 +158,9 @@ namespace enishi::renderer::vulkan {
             auto& target = mesh.materials.emplace_back();
             target.draw = material.draw_binding;
             auto& named = handles.material_uniform_buffers.emplace_back();
-            if (material.uniforms == nullptr || !material.uniforms->contains("Material")) {
-                return foundation::Error(
-                    platform::RenderError::MakeError, "Vulkan model requires a Material uniform");
+            if (material.uniforms == nullptr || material.uniforms->size() != 1) {
+                return foundation::Error(platform::RenderError::MakeError,
+                    "Vulkan mesh requires exactly one material uniform");
             }
             result = VulkanMeshBuilder::make_mesh_uniforms(
                 state, resource_accessor, *material.uniforms, named, target.uniforms);
@@ -193,7 +193,8 @@ namespace enishi::renderer::vulkan {
         if (result.is_err()) {
             return result;
         }
-        const std::array<std::string, UNIFORM_COUNT> uniform_names{"Camera", "Bones", "Material"};
+        const std::array<std::string, UNIFORM_COUNT> uniform_names{
+            "Camera", "Bones", material.uniforms->begin()->first};
         std::array<VkDescriptorBufferInfo, UNIFORM_COUNT> buffer_infos{};
         std::array<VkWriteDescriptorSet, UNIFORM_COUNT + TEXTURE_COUNT> writes{};
         for (std::uint32_t binding = 0; binding < UNIFORM_COUNT; ++binding) {

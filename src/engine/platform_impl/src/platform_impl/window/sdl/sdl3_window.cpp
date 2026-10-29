@@ -3,7 +3,9 @@
 #include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
 #if defined(USE_WINDOWS) || defined(_WIN32)
-#include <Windows.h>
+#include "sdl_windows_handle.h"
+#else
+#include "sdl_non_windows_handle.h"
 #endif
 
 namespace enishi::platform_impl {
@@ -65,7 +67,8 @@ namespace enishi::platform_impl {
     SDL3Window::SDL3Window(const foundation::UTF8& window_name,
         const types::WindowSize& size,
         const platform::WindowSystem window_system,
-        const types::GraphicsAPI graphics_api)
+        const types::GraphicsAPI graphics_api,
+        SDL_WindowFlags extra_flags)
         : window_system(window_system)
         , window([&]() {
             if (graphics_api == types::GraphicsAPI::OpenGL40) {
@@ -80,7 +83,7 @@ namespace enishi::platform_impl {
                 size.width,
                 size.height,
                 SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
-                    SDL3Window::get_flag_from_graphics_api(graphics_api)));
+                    SDL3Window::get_flag_from_graphics_api(graphics_api) | extra_flags));
         }())
         , is_closing(false)
         , size()
@@ -88,9 +91,13 @@ namespace enishi::platform_impl {
     }
 
     SDL3Window::~SDL3Window(void) noexcept {
-        // TODO: ルートウィンドウの時だけ
-        SDL_QuitSubSystem(SDL_INIT_EVENTS);
-        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        this->window.reset();
+        if (this->events_initialized) {
+            SDL_QuitSubSystem(SDL_INIT_EVENTS);
+        }
+        if (this->video_initialized) {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        }
     }
 
     foundation::VoidResult<platform::WindowError> SDL3Window::init(void) noexcept {
@@ -99,15 +106,21 @@ namespace enishi::platform_impl {
             return foundation::Error(platform::WindowError::FailedMakeWindow,
                 std::format("SDL_CreateWindow failed: {}", SDL_GetError()));
         }
+        if (this->video_initialized || this->events_initialized) {
+            return foundation::Error(platform::WindowError::InitError, "Window already initialized");
+        }
         if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL video initialization failed: {}", SDL_GetError()));
         }
 
+        this->video_initialized = true;
         if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL event initialization failed: {}", SDL_GetError()));
         }
+
+        this->events_initialized = true;
 
         // ヒットテストのコールバックを登録
         if (!SDL_SetWindowHitTest(this->window.get(), hit_test_callback, this)) {
@@ -159,45 +172,24 @@ namespace enishi::platform_impl {
         SDL_Window* const window, const platform::WindowSystem window_system) {
         switch (window_system) {
             case platform::WindowSystem::Wayland: {
-#if defined(USE_WAYLAND)
                 const auto handle = platform::NativeWaylandHandle{};
-#else
-                const auto handle = platform::NativeWaylandHandle{};
-#endif
 
                 return platform::NativeWindowHandle{
                     .wayland = handle,
                 };
             }
             case platform::WindowSystem::Windows: {
-#if defined(USE_WINDOWS) || defined(_WIN32)
-                const SDL_PropertiesID props = SDL_GetWindowProperties(window);
-                const HWND hwnd = static_cast<HWND>(
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-                const HINSTANCE hinstance = static_cast<HINSTANCE>(
-                    SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr));
-                if (hwnd == nullptr || hinstance == nullptr) {
+                const auto handle = read_windows_handle(window);
+                if (handle.is_none()) {
                     return {};
                 }
 
-                const auto handle = platform::NativeWindowsHandle{
-                    .hwnd = hwnd,
-                    .hinstance = hinstance,
-                };
-#else
-                const auto handle = platform::NativeWindowsHandle{};
-#endif
-
                 return platform::NativeWindowHandle{
-                    .windows = handle,
+                    .windows = handle.unwrap(),
                 };
             }
             case platform::WindowSystem::X11: {
-#if defined(USE_X11)
                 const auto handle = platform::NativeX11Handle{};
-#else
-                const auto handle = platform::NativeX11Handle{};
-#endif
 
                 return platform::NativeWindowHandle{
                     .x11 = handle,
@@ -308,6 +300,10 @@ namespace enishi::platform_impl {
         }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            const auto* event_window = SDL_GetWindowFromEvent(&event);
+            if (event_window != nullptr && event_window != this->window.get()) {
+                continue;
+            }
             const bool playback_key =
                 this->debug_playback != nullptr && this->debug_playback->enabled &&
                 (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&

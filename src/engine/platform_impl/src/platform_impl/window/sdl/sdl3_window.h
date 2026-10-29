@@ -27,6 +27,8 @@ namespace enishi::platform_impl {
         types::WindowSize size;
         types::WindowPosition position;
         bool is_closing;
+        bool video_initialized = false;
+        bool events_initialized = false;
         std::optional<types::ScreenMousePosition> model_press;
         types::WindowPosition drag_origin{};
         glm::vec2 applied_drag_offset{0};
@@ -49,7 +51,8 @@ namespace enishi::platform_impl {
         explicit SDL3Window(const foundation::UTF8& window_name,
             const types::WindowSize& size,
             const platform::WindowSystem window_system,
-            const types::GraphicsAPI graphics_api);
+            const types::GraphicsAPI graphics_api,
+            SDL_WindowFlags extra_flags = 0);
 
         ~SDL3Window(void) noexcept;
 

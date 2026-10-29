@@ -1,0 +1,17 @@
+#pragma once
+#include "crack_mask.h"
+#include <effect/effect_target.h>
+#include <optional>
+namespace enishi::effect {
+    class ICrackSurface {
+      public:
+        virtual ~ICrackSurface() noexcept;
+        virtual foundation::Result<void, EffectError> open(
+            const CrackSettings& settings, types::TextureData mask) = 0;
+        virtual foundation::Result<void, EffectError> draw(float opacity,
+            std::optional<CrackImpact> impact = std::nullopt,
+            const EffectTarget& target = {}) = 0;
+        [[nodiscard]] virtual bool hide() noexcept = 0;
+        virtual void close() noexcept = 0;
+    };
+} // namespace enishi::effect
