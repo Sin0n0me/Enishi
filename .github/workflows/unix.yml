@@ -90,7 +90,7 @@ jobs:
           sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev python3-jinja2 \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
             libxfixes-dev libxss-dev libxtst-dev libgl1-mesa-dev libegl1-mesa-dev \
-            libasound2-dev libpulse-dev mesa-vulkan-drivers xvfb xauth openbox xcompmgr
+            libasound2-dev libpulse-dev mesa-vulkan-drivers xvfb xauth x11-utils openbox xcompmgr
           echo 'LIBGL_ALWAYS_SOFTWARE=1' >> "$GITHUB_ENV"
           echo 'SDL_VIDEO_DRIVER=x11' >> "$GITHUB_ENV"
       - name: Restore Linux Vulkan SDK

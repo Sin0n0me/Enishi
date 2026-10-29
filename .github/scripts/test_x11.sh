@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+for tool in xprop openbox xcompmgr ctest grep sleep; do
+  if ! command -v "$tool" > /dev/null 2>&1; then
+    echo "Required X11 test command not found: $tool" >&2
+    exit 1
+  fi
+done
+
 # Run inside xvfb-run so each matrix job owns its display and compositor.
 openbox > "$BUILD_DIR/openbox.log" 2>&1 & wm=$!
 xcompmgr > "$BUILD_DIR/compositor.log" 2>&1 & compositor=$!
