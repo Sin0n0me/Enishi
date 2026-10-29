@@ -1,8 +1,9 @@
 include_guard(GLOBAL)
+find_package(Threads REQUIRED)
 include("${CMAKE_CURRENT_LIST_DIR}/../../platform/cmake/ShellProcess.cmake")
 if(WIN32)
     set(enishi_native_shell_sources windows/windows_shell_process.cpp
-        windows/windows_terminal_input.cpp windows/windows_shell_socket.cpp)
+        windows/windows_terminal_input.cpp windows/windows_console_input.cpp windows/windows_shell_socket.cpp)
 elseif(APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(enishi_native_shell_sources posix/posix_shell_process.cpp
         posix/posix_terminal_input.cpp posix/posix_shell_terminal.cpp)
@@ -22,7 +23,7 @@ add_library(platform_impl_shell STATIC
     "${CMAKE_CURRENT_LIST_DIR}/../src/platform_impl/process/shell_terminal.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/../src/platform_impl/process/shell_process_factory.cpp")
 target_include_directories(platform_impl_shell PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../src")
-target_link_libraries(platform_impl_shell PUBLIC platform_shell)
+target_link_libraries(platform_impl_shell PUBLIC platform_shell PRIVATE Threads::Threads)
 if(MSVC)
     target_compile_options(platform_impl_shell PRIVATE /utf-8 /EHsc /W4)
 endif()

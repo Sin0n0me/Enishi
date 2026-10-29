@@ -1,4 +1,5 @@
 #include "windows_terminal_input.h"
+#include "windows_console_input.h"
 #include <algorithm>
 #include <array>
 #define NOMINMAX
@@ -20,8 +21,12 @@ namespace enishi::platform_impl {
     struct WindowsTerminalInput::Impl {
         HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
         bool console = false;
+        std::unique_ptr<WindowsConsoleInput> terminal;
         std::wstring line;
         inline Impl() {
+            if (has_console_terminal()) {
+                this->terminal = std::make_unique<WindowsConsoleInput>();
+            }
             DWORD mode{};
             this->console = GetConsoleMode(this->input, &mode) != FALSE;
         }
@@ -95,6 +100,9 @@ namespace enishi::platform_impl {
     }
     WindowsTerminalInput::~WindowsTerminalInput() = default;
     std::expected<std::optional<std::string>, std::string> WindowsTerminalInput::read() {
+        if (this->impl->terminal != nullptr) {
+            return this->impl->terminal->read();
+        }
         std::array<char, INPUT_CHUNK> buffer{};
         if (this->impl->console) {
             return this->impl->read_console();
