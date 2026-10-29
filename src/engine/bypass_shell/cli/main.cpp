@@ -145,7 +145,8 @@ int main(int argc, char** argv) {
         if (argc != PORT_ARGUMENT_COUNT || std::string_view(argv[1]) != "--port") {
             std::fprintf(stderr,
                 "Usage: enishi-shell [--port NUMBER]\nStart Enishi first. Commands run in cmd.exe "
-                "(Windows) or /bin/sh (Linux).\nPipe relay: full-screen terminal programs are not "
+                "(Windows) or /bin/sh (Linux/macOS).\nPipe relay: full-screen terminal programs "
+                "are not "
                 "supported. Ctrl+C closes the shell session.\n");
             return std::string_view(argv[1]) == "--help" ? EXIT_SUCCESS : EXIT_FAILURE;
         }

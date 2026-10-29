@@ -1,4 +1,4 @@
-#include "linux_shell_process.h"
+#include "posix_shell_process.h"
 #include <array>
 #include <cerrno>
 #include <csignal>
@@ -10,6 +10,11 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#if defined(__APPLE__)
+#include "../macos/macos_process_io.h"
+#else
+#include "../linux/linux_process_io.h"
+#endif
 
 namespace enishi::platform_impl {
     namespace {
@@ -49,19 +54,17 @@ namespace enishi::platform_impl {
         }
         bool make_pipe(Handle& read, Handle& write, bool socket_input = false) {
             std::array<int, 2> descriptors{};
-            const auto status =
-                socket_input
-                    ? socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, descriptors.data())
-                    : pipe2(descriptors.data(), O_CLOEXEC);
+            const auto status = native_process::create_pipe(descriptors, socket_input);
             if (status != 0) {
                 return false;
             }
             read.reset(descriptors[0]);
             write.reset(descriptors[1]);
-            return true;
+            return native_process::configure_descriptor(read.get(), socket_input) &&
+                   native_process::configure_descriptor(write.get(), socket_input);
         }
     } // namespace
-    struct LinuxShellProcess::Impl {
+    struct PosixShellProcess::Impl {
         Handle input;
         Handle output;
         Handle error;
@@ -78,12 +81,12 @@ namespace enishi::platform_impl {
             }
         }
     };
-    LinuxShellProcess::LinuxShellProcess()
+    PosixShellProcess::PosixShellProcess()
         : impl(std::make_unique<Impl>()) {
     }
-    LinuxShellProcess::~LinuxShellProcess() = default;
+    PosixShellProcess::~PosixShellProcess() = default;
 
-    platform::ProcessResult<void> LinuxShellProcess::start() {
+    platform::ProcessResult<void> PosixShellProcess::start() {
         this->impl = std::make_unique<Impl>();
         Handle child_input;
         Handle child_output;
@@ -97,6 +100,10 @@ namespace enishi::platform_impl {
             fcntl(this->impl->error.get(), F_SETFL, O_NONBLOCK) == -1) {
             return failure("Set pipe mode");
         }
+        const auto descriptor_limit = native_process::descriptor_limit();
+        if (descriptor_limit < 0) {
+            return failure("Get descriptor limit");
+        }
         this->impl->pid = fork();
         if (this->impl->pid < 0) {
             return failure("Fork shell");
@@ -109,6 +116,7 @@ namespace enishi::platform_impl {
                 dup2(child_error.get(), STDERR_FILENO) == -1) {
                 _exit(EXEC_FAILURE);
             }
+            native_process::prepare_exec(descriptor_limit);
             execl("/bin/sh", "sh", static_cast<char*>(nullptr));
             _exit(EXEC_FAILURE);
         }
@@ -118,11 +126,13 @@ namespace enishi::platform_impl {
         }
         return {};
     }
-    platform::ProcessResult<void> LinuxShellProcess::write(std::string_view data) {
+    platform::ProcessResult<void> PosixShellProcess::write(std::string_view data) {
         std::size_t offset{};
         while (offset < data.size()) {
-            const auto count = ::send(
-                this->impl->input.get(), data.data() + offset, data.size() - offset, MSG_NOSIGNAL);
+            const auto count = ::send(this->impl->input.get(),
+                data.data() + offset,
+                data.size() - offset,
+                native_process::SEND_FLAGS);
             if (count < 0 && errno == EINTR) {
                 continue;
             }
@@ -133,15 +143,15 @@ namespace enishi::platform_impl {
         }
         return {};
     }
-    void LinuxShellProcess::close_input() {
+    void PosixShellProcess::close_input() {
         this->impl->input.reset();
     }
-    void LinuxShellProcess::terminate() {
+    void PosixShellProcess::terminate() {
         if (this->impl->pid > 0) {
             kill(-this->impl->pid, SIGKILL);
         }
     }
-    platform::ProcessResult<std::string> LinuxShellProcess::read(platform::ProcessOutput stream) {
+    platform::ProcessResult<std::string> PosixShellProcess::read(platform::ProcessOutput stream) {
         if (stream != platform::ProcessOutput::Stdout &&
             stream != platform::ProcessOutput::Stderr) {
             return std::unexpected("Invalid shell output stream");
@@ -158,7 +168,7 @@ namespace enishi::platform_impl {
         }
         return std::string(bytes.data(), static_cast<std::size_t>(count));
     }
-    platform::ProcessResult<std::optional<int>> LinuxShellProcess::exit_code() {
+    platform::ProcessResult<std::optional<int>> PosixShellProcess::exit_code() {
         if (this->impl->status.has_value()) {
             return this->impl->status;
         }
