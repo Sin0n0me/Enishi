@@ -63,7 +63,6 @@ FetchContent_MakeAvailable(SUB_SYSTEM)
 
 set(DEPENDENCIES
     platform
-    sub_system
     foundation
     engine_types
 )
@@ -117,7 +116,7 @@ FetchContent_MakeAvailable(RENDERER)
 
 FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_SOURCE_DIR)
 target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui PUBLIC effect platform render_pass)
+target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui PUBLIC effect platform render_pass sub_system)
 if(USE_VULKAN)
     target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
     target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
