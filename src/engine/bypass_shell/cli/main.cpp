@@ -62,8 +62,7 @@ namespace {
                 }
             }
         }
-        inline int input() {
-            enishi::platform_impl::TerminalInput terminal;
+        inline int input(enishi::platform_impl::TerminalInput& terminal) {
             bool closed = false;
             while (!enishi::platform_impl::shell_interrupted() && !this->failed.load()) {
                 auto status = this->process.exit_code();
@@ -106,6 +105,7 @@ namespace {
             std::fprintf(stderr, "%s\n", connected.error().c_str());
             return EXIT_FAILURE;
         }
+        enishi::platform_impl::TerminalInput terminal;
         auto started = relay.process.start();
         if (!started.has_value()) {
             std::fprintf(stderr, "%s\n", started.error().c_str());
@@ -124,7 +124,7 @@ namespace {
                 std::this_thread::sleep_for(POLL_INTERVAL);
             }
         });
-        auto code = relay.input();
+        auto code = relay.input(terminal);
         cancellation.request_stop();
         cancellation.join();
         if (enishi::platform_impl::shell_interrupted()) {

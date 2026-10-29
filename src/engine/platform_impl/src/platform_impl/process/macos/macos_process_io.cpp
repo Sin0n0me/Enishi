@@ -2,7 +2,11 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <util.h>
 namespace enishi::platform_impl::native_process {
+    int open_terminal(int& master, int& slave, winsize& size) {
+        return openpty(&master, &slave, nullptr, nullptr, &size);
+    }
     int create_pipe(std::array<int, 2>& descriptors, bool socket_input) {
         if (socket_input) {
             return socketpair(AF_UNIX, SOCK_STREAM, 0, descriptors.data());

@@ -29,4 +29,6 @@ endif()
 
 if(WIN32)
     target_link_libraries(platform_impl_shell PRIVATE ws2_32)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(platform_impl_shell PRIVATE util)
 endif()
