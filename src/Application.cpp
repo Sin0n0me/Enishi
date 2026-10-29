@@ -23,7 +23,7 @@
 #include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <physics/common/physics_config.h>
-#include <platform_impl/ui/shell_launcher.h>
+#include <platform_impl/ui/shell/shell_launcher.h>
 #include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <script/script_engine.h>
