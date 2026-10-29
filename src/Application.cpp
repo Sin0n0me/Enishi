@@ -1,4 +1,9 @@
-#include "application.h"
+#include "Application.h"
+#include <algorithm>
+#include <array>
+#include <limits>
+#include <effect/crack/crack_effect.h>
+#include <platform_impl/effect/crack_surface.h>
 #include <core/config/application_settings.h>
 #include <core/system/animation/animation_system.h>
 #include <core/system/animation/bone_name_config.h>
@@ -22,6 +27,7 @@
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <script/script_engine.h>
 #include <ui/selection/selection_ui.h>
+#include <utility>
 // #include <render_pass/constructor/debug/debug_render_pass_constructor.h>
 #include <render_pass/constructor/model/model_render_pass_constructor.h>
 #include <render_pass/constructor/shadow/shadow_map_render_pass_constructor.h>
@@ -55,6 +61,69 @@ int main(void) {
 }
 
 namespace enishi {
+    Application::~Application() {
+        if (this->effects != nullptr) {
+            static_cast<void>(this->effects->stop_all());
+        }
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack(
+        const effect::CrackSettings& settings) {
+        if (this->effects == nullptr || this->effect_shaders == nullptr) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Application renderer is not initialized");
+        }
+        return this->effects->play(std::make_unique<effect::CrackEffect>(
+            settings, platform_impl::create_crack_surface(this->effect_shaders)));
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack() {
+        if (this->root_window == nullptr) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Model window is unavailable");
+        }
+        const auto position = this->root_window->get_position();
+        const auto size = this->root_window->get_size();
+        if (position.is_none() || size.is_none()) {
+            return foundation::Error(
+                effect::EffectError::StartFailed, "Model window bounds are unavailable");
+        }
+        constexpr int CENTER_DIVISOR = 2;
+        const effect::CrackImpact center{position.unwrap().x + size.unwrap().width / CENTER_DIVISOR,
+            position.unwrap().y + size.unwrap().height / CENTER_DIVISOR};
+        return this->play_screen_crack_at(
+            std::nullopt, effect::EffectTarget::display_at(center.x, center.y));
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack_at(
+        effect::CrackImpact impact) {
+        return this->play_screen_crack_at(
+            impact, effect::EffectTarget::display_at(impact.x, impact.y));
+    }
+    foundation::Result<effect::EffectId, effect::EffectError> Application::play_screen_crack_at(
+        std::optional<effect::CrackImpact> impact, const effect::EffectTarget& target) {
+        if (this->prepared_crack == nullptr || this->effects == nullptr) {
+            return foundation::Error(effect::EffectError::StartFailed,
+                "Default crack effect could not be prepared during initialization");
+        }
+        if (this->effects->is_playing(this->screen_crack_id)) {
+            auto stopped = this->effects->stop(this->screen_crack_id);
+            if (stopped.is_err()) {
+                return std::move(stopped).take_err();
+            }
+        }
+        this->prepared_crack->set_impact(impact);
+        this->prepared_crack->set_target(target);
+        auto started = this->effects->play_shared(this->prepared_crack);
+        if (started.is_ok()) {
+            this->screen_crack_id = started.unwrap();
+        }
+        return started;
+    }
+    std::shared_ptr<effect::IEffectPlayer> Application::get_effect_player() const {
+        return this->effects;
+    }
+
+    std::shared_ptr<bypass_shell::ShellMonitor> Application::get_shell_monitor() const {
+        return this->shell_monitor;
+    }
     constexpr auto INIT_WINDOW_SIZE = types::WindowSize{
         .width = WINDOW_SIZE.x,
         .height = WINDOW_SIZE.y,
@@ -70,6 +139,8 @@ namespace enishi {
     }
 
     bool Application::init(void) {
+        this->effects = std::make_shared<effect::EffectManager>();
+        this->shell_monitor = std::make_shared<bypass_shell::ShellMonitor>();
         this->registry = std::make_shared<ecs::Registry>();
         this->debug_playback = std::make_shared<debug::PlaybackControl>();
         this->click_settings = std::make_shared<types::ModelClickSettings>();
@@ -128,6 +199,7 @@ namespace enishi {
         if (bone_names.is_err()) {
             debug::Logger::warning(bone_names.unwrap_err().get_message());
         } else {
+            this->click_bone_names = bone_names.unwrap();
             skinning_system->set_bone_names(std::move(bone_names).unwrap());
         }
 
@@ -146,6 +218,7 @@ namespace enishi {
                 this->registry,
                 this->click_settings,
                 this->display_camera);
+        this->model_clicks = clicks;
         clicks->add_handler(std::make_shared<core::ModelEventMotionHandler>(this->registry,
             animation_system,
             std::move(settings.model_events),
@@ -181,6 +254,18 @@ namespace enishi {
             return false;
         }
 
+        this->prepared_crack = std::make_shared<effect::CrackEffect>(
+            effect::CrackSettings{}, platform_impl::create_crack_surface(this->effect_shaders));
+        auto prepared = this->prepared_crack->prepare();
+        if (prepared.is_err()) {
+            debug::Logger::warning(prepared.unwrap_err().get_message());
+            this->prepared_crack.reset();
+        }
+        auto shell_started = this->shell_monitor->start();
+        if (!shell_started.has_value()) {
+            debug::Logger::warning(std::move(shell_started.error()));
+        }
+
         return true;
     }
 
@@ -190,14 +275,82 @@ namespace enishi {
 
         for (; !this->root_window->should_close();) {
             const auto dt = this->app_timer.tick();
+            this->shell_monitor->poll();
 
             // 更新
             this->system_scheduler.pre_update();
+            this->update_screen_crack_click();
             this->system_scheduler.update(dt);
             this->system_scheduler.post_update();
+            auto updated_effects = this->effects->update(dt);
+            if (updated_effects.is_err()) {
+                debug::Logger::warning(updated_effects.unwrap_err().get_message());
+            } else {
+                for (const auto& failure : updated_effects.unwrap()) {
+                    debug::Logger::warning(std::format(
+                        "Effect {} failed: {}", failure.id.value, failure.error.get_message()));
+                }
+            }
 
             // 描画
             this->system_scheduler.render();
+        }
+        auto stopped = this->effects->stop_all();
+        if (stopped.is_err()) {
+            debug::Logger::warning(stopped.unwrap_err().get_message());
+        }
+    }
+
+    void Application::update_screen_crack_click() {
+        const auto input = this->root_window->get_input();
+        const auto position = this->root_window->get_position();
+        if (this->model_clicks == nullptr || input.is_none() || position.is_none() ||
+            !input.unwrap()->is_mouse_button_pressed(types::MouseButton::Left)) {
+            return;
+        }
+        const auto cursor =
+            input.unwrap()->get_mouse_press_position(types::MouseButton::Left, position.unwrap());
+        // This preview trigger uses the displayed pose, independently of physics push filtering.
+        const auto hit = this->model_clicks->pick(cursor, false);
+        if (!hit.has_value() ||
+            hit->model > (std::numeric_limits<types::HandleId::HandleType>::max)()) {
+            return;
+        }
+        const auto model = this->registry->get<component::ModelComponent>(
+            types::HandleId{static_cast<types::HandleId::HandleType>(hit->model)});
+        if (model.is_none() || !model.unwrap().visible) {
+            return;
+        }
+        const auto& data = model.unwrap();
+        constexpr std::array LOWER_BODY_ROLES{animation::BoneRole::Hips,
+            animation::BoneRole::LeftUpperLeg,
+            animation::BoneRole::LeftLowerLeg,
+            animation::BoneRole::LeftFoot,
+            animation::BoneRole::RightUpperLeg,
+            animation::BoneRole::RightLowerLeg,
+            animation::BoneRole::RightFoot};
+        std::array<types::BoneIndex, LOWER_BODY_ROLES.size()> lower_body_bones{};
+        for (std::size_t index = 0; index < LOWER_BODY_ROLES.size(); ++index) {
+            lower_body_bones[index] =
+                this->click_bone_names.find(data.bone_names, LOWER_BODY_ROLES[index]);
+        }
+        const auto spine = this->click_bone_names.find(data.bone_names, animation::BoneRole::Spine);
+        auto bone = hit->bone;
+        // Spine descendants must not match hips; bound traversal also rejects cyclic hierarchies.
+        for (std::size_t visited = 0; visited < data.bone_node.size(); ++visited) {
+            if (!(bone < data.bone_node.size()) || bone == spine) {
+                return;
+            }
+            if (std::find(lower_body_bones.begin(), lower_body_bones.end(), bone) !=
+                lower_body_bones.end()) {
+                const auto point = types::to_screen(cursor, position.unwrap());
+                auto started = this->play_screen_crack_at(effect::CrackImpact{point.x, point.y});
+                if (started.is_err()) {
+                    debug::Logger::warning(started.unwrap_err().get_message());
+                }
+                return;
+            }
+            bone = data.bone_node[bone].parent;
         }
     }
 
@@ -259,6 +412,7 @@ namespace enishi {
 
         auto shader_data_provider = std::make_shared<core::ShaderDataProvider>(
             asset_system, platform_impl::shader_directory());
+        this->effect_shaders = shader_data_provider;
         const auto render_system = this->system_scheduler.register_system<core::RenderSystem>(
             100, this->registry, renderer, instance.encoder);
 
@@ -339,7 +493,7 @@ namespace enishi {
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();
         render_system->set_settings(render_settings);
         const auto selection = std::make_shared<ui::SelectionUI>(
-            std::move(models), this->click_settings, scripts, render_settings);
+            std::move(models), this->click_settings, scripts, render_settings, this->shell_monitor);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY, ui, [selection, window](sub_system::IUI& ui) {
                 selection->update(ui);

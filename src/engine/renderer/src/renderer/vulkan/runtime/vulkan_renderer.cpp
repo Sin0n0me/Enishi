@@ -105,12 +105,15 @@ namespace enishi::renderer::vulkan {
             }
             constexpr std::uint32_t SHADOW_UNIFORM_BINDING = 6;
             constexpr std::uint32_t FIRST_TEXTURE_BINDING = 3;
+            constexpr std::uint32_t MATERIAL_UNIFORM_BINDING = 2;
             const auto expected_type = (resource.binding < FIRST_TEXTURE_BINDING ||
                                            resource.binding == SHADOW_UNIFORM_BINDING)
                                            ? types::ShaderInputResourceType::UniformBuffer
                                            : types::ShaderInputResourceType::Texture;
             if (resource.set != 0 || !(resource.binding < names.size()) ||
-                resource.name != names[resource.binding] || resource.type != expected_type) {
+                (resource.binding != MATERIAL_UNIFORM_BINDING &&
+                    resource.name != names[resource.binding]) ||
+                resource.type != expected_type) {
                 return foundation::Error(platform::RenderError::MakeError,
                     "SPIR-V descriptor does not match the model shader contract");
             }

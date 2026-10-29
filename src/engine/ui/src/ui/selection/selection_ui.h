@@ -1,6 +1,7 @@
 #pragma once
 #include "selection_models.h"
 #include "selection_script.h"
+#include <bypass_shell/shell_monitor.h>
 #include <engine_types/input/model_click_settings.h>
 #include <memory>
 #include <sub_system/model/interface_model_selection.h>
@@ -11,13 +12,14 @@
 namespace enishi::ui {
     class SelectionUI {
       private:
-        enum class Page { Actions, Models, ClickSettings, Script, Settings };
+        enum class Page { Actions, Models, ClickSettings, Script, Settings, Shell };
 
       private:
         std::shared_ptr<sub_system::IModelSelection> models;
         std::shared_ptr<types::ModelClickSettings> click_settings;
         std::shared_ptr<sub_system::IScriptEngine> scripts;
         std::shared_ptr<sub_system::RenderSettings> render_settings;
+        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor;
         SelectionModels models_page;
         SelectionScript script_page;
         Page page = Page::Actions;
@@ -27,7 +29,8 @@ namespace enishi::ui {
         SelectionUI(std::shared_ptr<sub_system::IModelSelection> models,
             std::shared_ptr<types::ModelClickSettings> click_settings,
             std::shared_ptr<sub_system::IScriptEngine> scripts,
-            std::shared_ptr<sub_system::RenderSettings> render_settings);
+            std::shared_ptr<sub_system::RenderSettings> render_settings,
+            std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor = nullptr);
         void update(sub_system::IUI& ui);
         [[nodiscard]] bool is_exit_requested(void) const;
 

@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.12)
 project(platform)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ShellProcess.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../cmake/EnishiLibrary.cmake)
 

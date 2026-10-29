@@ -13,6 +13,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  command-parser:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure command parser tests with Clang
+        run: >-
+          cmake -S src/engine/bypass_shell/tests/command_parser
+          -B build/command-parser -G Ninja
+          -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+      - name: Build command parser tests
+        run: cmake --build build/command-parser --parallel 4
+      - name: Run command parser tests
+        run: ctest --test-dir build/command-parser --output-on-failure --no-tests=error --output-junit results.xml
+      - name: Upload command parser test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-parser-${{ matrix.config }}
+          path: build/command-parser/results.xml
   test:
     runs-on: windows-2022
     timeout-minutes: 45
@@ -64,6 +91,13 @@ jobs:
         with:
           triplet: x64-windows
           log-name: icu-logs-tests-${{ matrix.config }}
+
+      - name: Run effect runtime tests with Clang
+        run: |
+          python tools/test_all.py --suite effect --config ${{ matrix.config }} --generator Ninja `
+            --prefix "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows" `
+            --define CMAKE_CXX_COMPILER=clang-cl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Restore CMake dependencies
         id: cmake-cache
@@ -122,5 +156,7 @@ jobs:
           path: |
             build/tests/test-results.xml
             build/tests/visualstudio/Testing/Temporary/LastTest.log
+            build/regression/summary-${{ matrix.config }}.json
+            build/regression/${{ matrix.config }}/effect/*.log
           if-no-files-found: warn
           retention-days: 7

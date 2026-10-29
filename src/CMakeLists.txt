@@ -11,8 +11,8 @@ if(MSVC)
 endif()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
-    "application.h"
-    "application.cpp"
+    "Application.h"
+    "Application.cpp"
     "settings.h"
 )
 set(DEPEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
@@ -53,6 +53,9 @@ endif()
 # 以下依存設定
 #
 include(FetchContent)
+
+FetchContent_Declare(EFFECT SOURCE_DIR ${DEPEND_DIR}/effect)
+FetchContent_MakeAvailable(EFFECT)
 
 FetchContent_Declare(
     CORE
@@ -121,10 +124,12 @@ set(DEPENDENCIES
     PRIVATE renderer
     PRIVATE render_pass
     PRIVATE script
+    PRIVATE bypass_shell
     PRIVATE ui
     PRIVATE engine_types
     PRIVATE enishi::debug
     PRIVATE foundation
+    PRIVATE effect
 )
 
 #
@@ -134,6 +139,7 @@ set(DEPENDENCIES
 target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
+add_dependencies(${PROJECT_NAME} enishi-shell)
 
 set(ENISHI_SHADER_RUNTIME_ROOT "${CMAKE_CURRENT_BINARY_DIR}/shader" CACHE STRING
     "Runtime shader root; use ./shader for a relocatable application package")
@@ -213,4 +219,10 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+endif()
+
+option(ENISHI_EFFECT_RENDER_TESTS "Build desktop crack overlay integration tests (requires a display)" OFF)
+if(ENISHI_EFFECT_RENDER_TESTS)
+    enable_testing()
+    add_subdirectory(engine/effect/tests/render)
 endif()

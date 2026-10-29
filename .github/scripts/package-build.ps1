@@ -12,6 +12,7 @@ if ($Toolchain -eq 'visualstudio') {
 $destination = Join-Path $PWD 'artifacts/application'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $binaryDirectory 'enishi_engine.exe') -Destination $destination
+Copy-Item -LiteralPath (Join-Path $binaryDirectory 'enishi-shell.exe') -Destination $destination
 Get-ChildItem -LiteralPath $binaryDirectory -File |
     Where-Object { $_.Extension -in '.dll', '.pdb' } |
     Copy-Item -Destination $destination
