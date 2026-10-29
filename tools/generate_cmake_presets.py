@@ -29,6 +29,10 @@ EXCLUSIONS = (
     ({"os": ("linux", "macos"), "backend": ("directx",)}, "DirectX requires Windows"),
     ({"os": ("linux", "macos"), "compiler": ("visualstudio", "visualstudio2026")},
      "Visual Studio generators require Windows"),
+    ({"os": ("macos",), "backend": ("vulkan",)},
+     "The macOS desktop implementation uses OpenGL; MoltenVK is not a project dependency"),
+    ({"os": ("macos",), "compiler": ("gcc",)},
+     "The Cocoa implementation requires the supported Clang Objective-C++ toolchain"),
 )
 MSBUILD_OPTIONS = ["/p:UseMultiToolTask=true", "/p:EnforceProcessCountAcrossBuilds=true"]
 
@@ -84,6 +88,9 @@ def generate() -> dict:
         variables = {"CMAKE_BUILD_TYPE": config}
         if target_os == "windows" and compiler == "gcc":
             variables["VCPKG_TARGET_TRIPLET"] = "x64-mingw-dynamic"
+        if target_os == "macos":
+            variables["CMAKE_OBJCXX_COMPILER"] = "clang++"
+            variables["CMAKE_OSX_DEPLOYMENT_TARGET"] = "14.0"
         configure.append({
             "name": name, "displayName": f"{target_os} / {backend} / {compiler} / {config}",
             "inherits": [compiler, backend, "windows" if target_os == "windows" else "unix"],

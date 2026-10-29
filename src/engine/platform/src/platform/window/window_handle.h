@@ -19,6 +19,9 @@ namespace enishi::platform {
         void* display;
         unsigned long window;
     };
+    struct NativeCocoaHandle {
+        void* window;
+    };
 } // namespace enishi::platform
 
 namespace enishi::platform {
@@ -26,12 +29,15 @@ namespace enishi::platform {
         Windows,
         X11,
         Wayland,
+        Cocoa,
+        Automatic,
     };
 
     union NativeWindowHandle {
         NativeWindowsHandle windows;
         NativeWaylandHandle wayland;
         NativeX11Handle x11;
+        NativeCocoaHandle cocoa;
     };
 
     struct WindowHandle {

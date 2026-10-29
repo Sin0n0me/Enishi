@@ -23,6 +23,7 @@
 #include <debug/log/logger.h>
 #include <foundation/str/string_builder.h>
 #include <physics/common/physics_config.h>
+#include <platform_impl/ui/shell/shell_launcher.h>
 #include <platform_impl/ui/ui_factory.h>
 #include <render_pass/constructor/background/background_render_pass_constructor.h>
 #include <script/script_engine.h>
@@ -357,7 +358,7 @@ namespace enishi {
     std::shared_ptr<platform::IWindow> Application::init_window(void) {
         const auto window = std::make_shared<platform_impl::SDL3Window>(APPLICATION_NAME,
             INIT_WINDOW_SIZE,
-            platform::WindowSystem::Windows,
+            platform::WindowSystem::Automatic,
             platform_impl::render_backend_description().api);
         window->set_debug_playback(this->debug_playback);
         const auto window_manager =
@@ -492,8 +493,12 @@ namespace enishi {
         const auto scripts = std::make_shared<script::ScriptEngine>();
         const auto render_settings = std::make_shared<sub_system::RenderSettings>();
         render_system->set_settings(render_settings);
-        const auto selection = std::make_shared<ui::SelectionUI>(
-            std::move(models), this->click_settings, scripts, render_settings, this->shell_monitor);
+        const auto selection = std::make_shared<ui::SelectionUI>(std::move(models),
+            this->click_settings,
+            scripts,
+            render_settings,
+            this->shell_monitor,
+            platform_impl::launch_shell_terminal);
         this->system_scheduler.register_system<core::UISystem>(
             UI_PRIORITY, ui, [selection, window](sub_system::IUI& ui) {
                 selection->update(ui);

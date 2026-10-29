@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 3.24)
 project(enishi_engine)
+include("${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake/CheckCxx23.cmake")
+enishi_check_cxx23()
 
 # MSVCコンパイラの場合のみ、ソースコードと実行バイナリの文字セットをUTF-8に設定
 if(MSVC)
@@ -10,7 +12,7 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
+set(SOURCES
     "Application.h"
     "Application.cpp"
     "settings.h"
@@ -46,6 +48,9 @@ if(USE_VULKAN)
 elseif(USE_OPENGL40)
     set(USE_DIRECTX_11 OFF)
 else()
+    if(NOT WIN32)
+        message(FATAL_ERROR "DirectX requires Windows. Enable USE_OPENGL40 on Linux or macOS.")
+    endif()
     set(USE_DIRECTX_11 ON)
 endif()
 

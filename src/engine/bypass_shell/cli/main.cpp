@@ -62,8 +62,7 @@ namespace {
                 }
             }
         }
-        inline int input() {
-            enishi::platform_impl::TerminalInput terminal;
+        inline int input(enishi::platform_impl::TerminalInput& terminal) {
             bool closed = false;
             while (!enishi::platform_impl::shell_interrupted() && !this->failed.load()) {
                 auto status = this->process.exit_code();
@@ -106,6 +105,7 @@ namespace {
             std::fprintf(stderr, "%s\n", connected.error().c_str());
             return EXIT_FAILURE;
         }
+        enishi::platform_impl::TerminalInput terminal;
         auto started = relay.process.start();
         if (!started.has_value()) {
             std::fprintf(stderr, "%s\n", started.error().c_str());
@@ -124,7 +124,7 @@ namespace {
                 std::this_thread::sleep_for(POLL_INTERVAL);
             }
         });
-        auto code = relay.input();
+        auto code = relay.input(terminal);
         cancellation.request_stop();
         cancellation.join();
         if (enishi::platform_impl::shell_interrupted()) {
@@ -145,8 +145,8 @@ int main(int argc, char** argv) {
         if (argc != PORT_ARGUMENT_COUNT || std::string_view(argv[1]) != "--port") {
             std::fprintf(stderr,
                 "Usage: enishi-shell [--port NUMBER]\nStart Enishi first. Commands run in cmd.exe "
-                "(Windows) or /bin/sh (Linux).\nPipe relay: full-screen terminal programs are not "
-                "supported. Ctrl+C closes the shell session.\n");
+                "(Windows) or /bin/sh (Linux/macOS).\nInteractive sessions use a pseudo terminal; "
+                "Ctrl+C is forwarded to the child. Redirected sessions use pipes.\n");
             return std::string_view(argv[1]) == "--help" ? EXIT_SUCCESS : EXIT_FAILURE;
         }
         const std::string_view argument(argv[2]);

@@ -49,7 +49,7 @@ preset名は `<OS>-<描画方式>-<コンパイラ>-<構成>` です。configure
 | コンパイラ | `clang`、`gcc`、`visualstudio`（2022）、`visualstudio2026` |
 | 構成 | `debug`、`release` |
 
-DirectXとVisual StudioはWindows専用です。Linux/macOSではClangまたはGCCを使用し、ICUをCMakeから検索できる環境に準備してください。
+DirectXとVisual StudioはWindows専用です。LinuxではClangまたはGCC、macOSではClangとOpenGLを使用します。Linux/macOSにはICUの開発パッケージが必要です。
 
 たとえば、`src`ディレクトリで次のように切り替えられます。
 
@@ -63,9 +63,34 @@ cmake --build --preset windows-opengl-gcc-debug --parallel 4
 
 各presetは別のビルドディレクトリを使用します。Visual Studioの実行ファイルはその中の `Debug` または `Release` ディレクトリ、Clang/GCCではビルドディレクトリ直下に出力されます。
 
+### Linux / macOS
+
+LinuxではClang 19以降とlibstdc++ 14以降、または同等のC++23標準ライブラリを使用してください。デスクトップへの配置とカーソル追跡にはX11を使用します。WaylandセッションではXWaylandが必要です。
+
+```sh
+cmake --preset linux-opengl-clang-debug -S src \
+  -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19
+cmake --build build/presets/linux-opengl-clang-debug --parallel 4
+./build/presets/linux-opengl-clang-debug/enishi_engine
+```
+
+macOSは14以降を対象とし、CocoaとOpenGL 4.1を使用します。`brew install llvm@21 ninja icu4c` で準備し、`$(brew --prefix llvm@21)/bin` をPATHへ追加してください。CIの `portable-opengl-shaders` 成果物を展開すると、macOS側でシェーダーコンパイラを準備せずビルドできます。
+
+```sh
+cmake --preset macos-opengl-clang-debug -S src \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix icu4c)" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix llvm@21)/lib/c++" \
+  -DCMAKE_BUILD_RPATH="$(brew --prefix llvm@21)/lib/c++" \
+  -DENISHI_PRECOMPILED_SHADER_DIRECTORY="/path/to/portable-opengl-shaders"
+cmake --build build/presets/macos-opengl-clang-debug --parallel 4
+./build/presets/macos-opengl-clang-debug/enishi_engine
+```
+
+変換済みシェーダーは現在のHLSLと変換スクリプトに一致するものが必要です。描画テストはconfigure時に `-DENISHI_OPENGL_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON` を指定し、`crack_render_tests` と `opengl_shadow_tests` をビルドしてから `ctest --test-dir <ビルド先> --output-on-failure` で実行します。
+
 ### シェーダーとVulkan SDK
 
-OpenGLとVulkanにはVulkan SDKの `dxc`、`spirv-val` が必要です。Vulkan構成ではヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`も使用します。`VULKAN_SDK`にSDKのルートを設定し、必要なツールをPATHへ追加してください。
+OpenGLとVulkanのシェーダーをソースから変換する場合は、Vulkan SDKの `dxc`、`spirv-val` が必要です。Vulkan構成ではヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`も使用します。`VULKAN_SDK`にSDKのルートを設定し、必要なツールをPATHへ追加してください。
 
 ```powershell
 $env:VULKAN_SDK = 'C:/VulkanSDK/<インストールしたバージョン>'
@@ -97,7 +122,7 @@ python tools/test_all.py --engine-build build/presets/windows-directx-clang-debu
 
 回帰テストはビルド環境の準備後に実行してください。
 
-CIの成功したビルドは、GitHub Actionsの実行ページにあるArtifactsから取得できます。exe・DLL・PDB・シェーダー・設定ファイルを構成ごとにまとめ、14日間保持します。
+CIの成功したビルドは、GitHub Actionsの実行ページにあるArtifactsから取得できます。Windowsはexe・DLL・PDB・シェーダー・設定ファイルを構成ごとにまとめ、14日間保持します。Linux/macOSは実行ファイル・シェーダー・設定ファイルのtar.gzとテスト結果を7日間保持します。tar.gzを展開したディレクトリで `./enishi_engine` を実行してください。ICUやC++標準ライブラリなどの共有ライブラリは含まないため、ビルド手順に記載した実行環境が必要です。
 
 ## 設定ファイル
 

@@ -5,16 +5,16 @@
 #include <string>
 
 namespace enishi::platform_impl {
-    class LinuxTerminalInput {
+    class PosixTerminalInput {
       private:
         struct Impl;
         std::unique_ptr<Impl> impl;
 
       public:
-        LinuxTerminalInput();
-        ~LinuxTerminalInput();
+        PosixTerminalInput();
+        ~PosixTerminalInput();
         // nullopt: no input yet; empty string: EOF.
         std::expected<std::optional<std::string>, std::string> read();
     };
-    using NativeTerminalInput = LinuxTerminalInput;
+    using NativeTerminalInput = PosixTerminalInput;
 } // namespace enishi::platform_impl

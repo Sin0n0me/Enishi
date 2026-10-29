@@ -5,6 +5,7 @@
 #include <array>
 #include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -16,6 +17,7 @@
 #include <platform_impl/effect/crack_surface.h>
 #include <platform_impl/effect/effect_surface.h>
 #include <platform_impl/renderer/renderer_factory.h>
+#include <platform_impl/window/sdl/sdl3_window.h>
 #include <platform_impl/window/sdl/sdl_gl_context_restore.h>
 namespace enishi::tests {
     namespace {
@@ -141,6 +143,43 @@ namespace enishi::tests {
                     "overlay must not intercept desktop hit testing");
             }
 #endif
+        }
+        void automatic_window_system() {
+            check((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0,
+                "window fixture starts before SDL video initialization");
+            {
+                constexpr int WINDOW_SIZE = 32;
+                platform_impl::SDL3Window window{"Native handle fixture",
+                    {WINDOW_SIZE, WINDOW_SIZE},
+                    platform::WindowSystem::Automatic,
+                    platform_impl::render_backend_description().api,
+                    SDL_WINDOW_HIDDEN};
+                check(window.init().is_ok(), "window initializes its own SDL video reference");
+                const auto handle = window.get_handle();
+                check(handle.is_some(), "automatic window has a native transport handle");
+                const std::string_view driver{SDL_GetCurrentVideoDriver()};
+                const auto& native = handle.unwrap();
+                if (driver == "windows") {
+                    check(native.tag == platform::WindowSystem::Windows &&
+                              native.native_handle.windows.hwnd != nullptr &&
+                              native.native_handle.windows.hinstance != nullptr,
+                        "Windows exposes real HWND and instance handles");
+                } else if (driver == "x11") {
+                    check(native.tag == platform::WindowSystem::X11 &&
+                              native.native_handle.x11.display != nullptr &&
+                              native.native_handle.x11.window != 0,
+                        "X11 exposes a real display connection and window ID");
+                } else if (driver == "cocoa") {
+                    check(native.tag == platform::WindowSystem::Cocoa &&
+                              native.native_handle.cocoa.window != nullptr,
+                        "Cocoa exposes a real NSWindow");
+                } else {
+                    check(false, "desktop test requires Windows, X11 or Cocoa");
+                }
+                check(window.init().is_err(), "duplicate initialization is rejected");
+            }
+            check((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0,
+                "window destruction balances its SDL video reference");
         }
         void generic_surface_lifecycle() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
@@ -341,6 +380,46 @@ namespace enishi::tests {
             });
             return result;
         }
+        void check_preserved_geometry(const WindowSnapshot& before, const WindowSnapshot& after) {
+            check(after.id == before.id && after.x == before.x && after.y == before.y &&
+                      after.width == before.width && after.height == before.height,
+                std::format("layer transitions preserve window geometry: "
+                            "id {} -> {}, ({}, {}, {}, {}) -> ({}, {}, {}, {})",
+                    before.id,
+                    after.id,
+                    before.x,
+                    before.y,
+                    before.width,
+                    before.height,
+                    after.x,
+                    after.y,
+                    after.width,
+                    after.height)
+                    .c_str());
+        }
+        void check_display_coverage(SDL_Window* window) {
+            const bool synchronized = SDL_SyncWindow(window);
+            SDL_Rect bounds{};
+            SDL_Rect actual{};
+            check(SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &bounds), SDL_GetError());
+            check(SDL_GetWindowPosition(window, &actual.x, &actual.y), SDL_GetError());
+            check(SDL_GetWindowSize(window, &actual.w, &actual.h), SDL_GetError());
+            check(synchronized && actual.x == bounds.x && actual.y == bounds.y &&
+                      actual.w == bounds.w && actual.h == bounds.h,
+                std::format("visible overlay {} must cover display ({}, {}, {}, {}), got "
+                            "({}, {}, {}, {}), synchronized={} after layer transition or replay",
+                    SDL_GetWindowID(window),
+                    bounds.x,
+                    bounds.y,
+                    bounds.w,
+                    bounds.h,
+                    actual.x,
+                    actual.y,
+                    actual.w,
+                    actual.h,
+                    synchronized)
+                    .c_str());
+        }
         void check_overlay_layer(SDL_Window* model,
             effect::EffectLayer layer,
             SDL_DisplayID selected,
@@ -363,6 +442,7 @@ namespace enishi::tests {
                 if (!expected) {
                     continue;
                 }
+                check_display_coverage(window);
                 ++visible;
                 const bool foreground = layer == effect::EffectLayer::Foreground;
                 check(((SDL_GetWindowFlags(window) & SDL_WINDOW_ALWAYS_ON_TOP) != 0) == foreground,
@@ -580,12 +660,7 @@ namespace enishi::tests {
                 check(after.size() == prepared.size() && shaders->loads == loads,
                     "layer changes do not create windows or reload shaders");
                 for (std::size_t index = 0; index < prepared.size(); ++index) {
-                    check(after[index].id == prepared[index].id &&
-                              after[index].x == prepared[index].x &&
-                              after[index].y == prepared[index].y &&
-                              after[index].width == prepared[index].width &&
-                              after[index].height == prepared[index].height,
-                        "layer transitions preserve each window's identity and geometry");
+                    check_preserved_geometry(prepared[index], after[index]);
                 }
                 surface->close();
                 surface->close();
@@ -700,6 +775,8 @@ namespace enishi::tests {
     } // namespace
 } // namespace enishi::tests
 int main() {
+    enishi::tests::run_test(
+        "Automatic native window handles", enishi::tests::automatic_window_system);
     enishi::tests::run_test(
         "Generic effect surface lifecycle", enishi::tests::generic_surface_lifecycle);
     enishi::tests::run_test(

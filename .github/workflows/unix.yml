@@ -1,0 +1,119 @@
+name: Linux and macOS CMake and Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      builds: ${{ steps.generate.outputs.builds }}
+      standalone: ${{ steps.generate.outputs.standalone }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate supported build matrix
+        id: generate
+        run: |
+          python3 tools/generate_cmake_presets.py --check
+          echo "builds=$(python3 -B .github/scripts/unix_matrix.py)" >> "$GITHUB_OUTPUT"
+          echo "standalone=$(python3 -B .github/scripts/unix_matrix.py --standalone)" >> "$GITHUB_OUTPUT"
+
+  shaders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CC: clang-19
+      CXX: clang++-19
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install shader build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 g++-14 ninja-build spirv-tools
+          mkdir -p "$RUNNER_TEMP/dxc"
+          curl --fail --location --retry 3 \
+            https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/linux_dxc_2025_07_14.x86_64.tar.gz \
+            -o "$RUNNER_TEMP/dxc.tar.gz"
+          tar -xzf "$RUNNER_TEMP/dxc.tar.gz" -C "$RUNNER_TEMP/dxc"
+          echo "$RUNNER_TEMP/dxc/bin" >> "$GITHUB_PATH"
+      - name: Compile and validate both shader bundles
+        run: |
+          cmake -S .github/shaders -B build/ci-shaders -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/ci-shaders --parallel 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-opengl-shaders
+          path: build/ci-shaders/opengl/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-vulkan-shaders
+          path: build/ci-shaders/vulkan/
+          if-no-files-found: error
+
+  standalone-tests:
+    needs: matrix
+    name: Unit tests / ${{ matrix.os }} / ${{ matrix.compiler }} / ${{ matrix.config }} / ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.standalone) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      CONFIGURATION: ${{ matrix.config }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux test tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev
+      - name: Install macOS test tools
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm@21 ninja icu4c
+          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
+      - name: Build and run standalone tests
+        run: bash .github/scripts/test_unix_standalone.sh
+      - name: Upload standalone test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unix-unit-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.config }}-${{ matrix.arch }}
+          path: |
+            build/standalone/**/test-results.xml
+            build/standalone/**/Testing/Temporary/
+            build/standalone/**/CMakeFiles/CMakeConfigureLog.yaml
+          retention-days: 7
+
+  build:
+    name: CMake build
+    needs: [matrix, shaders, standalone-tests]
+    uses: ./.github/workflows/unix-build.yml
+    with:
+      matrix: ${{ needs.matrix.outputs.builds }}
+      run-tests: false
+
+  integration-tests:
+    name: Integration tests
+    needs: [matrix, shaders]
+    uses: ./.github/workflows/unix-build.yml
+    with:
+      matrix: ${{ needs.matrix.outputs.builds }}
+      run-tests: true

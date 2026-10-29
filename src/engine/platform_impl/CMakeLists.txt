@@ -16,18 +16,28 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 
-if(WIN32)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_non_windows_handle.cpp")
-else()
+if(APPLE)
+    enable_language(OBJCXX)
+    list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_macos.mm")
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/window/sdl/sdl_windows_handle.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp")
+    list(FILTER SOURCES EXCLUDE REGEX "/(font_paths|shell_launcher)_(windows|linux)\\.cpp$")
+elseif(WIN32)
+    list(FILTER SOURCES EXCLUDE REGEX "/(font_paths|shell_launcher)_(linux|macos)\\.cpp$")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_linux.cpp")
+else()
+    list(FILTER SOURCES EXCLUDE REGEX "/(font_paths|shell_launcher)_(windows|macos)\\.cpp$")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp")
 endif()
 
 # The standalone shell target selects and owns the platform process sources.
 list(FILTER SOURCES EXCLUDE REGEX "/platform_impl/process/.*[.]cpp$")
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/ShellProcess.cmake)
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES OBJCXX_STANDARD 23 OBJCXX_STANDARD_REQUIRED ON)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework AppKit")
+endif()
 target_link_libraries(${PROJECT_NAME} PUBLIC platform_impl_shell)
 
 
@@ -53,7 +63,6 @@ FetchContent_MakeAvailable(SUB_SYSTEM)
 
 set(DEPENDENCIES
     platform
-    sub_system
     foundation
     engine_types
 )
@@ -107,7 +116,7 @@ FetchContent_MakeAvailable(RENDERER)
 
 FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_SOURCE_DIR)
 target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui PUBLIC effect platform render_pass)
+target_link_libraries(${PROJECT_NAME} PRIVATE ui renderer enishi_imgui PUBLIC effect platform render_pass sub_system)
 if(USE_VULKAN)
     target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
     target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)

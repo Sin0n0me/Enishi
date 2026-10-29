@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <script/script_engine.h>
 #include <ui/selection/selection_ui.h>
 #include <utility>
@@ -24,6 +25,8 @@ namespace {
         std::string error;
         bool saw_editor = false;
         bool saw_script_button = false;
+        std::vector<std::string> messages;
+        bool saw_shell_history = false;
         void begin_frame() override {
         }
         void end_frame() override {
@@ -35,7 +38,8 @@ namespace {
         }
         void end_window() override {
         }
-        void text(std::string_view) override {
+        void text(std::string_view value) override {
+            this->messages.emplace_back(value);
         }
         bool button(const char* label) override {
             if (std::string_view(label) == "スクリプト") {
@@ -50,7 +54,10 @@ namespace {
         bool input_text(const char*, std::string&) override {
             return false;
         }
-        bool input_text_multiline(const char*, std::string& value, bool read_only) override {
+        bool input_text_multiline(const char* label, std::string& value, bool read_only) override {
+            if (std::string_view(label) == "シェル入出力") {
+                this->saw_shell_history = true;
+            }
             if (read_only) {
                 this->error = value;
             } else {
@@ -94,6 +101,57 @@ namespace {
             return {};
         }
     };
+    void shell_selection_tests(const std::shared_ptr<script::ScriptEngine>& engine,
+        const std::shared_ptr<sub_system::RenderSettings>& settings) {
+        UI ui;
+        auto monitor = std::make_shared<bypass_shell::ShellMonitor>();
+        int launches = 0;
+        bool fail_launch = true;
+        ui::SelectionUI shell_selection(std::make_shared<Models>(),
+            std::make_shared<types::ModelClickSettings>(),
+            engine,
+            settings,
+            monitor,
+            [&]() -> std::expected<void, std::string> {
+                ++launches;
+                if (fail_launch) {
+                    return std::unexpected("Terminal launch failed");
+                }
+                return {};
+            });
+        ui.clicked = "シェルを起動";
+        shell_selection.update(ui);
+        require(launches == 0, "Shell must not launch without a listening monitor");
+        require(monitor->start(0).has_value(), "Cannot start test shell listener");
+        ui.messages.clear();
+        ui.saw_script_button = false;
+        ui.clicked = "シェルを起動";
+        shell_selection.update(ui);
+        require(launches == 1, "Shell button must invoke launcher exactly once");
+        require(ui.saw_script_button, "Shell launch must keep the action menu visible");
+        require(!ui.saw_shell_history, "Shell launch must not display a history page");
+        require(std::find(ui.messages.begin(), ui.messages.end(), "Terminal launch failed") !=
+                    ui.messages.end(),
+            "Shell launch error must be displayed");
+        fail_launch = false;
+        ui.messages.clear();
+        ui.clicked = "シェルを起動";
+        shell_selection.update(ui);
+        require(launches == 2, "Shell launch must allow retry after failure");
+        require(std::find(ui.messages.begin(), ui.messages.end(), "Terminal launch failed") ==
+                    ui.messages.end(),
+            "Successful retry must clear the launch error");
+        shell_selection.update(ui);
+        require(launches == 2, "Redrawing the action menu must not launch another terminal");
+        ui::SelectionUI unavailable(std::make_shared<Models>(),
+            std::make_shared<types::ModelClickSettings>(),
+            engine,
+            settings,
+            monitor);
+        ui.clicked = "シェルを起動";
+        unavailable.update(ui);
+        require(launches == 2, "Missing launcher must be handled without invoking it");
+    }
 } // namespace
 void selection_tests() {
     auto engine = std::make_shared<script::ScriptEngine>();
@@ -140,4 +198,6 @@ void selection_tests() {
     ui.clicked = "終了";
     selection.update(ui);
     require(selection.is_exit_requested(), "Exit button must request window closure");
+
+    shell_selection_tests(engine, settings);
 }

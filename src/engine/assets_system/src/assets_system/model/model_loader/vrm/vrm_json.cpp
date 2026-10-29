@@ -4,6 +4,8 @@
 #include <charconv>
 #include <cmath>
 #include <limits>
+#include <locale>
+#include <sstream>
 
 namespace enishi::assets_system {
     namespace {
@@ -80,11 +82,28 @@ namespace enishi::assets_system {
         if (!this->valid) {
             return fallback;
         }
-        float result{};
-        const auto parsed =
-            std::from_chars(this->value.data(), this->value.data() + this->value.size(), result);
-        if (parsed.ec != std::errc{} || parsed.ptr != this->value.data() + this->value.size() ||
-            !std::isfinite(result)) {
+        constexpr std::string_view DECIMAL_CHARACTERS = "-+0123456789.eE";
+        if (this->value.starts_with('+') ||
+            this->value.find_first_not_of(DECIMAL_CHARACTERS) != std::string::npos) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        // Parse through double so representable float subnormals do not raise ERANGE
+        // in standard libraries that use strtof for float stream extraction.
+        double parsed{};
+        // Floating-point from_chars is unavailable on some supported macOS targets.
+        // The classic locale keeps JSON's decimal point independent of the user's locale.
+        std::istringstream input(this->value);
+        input.imbue(std::locale::classic());
+        input >> std::noskipws >> parsed;
+        if (input.fail() || !input.eof() || !std::isfinite(parsed) ||
+            std::abs(parsed) > static_cast<double>(std::numeric_limits<float>::max())) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        const auto result = static_cast<float>(parsed);
+        // Streams can silently round an underflow to zero; preserve from_chars' rejection.
+        const auto significand =
+            std::string_view(this->value).substr(0, this->value.find_first_of("eE"));
+        if (result == 0.0f && significand.find_first_of("123456789") != std::string_view::npos) {
             return std::numeric_limits<float>::quiet_NaN();
         }
         return result;

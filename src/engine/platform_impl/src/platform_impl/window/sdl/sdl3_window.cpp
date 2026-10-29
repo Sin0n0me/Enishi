@@ -2,10 +2,14 @@
 #include <SDL3/SDL_init.h>
 #include <debug/log/logger.h>
 #include <platform/window/common_settings.h>
-#if defined(USE_WINDOWS) || defined(_WIN32)
-#include "sdl_windows_handle.h"
+#include <string_view>
+#include <sub_system/ui/interface_ui.h>
+#if defined(_WIN32)
+#include "sdl_desktop_windows.h"
+#elif defined(__APPLE__)
+#include "sdl_desktop_macos.h"
 #else
-#include "sdl_non_windows_handle.h"
+#include "sdl_desktop_linux.h"
 #endif
 
 namespace enishi::platform_impl {
@@ -70,24 +74,38 @@ namespace enishi::platform_impl {
         const types::GraphicsAPI graphics_api,
         SDL_WindowFlags extra_flags)
         : window_system(window_system)
-        , window([&]() {
-            if (graphics_api == types::GraphicsAPI::OpenGL40) {
-                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-                SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-                SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-                SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-                SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-            }
-            return SDLWindowPtr(SDL_CreateWindow(window_name.c_str(),
-                size.width,
-                size.height,
-                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
-                    SDL3Window::get_flag_from_graphics_api(graphics_api) | extra_flags));
-        }())
+        , window(nullptr)
         , is_closing(false)
         , size()
         , position() {
+        if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0) {
+            // Environment overrides remain authoritative; normal desktop launches choose a
+            // driver that supports absolute positioning and global cursor tracking.
+            SDL_SetHint(SDL_HINT_VIDEO_DRIVER, DESKTOP_VIDEO_DRIVER);
+        }
+        if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
+            return;
+        }
+        this->video_initialized = true;
+        if (graphics_api == types::GraphicsAPI::OpenGL40) {
+            constexpr int MAJOR_VERSION = 4;
+            constexpr int DEPTH_BITS = 24;
+            constexpr int STENCIL_BITS = 8;
+            if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, MAJOR_VERSION) ||
+                !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, OPENGL_MINOR_VERSION) ||
+                !SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, OPENGL_CONTEXT_FLAGS) ||
+                !SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) ||
+                !SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) ||
+                !SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, DEPTH_BITS) ||
+                !SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, STENCIL_BITS)) {
+                return;
+            }
+        }
+        this->window.reset(SDL_CreateWindow(window_name.c_str(),
+            size.width,
+            size.height,
+            SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TRANSPARENT | SDL_WINDOW_BORDERLESS |
+                SDL3Window::get_flag_from_graphics_api(graphics_api) | extra_flags));
     }
 
     SDL3Window::~SDL3Window(void) noexcept {
@@ -106,15 +124,10 @@ namespace enishi::platform_impl {
             return foundation::Error(platform::WindowError::FailedMakeWindow,
                 std::format("SDL_CreateWindow failed: {}", SDL_GetError()));
         }
-        if (this->video_initialized || this->events_initialized) {
-            return foundation::Error(platform::WindowError::InitError, "Window already initialized");
+        if (this->events_initialized) {
+            return foundation::Error(
+                platform::WindowError::InitError, "Window already initialized");
         }
-        if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
-            return foundation::Error(platform::WindowError::InitError,
-                std::format("SDL video initialization failed: {}", SDL_GetError()));
-        }
-
-        this->video_initialized = true;
         if (!SDL_InitSubSystem(SDL_INIT_EVENTS)) {
             return foundation::Error(platform::WindowError::InitError,
                 std::format("SDL event initialization failed: {}", SDL_GetError()));
@@ -170,48 +183,88 @@ namespace enishi::platform_impl {
 
     foundation::Option<platform::NativeWindowHandle> SDL3Window::get_native_handle(
         SDL_Window* const window, const platform::WindowSystem window_system) {
+        const auto properties = SDL_GetWindowProperties(window);
         switch (window_system) {
             case platform::WindowSystem::Wayland: {
-                const auto handle = platform::NativeWaylandHandle{};
-
-                return platform::NativeWindowHandle{
-                    .wayland = handle,
-                };
-            }
-            case platform::WindowSystem::Windows: {
-                const auto handle = read_windows_handle(window);
-                if (handle.is_none()) {
+                const auto display = static_cast<wl_display*>(SDL_GetPointerProperty(
+                    properties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr));
+                const auto surface = static_cast<wl_surface*>(SDL_GetPointerProperty(
+                    properties, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr));
+                if (display == nullptr || surface == nullptr) {
                     return {};
                 }
-
-                return platform::NativeWindowHandle{
-                    .windows = handle.unwrap(),
-                };
+                return platform::NativeWindowHandle{.wayland = {display, surface}};
+            }
+            case platform::WindowSystem::Windows: {
+                const auto hwnd =
+                    SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+                const auto instance = SDL_GetPointerProperty(
+                    properties, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+                if (hwnd == nullptr || instance == nullptr) {
+                    return {};
+                }
+                return platform::NativeWindowHandle{.windows = {hwnd, instance}};
             }
             case platform::WindowSystem::X11: {
-                const auto handle = platform::NativeX11Handle{};
-
+                const auto display = SDL_GetPointerProperty(
+                    properties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
+                const auto handle =
+                    SDL_GetNumberProperty(properties, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+                if (display == nullptr || handle == 0) {
+                    return {};
+                }
                 return platform::NativeWindowHandle{
-                    .x11 = handle,
-                };
+                    .x11 = {display, static_cast<unsigned long>(handle)}};
+            }
+            case platform::WindowSystem::Cocoa: {
+                const auto handle = SDL_GetPointerProperty(
+                    properties, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+                if (handle == nullptr) {
+                    return {};
+                }
+                return platform::NativeWindowHandle{.cocoa = {handle}};
             }
             default:
-                break;
+                return {};
         }
-
+    }
+    foundation::Option<platform::WindowSystem> SDL3Window::current_window_system() {
+        const auto driver = SDL_GetCurrentVideoDriver();
+        if (driver == nullptr) {
+            return {};
+        }
+        const std::string_view name{driver};
+        if (name == "windows") {
+            return platform::WindowSystem::Windows;
+        }
+        if (name == "x11") {
+            return platform::WindowSystem::X11;
+        }
+        if (name == "wayland") {
+            return platform::WindowSystem::Wayland;
+        }
+        if (name == "cocoa") {
+            return platform::WindowSystem::Cocoa;
+        }
         return {};
     }
 
     foundation::Option<platform::WindowHandle> SDL3Window::get_handle(void) const noexcept {
+        const auto system = this->window_system == platform::WindowSystem::Automatic
+                                ? SDL3Window::current_window_system()
+                                : foundation::Option<platform::WindowSystem>{this->window_system};
+        if (system.is_none()) {
+            return {};
+        }
         const auto opt_window_handle =
-            SDL3Window::get_native_handle(this->window.get(), this->window_system);
+            SDL3Window::get_native_handle(this->window.get(), system.unwrap());
         if (opt_window_handle.is_none()) {
             return {};
         }
 
         return platform::WindowHandle{
             .id = types::HandleId{},
-            .tag = this->window_system,
+            .tag = system.unwrap(),
             .native_handle = opt_window_handle.unwrap(),
         };
     }

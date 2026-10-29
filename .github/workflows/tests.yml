@@ -13,6 +13,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  shell-relay:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Configure shell relay with Clang
+        run: >-
+          cmake -S src/engine/bypass_shell -B build/shell-relay -G Ninja
+          -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+      - name: Build shell relay
+        run: cmake --build build/shell-relay --parallel 4
+      - name: Test redirected and interactive shell sessions
+        run: python -B .github/scripts/test_shell_terminal_windows.py build/shell-relay/enishi-shell.exe
   command-parser:
     runs-on: windows-2022
     timeout-minutes: 10

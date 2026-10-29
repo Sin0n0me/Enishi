@@ -206,7 +206,13 @@ namespace {
     }
     void run() {
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4), SDL_GetError());
+#if defined(__APPLE__)
+        require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1), SDL_GetError());
+        require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG),
+            SDL_GetError());
+#else
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0), SDL_GetError());
+#endif
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE),
             SDL_GetError());
         const auto window = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>(

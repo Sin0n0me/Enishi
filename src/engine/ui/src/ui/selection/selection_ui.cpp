@@ -1,7 +1,6 @@
 #include "selection_ui.h"
 #include "selection_click_settings.h"
 #include "selection_settings.h"
-#include "selection_shell.h"
 #include <utility>
 
 namespace enishi::ui {
@@ -9,12 +8,14 @@ namespace enishi::ui {
         std::shared_ptr<types::ModelClickSettings> click_settings,
         std::shared_ptr<sub_system::IScriptEngine> scripts,
         std::shared_ptr<sub_system::RenderSettings> render_settings,
-        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor)
+        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor,
+        ShellLauncher launch_shell)
         : models(std::move(models))
         , click_settings(std::move(click_settings))
         , scripts(std::move(scripts))
         , render_settings(std::move(render_settings))
-        , shell_monitor(std::move(shell_monitor)) {
+        , shell_monitor(std::move(shell_monitor))
+        , launch_shell(std::move(launch_shell)) {
     }
 
     bool SelectionUI::is_exit_requested(void) const {
@@ -30,7 +31,7 @@ namespace enishi::ui {
         constexpr float SCRIPT_HEIGHT = 460.0f;
         float width = ACTION_WIDTH;
         float height = ACTION_HEIGHT;
-        if (this->page == Page::Script || this->page == Page::Shell) {
+        if (this->page == Page::Script) {
             width = SCRIPT_WIDTH;
             height = SCRIPT_HEIGHT;
         } else if (this->page != Page::Actions) {
@@ -49,8 +50,24 @@ namespace enishi::ui {
     }
 
     void SelectionUI::draw_actions(sub_system::IUI& ui) {
-        if (this->shell_monitor != nullptr && ui.button("シェル")) {
-            this->page = Page::Shell;
+        if (this->shell_monitor != nullptr) {
+            const bool can_launch =
+                static_cast<bool>(this->launch_shell) && this->shell_monitor->is_listening();
+            ui.begin_disabled(!can_launch);
+            if (ui.button("シェルを起動") && can_launch) {
+                const auto result = this->launch_shell();
+                this->shell_error = result.has_value() ? std::string{} : result.error();
+            }
+            ui.end_disabled();
+            if (!this->shell_error.empty()) {
+                ui.text(this->shell_error);
+            }
+            if (!this->shell_monitor->is_listening()) {
+                ui.text("シェルの接続受付が開始されていません。");
+                if (!this->shell_monitor->last_error().empty()) {
+                    ui.text(this->shell_monitor->last_error());
+                }
+            }
         }
         if (ui.button("モデルの切り替え")) {
             this->page = Page::Models;
@@ -75,11 +92,6 @@ namespace enishi::ui {
             return;
         }
         switch (this->page) {
-            case Page::Shell:
-                if (this->shell_monitor != nullptr) {
-                    SelectionShell::draw(ui, *this->shell_monitor);
-                }
-                break;
             case Page::Actions:
                 this->draw_actions(ui);
                 break;
