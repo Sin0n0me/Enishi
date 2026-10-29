@@ -124,6 +124,7 @@ set(DEPENDENCIES
     PRIVATE renderer
     PRIVATE render_pass
     PRIVATE script
+    PRIVATE bypass_shell
     PRIVATE ui
     PRIVATE engine_types
     PRIVATE enishi::debug
@@ -138,6 +139,7 @@ set(DEPENDENCIES
 target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCIES})
+add_dependencies(${PROJECT_NAME} enishi-shell)
 
 set(ENISHI_SHADER_RUNTIME_ROOT "${CMAKE_CURRENT_BINARY_DIR}/shader" CACHE STRING
     "Runtime shader root; use ./shader for a relocatable application package")

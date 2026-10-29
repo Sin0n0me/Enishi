@@ -1,9 +1,10 @@
 #pragma once
 #include "settings.h"
 #include <animation/rig/bone_name_dictionary.h>
-#include <core/system/collision/model_click_system.h>
+#include <bypass_shell/shell_monitor.h>
 #include <collider/collider.h>
 #include <core/system/asset/asset_manager.h>
+#include <core/system/collision/model_click_system.h>
 #include <core/system/render/render_system.h>
 #include <core/system/system_scheduler.h>
 #include <core/system/window/window_manager.h>
@@ -25,6 +26,7 @@ namespace enishi {
     class Application {
       private:
         std::shared_ptr<ecs::Registry> registry;
+        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor;
         std::shared_ptr<debug::PlaybackControl> debug_playback;
         std::shared_ptr<collider::Collider> collider;
         std::shared_ptr<types::ModelClickSettings> click_settings;
@@ -54,6 +56,7 @@ namespace enishi {
             std::optional<effect::CrackImpact> impact, const effect::EffectTarget& target);
         bool init(void);
         void run(void);
+        [[nodiscard]] std::shared_ptr<bypass_shell::ShellMonitor> get_shell_monitor() const;
         [[nodiscard]] std::shared_ptr<sub_system::ICameraController> get_camera_controller() const;
         [[nodiscard]] std::shared_ptr<sub_system::IWindowAnimationSync>
         get_window_animation_sync() const;
