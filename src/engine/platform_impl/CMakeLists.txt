@@ -30,11 +30,15 @@ else()
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform_impl/effect/effect_overlay_windows.cpp")
 endif()
 
+# The standalone shell target selects and owns the platform process sources.
+list(FILTER SOURCES EXCLUDE REGEX "/platform_impl/process/.*[.]cpp$")
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ShellProcess.cmake)
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES OBJCXX_STANDARD 23 OBJCXX_STANDARD_REQUIRED ON)
     target_link_libraries(${PROJECT_NAME} PRIVATE "-framework AppKit")
 endif()
+target_link_libraries(${PROJECT_NAME} PUBLIC platform_impl_shell)
 
 
 # 以下依存設定

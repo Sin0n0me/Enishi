@@ -9,6 +9,8 @@ set(UI_DEPENDENT_LIBS "${CMAKE_BINARY_DIR}/libs")
 
 # 外部
 include(FetchContent)
+FetchContent_Declare(BYPASS_SHELL SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../bypass_shell)
+FetchContent_MakeAvailable(BYPASS_SHELL)
 
 FetchContent_Declare(ENISHI_DEBUG SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../debug)
 FetchContent_MakeAvailable(ENISHI_DEBUG)
@@ -67,7 +69,7 @@ enishi_configure_library(enishi_imgui
 enishi_add_library(${PROJECT_NAME} ${SOURCES})
 enishi_configure_library(${PROJECT_NAME}
     INCLUDE_DIRECTORIES src
-    PUBLIC_DEPENDENCIES sub_system engine_types foundation
+    PUBLIC_DEPENDENCIES sub_system engine_types foundation bypass_shell
     DEPENDENCIES enishi_imgui
 )
 
