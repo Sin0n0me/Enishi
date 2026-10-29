@@ -26,6 +26,7 @@ namespace {
         bool saw_editor = false;
         bool saw_script_button = false;
         std::vector<std::string> messages;
+        bool saw_shell_history = false;
         void begin_frame() override {
         }
         void end_frame() override {
@@ -53,7 +54,10 @@ namespace {
         bool input_text(const char*, std::string&) override {
             return false;
         }
-        bool input_text_multiline(const char*, std::string& value, bool read_only) override {
+        bool input_text_multiline(const char* label, std::string& value, bool read_only) override {
+            if (std::string_view(label) == "シェル入出力") {
+                this->saw_shell_history = true;
+            }
             if (read_only) {
                 this->error = value;
             } else {
@@ -115,16 +119,17 @@ namespace {
                 }
                 return {};
             });
-        ui.clicked = "シェル";
-        shell_selection.update(ui);
         ui.clicked = "シェルを起動";
         shell_selection.update(ui);
         require(launches == 0, "Shell must not launch without a listening monitor");
         require(monitor->start(0).has_value(), "Cannot start test shell listener");
         ui.messages.clear();
+        ui.saw_script_button = false;
         ui.clicked = "シェルを起動";
         shell_selection.update(ui);
         require(launches == 1, "Shell button must invoke launcher exactly once");
+        require(ui.saw_script_button, "Shell launch must keep the action menu visible");
+        require(!ui.saw_shell_history, "Shell launch must not display a history page");
         require(std::find(ui.messages.begin(), ui.messages.end(), "Terminal launch failed") !=
                     ui.messages.end(),
             "Shell launch error must be displayed");
@@ -137,10 +142,14 @@ namespace {
                     ui.messages.end(),
             "Successful retry must clear the launch error");
         shell_selection.update(ui);
-        require(launches == 2, "Redrawing the shell page must not launch another terminal");
-        ui::SelectionShell unavailable;
+        require(launches == 2, "Redrawing the action menu must not launch another terminal");
+        ui::SelectionUI unavailable(std::make_shared<Models>(),
+            std::make_shared<types::ModelClickSettings>(),
+            engine,
+            settings,
+            monitor);
         ui.clicked = "シェルを起動";
-        unavailable.draw(ui, *monitor);
+        unavailable.update(ui);
         require(launches == 2, "Missing launcher must be handled without invoking it");
     }
 } // namespace
