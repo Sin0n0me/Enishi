@@ -1,6 +1,7 @@
 #pragma once
 #include "selection_models.h"
 #include "selection_script.h"
+#include "selection_shell.h"
 #include <bypass_shell/shell_monitor.h>
 #include <engine_types/input/model_click_settings.h>
 #include <memory>
@@ -22,6 +23,7 @@ namespace enishi::ui {
         std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor;
         SelectionModels models_page;
         SelectionScript script_page;
+        SelectionShell shell_page;
         Page page = Page::Actions;
         bool exit_requested = false;
 
@@ -30,7 +32,8 @@ namespace enishi::ui {
             std::shared_ptr<types::ModelClickSettings> click_settings,
             std::shared_ptr<sub_system::IScriptEngine> scripts,
             std::shared_ptr<sub_system::RenderSettings> render_settings,
-            std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor = nullptr);
+            std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor = nullptr,
+            SelectionShell::Launcher launch_shell = {});
         void update(sub_system::IUI& ui);
         [[nodiscard]] bool is_exit_requested(void) const;
 

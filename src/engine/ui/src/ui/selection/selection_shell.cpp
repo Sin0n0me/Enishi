@@ -1,4 +1,5 @@
 #include "selection_shell.h"
+#include <utility>
 
 namespace enishi::ui {
     namespace {
@@ -42,8 +43,24 @@ namespace enishi::ui {
             return result;
         }
     } // namespace
+    SelectionShell::SelectionShell(Launcher launcher)
+        : launcher(std::move(launcher)) {
+    }
     void SelectionShell::draw(sub_system::IUI& ui, bypass_shell::ShellMonitor& monitor) {
-        ui.text("ターミナルで enishi-shell を起動してください。");
+        const bool can_launch = static_cast<bool>(this->launcher) && monitor.is_listening();
+        ui.begin_disabled(!can_launch);
+        if (ui.button("シェルを起動") && can_launch) {
+            const auto result = this->launcher();
+            this->launch_message =
+                result.has_value() ? "ターミナルの起動を要求しました。" : result.error();
+        }
+        ui.end_disabled();
+        if (!this->launch_message.empty()) {
+            ui.text(this->launch_message);
+        }
+        if (!monitor.is_listening()) {
+            ui.text("シェルの接続受付が開始されていません。");
+        }
         ui.text("入力・出力はセッション単位で表示します。非ASCIIバイトは16進表記です。");
         if (!monitor.last_error().empty()) {
             ui.text(monitor.last_error());

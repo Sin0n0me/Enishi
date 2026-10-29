@@ -9,12 +9,14 @@ namespace enishi::ui {
         std::shared_ptr<types::ModelClickSettings> click_settings,
         std::shared_ptr<sub_system::IScriptEngine> scripts,
         std::shared_ptr<sub_system::RenderSettings> render_settings,
-        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor)
+        std::shared_ptr<bypass_shell::ShellMonitor> shell_monitor,
+        SelectionShell::Launcher launch_shell)
         : models(std::move(models))
         , click_settings(std::move(click_settings))
         , scripts(std::move(scripts))
         , render_settings(std::move(render_settings))
-        , shell_monitor(std::move(shell_monitor)) {
+        , shell_monitor(std::move(shell_monitor))
+        , shell_page(std::move(launch_shell)) {
     }
 
     bool SelectionUI::is_exit_requested(void) const {
@@ -77,7 +79,7 @@ namespace enishi::ui {
         switch (this->page) {
             case Page::Shell:
                 if (this->shell_monitor != nullptr) {
-                    SelectionShell::draw(ui, *this->shell_monitor);
+                    this->shell_page.draw(ui, *this->shell_monitor);
                 }
                 break;
             case Page::Actions:

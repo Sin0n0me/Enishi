@@ -69,6 +69,9 @@ namespace enishi::bypass_shell {
     const std::string& ShellMonitor::last_error() const {
         return this->error;
     }
+    bool ShellMonitor::is_listening() const {
+        return this->listening;
+    }
     void ShellMonitor::clear_history() {
         this->history.clear();
         this->history_bytes = 0;
