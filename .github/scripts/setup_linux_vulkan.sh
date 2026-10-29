@@ -17,13 +17,27 @@ fi
 sdk="$destination/$version/x86_64"
 test -f "$sdk/include/vulkan/vulkan.h"
 test -x "$sdk/bin/glslc"
-mapfile -t reflect_sources < <(find "$destination/$version/source" -name spirv_reflect.c -type f)
+# SDK releases do not all place bundled sources under a top-level source directory.
+# Capture find's status instead of hiding failures inside process substitution.
+reflect_list=$(find "$destination/$version" -type f -name spirv_reflect.c -print)
+reflect_sources=()
+if [[ -n "$reflect_list" ]]; then
+  mapfile -t reflect_sources <<< "$reflect_list"
+fi
 if [[ ${#reflect_sources[@]} != 1 ]]; then
-  echo "Expected exactly one SDK SPIRV-Reflect source" >&2
+  echo "Expected exactly one spirv_reflect.c under $destination/$version; found ${#reflect_sources[@]}" >&2
+  if [[ ${#reflect_sources[@]} != 0 ]]; then
+    printf '  %s\n' "${reflect_sources[@]}" >&2
+  fi
+  exit 1
+fi
+reflect_directory=$(dirname "${reflect_sources[0]}")
+if [[ ! -f "$reflect_directory/spirv_reflect.h" ]]; then
+  echo "Missing SPIRV-Reflect header: $reflect_directory/spirv_reflect.h" >&2
   exit 1
 fi
 echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
-echo "ENISHI_SPIRV_REFLECT_SOURCE_DIR=$(dirname "${reflect_sources[0]}")" >> "$GITHUB_ENV"
+echo "ENISHI_SPIRV_REFLECT_SOURCE_DIR=$reflect_directory" >> "$GITHUB_ENV"
 echo "LD_LIBRARY_PATH=$sdk/lib/VulkanLoader/lib:$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 echo "CMAKE_PREFIX_PATH=$sdk:$sdk/lib/VulkanLoader${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}" >> "$GITHUB_ENV"
 echo "$sdk/bin" >> "$GITHUB_PATH"
