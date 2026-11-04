@@ -17,6 +17,11 @@ fi
 sdk="$destination/$version/x86_64"
 test -f "$sdk/include/vulkan/vulkan.h"
 test -x "$sdk/bin/glslc"
+layer_directory="$sdk/share/vulkan/explicit_layer.d"
+if [[ ! -f "$layer_directory/VkLayer_khronos_validation.json" ]]; then
+  echo "Missing Vulkan validation layer manifest: $layer_directory/VkLayer_khronos_validation.json" >&2
+  exit 1
+fi
 # SDK releases do not all place bundled sources under a top-level source directory.
 # Capture find's status instead of hiding failures inside process substitution.
 reflect_list=$(find "$destination/$version" -type f -name spirv_reflect.c -print)
@@ -37,6 +42,7 @@ if [[ ! -f "$reflect_directory/spirv_reflect.h" ]]; then
   exit 1
 fi
 echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
+echo "VK_LAYER_PATH=$layer_directory${VK_LAYER_PATH:+:$VK_LAYER_PATH}" >> "$GITHUB_ENV"
 echo "ENISHI_SPIRV_REFLECT_SOURCE_DIR=$reflect_directory" >> "$GITHUB_ENV"
 echo "LD_LIBRARY_PATH=$sdk/lib/VulkanLoader/lib:$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 echo "CMAKE_PREFIX_PATH=$sdk:$sdk/lib/VulkanLoader${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}" >> "$GITHUB_ENV"
