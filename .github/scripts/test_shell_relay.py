@@ -65,6 +65,25 @@ def test_relay(executable):
             raise RuntimeError(f"Notification {kind}: expected {expected!r}, got {actual!r}")
 
 
+def assert_terminal_restored(original, restored):
+    import termios
+
+    expected = original.copy()
+    actual = restored.copy()
+    # Darwin sets PENDIN when ICANON is restored: it marks queued input for
+    # reprocessing, rather than a terminal setting owned by the relay.
+    local_flags = 3
+    pending_input = getattr(termios, "PENDIN", 0)
+    expected[local_flags] &= ~pending_input
+    actual[local_flags] &= ~pending_input
+    fields = ("iflag", "oflag", "cflag", "lflag", "ispeed", "ospeed", "cc")
+    differences = [f"{name}: expected {before!r}, got {after!r}"
+                   for name, before, after in zip(fields, expected, actual)
+                   if before != after]
+    if differences:
+        raise RuntimeError("Relay did not restore the terminal mode: " + "; ".join(differences))
+
+
 def test_terminal(executable):
     import fcntl
     import os
@@ -73,7 +92,6 @@ def test_terminal(executable):
     import termios
 
     master, slave = pty.openpty()
-    original = termios.tcgetattr(slave)
     events, errors = [], []
     output = bytearray()
     sent = bytearray()
@@ -92,6 +110,10 @@ def test_terminal(executable):
 
     process = None
     try:
+        # Read back an applied mode so kernel normalization (e.g. input speed)
+        # is included in the baseline before the relay changes it.
+        termios.tcsetattr(slave, termios.TCSANOW, termios.tcgetattr(slave))
+        original = termios.tcgetattr(slave)
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -124,8 +146,7 @@ def test_terminal(executable):
                 send(b"exit 7\n")
                 if process.wait(timeout=TIMEOUT_SECONDS) != 7:
                     raise RuntimeError(f"Terminal exit status: {process.returncode}")
-                if termios.tcgetattr(slave) != original:
-                    raise RuntimeError("Relay did not restore the terminal mode")
+                assert_terminal_restored(original, termios.tcgetattr(slave))
             finally:
                 if process is not None and process.poll() is None:
                     process.kill()
