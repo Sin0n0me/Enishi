@@ -7,4 +7,4 @@ add_dependencies(vulkan_render_tests enishi_vulkan_shaders)
 add_custom_command(TARGET vulkan_render_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL3::SDL3> $<TARGET_FILE_DIR:vulkan_render_tests>)
 add_test(NAME vulkan_render_tests COMMAND vulkan_render_tests)
-set_tests_properties(vulkan_render_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+set_tests_properties(vulkan_render_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
