@@ -47,7 +47,8 @@ namespace {
         auto model = model_controller::make_model_component(*converted.unwrap(), {});
         auto registry = std::make_shared<ecs::Registry>();
         const auto entity = registry->create();
-        check(registry->insert(entity, model).is_ok(), "insert inheritance model");
+        check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+            "insert inheritance model");
         check(core::initialize_model_pose(*registry, entity, model).is_ok(),
             "initialize inheritance pose");
         auto& animation = registry->get<component::AnimationComponent>(entity).unwrap_mut();
@@ -99,7 +100,8 @@ namespace {
         auto model = model_controller::make_model_component(*converted.unwrap(), {});
         auto registry = std::make_shared<ecs::Registry>();
         const auto entity = registry->create();
-        check(registry->insert(entity, model).is_ok(), "insert IK inheritance model");
+        check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+            "insert IK inheritance model");
         check(core::initialize_model_pose(*registry, entity, model).is_ok(),
             "initialize IK inheritance");
         core::SkinningSystem system(registry, nullptr);

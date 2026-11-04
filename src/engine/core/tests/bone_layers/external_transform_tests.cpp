@@ -35,7 +35,8 @@ void external_transform_tests() {
         "external key becomes format-neutral transform slot");
     auto registry = std::make_shared<ecs::Registry>();
     const auto entity = registry->create();
-    check(registry->insert(entity, model).is_ok(), "insert external model");
+    check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+        "insert external model");
     check(
         core::initialize_model_pose(*registry, entity, model).is_ok(), "initialize external pose");
     auto& pose = registry->get<component::AnimationComponent>(entity).unwrap_mut();

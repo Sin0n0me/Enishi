@@ -37,7 +37,8 @@ void bone_morph_tests() {
     auto model = model_controller::make_model_component(*converted.unwrap(), {});
     auto registry = std::make_shared<ecs::Registry>();
     const auto entity = registry->create();
-    check(registry->insert(entity, model).is_ok(), "insert bone morph model");
+    check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+        "insert bone morph model");
     check(core::initialize_model_pose(*registry, entity, model).is_ok(),
         "initialize bone morph pose");
     auto& pose = registry->get<component::AnimationComponent>(entity).unwrap_mut();
