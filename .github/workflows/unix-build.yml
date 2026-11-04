@@ -88,7 +88,14 @@ jobs:
             -DSDL_SHARED=OFF -DSDL_STATIC=ON -DENISHI_SHADER_RUNTIME_ROOT=./shader \
             "-DENISHI_PRECOMPILED_SHADER_DIRECTORY=$GITHUB_WORKSPACE/build/portable-shaders" \
             "-DENISHI_EFFECT_RENDER_TESTS=$ENABLE_TESTS" "-DENISHI_SCRIPT_TESTS=$ENABLE_TESTS" \
-            "-DENISHI_CURSOR_TESTS=$ENABLE_TESTS" "-DENISHI_ECS_TESTS=$ENABLE_TESTS" "${options[@]}"
+            "-DENISHI_CURSOR_TESTS=$ENABLE_TESTS" "-DENISHI_ECS_TESTS=$ENABLE_TESTS" \
+            "-DENISHI_COMMON_TESTS=$ENABLE_TESTS" "${options[@]}"
+      - name: Build and run common regression tests
+        if: inputs.run-tests
+        run: |
+          cmake --build "$BUILD_DIR" --parallel 3 --target enishi_common_tests
+          ctest --test-dir "$BUILD_DIR/engine/tests" --output-on-failure --no-tests=error \
+            --timeout 120 --output-junit common-test-results.xml
       - name: Build application and shell
         if: ${{ !inputs.run-tests }}
         run: cmake --build "$BUILD_DIR" --parallel 3 --target enishi_engine enishi-shell
@@ -131,6 +138,8 @@ jobs:
           name: ${{ matrix.artifact }}-${{ inputs.run-tests && 'tests' || 'build' }}-logs
           path: |
             build/presets/${{ matrix.preset }}/test-results.xml
+            build/presets/${{ matrix.preset }}/engine/tests/common-test-results.xml
+            build/presets/${{ matrix.preset }}/engine/tests/Testing/Temporary/
             build/presets/${{ matrix.preset }}/Testing/Temporary/
             build/presets/${{ matrix.preset }}/CMakeFiles/CMakeConfigureLog.yaml
             build/presets/${{ matrix.preset }}/*.log
