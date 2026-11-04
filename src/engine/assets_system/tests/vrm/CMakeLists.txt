@@ -16,6 +16,7 @@ add_executable(vrm_tests vrm_tests.cpp vrm_fixture.cpp
     "${VRM_ROOT}/vrm_expression.cpp"
     "${VRM_ROOT}/vrm_expression_uv.cpp"
     "${VRM_ROOT}/vrm_spring.cpp"
+    "${ENGINE_ROOT}/engine_types/src/engine_types/renderer/uniform_buffer/material.cpp"
     "${ASSETS_ROOT}/utility/binary_reader.cpp"
     "${ASSETS_ROOT}/texture/texture_loader.cpp")
 target_compile_features(vrm_tests PRIVATE cxx_std_23)
