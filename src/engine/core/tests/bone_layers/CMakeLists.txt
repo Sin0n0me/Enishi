@@ -57,7 +57,7 @@ if(MSVC)
     target_compile_options(bone_layer_tests PRIVATE /utf-8 /W4)
 endif()
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR OR ENISHI_COMMON_TESTS)
     enable_testing()
     add_test(NAME bone_layer_tests COMMAND bone_layer_tests)
 endif()
