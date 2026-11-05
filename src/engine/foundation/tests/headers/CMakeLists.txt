@@ -10,8 +10,8 @@ foreach(header IN LISTS foundation_headers)
     set(check "${CMAKE_CURRENT_BINARY_DIR}/${name}")
     # Separate translation units prevent incidental includes and unity builds
     # from hiding missing dependencies in a public header.
-    file(WRITE "${check}.h" "#pragma once\n#include <${header}>\n")
-    file(WRITE "${check}.cpp" "#include \"${name}.h\"\n")
+    file(CONFIGURE OUTPUT "${check}.h" CONTENT "#pragma once\n#include <${header}>\n")
+    file(CONFIGURE OUTPUT "${check}.cpp" CONTENT "#include \"${name}.h\"\n")
     list(APPEND check_sources "${check}.cpp")
 endforeach()
 add_library(foundation_header_checks OBJECT ${check_sources})

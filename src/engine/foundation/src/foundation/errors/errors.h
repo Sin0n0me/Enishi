@@ -4,6 +4,7 @@
 #include <format>
 #include <memory>
 #include <ranges>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
