@@ -9,7 +9,7 @@ if [[ "$RUNNER_OS" == macOS ]]; then
 fi
 
 # These targets need neither the application build nor its downloaded renderer dependencies.
-for suite in foundation/tests/headers foundation/tests/option assets_system/tests/vrm_json bypass_shell/tests/command_parser effect/tests/runtime; do
+for suite in foundation/tests/headers foundation/tests/option foundation/tests/result assets_system/tests/vrm_json bypass_shell/tests/command_parser effect/tests/runtime; do
   directory="build/standalone/$suite"
   cmake -S "src/engine/$suite" -B "$directory" -G Ninja "${options[@]}"
   cmake --build "$directory" --parallel 3
