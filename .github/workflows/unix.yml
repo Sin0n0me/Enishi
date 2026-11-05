@@ -26,6 +26,8 @@ jobs:
           python3 tools/generate_cmake_presets.py --check
           echo "builds=$(python3 -B .github/scripts/unix_matrix.py)" >> "$GITHUB_OUTPUT"
           echo "standalone=$(python3 -B .github/scripts/unix_matrix.py --standalone)" >> "$GITHUB_OUTPUT"
+      - name: Validate CI preflight checks
+        run: python3 -B .github/scripts/test_ci_inventory.py
 
   shaders:
     runs-on: ubuntu-24.04
@@ -112,7 +114,7 @@ jobs:
 
   integration-tests:
     name: Integration tests
-    needs: [matrix, shaders]
+    needs: [matrix, shaders, standalone-tests]
     uses: ./.github/workflows/unix-build.yml
     with:
       matrix: ${{ needs.matrix.outputs.builds }}
