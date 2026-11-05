@@ -37,7 +37,7 @@ namespace enishi::types {
             this->handle_mapper.emplace(handle, func(std::get<0>(tuple)));
             return {
                 handle,
-                std::get<1>(tuple),
+                std::get<1>(std::move(tuple)),
             };
         }
 
@@ -72,7 +72,7 @@ namespace enishi::types {
             return this->handle_mapper[key];
         }
         const V& operator[](const KeyType& key) const {
-            return this->handle_mapper[key];
+            return this->handle_mapper.at(key);
         }
 
         bool contains(const KeyType& key) const {
