@@ -75,10 +75,15 @@ jobs:
         with:
           path: |
             ${{ env.BUILD_DIR }}/_deps/*-src
+            ${{ env.BUILD_DIR }}/_deps/*-subbuild
+            ${{ env.BUILD_DIR }}/_deps/*-stamp
+            ${{ env.BUILD_DIR }}/_deps/*-tmp
+            ${{ env.BUILD_DIR }}/CMakeFiles/fc-stamp
+            ${{ env.BUILD_DIR }}/CMakeFiles/fc-tmp
             ${{ env.BUILD_DIR }}/libs
-          key: unix-cmake-sources-v1-${{ matrix.preset }}-${{ matrix.arch }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/cmake/**') }}
+          key: unix-cmake-sources-v2-${{ matrix.preset }}-${{ matrix.arch }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/cmake/**') }}
           restore-keys: |
-            unix-cmake-sources-v1-${{ matrix.preset }}-${{ matrix.arch }}-
+            unix-cmake-sources-v2-${{ matrix.preset }}-${{ matrix.arch }}-
       - name: Configure
         run: |
           options=()
@@ -109,6 +114,11 @@ jobs:
         with:
           path: |
             ${{ env.BUILD_DIR }}/_deps/*-src
+            ${{ env.BUILD_DIR }}/_deps/*-subbuild
+            ${{ env.BUILD_DIR }}/_deps/*-stamp
+            ${{ env.BUILD_DIR }}/_deps/*-tmp
+            ${{ env.BUILD_DIR }}/CMakeFiles/fc-stamp
+            ${{ env.BUILD_DIR }}/CMakeFiles/fc-tmp
             ${{ env.BUILD_DIR }}/libs
           key: ${{ steps.source-cache.outputs.cache-primary-key }}
       - name: Build and run common regression tests
