@@ -40,7 +40,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Identify shader compiler revision
+        id: shader-compiler
+        run: echo "revision=$(git -C tools/SPIRV-Cross rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache validated shader bundles
+        id: shader-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/ci-shaders/opengl
+            build/ci-shaders/vulkan
+          key: portable-shaders-v1-${{ runner.os }}-${{ steps.shader-compiler.outputs.revision }}-${{ hashFiles('src/shader/hlsl/**', 'src/engine/cmake/TranspileShaders.cmake', '.github/shaders/**', 'tools/transpile_shader.py', '.github/workflows/unix.yml', 'uv.lock', '.python-version') }}
       - name: Install shader build tools
+        if: steps.shader-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-19 g++-14 ninja-build spirv-tools
@@ -51,8 +63,10 @@ jobs:
           tar -xzf "$RUNNER_TEMP/dxc.tar.gz" -C "$RUNNER_TEMP/dxc"
           echo "$RUNNER_TEMP/dxc/bin" >> "$GITHUB_PATH"
       - name: Compile and validate both shader bundles
+        if: steps.shader-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-python-tools
       - name: Build shader bundles
+        if: steps.shader-cache.outputs.cache-hit != 'true'
         run: |
           cmake -S .github/shaders -B build/ci-shaders -G Ninja -DCMAKE_BUILD_TYPE=Release \
             "-DPython3_EXECUTABLE=$ENISHI_PYTHON" "-DPython_EXECUTABLE=$ENISHI_PYTHON"
