@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STANDALONE = {
     "foundation_headers": "foundation/tests/headers",
     "foundation_option": "foundation/tests/option",
+    "foundation_result": "foundation/tests/result",
     "vrm_json": "assets_system/tests/vrm_json",
     "effect": "effect/tests/runtime",
     "shell_parser": "bypass_shell/tests/command_parser",
@@ -33,6 +34,7 @@ STANDALONE = {
     "skinning": "renderer/tests/skinning",
 }
 INTEGRATED = {
+    "collider": ("collider_test", "^ColliderTests$"),
     "pose": ("enishi_animation_pose_tests", "^enishi_animation_pose_tests$"),
     "cursor": ("enishi_cursor_tests", "^enishi_cursor_tests$"),
     "ecs": ("enishi_ecs_tests", "^enishi_ecs_tests$"),
@@ -40,6 +42,7 @@ INTEGRATED = {
     "script": ("enishi_script_tests", "^enishi_script_tests$"),
     "opengl": ("opengl_shadow_tests", "^opengl_"),
     "vulkan": ("vulkan_render_tests", "^vulkan_render_tests$"),
+    "effect_render": ("crack_render_tests", "^crack_render_tests$"),
 }
 OFFLINE = ["-DFETCHCONTENT_FULLY_DISCONNECTED=ON", "-DFETCHCONTENT_UPDATES_DISCONNECTED=ON",
            "-DVCPKG_MANIFEST_INSTALL=OFF", "-DENISHI_CARGO_OFFLINE=ON"]
@@ -155,21 +158,20 @@ def standalone_commands(name: str, args: argparse.Namespace, prefixes: list[Path
 def configure_engine(args: argparse.Namespace, env: dict[str, str]) -> tuple[int, set[str]]:
     command = ["cmake", "-S", str(ROOT / "src"), "-B", str(args.engine_build),
                "-DENISHI_CURSOR_TESTS=ON", "-DENISHI_ECS_TESTS=ON", "-DENISHI_SCRIPT_TESTS=ON",
-               "-DENISHI_RENDERER_RESOURCE_TESTS=ON", "-DENISHI_OPENGL_TESTS=ON", "-DENISHI_VULKAN_TESTS=ON"]
+               "-DENISHI_RENDERER_RESOURCE_TESTS=ON", "-DENISHI_OPENGL_TESTS=ON", "-DENISHI_VULKAN_TESTS=ON",
+               "-DCOLLIDER_BUILD_TESTING=ON", "-DENISHI_EFFECT_RENDER_TESTS=ON"]
     if args.rust_toolchain:
         command.append(f"-DENISHI_RUST_TOOLCHAIN={args.rust_toolchain}")
     command += OFFLINE
     status = run_stage("engine/configure", command, args.output / "engine-configure.log", env, args.dry_run)
     if status != 0 or args.dry_run:
         return status, set()
-    available = set()
-    for directory in (args.engine_build, args.engine_build / "_deps" / "renderer-build"):
-        inventory = subprocess.run(["ctest", "--test-dir", str(directory), "-C", args.config,
-                                    "--show-only=json-v1"], cwd=ROOT, env=env,
-                                   capture_output=True, text=True, errors="replace")
-        if inventory.returncode != 0:
-            raise RuntimeError(inventory.stderr or inventory.stdout)
-        available.update(test["name"] for test in json.loads(inventory.stdout)["tests"])
+    inventory = subprocess.run(["ctest", "--test-dir", str(args.engine_build), "-C", args.config,
+                                "--show-only=json-v1"], cwd=ROOT, env=env,
+                               capture_output=True, text=True, errors="replace")
+    if inventory.returncode != 0:
+        raise RuntimeError(inventory.stderr or inventory.stdout)
+    available = {test["name"] for test in json.loads(inventory.stdout)["tests"]}
     return 0, available
 
 
@@ -226,8 +228,7 @@ def main() -> int:
                 status = "skipped" if name in ("opengl", "vulkan") else "failed"
                 results.append({"suite": name, "status": status, "reason": "Not registered in the active engine configuration"})
                 continue
-            test_directory = (args.engine_build / "_deps" / "renderer-build"
-                              if name == "resources" else args.engine_build)
+            test_directory = args.engine_build
             commands = [("build", ["cmake", "--build", str(args.engine_build), "--config", args.config,
                                     "--target", target, "--parallel", str(args.jobs)]),
                         ("test", test_command(test_directory, args, pattern))]

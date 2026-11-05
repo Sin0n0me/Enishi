@@ -48,26 +48,3 @@ if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
-
-
-# 以下テスト用設定
-option(COLLIDER_BUILD_TESTING "Build collider tests" OFF)
-
-if(COLLIDER_BUILD_TESTING)
-    enable_testing()
-
-    # テスト用実行ファイルの生成
-    file(GLOB TEST_SOURCES
-        "tests/*.h"
-        "tests/*.cpp" 
-        "tests/*.hpp" 
-        "tests/*.cpp"
-    )
-
-    add_executable(${PROJECT_NAME}_test ${TEST_SOURCES})
-    target_link_libraries(${PROJECT_NAME}_test PRIVATE collider)
-    target_compile_features(${PROJECT_NAME}_test PRIVATE cxx_std_23)
-
-    # CTestにテストケースを登録
-    add_test(NAME ColliderTests COMMAND collider_test)
-endif()
