@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev python3-jinja2 \
+          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
             libxfixes-dev libxss-dev libxtst-dev libgl1-mesa-dev libegl1-mesa-dev \
             libasound2-dev libpulse-dev mesa-vulkan-drivers xvfb xauth x11-utils openbox xcompmgr
@@ -63,6 +63,16 @@ jobs:
           echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
       - name: Install project Rust toolchain
         run: rustup toolchain install 1.88.0 --profile minimal
+      - name: Set up Python for GLAD and test scripts
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.txt
+      - name: Install and verify Python build dependencies
+        run: |
+          python -m pip install --requirement .github/requirements-ci.txt
+          python -c 'import jinja2; print("GLAD Jinja2:", jinja2.__version__)'
       - uses: actions/download-artifact@v4
         with:
           name: portable-${{ matrix.backend }}-shaders
@@ -85,6 +95,7 @@ jobs:
           fi
           cmake --preset "$PRESET" -S src \
             "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_CXX_COMPILER=$CXX" \
+            "-DPython_EXECUTABLE=$pythonLocation/bin/python" "-DPython3_EXECUTABLE=$pythonLocation/bin/python" \
             -DSDL_SHARED=OFF -DSDL_STATIC=ON -DENISHI_SHADER_RUNTIME_ROOT=./shader \
             "-DENISHI_PRECOMPILED_SHADER_DIRECTORY=$GITHUB_WORKSPACE/build/portable-shaders" \
             "-DENISHI_EFFECT_RENDER_TESTS=$ENABLE_TESTS" "-DENISHI_SCRIPT_TESTS=$ENABLE_TESTS" \
