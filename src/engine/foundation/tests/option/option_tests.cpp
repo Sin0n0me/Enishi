@@ -1,5 +1,6 @@
 #include "option_tests.h"
 #include "../../../core/tests/test_runner.h"
+#include "option_lookup_tests.h"
 #include <foundation/option/option.h>
 #include <memory>
 #include <optional>
@@ -74,6 +75,7 @@ namespace enishi::tests {
 } // namespace enishi::tests
 
 int main() {
+    enishi::tests::run_test("option_lookup_tests", enishi::tests::option_lookup_tests);
     enishi::tests::run_test("option_value_tests", enishi::tests::option_value_tests);
     enishi::tests::run_test("option_pointer_tests", enishi::tests::option_pointer_tests);
     enishi::tests::run_test("option_reference_tests", enishi::tests::option_reference_tests);
