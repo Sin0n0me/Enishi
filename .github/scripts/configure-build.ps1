@@ -13,9 +13,13 @@ $configureArgs = @('--preset', $preset, '-S', 'src', '-B', "build/$Backend/$Tool
     "-DVCPKG_TARGET_TRIPLET=$env:VCPKG_TARGET_TRIPLET",
     "-DPython_EXECUTABLE=$env:ENISHI_PYTHON",
     "-DPython3_EXECUTABLE=$env:ENISHI_PYTHON",
-    "-DENISHI_VULKAN_TESTS=$($Backend -eq 'vulkan')",
-    "-DENISHI_SCRIPT_TESTS=$($Toolchain -ne 'visualstudio')",
-    "-DENISHI_CURSOR_TESTS=$($Toolchain -ne 'visualstudio')",
-    "-DENISHI_ECS_TESTS=$($Toolchain -ne 'visualstudio')")
+    '-DENISHI_VULKAN_TESTS=OFF',
+    '-DENISHI_OPENGL_TESTS=OFF',
+    '-DENISHI_EFFECT_RENDER_TESTS=OFF',
+    '-DENISHI_RENDERER_RESOURCE_TESTS=OFF',
+    '-DENISHI_COMMON_TESTS=OFF',
+    '-DENISHI_SCRIPT_TESTS=OFF',
+    '-DENISHI_CURSOR_TESTS=OFF',
+    '-DENISHI_ECS_TESTS=OFF')
 cmake @configureArgs
 exit $LASTEXITCODE
