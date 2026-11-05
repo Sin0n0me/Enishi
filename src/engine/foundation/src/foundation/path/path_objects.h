@@ -4,6 +4,7 @@
 #include <regex>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace enishi::foundation {
     class PathObjects {

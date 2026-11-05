@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.20)
+project(foundation_header_tests LANGUAGES CXX)
+find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
+set(foundation_include "${CMAKE_CURRENT_LIST_DIR}/../../src")
+file(GLOB_RECURSE foundation_headers CONFIGURE_DEPENDS RELATIVE "${foundation_include}"
+    "${foundation_include}/foundation/*.h")
+set(check_sources)
+foreach(header IN LISTS foundation_headers)
+    string(REPLACE "/" "_" name "${header}")
+    set(check "${CMAKE_CURRENT_BINARY_DIR}/${name}")
+    # Separate translation units prevent incidental includes and unity builds
+    # from hiding missing dependencies in a public header.
+    file(WRITE "${check}.h" "#pragma once\n#include <${header}>\n")
+    file(WRITE "${check}.cpp" "#include \"${name}.h\"\n")
+    list(APPEND check_sources "${check}.cpp")
+endforeach()
+add_library(foundation_header_checks OBJECT ${check_sources})
+set_target_properties(foundation_header_checks PROPERTIES UNITY_BUILD OFF)
+target_compile_features(foundation_header_checks PRIVATE cxx_std_23)
+target_include_directories(foundation_header_checks PRIVATE "${foundation_include}" "${ICU_INCLUDE_DIR}")
+if(MSVC)
+    target_compile_options(foundation_header_checks PRIVATE /utf-8 /W4 /EHsc)
+endif()
+enable_testing()
+add_test(NAME foundation_header_tests COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}"
+    --config "$<CONFIG>" --target foundation_header_checks)
+set_tests_properties(foundation_header_tests PROPERTIES TIMEOUT 120 LABELS compile)

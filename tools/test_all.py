@@ -16,6 +16,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 STANDALONE = {
+    "foundation_headers": "foundation/tests/headers",
+    "foundation_option": "foundation/tests/option",
+    "vrm_json": "assets_system/tests/vrm_json",
     "effect": "effect/tests/runtime",
     "shell_parser": "bypass_shell/tests/command_parser",
     "pmd": "assets_system/tests/pmd",

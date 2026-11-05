@@ -4,6 +4,9 @@
 #include <concepts>
 #include <expected>
 #include <functional>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace enishi::foundation {
