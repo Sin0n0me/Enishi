@@ -20,6 +20,7 @@ jobs:
       standalone: ${{ steps.generate.outputs.standalone }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-tools
       - name: Generate supported build matrix
         id: generate
         run: |
@@ -50,8 +51,11 @@ jobs:
           tar -xzf "$RUNNER_TEMP/dxc.tar.gz" -C "$RUNNER_TEMP/dxc"
           echo "$RUNNER_TEMP/dxc/bin" >> "$GITHUB_PATH"
       - name: Compile and validate both shader bundles
+        uses: ./.github/actions/setup-python-tools
+      - name: Build shader bundles
         run: |
-          cmake -S .github/shaders -B build/ci-shaders -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S .github/shaders -B build/ci-shaders -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            "-DPython3_EXECUTABLE=$ENISHI_PYTHON" "-DPython_EXECUTABLE=$ENISHI_PYTHON"
           cmake --build build/ci-shaders --parallel 3
       - uses: actions/upload-artifact@v4
         with:
@@ -91,7 +95,9 @@ jobs:
         run: |
           brew install llvm@21 ninja icu4c
           echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
-      - name: Build and run standalone tests
+      - name: Set up Python tools
+        uses: ./.github/actions/setup-python-tools
+      - name: Run standalone tests
         run: bash .github/scripts/test_unix_standalone.sh
       - name: Upload standalone test results
         if: always()

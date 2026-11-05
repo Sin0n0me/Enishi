@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-options=("-DCMAKE_CXX_COMPILER=$CXX" "-DCMAKE_BUILD_TYPE=$CONFIGURATION")
+options=("-DCMAKE_CXX_COMPILER=$CXX" "-DCMAKE_BUILD_TYPE=$CONFIGURATION"
+  "-DPython_EXECUTABLE=$ENISHI_PYTHON" "-DPython3_EXECUTABLE=$ENISHI_PYTHON")
 if [[ "$RUNNER_OS" == macOS ]]; then
   options+=("-DCMAKE_PREFIX_PATH=$(brew --prefix icu4c)"
     "-DCMAKE_EXE_LINKER_FLAGS=-L$(brew --prefix llvm@21)/lib/c++"

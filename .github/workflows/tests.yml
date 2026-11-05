@@ -25,9 +25,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - uses: ./.github/actions/setup-python-tools
       - name: Configure shell relay with Clang
         run: >-
           cmake -S src/engine/bypass_shell -B build/shell-relay -G Ninja
@@ -96,7 +94,10 @@ jobs:
         with:
           arch: x64
 
-      - name: Validate CI preflight checks
+      - name: Set up Python tools
+        uses: ./.github/actions/setup-python-tools
+
+      - name: Run CI preflight regression tests
         run: python -B .github/scripts/test_ci_inventory.py
 
       - name: Set up Rust for Musubu
@@ -155,6 +156,7 @@ jobs:
           cmake -S src -B build/tests/${{ matrix.compiler }} @compilerOptions `
             "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
             "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/vcpkg_installed" `
+            "-DPython_EXECUTABLE=$env:ENISHI_PYTHON" "-DPython3_EXECUTABLE=$env:ENISHI_PYTHON" `
             -DVCPKG_MANIFEST_INSTALL=OFF `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
             -DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF -DENISHI_VULKAN_TESTS=OFF `

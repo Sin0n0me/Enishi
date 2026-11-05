@@ -162,6 +162,7 @@ def configure_engine(args: argparse.Namespace, env: dict[str, str]) -> tuple[int
                "-DENISHI_CURSOR_TESTS=ON", "-DENISHI_ECS_TESTS=ON", "-DENISHI_SCRIPT_TESTS=ON",
                "-DENISHI_RENDERER_RESOURCE_TESTS=ON", "-DENISHI_OPENGL_TESTS=ON", "-DENISHI_VULKAN_TESTS=ON",
                "-DCOLLIDER_BUILD_TESTING=ON", "-DENISHI_EFFECT_RENDER_TESTS=ON"]
+    command += [f"-DPython_EXECUTABLE={sys.executable}", f"-DPython3_EXECUTABLE={sys.executable}"]
     if args.rust_toolchain:
         command.append(f"-DENISHI_RUST_TOOLCHAIN={args.rust_toolchain}")
     command += OFFLINE

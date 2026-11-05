@@ -6,7 +6,7 @@
 
 ### 必要なツールと依存関係
 
-- CMake 3.24以降、Git、Python 3、Rust/Cargo。
+- CMake 3.24以降、Git、uv、Rust/Cargo。Pythonはuvで準備します。
 - WindowsのClang構成：Clang、Ninja、Visual StudioのC++ビルドツールとWindows SDK。x64のDeveloper PowerShellを使用し、`clang`、`clang++`、`ninja`をPATHに追加してください。
 - Visual Studio構成：Visual Studio 2022または2026のC++ビルドツールとWindows SDK。
 - GCC構成：GCCとNinja。WindowsではMinGW-w64を使用します。
@@ -14,13 +14,15 @@
 
 ```powershell
 git submodule update --init --recursive
-python -m pip install -r .github/requirements-ci.txt
+uv sync --locked
 $env:VCPKG_ROOT = 'C:/tools/vcpkg'
 ```
 
 Rustのバージョンは `src/engine/script/rust-toolchain.toml` の `channel` に合わせて導入してください。WindowsのGCC構成には、同じツールチェーンの `x86_64-pc-windows-gnu` ターゲットも必要です。
 
 Windowsではconfigure時に `src/vcpkg.json` の依存パッケージを導入します。
+
+Pythonツールは`uv run --locked python <スクリプト>`で実行します。OpenGLのGLAD生成では、configure時に`-DPython_EXECUTABLE=<Pythonのパス> -DPython3_EXECUTABLE=<Pythonのパス>`を指定してください。パスは`uv run --locked python -c "import sys; print(sys.executable)"`で確認できます。一括ビルド・テストツールとCIはこの指定を自動で行います。
 
 ### Clangでビルドする
 
@@ -107,8 +109,8 @@ cmake --build --preset windows-vulkan-clang-debug --parallel 4
 構成の追加・除外は `tools/generate_cmake_presets.py` を編集し、プロジェクトルートで再生成してください。
 
 ```powershell
-python tools/generate_cmake_presets.py
-python tools/generate_cmake_presets.py --check
+uv run --locked python tools/generate_cmake_presets.py
+uv run --locked python tools/generate_cmake_presets.py --check
 ```
 
 環境固有の設定にはGit管理対象外の `src/CMakeUserPresets.json` を使用できます。
@@ -116,8 +118,8 @@ python tools/generate_cmake_presets.py --check
 全構成の一括ビルドと回帰テストは、プロジェクトルートから実行できます。
 
 ```powershell
-python tools/build_all.py windows --compiler clang --jobs 4
-python tools/test_all.py --engine-build build/presets/windows-directx-clang-debug --jobs 4
+uv run --locked python tools/build_all.py windows --compiler clang --jobs 4
+uv run --locked python tools/test_all.py --engine-build build/presets/windows-directx-clang-debug --jobs 4
 ```
 
 回帰テストはビルド環境の準備後に実行してください。

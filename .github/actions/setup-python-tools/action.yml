@@ -1,0 +1,37 @@
+name: Set up Python tools with uv
+description: Install the locked tool environment and expose its interpreter to CMake.
+outputs:
+  python:
+    description: Absolute path to the project Python interpreter
+    value: ${{ steps.environment.outputs.python }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v9
+      with:
+        version: '0.9.9'
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - name: Synchronize Python tools
+      shell: bash
+      run: uv sync --locked
+    - name: Expose and validate the tool interpreter
+      id: environment
+      shell: bash
+      run: |
+        uv run --locked python - <<'PY'
+        import os
+        from pathlib import Path
+        import sys
+        import jinja2
+
+        executable = Path(sys.executable)
+        print("Python:", executable, "Jinja2:", jinja2.__version__)
+        for destination, value in (
+            ("GITHUB_OUTPUT", "python=" + executable.as_posix()),
+            ("GITHUB_ENV", "ENISHI_PYTHON=" + executable.as_posix()),
+            ("GITHUB_PATH", str(executable.parent)),
+        ):
+            with open(os.environ[destination], "a", encoding="utf-8") as output:
+                output.write(value + "\n")
+        PY
