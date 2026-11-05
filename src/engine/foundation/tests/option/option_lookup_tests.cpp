@@ -1,6 +1,5 @@
 #include "option_lookup_tests.h"
 #include "../../../core/tests/test_runner.h"
-#include <foundation/option/option.h>
 #include <memory>
 
 namespace {
