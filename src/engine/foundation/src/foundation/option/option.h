@@ -33,8 +33,8 @@ namespace enishi::foundation {
             OptionBase(OptionValue<T>&& option) noexcept
                 : option(std::move(option)) {
             }
-            OptionBase(std::nullopt_t&& nullopt) noexcept
-                : option(std::move(nullopt)) {
+            OptionBase(std::nullopt_t nullopt) noexcept
+                : option(nullopt) {
             }
             OptionBase(const T& value) noexcept
                 : option(value) {
@@ -117,8 +117,8 @@ namespace enishi::foundation {
         Option(details::OptionValue<T>&& value) noexcept
             : details::OptionBase<Option<T>, T>(std::move(value)) {
         }
-        Option(std::nullopt_t&& nullopt) noexcept
-            : details::OptionBase<Option<T>, T>(std::move(nullopt)) {
+        Option(std::nullopt_t nullopt) noexcept
+            : details::OptionBase<Option<T>, T>(nullopt) {
         }
 
         Option& operator=(Option<T>&& value) {
@@ -129,7 +129,7 @@ namespace enishi::foundation {
             this->option = value;
             return *this;
         }
-        Option& operator=(std::nullopt_t&& nullopt) {
+        Option& operator=(std::nullopt_t nullopt) {
             this->option = nullopt;
             return *this;
         }
