@@ -13,21 +13,21 @@ namespace enishi::foundation {
 
         template <typename Derived, typename T> class OptionBase {
           private:
-            using OptionalStorage = std::optional<OptionValue<T>>;
+            using Option = std::optional<OptionValue<T>>;
             using ConstRefType =
                 std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t<T>>>;
 
           protected:
-            OptionalStorage option;
+            Option option;
 
           public:
             OptionBase(void) noexcept = default;
             OptionBase(const OptionBase<Derived, T>&) noexcept = default;
             OptionBase(OptionBase<Derived, T>&&) noexcept = default;
-            OptionBase(OptionalStorage&& option) noexcept
+            OptionBase(Option&& option) noexcept
                 : option(std::move(option)) {
             }
-            OptionBase(const OptionalStorage& option) noexcept
+            OptionBase(const Option& option) noexcept
                 : option(option) {
             }
             OptionBase(OptionValue<T>&& option) noexcept
