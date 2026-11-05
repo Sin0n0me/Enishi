@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 COMMON = {
-    "foundation_header_tests", "foundation_option_tests", "foundation_result_tests",
+    "foundation_header_tests", "foundation_option_tests", "foundation_result_tests", "foundation_runtime_tests",
     "pmd_morph_tests", "pmx_tests", "vrm_tests", "vrm_json_tests", "vertex_morph_tests",
     "material_tests", "animation_runtime_tests", "bone_layer_tests", "physics_runtime_tests",
     "ik_tests", "ColliderTests",

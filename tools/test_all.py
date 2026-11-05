@@ -19,6 +19,7 @@ STANDALONE = {
     "foundation_headers": "foundation/tests/headers",
     "foundation_option": "foundation/tests/option",
     "foundation_result": "foundation/tests/result",
+    "foundation_runtime": "foundation/tests/runtime",
     "vrm_json": "assets_system/tests/vrm_json",
     "effect": "effect/tests/runtime",
     "shell_parser": "bypass_shell/tests/command_parser",
