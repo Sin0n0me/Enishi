@@ -36,6 +36,8 @@ STANDALONE = {
     "skinning": "renderer/tests/skinning",
 }
 INTEGRATED = {
+    "render_pass_contracts": ("render_pass_contract_tests", "^render_pass_contract_tests$"),
+    "ui_contracts": ("ui_contract_tests", "^ui_contract_tests$"),
     "collider": ("collider_test", "^ColliderTests$"),
     "pose": ("enishi_animation_pose_tests", "^enishi_animation_pose_tests$"),
     "cursor": ("enishi_cursor_tests", "^enishi_cursor_tests$"),
@@ -161,7 +163,7 @@ def configure_engine(args: argparse.Namespace, env: dict[str, str]) -> tuple[int
     command = ["cmake", "-S", str(ROOT / "src"), "-B", str(args.engine_build),
                "-DENISHI_CURSOR_TESTS=ON", "-DENISHI_ECS_TESTS=ON", "-DENISHI_SCRIPT_TESTS=ON",
                "-DENISHI_RENDERER_RESOURCE_TESTS=ON", "-DENISHI_OPENGL_TESTS=ON", "-DENISHI_VULKAN_TESTS=ON",
-               "-DCOLLIDER_BUILD_TESTING=ON", "-DENISHI_EFFECT_RENDER_TESTS=ON"]
+               "-DCOLLIDER_BUILD_TESTING=ON", "-DENISHI_EFFECT_RENDER_TESTS=ON", "-DENISHI_COMMON_TESTS=ON"]
     command += [f"-DPython_EXECUTABLE={sys.executable}", f"-DPython3_EXECUTABLE={sys.executable}"]
     if args.rust_toolchain:
         command.append(f"-DENISHI_RUST_TOOLCHAIN={args.rust_toolchain}")

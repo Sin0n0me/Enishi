@@ -156,6 +156,7 @@ namespace enishi::render_pass {
         }
 
         this->description.rasterizer_state = handle;
+        return this;
     }
 
     PipelineDescriptionConstructer* PipelineDescriptionConstructer::add_rasterizer_state(
