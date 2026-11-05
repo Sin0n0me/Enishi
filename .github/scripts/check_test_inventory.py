@@ -11,6 +11,7 @@ COMMON = {
     "pmd_morph_tests", "pmx_tests", "vrm_tests", "vrm_json_tests", "vertex_morph_tests",
     "material_tests", "animation_runtime_tests", "bone_layer_tests", "physics_runtime_tests",
     "ik_tests", "ColliderTests", "engine_handle_tests", "render_pass_contract_tests", "ui_contract_tests",
+    "platform_input_tests",
 }
 CORE = {"enishi_script_tests", "enishi_cursor_tests", "enishi_animation_pose_tests",
         "enishi_ecs_tests", "renderer_resource_tests"}

@@ -38,6 +38,7 @@ STANDALONE = {
 INTEGRATED = {
     "render_pass_contracts": ("render_pass_contract_tests", "^render_pass_contract_tests$"),
     "ui_contracts": ("ui_contract_tests", "^ui_contract_tests$"),
+    "platform_input": ("platform_input_tests", "^platform_input_tests$"),
     "collider": ("collider_test", "^ColliderTests$"),
     "pose": ("enishi_animation_pose_tests", "^enishi_animation_pose_tests$"),
     "cursor": ("enishi_cursor_tests", "^enishi_cursor_tests$"),
