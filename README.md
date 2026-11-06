@@ -65,6 +65,26 @@ cmake --build --preset windows-opengl-gcc-debug --parallel 4
 
 各presetは別のビルドディレクトリを使用します。Visual Studioの実行ファイルはその中の `Debug` または `Release` ディレクトリ、Clang/GCCではビルドディレクトリ直下に出力されます。
 
+### DockerでLinux版をビルド
+
+Docker Compose v2（Docker Desktopに同梱）とLinuxコンテナを使用します。Ubuntu 24.04・Clang 19・GCC 14と、CIで使用するRust・uv・Vulkan SDK・シェーダー変換ツールをイメージに用意します。初回はイメージ作成とCMake/Cargoの依存取得にネットワーク接続が必要です。Windows版・macOS版の生成には各OSのビルド環境を使用してください。
+
+プロジェクトルートで以下を実行します。
+
+```powershell
+git submodule update --init --recursive
+docker compose build build
+docker compose run --rm build opengl Debug build clang
+```
+
+引数は順に描画方式（`opengl` / `vulkan`）、構成（`Debug` / `Release`）、処理（`build` / `test`）、コンパイラ（`clang` / `gcc`）です。省略時は `opengl Debug build clang` です。`build` はアプリケーションとシェルをビルドし、`test` はテストをビルドしてXvfb上のソフトウェア描画で実行します。
+
+```powershell
+docker compose run --rm build vulkan Release test clang
+```
+
+Composeは `build/docker` を作成して書き込み可能な領域としてマウントします。生成物は `build/docker/linux-<描画方式>-<コンパイラ>-<構成小文字>/` に残り、次回のビルドでも再利用します。通常のローカルビルドのキャッシュとは分離し、Cargoの取得キャッシュは名前付きボリュームに保持します。並列数は `docker compose run --rm -e CMAKE_BUILD_PARALLEL_LEVEL=4 build` で指定できます（既定は3）。SDKとDXCの配布形式に合わせてamd64を対象とするため、ARMホストではDockerのエミュレーションを使用します。
+
 ### Linux / macOS
 
 LinuxではClang 19以降とlibstdc++ 14以降、または同等のC++23標準ライブラリを使用してください。デスクトップへの配置とカーソル追跡にはX11を使用します。WaylandセッションではXWaylandが必要です。
