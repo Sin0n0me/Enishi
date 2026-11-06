@@ -17,20 +17,28 @@ foreach ($required in @('src/CMakeLists.txt', 'tools/SPIRV-Cross/CMakeLists.txt'
 & C:\BuildTools\Common7\Tools\Launch-VsDevShell.ps1 -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
 if ([string]::IsNullOrWhiteSpace($env:VCToolsVersion)) { throw 'MSVC developer environment initialization failed' }
 $env:VULKAN_SDK = 'C:\VulkanSDK'
-$env:PATH = "C:\Tools\Git\cmd;C:\Tools\uv;C:\cargo\bin;C:\Tools\python\.venv\Scripts;C:\VulkanSDK\Bin;C:\BuildTools\VC\Tools\Llvm\x64\bin;C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;$env:PATH"
+$env:PATH = "C:\Tools\Ninja;C:\Tools\Git\cmd;C:\Tools\uv;C:\cargo\bin;C:\Tools\python\.venv\Scripts;C:\VulkanSDK\Bin;C:\BuildTools\VC\Tools\Llvm\x64\bin;C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;$env:PATH"
+$ninja = 'C:\Tools\Ninja\ninja.exe'
+Invoke-CheckedCommand $ninja @('--version')
+Invoke-CheckedCommand cmake @('--version')
 $env:UV_PROJECT_ENVIRONMENT = 'C:\Tools\python\.venv'
 Invoke-CheckedCommand uv @('sync', '--locked')
 $python = Join-Path $env:UV_PROJECT_ENVIRONMENT 'Scripts/python.exe'
 $preset = "windows-$Backend-$Compiler-$($Config.ToLowerInvariant())"
 $directory = Join-Path $PWD "build/docker/$preset"
 $installed = Join-Path $directory 'vcpkg_installed'
-Invoke-CheckedCommand cmake @('--preset', $preset, '-S', 'src', '-B', $directory,
+$generatorOptions = @()
+if ($Compiler -eq 'clang') {
+    $generatorOptions += "-DCMAKE_MAKE_PROGRAM=$ninja"
+}
+$configureArguments = @('--preset', $preset, '-S', 'src', '-B', $directory,
     "-DVCPKG_INSTALLED_DIR=$installed", '-DVCPKG_TARGET_TRIPLET=x64-windows',
     "-DPython_EXECUTABLE=$python", "-DPython3_EXECUTABLE=$python",
     '-DENISHI_SHADER_RUNTIME_ROOT=./shader',
     '-DENISHI_COMMON_TESTS=OFF', '-DENISHI_EFFECT_RENDER_TESTS=OFF',
     '-DENISHI_SCRIPT_TESTS=OFF', '-DENISHI_CURSOR_TESTS=OFF', '-DENISHI_ECS_TESTS=OFF',
-    '-DENISHI_RENDERER_RESOURCE_TESTS=OFF', '-DENISHI_OPENGL_TESTS=OFF', '-DENISHI_VULKAN_TESTS=OFF')
+    '-DENISHI_RENDERER_RESOURCE_TESTS=OFF', '-DENISHI_OPENGL_TESTS=OFF', '-DENISHI_VULKAN_TESTS=OFF') + $generatorOptions
+Invoke-CheckedCommand cmake $configureArguments
 Invoke-CheckedCommand cmake @('--build', $directory, '--config', $Config, '--target', 'enishi_engine', 'enishi-shell')
 
 $binaries = $directory
