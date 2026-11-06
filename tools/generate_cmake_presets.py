@@ -11,7 +11,8 @@ from pathlib import Path
 OUTPUT = Path(__file__).resolve().parents[1] / "src" / "CMakePresets.json"
 OPERATING_SYSTEMS = {"windows": "Windows", "linux": "Linux", "macos": "Darwin"}
 COMPILERS = {
-    "visualstudio": {"generator": "Visual Studio 17 2022", "architecture": "x64"},
+    # Let CMake discover the installed Visual Studio instead of requiring a release.
+    "visualstudio": {"architecture": "x64"},
     "visualstudio2026": {"generator": "Visual Studio 18 2026", "architecture": "x64"},
     "clang": {"generator": "Ninja", "cacheVariables": {
         "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}},
@@ -101,7 +102,7 @@ def generate() -> dict:
         })
         build_preset = {"name": name, "configurePreset": name,
                         "configuration": config, "targets": ["enishi_engine"]}
-        if COMPILERS[compiler]["generator"].startswith("Visual Studio "):
+        if compiler == "visualstudio" or COMPILERS[compiler].get("generator", "").startswith("Visual Studio "):
             build_preset["nativeToolOptions"] = MSBUILD_OPTIONS
         build.append(build_preset)
     return {

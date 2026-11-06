@@ -44,7 +44,6 @@
     {
       "name": "visualstudio",
       "hidden": true,
-      "generator": "Visual Studio 17 2022",
       "architecture": "x64"
     },
     {

@@ -8,7 +8,7 @@
 
 - CMake 3.24以降、Git、uv、Rust/Cargo。Pythonはuvで準備します。
 - WindowsのClang構成：Clang、Ninja、Visual StudioのC++ビルドツールとWindows SDK。x64のDeveloper PowerShellを使用し、`clang`、`clang++`、`ninja`をPATHに追加してください。
-- Visual Studio構成：Visual Studio 2022または2026のC++ビルドツールとWindows SDK。
+- Visual Studio構成：Visual StudioのC++ビルドツールとWindows SDK。`visualstudio` はCMakeがインストール済みのVisual Studioを検出します。VS 2026にはCMake 4.2以降が必要です。
 - GCC構成：GCCとNinja。WindowsではMinGW-w64を使用します。
 - Windowsの依存パッケージ管理にはvcpkgを使用します。`VCPKG_ROOT`にvcpkgのルートを指定してください。
 
@@ -48,7 +48,7 @@ preset名は `<OS>-<描画方式>-<コンパイラ>-<構成>` です。configure
 | --- | --- |
 | OS | `windows`、`linux`、`macos` |
 | 描画方式 | `directx`、`opengl`、`vulkan` |
-| コンパイラ | `clang`、`gcc`、`visualstudio`（2022）、`visualstudio2026` |
+| コンパイラ | `clang`、`gcc`、`visualstudio`（自動検出）、`visualstudio2026`（2026を明示指定） |
 | 構成 | `debug`、`release` |
 
 DirectXとVisual StudioはWindows専用です。LinuxではClangまたはGCC、macOSではClangとOpenGLを使用します。Linux/macOSにはICUの開発パッケージが必要です。
