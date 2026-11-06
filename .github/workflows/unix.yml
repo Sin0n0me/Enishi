@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       builds: ${{ steps.generate.outputs.builds }}
-      standalone: ${{ steps.generate.outputs.standalone }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-python-tools
@@ -26,7 +25,6 @@ jobs:
         run: |
           python3 tools/generate_cmake_presets.py --check
           echo "builds=$(python3 -B .github/scripts/unix_matrix.py)" >> "$GITHUB_OUTPUT"
-          echo "standalone=$(python3 -B .github/scripts/unix_matrix.py --standalone)" >> "$GITHUB_OUTPUT"
       - name: Validate CI preflight checks
         run: python3 -B .github/scripts/test_ci_inventory.py
 
@@ -82,59 +80,17 @@ jobs:
           path: build/ci-shaders/vulkan/
           if-no-files-found: error
 
-  standalone-tests:
-    needs: matrix
-    name: Unit tests / ${{ matrix.os }} / ${{ matrix.compiler }} / ${{ matrix.config }} / ${{ matrix.arch }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.matrix.outputs.standalone) }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash
-    env:
-      CC: ${{ matrix.cc }}
-      CXX: ${{ matrix.cxx }}
-      CONFIGURATION: ${{ matrix.config }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Linux test tools
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-19 g++-14 ninja-build libicu-dev
-      - name: Install macOS test tools
-        if: runner.os == 'macOS'
-        run: |
-          brew install llvm@21 ninja icu4c
-          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
-      - name: Set up Python tools
-        uses: ./.github/actions/setup-python-tools
-      - name: Run standalone tests
-        run: bash .github/scripts/test_unix_standalone.sh
-      - name: Upload standalone test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unix-unit-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.config }}-${{ matrix.arch }}
-          path: |
-            build/standalone/**/test-results.xml
-            build/standalone/**/Testing/Temporary/
-            build/standalone/**/CMakeFiles/CMakeConfigureLog.yaml
-          retention-days: 7
-
   build:
     name: CMake build
-    needs: [matrix, shaders, standalone-tests]
+    needs: [matrix, shaders]
     uses: ./.github/workflows/unix-build.yml
     with:
       matrix: ${{ needs.matrix.outputs.builds }}
       run-tests: false
 
   integration-tests:
-    name: Integration tests
-    needs: [matrix, shaders, standalone-tests]
+    name: Tests
+    needs: [matrix, shaders]
     uses: ./.github/workflows/unix-build.yml
     with:
       matrix: ${{ needs.matrix.outputs.builds }}

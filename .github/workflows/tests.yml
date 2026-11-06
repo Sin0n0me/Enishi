@@ -13,62 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  shell-relay:
-    runs-on: windows-2022
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        config: [Debug, Release]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      - uses: ./.github/actions/setup-python-tools
-      - name: Configure shell relay with Clang
-        run: >-
-          cmake -S src/engine/bypass_shell -B build/shell-relay -G Ninja
-          -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=${{ matrix.config }}
-      - name: Build shell relay
-        run: cmake --build build/shell-relay --parallel 4
-      - name: Test redirected and interactive shell sessions
-        run: python -B .github/scripts/test_shell_terminal_windows.py build/shell-relay/enishi-shell.exe
-  command-parser:
-    runs-on: windows-2022
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        config: [Debug, Release]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      - name: Configure command parser tests with Clang
-        run: >-
-          cmake -S src/engine/bypass_shell/tests/command_parser
-          -B build/command-parser -G Ninja
-          -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=${{ matrix.config }}
-      - name: Build command parser tests
-        run: cmake --build build/command-parser --parallel 4
-      - name: Run command parser tests
-        run: ctest --test-dir build/command-parser --output-on-failure --no-tests=error --output-junit results.xml
-      - name: Upload command parser test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: command-parser-${{ matrix.config }}
-          path: build/command-parser/results.xml
   test:
-    name: Integration tests / ${{ matrix.compiler }} / ${{ matrix.config }}
-    needs: [shell-relay, command-parser]
+    name: Tests / ${{ matrix.compiler }} / ${{ matrix.config }}
     runs-on: windows-2022
     timeout-minutes: 45
     env:
       UseMultiToolTask: 'true'
       EnforceProcessCountAcrossBuilds: 'true'
+      TEST_CXX_COMPILER: ${{ matrix.compiler == 'clang' && 'clang-cl' || 'cl' }}
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +49,26 @@ jobs:
       - name: Set up Python tools
         uses: ./.github/actions/setup-python-tools
 
+      - name: Build and test shell relay
+        run: |
+          cmake -S src/engine/bypass_shell -B build/shell-relay -G Ninja `
+            "-DCMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER" -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/shell-relay --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B .github/scripts/test_shell_terminal_windows.py build/shell-relay/enishi-shell.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and test command parser
+        run: |
+          cmake -S src/engine/bypass_shell/tests/command_parser -B build/command-parser -G Ninja `
+            "-DCMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER" -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/command-parser --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/command-parser --output-on-failure --no-tests=error --output-junit results.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Run CI preflight regression tests
         run: python -B .github/scripts/test_ci_inventory.py
 
@@ -122,11 +94,11 @@ jobs:
           triplet: x64-windows
           log-name: icu-logs-tests-${{ matrix.compiler }}-${{ matrix.config }}
 
-      - name: Run effect runtime tests with Clang
+      - name: Run effect runtime tests
         run: |
           python tools/test_all.py --suite effect --config ${{ matrix.config }} --generator Ninja `
             --prefix "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows" `
-            --define CMAKE_CXX_COMPILER=clang-cl
+            --define "CMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Restore CMake dependencies
@@ -208,6 +180,10 @@ jobs:
         with:
           name: test-results-${{ matrix.compiler }}-${{ matrix.config }}
           path: |
+            build/shell-relay/CMakeFiles/CMakeConfigureLog.yaml
+            build/command-parser/results.xml
+            build/command-parser/Testing/Temporary/
+            build/command-parser/CMakeFiles/CMakeConfigureLog.yaml
             build/tests/test-results.xml
             build/tests/${{ matrix.compiler }}/engine/tests/common-test-results.xml
             build/tests/${{ matrix.compiler }}/engine/tests/Testing/Temporary/

@@ -65,6 +65,9 @@ jobs:
         run: rustup toolchain install 1.88.0 --profile minimal
       - name: Set up Python for GLAD and test scripts
         uses: ./.github/actions/setup-python-tools
+      - name: Run standalone tests
+        if: inputs.run-tests
+        run: bash .github/scripts/test_unix_standalone.sh
       - uses: actions/download-artifact@v4
         with:
           name: portable-${{ matrix.backend }}-shaders
@@ -170,6 +173,9 @@ jobs:
         with:
           name: ${{ matrix.artifact }}-${{ inputs.run-tests && 'tests' || 'build' }}-logs
           path: |
+            build/standalone/**/test-results.xml
+            build/standalone/**/Testing/Temporary/
+            build/standalone/**/CMakeFiles/CMakeConfigureLog.yaml
             build/presets/${{ matrix.preset }}/test-results.xml
             build/presets/${{ matrix.preset }}/engine/tests/common-test-results.xml
             build/presets/${{ matrix.preset }}/engine/tests/Testing/Temporary/
