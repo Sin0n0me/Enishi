@@ -18,11 +18,20 @@ function Install-Archive {
 Invoke-WebRequest -UseBasicParsing https://aka.ms/vs/17/release/vs_buildtools.exe -OutFile C:\Tools\vs_buildtools.exe
 $installer = Start-Process C:\Tools\vs_buildtools.exe -WindowStyle Hidden -Wait -PassThru -ArgumentList @(
     '--quiet', '--wait', '--norestart', '--nocache', '--installPath', 'C:\BuildTools',
-    '--add', 'Microsoft.VisualStudio.Workload.VCTools', '--includeRecommended',
+    '--add', 'Microsoft.VisualStudio.Workload.VCTools',
+    '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+    '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.19041',
     '--add', 'Microsoft.VisualStudio.Component.VC.Llvm.Clang',
     '--add', 'Microsoft.VisualStudio.Component.VC.CMake.Project')
 if ($installer.ExitCode -notin @(0, 3010)) { throw "Build Tools installation failed: $($installer.ExitCode)" }
 Remove-Item -LiteralPath C:\Tools\vs_buildtools.exe
+
+# The recommended SDK 26100 rc.exe crashes in this Server Core 2022 image.
+# Check actual resource compilation before downloading the remaining dependencies.
+Set-Content -LiteralPath C:\Tools\verify-sdk.rc -Value '1 RCDATA { 1 }' -Encoding ascii
+Invoke-CheckedCommand 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\rc.exe' @(
+    '/nologo', '/fo', 'C:\Tools\verify-sdk.res', 'C:\Tools\verify-sdk.rc')
+Remove-Item -LiteralPath C:\Tools\verify-sdk.rc, C:\Tools\verify-sdk.res
 
 Install-Archive 'https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip' C:\Tools\Git
 Install-Archive 'https://github.com/astral-sh/uv/releases/download/0.9.9/uv-x86_64-pc-windows-msvc.zip' C:\Tools\uv
