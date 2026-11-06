@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-LIB_DIR = Path("./lib")
-OUTPUT_FILE = Path("./third_party/THIRD_PARTY_LICENSES.md")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LIB_DIR = PROJECT_ROOT / "lib"
+OUTPUT_FILE = PROJECT_ROOT / "third_party/THIRD_PARTY_LICENSES.md"
 LICENSE_FILE_CANDIDATES: List[str] = [
     "LICENSE",
     "LICENSE.txt",

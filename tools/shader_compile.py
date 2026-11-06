@@ -7,9 +7,10 @@ import glob
 import shutil
 from pathlib import Path
 
-OUTPUT_DIRECTORY = "./assets/shader"
-TARGET_DIRECTORY = "./src/shader/hlsl"
-GLSL_SOURCE_DIRECTORY = "./src/shader/glsl"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIRECTORY = str(PROJECT_ROOT / "assets/shader")
+TARGET_DIRECTORY = str(PROJECT_ROOT / "src/shader/hlsl")
+GLSL_SOURCE_DIRECTORY = str(PROJECT_ROOT / "src/shader/glsl")
 VERTEX_SHADER_FILE_PREFIX = "vs_"
 PIXEL_SHADER_FILE_PREFIX = "ps_"
 COMPUTE_SHADER_FILE_PREFIX = "cs_"

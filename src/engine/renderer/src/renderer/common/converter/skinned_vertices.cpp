@@ -41,7 +41,7 @@ namespace enishi::renderer {
         if (is_skinned && !(has_indices && has_weights && has_method)) {
             return foundation::Error(RendererError::InputLayoutError,
                 "Incompatible model shader vertex layout. Rebuild shaders with python "
-                "shader_compile.py.");
+                "tools/shader_compile.py.");
         }
         return {};
     }
