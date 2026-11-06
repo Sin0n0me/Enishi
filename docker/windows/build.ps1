@@ -60,7 +60,8 @@ $generatorOptions = @()
 if ($Compiler -eq 'clang') {
     $generatorOptions += "-DCMAKE_MAKE_PROGRAM=$ninja"
 }
-$configureArguments = @('--preset', $preset, '-S', 'src', '-B', $directory,
+# Mounted build directories can retain the bundled vcpkg path from an older image.
+$configureArguments = @('--fresh', '--preset', $preset, '-S', 'src', '-B', $directory,
     "-DCMAKE_RC_COMPILER=$((Get-Command rc.exe -ErrorAction Stop).Source)",
     "-DCMAKE_MT=$((Get-Command mt.exe -ErrorAction Stop).Source)",
     "-DVCPKG_INSTALLED_DIR=$installed", '-DVCPKG_TARGET_TRIPLET=x64-windows',
