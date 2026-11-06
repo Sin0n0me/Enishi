@@ -12,14 +12,20 @@ function Invoke-CheckedCommand {
 
 function Save-VcpkgFailureLogs {
     param([string]$BuildDirectory)
-    $source = Join-Path $env:VCPKG_ROOT 'buildtrees'
     $destination = Join-Path $BuildDirectory 'diagnostics/vcpkg'
-    if (-not (Test-Path -LiteralPath $source -PathType Container)) { return }
-    foreach ($log in Get-ChildItem -LiteralPath $source -Recurse -File -Filter '*.log') {
-        $relative = $log.FullName.Substring($source.Length).TrimStart('\', '/')
-        $target = Join-Path $destination $relative
-        New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
-        Copy-Item -LiteralPath $log.FullName -Destination $target -Force
+    $sources = @{
+        installation = (Join-Path $env:VCPKG_ROOT 'buildtrees')
+        manifest = (Join-Path $BuildDirectory 'vcpkg_installed/vcpkg/blds')
+    }
+    foreach ($entry in $sources.GetEnumerator()) {
+        $source = $entry.Value
+        if (-not (Test-Path -LiteralPath $source -PathType Container)) { continue }
+        foreach ($log in Get-ChildItem -LiteralPath $source -Recurse -File -Filter '*.log') {
+            $relative = $log.FullName.Substring($source.Length).TrimStart('\', '/')
+            $target = Join-Path (Join-Path $destination $entry.Key) $relative
+            New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+            Copy-Item -LiteralPath $log.FullName -Destination $target -Force
+        }
     }
     Write-Host "vcpkg failure logs: $destination"
 }
@@ -28,8 +34,17 @@ foreach ($required in @('src/CMakeLists.txt', 'tools/SPIRV-Cross/CMakeLists.txt'
     'src/engine/script/Musubu/compiler/musubu_engine/Cargo.toml', 'third_party/tomlplusplus/CMakeLists.txt')) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing $required. Mount the repository and initialize its submodules." }
 }
+$vcpkgRoot = $env:VCPKG_ROOT
+if ([string]::IsNullOrWhiteSpace($vcpkgRoot) -or
+    -not (Test-Path -LiteralPath (Join-Path $vcpkgRoot 'vcpkg.exe') -PathType Leaf)) {
+    throw 'The image must provide its pinned vcpkg installation through VCPKG_ROOT'
+}
 & C:\BuildTools\Common7\Tools\Launch-VsDevShell.ps1 -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
 if ([string]::IsNullOrWhiteSpace($env:VCToolsVersion)) { throw 'MSVC developer environment initialization failed' }
+# VsDevShell selects VS's bundled vcpkg; retain the image's manifest-pinned installation.
+$env:VCPKG_ROOT = $vcpkgRoot
+$env:VCPKG_INSTALLATION_ROOT = $vcpkgRoot
+Write-Host "vcpkg root: $vcpkgRoot"
 $env:VULKAN_SDK = 'C:\VulkanSDK'
 $env:PATH = "C:\Tools\Ninja;C:\Tools\Git\cmd;C:\Tools\uv;C:\cargo\bin;C:\Tools\python\.venv\Scripts;C:\VulkanSDK\Bin;C:\BuildTools\VC\Tools\Llvm\x64\bin;C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;$env:PATH"
 $ninja = 'C:\Tools\Ninja\ninja.exe'
@@ -46,6 +61,8 @@ if ($Compiler -eq 'clang') {
     $generatorOptions += "-DCMAKE_MAKE_PROGRAM=$ninja"
 }
 $configureArguments = @('--preset', $preset, '-S', 'src', '-B', $directory,
+    "-DCMAKE_RC_COMPILER=$((Get-Command rc.exe -ErrorAction Stop).Source)",
+    "-DCMAKE_MT=$((Get-Command mt.exe -ErrorAction Stop).Source)",
     "-DVCPKG_INSTALLED_DIR=$installed", '-DVCPKG_TARGET_TRIPLET=x64-windows',
     "-DPython_EXECUTABLE=$python", "-DPython3_EXECUTABLE=$python",
     '-DENISHI_SHADER_RUNTIME_ROOT=./shader',
