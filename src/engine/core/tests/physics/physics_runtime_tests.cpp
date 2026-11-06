@@ -68,6 +68,13 @@ namespace {
                 world.stepSimulation(STEP, 1, STEP);
                 wrapper.apply_global_transform();
             }
+            if (body->isActive()) {
+                std::cerr << "Sleep failure: kind=" << static_cast<int>(kind)
+                          << ", activation=" << body->getActivationState()
+                          << ", deactivation_time=" << body->getDeactivationTime()
+                          << ", linear_speed=" << body->getLinearVelocity().length()
+                          << ", angular_speed=" << body->getAngularVelocity().length() << '\n';
+            }
             check(!body->isActive(),
                 "stationary bodies must sleep despite animation synchronization");
             global = authored;
