@@ -83,7 +83,7 @@ docker compose run --rm build opengl Debug build clang
 docker compose run --rm build vulkan Release test clang
 ```
 
-Composeは `build/docker` を作成して書き込み可能な領域としてマウントします。生成物は `build/docker/linux-<描画方式>-<コンパイラ>-<構成小文字>/` に残り、次回のビルドでも再利用します。通常のローカルビルドのキャッシュとは分離し、Cargoの取得キャッシュは名前付きボリュームに保持します。並列数は `docker compose run --rm -e CMAKE_BUILD_PARALLEL_LEVEL=4 build` で指定できます（既定は3）。SDKとDXCの配布形式に合わせてamd64を対象とするため、ARMホストではDockerのエミュレーションを使用します。
+Git管理された `.gitkeep` により `build/docker` を用意し、Composeが書き込み可能な領域としてマウントします。生成物は `build/docker/linux-<描画方式>-<コンパイラ>-<構成小文字>/` に残り、次回のビルドでも再利用します。通常のローカルビルドのキャッシュとは分離し、Cargoの取得キャッシュは名前付きボリュームに保持します。並列数は `docker compose run --rm -e CMAKE_BUILD_PARALLEL_LEVEL=4 build` で指定できます（既定は3）。SDKとDXCの配布形式に合わせてamd64を対象とするため、ARMホストではDockerのエミュレーションを使用します。
 
 ### DockerでWindows版をビルド
 
