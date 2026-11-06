@@ -39,7 +39,9 @@ if ([string]::IsNullOrWhiteSpace($vcpkgRoot) -or
     -not (Test-Path -LiteralPath (Join-Path $vcpkgRoot 'vcpkg.exe') -PathType Leaf)) {
     throw 'The image must provide its pinned vcpkg installation through VCPKG_ROOT'
 }
-& C:\BuildTools\Common7\Tools\Launch-VsDevShell.ps1 -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+Import-Module C:\BuildTools\Common7\Tools\Microsoft.VisualStudio.DevShell.dll
+Enter-VsDevShell -VsInstallPath C:\BuildTools -Arch amd64 -HostArch amd64 `
+    -DevCmdArguments '-winsdk=10.0.19041.0' -SkipAutomaticLocation
 if ([string]::IsNullOrWhiteSpace($env:VCToolsVersion)) { throw 'MSVC developer environment initialization failed' }
 # VsDevShell selects VS's bundled vcpkg; retain the image's manifest-pinned installation.
 $env:VCPKG_ROOT = $vcpkgRoot
@@ -62,8 +64,8 @@ if ($Compiler -eq 'clang') {
 }
 # Mounted build directories can retain the bundled vcpkg path from an older image.
 $configureArguments = @('--fresh', '--preset', $preset, '-S', 'src', '-B', $directory,
-    "-DCMAKE_RC_COMPILER=$((Get-Command rc.exe -ErrorAction Stop).Source)",
-    "-DCMAKE_MT=$((Get-Command mt.exe -ErrorAction Stop).Source)",
+    "-DCMAKE_RC_COMPILER=$((Get-Command rc.exe -ErrorAction Stop).Source.Replace('\', '/'))",
+    "-DCMAKE_MT=$((Get-Command mt.exe -ErrorAction Stop).Source.Replace('\', '/'))",
     "-DVCPKG_INSTALLED_DIR=$installed", '-DVCPKG_TARGET_TRIPLET=x64-windows',
     "-DPython_EXECUTABLE=$python", "-DPython3_EXECUTABLE=$python",
     '-DENISHI_SHADER_RUNTIME_ROOT=./shader',
