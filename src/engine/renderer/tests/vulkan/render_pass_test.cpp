@@ -43,6 +43,40 @@ namespace {
             std::function<bool(enishi::types::ClientMousePosition)>) override;
     };
     using namespace enishi;
+    bool completed_shader_load_test() {
+        core::AssetSystem assets;
+        const auto manager = assets.get_asset_system();
+        const auto directory = platform_impl::shader_directory();
+        const auto first = manager->load_asset(directory / "vs_model_vk.spv");
+        const auto second = manager->load_asset(directory / "ps_model_vk.spv");
+        if (first.is_err() || second.is_err()) {
+            std::cerr << "Failed to queue shader assets for completion test\n";
+            return false;
+        }
+        // IOはFIFOの単一スレッド。後続の取得完了により先行IOの完了を保証し、
+        // sleepに依存せず、IO完了後・Registry登録前の取得を検証する。
+        if (manager->get_asset<types::AssetShaderData>(second.unwrap()).is_none()) {
+            std::cerr << "Queued shader data was unavailable\n";
+            return false;
+        }
+        if (manager->get_asset_state(first.unwrap()) != types::AssetState::Loading) {
+            std::cerr << "Shader was marked Loaded before registry insertion\n";
+            return false;
+        }
+        const auto data = manager->get_asset<types::AssetShaderData>(first.unwrap());
+        if (data.is_none() || data.unwrap() == nullptr ||
+            manager->get_asset_state(first.unwrap()) != types::AssetState::Loaded) {
+            std::cerr << "Completed shader load was not committed on access\n";
+            return false;
+        }
+        assets.pre_update();
+        const auto cached = manager->get_asset<types::AssetShaderData>(first.unwrap());
+        if (cached.is_none() || cached.unwrap() != data.unwrap()) {
+            std::cerr << "Draining completed loads changed cached shader data\n";
+            return false;
+        }
+        return true;
+    }
     foundation::VoidResult<platform::WindowError> SizeWindow::init() noexcept {
         return {};
     }
@@ -94,6 +128,9 @@ namespace {
 } // namespace
 
 bool render_pass_test(const std::shared_ptr<enishi::platform::IRenderer>& renderer) {
+    if (!completed_shader_load_test()) {
+        return false;
+    }
     enishi::core::AssetSystem assets;
     auto provider = std::make_shared<enishi::core::ShaderDataProvider>(
         assets.get_asset_system(), enishi::platform_impl::shader_directory());
