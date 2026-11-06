@@ -85,6 +85,21 @@ docker compose run --rm build vulkan Release test clang
 
 Composeは `build/docker` を作成して書き込み可能な領域としてマウントします。生成物は `build/docker/linux-<描画方式>-<コンパイラ>-<構成小文字>/` に残り、次回のビルドでも再利用します。通常のローカルビルドのキャッシュとは分離し、Cargoの取得キャッシュは名前付きボリュームに保持します。並列数は `docker compose run --rm -e CMAKE_BUILD_PARALLEL_LEVEL=4 build` で指定できます（既定は3）。SDKとDXCの配布形式に合わせてamd64を対象とするため、ARMホストではDockerのエミュレーションを使用します。
 
+### DockerでWindows版をビルド
+
+WindowsホストでDocker DesktopをWindowsコンテナモードに切り替え、専用のComposeファイルを使用します。[MicrosoftのBuild Toolsコンテナ手順](https://learn.microsoft.com/en-us/visualstudio/install/build-tools-container)に沿って、Windows Server Core 2022・VS 2022 Build Tools・Clang・Windows SDKをコンテナ内に用意します。ホスト側のVisual Studioの有無やバージョンには依存しません。
+
+```powershell
+git submodule update --init --recursive
+docker compose -f compose.windows.yaml build build
+docker compose -f compose.windows.yaml run --rm build -Backend directx -Config Debug -Compiler clang
+docker compose -f compose.windows.yaml run --rm build -Backend vulkan -Config Release -Compiler visualstudio
+```
+
+`-Backend` は `directx` / `opengl` / `vulkan`、`-Config` は `Debug` / `Release`、`-Compiler` は `clang` / `visualstudio` を指定できます。生成先は `build/docker/windows-<描画方式>-<コンパイラ>-<構成小文字>/` で、MSVCの実行ファイルはその中の `Debug` / `Release` に入ります。ICUのDLLも実行ファイルと同じ場所へ配置します。vcpkgとCargoの取得済みパッケージは専用ボリュームで再利用します。
+
+既定はHyper-V分離です。ホストとコンテナOSが互換性を持つ環境では、環境変数 `ENISHI_WINDOWS_ISOLATION=process` で変更できます。Windowsコンテナは対話型デスクトップを提供しないため、ここではビルドのみを行い、描画テストはWindows上のCIまたはローカル環境で実行します。
+
 ### Linux / macOS
 
 LinuxではClang 19以降とlibstdc++ 14以降、または同等のC++23標準ライブラリを使用してください。デスクトップへの配置とカーソル追跡にはX11を使用します。WaylandセッションではXWaylandが必要です。
