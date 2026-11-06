@@ -10,6 +10,20 @@ function Invoke-CheckedCommand {
     if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
 }
 
+function Save-VcpkgFailureLogs {
+    param([string]$BuildDirectory)
+    $source = Join-Path $env:VCPKG_ROOT 'buildtrees'
+    $destination = Join-Path $BuildDirectory 'diagnostics/vcpkg'
+    if (-not (Test-Path -LiteralPath $source -PathType Container)) { return }
+    foreach ($log in Get-ChildItem -LiteralPath $source -Recurse -File -Filter '*.log') {
+        $relative = $log.FullName.Substring($source.Length).TrimStart('\', '/')
+        $target = Join-Path $destination $relative
+        New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+        Copy-Item -LiteralPath $log.FullName -Destination $target -Force
+    }
+    Write-Host "vcpkg failure logs: $destination"
+}
+
 foreach ($required in @('src/CMakeLists.txt', 'tools/SPIRV-Cross/CMakeLists.txt',
     'src/engine/script/Musubu/compiler/musubu_engine/Cargo.toml', 'third_party/tomlplusplus/CMakeLists.txt')) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing $required. Mount the repository and initialize its submodules." }
@@ -38,7 +52,17 @@ $configureArguments = @('--preset', $preset, '-S', 'src', '-B', $directory,
     '-DENISHI_COMMON_TESTS=OFF', '-DENISHI_EFFECT_RENDER_TESTS=OFF',
     '-DENISHI_SCRIPT_TESTS=OFF', '-DENISHI_CURSOR_TESTS=OFF', '-DENISHI_ECS_TESTS=OFF',
     '-DENISHI_RENDERER_RESOURCE_TESTS=OFF', '-DENISHI_OPENGL_TESTS=OFF', '-DENISHI_VULKAN_TESTS=OFF') + $generatorOptions
-Invoke-CheckedCommand cmake $configureArguments
+try {
+    Invoke-CheckedCommand cmake $configureArguments
+} catch {
+    $configureFailure = $_
+    try {
+        Save-VcpkgFailureLogs $directory
+    } catch {
+        Write-Warning "Could not preserve vcpkg logs: $_"
+    }
+    throw $configureFailure
+}
 Invoke-CheckedCommand cmake @('--build', $directory, '--config', $Config, '--target', 'enishi_engine', 'enishi-shell')
 
 $binaries = $directory
