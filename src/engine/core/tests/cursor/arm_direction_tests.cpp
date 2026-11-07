@@ -1,5 +1,5 @@
 #include "arm_direction_tests.h"
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <animation/procedural/cursor/cursor_reach.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <utility>

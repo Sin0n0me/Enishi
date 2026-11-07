@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <component/morph_component.h>
 #include <core/system/physics/physics_system.h>
@@ -44,7 +44,8 @@ void impulse_playback_tests() {
     auto model = impulse_model();
     auto registry = std::make_shared<ecs::Registry>();
     const auto entity = registry->create();
-    check(registry->insert(entity, model).is_ok(), "insert impulse model");
+    check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+        "insert impulse model");
     check(
         core::initialize_model_pose(*registry, entity, model).is_ok(), "initialize impulse model");
     auto config = std::make_shared<physics::PhysicsWorldConfig>();

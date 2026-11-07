@@ -20,3 +20,6 @@ endif()
 enable_testing()
 add_test(NAME command_parser_tests COMMAND command_parser_tests)
 set_tests_properties(command_parser_tests PROPERTIES TIMEOUT 60)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(command_parser_tests PRIVATE enishi_test_support)

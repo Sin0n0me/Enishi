@@ -25,30 +25,32 @@ namespace enishi::foundation {
     }
 
     void SingleThreadExecutor::worker_loop(void) {
-        while (this->is_running) {
+        while (true) {
             std::unique_lock<std::mutex> lock(this->tasks_mutex);
             this->condition.wait(
                 lock, [this] { return !this->is_running || !this->tasks.empty(); });
 
-            while (!this->tasks.empty()) {
-                lock.unlock();
-                auto&& task = this->tasks.front();
-
-                // タスク内で仮に例外が送出されてもワーカースレッド自体は落とさない
-                try {
-                    task();
-                } catch (...) {
-                }
-
-                this->tasks.pop();
-
-                lock.lock();
+            if (this->tasks.empty() && !this->is_running) {
+                return;
+            }
+            // Queue ownership changes under the same lock used by producers.
+            // Execute outside the lock so tasks may submit more work.
+            auto task = std::move(this->tasks.front());
+            this->tasks.pop();
+            lock.unlock();
+            try {
+                task();
+            } catch (...) {
+                // A failed task must not prevent subsequent queued work from running.
             }
         }
     }
 
     void SingleThreadExecutor::shutdown(void) noexcept {
-        this->is_running = false;
+        {
+            const std::lock_guard<std::mutex> lock(this->tasks_mutex);
+            this->is_running = false;
+        }
 
         this->condition.notify_all();
         if (this->worker.joinable()) {

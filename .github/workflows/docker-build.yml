@@ -1,0 +1,112 @@
+name: Docker builds
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux container / Clang / Debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build Linux tool image
+        run: docker compose build build
+      - name: Build OpenGL and Vulkan applications through Compose
+        shell: bash
+        run: |
+          for backend in opengl vulkan; do
+            docker compose run --rm -T build "$backend" Debug build clang
+            directory="build/docker/linux-$backend-clang-debug"
+            test -f "$directory/enishi_engine"
+            test -f "$directory/enishi-shell"
+            tar -czf "build/docker/enishi-docker-linux-$backend.tar.gz" \
+              -C "$GITHUB_WORKSPACE/$directory" enishi_engine enishi-shell shader \
+              -C "$GITHUB_WORKSPACE" config
+          done
+      - name: Upload Linux applications
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-linux-applications
+          path: build/docker/enishi-docker-linux-*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Linux configure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-linux-failure-logs
+          path: build/docker/**/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    name: Windows container / Clang / Debug
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      # Match the Server Core 2022 image without requiring nested Hyper-V.
+      ENISHI_WINDOWS_ISOLATION: process
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Validate Windows Docker and Compose
+        run: |
+          $server = docker version --format '{{.Server.Os}}'
+          if ($LASTEXITCODE -ne 0 -or $server -ne 'windows') { throw 'Windows Docker engine is required' }
+          docker compose -f compose.windows.yaml config --quiet
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Windows tool image
+        run: |
+          docker compose -f compose.windows.yaml build build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build DirectX, OpenGL and Vulkan applications through Compose
+        run: |
+          foreach ($backend in @('directx', 'opengl', 'vulkan')) {
+            docker compose -f compose.windows.yaml run --rm -T build -Backend $backend -Config Debug -Compiler clang
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $directory = "build/docker/windows-$backend-clang-debug"
+            foreach ($executable in @('enishi_engine.exe', 'enishi-shell.exe')) {
+              if (-not (Test-Path -LiteralPath "$directory/$executable" -PathType Leaf)) {
+                throw "Missing container build output: $directory/$executable"
+              }
+            }
+            $files = @("$directory/enishi_engine.exe", "$directory/enishi-shell.exe",
+              "$directory/*.dll", "$directory/shader", 'config')
+            Compress-Archive -Path $files -DestinationPath "build/docker/enishi-docker-windows-$backend.zip"
+          }
+      - name: Upload Windows applications
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-windows-applications
+          path: build/docker/enishi-docker-windows-*.zip
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Windows failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-windows-failure-logs
+          path: |
+            build/docker/**/diagnostics/**
+            build/docker/**/vcpkg-manifest-install.log
+            build/docker/**/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+          retention-days: 7

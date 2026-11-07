@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.20)
+project(foundation_result_tests LANGUAGES CXX)
+find_path(ICU_INCLUDE_DIR unicode/unistr.h REQUIRED)
+add_executable(foundation_result_tests result_tests.cpp)
+target_compile_features(foundation_result_tests PRIVATE cxx_std_23)
+target_include_directories(foundation_result_tests PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../src" "${ICU_INCLUDE_DIR}")
+if(MSVC)
+    target_compile_options(foundation_result_tests PRIVATE /utf-8 /W4 /EHsc)
+endif()
+enable_testing()
+add_test(NAME foundation_result_tests COMMAND foundation_result_tests)
+set_tests_properties(foundation_result_tests PROPERTIES TIMEOUT 30)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(foundation_result_tests PRIVATE enishi_test_support)
+
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/tests" test-support-tests)
+add_dependencies(foundation_result_tests test_support_diagnostics)

@@ -1,9 +1,10 @@
+#include <test_support/test_runner.h>
 #include <array>
 #include <imgui.h>
 #include <ui/ui.h>
 
 using namespace enishi;
-void require(bool condition, const char* message);
+using enishi::tests::require;
 namespace {
     class Backend final : public sub_system::IUIBackend {
       public:

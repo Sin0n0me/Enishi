@@ -4,6 +4,9 @@
 #include <concepts>
 #include <expected>
 #include <functional>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace enishi::foundation {
@@ -39,7 +42,7 @@ namespace enishi::foundation {
             ResultBase& operator=(ResultBase&&) noexcept = default;
 
           public:
-            [[nodiscard]] const T& unwrap(void) const {
+            [[nodiscard]] ConstRefType unwrap(void) const {
                 if constexpr (std::is_reference_v<T>) {
                     return static_cast<ConstRefType>(this->expected.value().get());
                 } else {
@@ -56,7 +59,7 @@ namespace enishi::foundation {
             }
             [[nodiscard]] T&& unwrap_mut(void) && {
                 if constexpr (std::is_reference_v<T>) {
-                    return std::move(this->expected.value().get());
+                    return this->expected.value().get();
                 } else {
                     return std::move(this->expected.value());
                 }
@@ -64,8 +67,7 @@ namespace enishi::foundation {
 
             template <typename U> [[nodiscard]] T unwrap_or(U&& value) const& {
                 if constexpr (std::is_reference_v<T>) {
-                    return static_cast<ConstRefType>(
-                        this->expected.value_or(std::forward<U>(value)).get());
+                    return this->expected.value_or(std::forward<U>(value)).get();
                 } else {
                     return this->expected.value_or(std::forward<U>(value));
                 }
@@ -73,10 +75,9 @@ namespace enishi::foundation {
 
             template <typename U> [[nodiscard]] T unwrap_or(U&& value) && {
                 if constexpr (std::is_reference_v<T>) {
-                    return static_cast<ConstRefType>(
-                        this->expected.value_or(std::forward<U>(value)).get());
+                    return std::move(this->expected).value_or(std::forward<U>(value)).get();
                 } else {
-                    return this->expected.value_or(std::forward<U>(value));
+                    return std::move(this->expected).value_or(std::forward<U>(value));
                 }
             }
 
@@ -90,9 +91,9 @@ namespace enishi::foundation {
 
             [[nodiscard]] T unwrap_or_default(void) && {
                 if constexpr (std::is_reference_v<T>) {
-                    return this->expected.value_or(T{}).get();
+                    return std::move(this->expected).value_or(T{}).get();
                 } else {
-                    return this->expected.value_or(T{});
+                    return std::move(this->expected).value_or(T{});
                 }
             }
 
@@ -137,27 +138,8 @@ namespace enishi::foundation {
                 return this->expected.error().propagation(std::forward<U>(e));
             }
 
-            template <typename F>
-            [[nodiscard]]
-            constexpr auto map(F&& f) && {
-                using U = std::invoke_result_t<F, T>;
-                if (this->is_err()) {
-                    return ResultBase<Derived, U, E>{std::move(this->expected.error())};
-                }
-                return ResultBase<Derived, U, E>{
-                    std::invoke(std::forward<F>(f), std::move(this->expected.value()))};
-            }
-
-            template <typename F>
-            [[nodiscard]]
-            constexpr auto map(F&& f) const& {
-                using U = std::invoke_result_t<F, const T&>;
-                if (this->is_err()) {
-                    return ResultBase<Derived, U, E>{std::move(this->expected.error())};
-                }
-                return ResultBase<Derived, U, E>{
-                    std::invoke(std::forward<F>(f), std::move(this->expected.value()))};
-            }
+            template <typename F> [[nodiscard]] constexpr auto map(F&& f) &&;
+            template <typename F> [[nodiscard]] constexpr auto map(F&& f) const&;
         };
     } // namespace details
 
@@ -212,6 +194,36 @@ namespace enishi::foundation {
 
         Result& operator=(Result&&) noexcept = default;
     };
+
+    template <typename Derived, typename T, typename E>
+    template <typename F>
+    constexpr auto details::ResultBase<Derived, T, E>::map(F&& f) && {
+        using U = std::invoke_result_t<F, decltype(std::move(*this).unwrap_mut())>;
+        if (this->is_err()) {
+            return Result<U, E>{std::move(this->expected.error())};
+        }
+        if constexpr (std::is_void_v<U>) {
+            std::invoke(std::forward<F>(f), std::move(*this).unwrap_mut());
+            return Result<void, E>{};
+        } else {
+            return Result<U, E>{std::invoke(std::forward<F>(f), std::move(*this).unwrap_mut())};
+        }
+    }
+
+    template <typename Derived, typename T, typename E>
+    template <typename F>
+    constexpr auto details::ResultBase<Derived, T, E>::map(F&& f) const& {
+        using U = std::invoke_result_t<F, decltype(this->unwrap())>;
+        if (this->is_err()) {
+            return Result<U, E>{Error<E>{this->expected.error()}};
+        }
+        if constexpr (std::is_void_v<U>) {
+            std::invoke(std::forward<F>(f), this->unwrap());
+            return Result<void, E>{};
+        } else {
+            return Result<U, E>{std::invoke(std::forward<F>(f), this->unwrap())};
+        }
+    }
 
     template <typename E> using VoidResult = Result<void, E>;
 } // namespace enishi::foundation

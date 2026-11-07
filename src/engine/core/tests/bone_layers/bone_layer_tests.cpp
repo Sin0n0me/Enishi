@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <core/system/render/bone_matrix_upload.h>
 #include <core/system/skinning/model_pose_initializer.h>
@@ -72,7 +72,7 @@ namespace {
             "evaluation sorting must preserve bone references");
         auto registry = std::make_shared<ecs::Registry>();
         const auto entity = registry->create();
-        check(registry->insert(entity, model).is_ok(), "insert model");
+        check(registry->emplace<component::ModelComponent>(entity, model).is_ok(), "insert model");
         check(!registry->has<component::AnimationComponent>(entity), "distinct component types");
         check(core::initialize_model_pose(*registry, entity, model).is_ok(), "initialize pose");
         core::SkinningSystem system(registry, nullptr);
@@ -133,7 +133,8 @@ namespace {
         auto model = model_controller::make_model_component(*converted.unwrap(), {});
         auto registry = std::make_shared<ecs::Registry>();
         const auto entity = registry->create();
-        check(registry->insert(entity, model).is_ok(), "insert no-IK model");
+        check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+            "insert no-IK model");
         check(
             core::initialize_model_pose(*registry, entity, model).is_ok(), "initialize no-IK pose");
         check(!registry->has<component::IKComponent>(entity), "no synthetic IK component");
@@ -159,7 +160,8 @@ namespace {
             check(converted.is_ok(), "mixed model conversion");
             auto model = model_controller::make_model_component(*converted.unwrap(), {});
             const auto entity = registry->create();
-            check(registry->insert(entity, model).is_ok(), "insert mixed model");
+            check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+                "insert mixed model");
             check(core::initialize_model_pose(*registry, entity, model).is_ok(),
                 "initialize mixed pose");
             return entity;

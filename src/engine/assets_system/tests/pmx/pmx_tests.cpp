@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <algorithm>
 #include <assets_system/model/model_loader/pmx/pmx_model_loader.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
@@ -10,12 +11,7 @@ using namespace enishi;
 using namespace enishi::assets_system;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(1);
-        }
-    }
+    using enishi::tests::check;
 
     struct Bytes {
         std::vector<std::uint8_t> data;

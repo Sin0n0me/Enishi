@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <cstdlib>
 #include <glm/gtc/matrix_transform.hpp>
 #include <ik_system/ik_solver.h>
@@ -15,12 +16,7 @@ namespace {
     constexpr types::BoneIndex GOAL = 3;
     constexpr std::size_t BONE_COUNT = 4;
 
-    void check(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 
     struct Fixture {
         std::vector<types::BoneNode> nodes{BONE_COUNT};

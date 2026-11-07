@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "arm_direction_tests.h"
 #include <animation/playback/animation_controller.h>
 #include <animation/procedural/cursor/cursor_pose.h>
@@ -37,12 +38,7 @@ namespace {
         Count
     };
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 
     glm::mat4 global(const component::ModelComponent& model,
         const component::AnimationComponent& animation,

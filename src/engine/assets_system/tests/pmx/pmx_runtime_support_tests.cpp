@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_model_loader.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <cstdlib>
@@ -24,12 +25,7 @@ namespace {
     constexpr std::uint8_t MATERIAL_POINTS = 0x40;
     constexpr std::uint8_t MATERIAL_LINES = 0x80;
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 
     PMXData supported_model() {
         PMXData data;

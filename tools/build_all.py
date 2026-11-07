@@ -38,6 +38,7 @@ def build_commands(pattern: Pattern, root: Path, offline: bool) -> list[list[str
     directory = pattern.directory(root)
     artifacts = directory / "artifacts"
     configure = ["cmake", "--preset", pattern.preset, "-B", str(directory / "build")]
+    configure += [f"-DPython_EXECUTABLE={sys.executable}", f"-DPython3_EXECUTABLE={sys.executable}"]
     for kind in ("RUNTIME", "LIBRARY", "PDB"):
         for suffix in ("", "_DEBUG", "_RELEASE"):
             configure.append(f"-DCMAKE_{kind}_OUTPUT_DIRECTORY{suffix}={artifacts}")

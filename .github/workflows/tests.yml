@@ -13,43 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  command-parser:
-    runs-on: windows-2022
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        config: [Debug, Release]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      - name: Configure command parser tests with Clang
-        run: >-
-          cmake -S src/engine/bypass_shell/tests/command_parser
-          -B build/command-parser -G Ninja
-          -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=${{ matrix.config }}
-      - name: Build command parser tests
-        run: cmake --build build/command-parser --parallel 4
-      - name: Run command parser tests
-        run: ctest --test-dir build/command-parser --output-on-failure --no-tests=error --output-junit results.xml
-      - name: Upload command parser test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: command-parser-${{ matrix.config }}
-          path: build/command-parser/results.xml
   test:
+    name: Tests / ${{ matrix.compiler }} / ${{ matrix.config }}
     runs-on: windows-2022
     timeout-minutes: 45
     env:
       UseMultiToolTask: 'true'
       EnforceProcessCountAcrossBuilds: 'true'
+      TEST_CXX_COMPILER: ${{ matrix.compiler == 'clang' && 'clang-cl' || 'cl' }}
     strategy:
       fail-fast: false
       matrix:
         config: [Debug, Release]
+        compiler: [clang, msvc]
     defaults:
       run:
         shell: pwsh
@@ -69,6 +45,32 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+
+      - name: Set up Python tools
+        uses: ./.github/actions/setup-python-tools
+
+      - name: Build and test shell relay
+        run: |
+          cmake -S src/engine/bypass_shell -B build/shell-relay -G Ninja `
+            "-DCMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER" -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/shell-relay --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B .github/scripts/test_shell_terminal_windows.py build/shell-relay/enishi-shell.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and test command parser
+        run: |
+          cmake -S src/engine/bypass_shell/tests/command_parser -B build/command-parser -G Ninja `
+            "-DCMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER" -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/command-parser --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/command-parser --output-on-failure --no-tests=error --output-junit results.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run CI preflight regression tests
+        run: python -B .github/scripts/test_ci_inventory.py
 
       - name: Set up Rust for Musubu
         uses: ./.github/actions/setup-rust
@@ -90,13 +92,13 @@ jobs:
         uses: ./.github/actions/setup-icu
         with:
           triplet: x64-windows
-          log-name: icu-logs-tests-${{ matrix.config }}
+          log-name: icu-logs-tests-${{ matrix.compiler }}-${{ matrix.config }}
 
-      - name: Run effect runtime tests with Clang
+      - name: Run effect runtime tests
         run: |
           python tools/test_all.py --suite effect --config ${{ matrix.config }} --generator Ninja `
             --prefix "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows" `
-            --define CMAKE_CXX_COMPILER=clang-cl
+            --define "CMAKE_CXX_COMPILER=$env:TEST_CXX_COMPILER"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Restore CMake dependencies
@@ -104,13 +106,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            build/tests/visualstudio/_deps
-            build/tests/visualstudio/libs
-          key: ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
+            build/tests/${{ matrix.compiler }}/_deps
+            build/tests/${{ matrix.compiler }}/libs
+          key: ${{ runner.os }}-tests-cmake-sources-v3-x64-${{ matrix.compiler }}-${{ matrix.config }}-${{ hashFiles('src/**/CMakeLists.txt', 'src/engine/script/bridge/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-tests-cmake-sources-v2-x64-${{ matrix.config }}-
+            ${{ runner.os }}-tests-cmake-sources-v3-x64-${{ matrix.compiler }}-${{ matrix.config }}-
 
-      # These tests do not create a renderer or load model assets. Only their targets are built.
+      # Build only the test targets; the application build runs in a separate workflow.
       - name: Configure tests
         run: |
           $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
@@ -118,12 +120,19 @@ jobs:
             $vcpkgRoot = Split-Path (Get-Command vcpkg).Source
           }
           $toolchain = Join-Path $vcpkgRoot 'scripts/buildsystems/vcpkg.cmake'
-          cmake -S src -B build/tests/visualstudio -G 'Visual Studio 17 2022' -A x64 `
+          $compilerOptions = @('-G', 'Visual Studio 17 2022', '-A', 'x64')
+          if ('${{ matrix.compiler }}' -eq 'clang') {
+            $compilerOptions = @('-G', 'Ninja', '-DCMAKE_C_COMPILER=clang-cl',
+              '-DCMAKE_CXX_COMPILER=clang-cl', '-DCMAKE_BUILD_TYPE=${{ matrix.config }}')
+          }
+          cmake -S src -B build/tests/${{ matrix.compiler }} @compilerOptions `
             "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
             "-DVCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE/vcpkg_installed" `
+            "-DPython_EXECUTABLE=$env:ENISHI_PYTHON" "-DPython3_EXECUTABLE=$env:ENISHI_PYTHON" `
+            -DVCPKG_MANIFEST_INSTALL=OFF `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
             -DUSE_OPENGL40=OFF -DUSE_VULKAN=OFF -DENISHI_VULKAN_TESTS=OFF `
-            -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON -DENISHI_ECS_TESTS=ON
+            -DENISHI_SCRIPT_TESTS=ON -DENISHI_CURSOR_TESTS=ON -DENISHI_ECS_TESTS=ON -DENISHI_COMMON_TESTS=ON -DENISHI_RENDERER_RESOURCE_TESTS=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Save CMake dependencies immediately
@@ -131,20 +140,37 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            build/tests/visualstudio/_deps
-            build/tests/visualstudio/libs
+            build/tests/${{ matrix.compiler }}/_deps
+            build/tests/${{ matrix.compiler }}/libs
           key: ${{ steps.cmake-cache.outputs.cache-primary-key }}
+
+      - name: Build and run common regression tests
+        run: |
+          cmake --build build/tests/${{ matrix.compiler }} --config ${{ matrix.config }} `
+            --target enishi_common_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B .github/scripts/check_test_inventory.py build/tests/${{ matrix.compiler }} --config ${{ matrix.config }} --scope common
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $icu = "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows"
+          $env:PATH = "$icu/debug/bin;$icu/bin;$env:PATH"
+          ctest --test-dir build/tests/${{ matrix.compiler }}/engine/tests -C ${{ matrix.config }} `
+            --output-on-failure --no-tests=error --timeout 120 --output-junit common-test-results.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build tests
         run: |
-          cmake --build build/tests/visualstudio --config ${{ matrix.config }} `
-            --target enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
+          cmake --build build/tests/${{ matrix.compiler }} --config ${{ matrix.config }} `
+            --target enishi_script_tests enishi_cursor_tests enishi_animation_pose_tests enishi_ecs_tests renderer_resource_tests --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests
         run: |
-          ctest --test-dir build/tests/visualstudio -C ${{ matrix.config }} `
-            -R '^enishi_(script|cursor|animation_pose|ecs)_tests$' --output-on-failure --no-tests=error `
+          $icu = "$env:GITHUB_WORKSPACE/vcpkg_installed/x64-windows"
+          $env:PATH = "$icu/debug/bin;$icu/bin;$env:PATH"
+          python -B .github/scripts/check_test_inventory.py build/tests/${{ matrix.compiler }} --config ${{ matrix.config }} --scope core
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/tests/${{ matrix.compiler }} -C ${{ matrix.config }} `
+            -R '^(enishi_(script|cursor|animation_pose|ecs)_tests|renderer_resource_tests)$' --output-on-failure --no-tests=error `
             --output-junit "$env:GITHUB_WORKSPACE/build/tests/test-results.xml"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -152,10 +178,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.config }}
+          name: test-results-${{ matrix.compiler }}-${{ matrix.config }}
           path: |
+            build/shell-relay/CMakeFiles/CMakeConfigureLog.yaml
+            build/command-parser/results.xml
+            build/command-parser/Testing/Temporary/
+            build/command-parser/CMakeFiles/CMakeConfigureLog.yaml
             build/tests/test-results.xml
-            build/tests/visualstudio/Testing/Temporary/LastTest.log
+            build/tests/${{ matrix.compiler }}/engine/tests/common-test-results.xml
+            build/tests/${{ matrix.compiler }}/engine/tests/Testing/Temporary/
+            build/tests/${{ matrix.compiler }}/Testing/Temporary/LastTest.log
             build/regression/summary-${{ matrix.config }}.json
             build/regression/${{ matrix.config }}/effect/*.log
           if-no-files-found: warn

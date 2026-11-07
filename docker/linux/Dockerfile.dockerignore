@@ -1,0 +1,9 @@
+# Only tool definitions are needed to build the image. Sources are mounted at runtime.
+**
+!docker/linux/Dockerfile
+!docker/linux/build.sh
+!pyproject.toml
+!uv.lock
+!.python-version
+!.github/scripts/setup_linux_vulkan.sh
+!src/engine/script/rust-toolchain.toml

@@ -1,10 +1,11 @@
 #include "crack_render_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/result_checks.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
 #include <effect/crack/crack_effect.h>
 #include <effect/effect_manager.h>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -16,6 +17,7 @@
 #include <platform_impl/effect/crack_surface.h>
 #include <platform_impl/effect/effect_surface.h>
 #include <platform_impl/renderer/renderer_factory.h>
+#include <platform_impl/window/sdl/sdl3_window.h>
 #include <platform_impl/window/sdl/sdl_gl_context_restore.h>
 namespace enishi::tests {
     namespace {
@@ -142,6 +144,43 @@ namespace enishi::tests {
             }
 #endif
         }
+        void automatic_window_system() {
+            check((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0,
+                "window fixture starts before SDL video initialization");
+            {
+                constexpr int WINDOW_SIZE = 32;
+                platform_impl::SDL3Window window{"Native handle fixture",
+                    {WINDOW_SIZE, WINDOW_SIZE},
+                    platform::WindowSystem::Automatic,
+                    platform_impl::render_backend_description().api,
+                    SDL_WINDOW_HIDDEN};
+                check(window.init(), "window initializes its own SDL video reference");
+                const auto handle = window.get_handle();
+                check(handle.is_some(), "automatic window has a native transport handle");
+                const std::string_view driver{SDL_GetCurrentVideoDriver()};
+                const auto& native = handle.unwrap();
+                if (driver == "windows") {
+                    check(native.tag == platform::WindowSystem::Windows &&
+                              native.native_handle.windows.hwnd != nullptr &&
+                              native.native_handle.windows.hinstance != nullptr,
+                        "Windows exposes real HWND and instance handles");
+                } else if (driver == "x11") {
+                    check(native.tag == platform::WindowSystem::X11 &&
+                              native.native_handle.x11.display != nullptr &&
+                              native.native_handle.x11.window != 0,
+                        "X11 exposes a real display connection and window ID");
+                } else if (driver == "cocoa") {
+                    check(native.tag == platform::WindowSystem::Cocoa &&
+                              native.native_handle.cocoa.window != nullptr,
+                        "Cocoa exposes a real NSWindow");
+                } else {
+                    check(false, "desktop test requires Windows, X11 or Cocoa");
+                }
+                check(window.init().is_err(), "duplicate initialization is rejected");
+            }
+            check((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0,
+                "window destruction balances its SDL video reference");
+        }
         void generic_surface_lifecycle() {
             check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), SDL_GetError());
             const auto original = window_count();
@@ -150,7 +189,7 @@ namespace enishi::tests {
             check(surface.open({}).is_err(), "empty content factory rejected");
             check(surface.draw(effect::EffectTarget::all_displays()).is_err(),
                 "unopened generic surface cannot draw");
-            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_ok(),
+            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }),
                 "non-crack content opens through generic surface");
             const auto initialized = state->initialized;
             check(initialized > 0 && window_count() > original, "content initialized per display");
@@ -218,7 +257,7 @@ namespace enishi::tests {
             effect::CrackSettings settings;
             settings.mask_size = 64;
             auto mask = effect::make_crack_mask(settings);
-            check(mask.is_ok(), "mask fixture is valid");
+            check(mask, "mask fixture is valid");
             mask.unwrap_mut().mips.front().pixels.pop_back();
             auto invalid = surface->open(settings, std::move(mask.unwrap_mut()));
             check(invalid.is_err() &&
@@ -238,7 +277,7 @@ namespace enishi::tests {
             {
                 effect::CrackEffect cold{{}, platform_impl::create_crack_surface(shaders)};
                 const auto begin = Clock::now();
-                check(cold.start().is_ok(), "cold reference starts");
+                check(cold.start(), "cold reference starts");
                 std::cout << "Cold crack start (ms): " << milliseconds(Clock::now() - begin)
                           << '\n';
                 cold.stop();
@@ -247,7 +286,7 @@ namespace enishi::tests {
                 auto crack = std::make_shared<effect::CrackEffect>(
                     effect::CrackSettings{}, platform_impl::create_crack_surface(shaders));
                 effect::EffectManager manager;
-                check(crack->prepare().is_ok(), "prepare real default-size crack");
+                check(crack->prepare(), "prepare real default-size crack");
                 const auto loads = shaders->loads;
                 const int prepared_windows = window_count();
                 check(prepared_windows > original, "prepared resources exist before click");
@@ -255,10 +294,10 @@ namespace enishi::tests {
                     const auto begin = Clock::now();
                     crack->set_impact(effect::CrackImpact{repeat * 200, 150});
                     auto id = manager.play_shared(crack);
-                    check(id.is_ok(), "prepared crack starts");
+                    check(id, "prepared crack starts");
                     std::cout << "Prepared crack start (ms): " << milliseconds(Clock::now() - begin)
                               << '\n';
-                    check(manager.stop(id.unwrap()).is_ok(), "prepared crack stops");
+                    check(manager.stop(id.unwrap()), "prepared crack stops");
                     check(window_count() == prepared_windows && shaders->loads == loads,
                         "replay neither recreates windows nor reloads shaders");
                     int count = 0;
@@ -341,6 +380,46 @@ namespace enishi::tests {
             });
             return result;
         }
+        void check_preserved_geometry(const WindowSnapshot& before, const WindowSnapshot& after) {
+            check(after.id == before.id && after.x == before.x && after.y == before.y &&
+                      after.width == before.width && after.height == before.height,
+                std::format("layer transitions preserve window geometry: "
+                            "id {} -> {}, ({}, {}, {}, {}) -> ({}, {}, {}, {})",
+                    before.id,
+                    after.id,
+                    before.x,
+                    before.y,
+                    before.width,
+                    before.height,
+                    after.x,
+                    after.y,
+                    after.width,
+                    after.height)
+                    .c_str());
+        }
+        void check_display_coverage(SDL_Window* window) {
+            const bool synchronized = SDL_SyncWindow(window);
+            SDL_Rect bounds{};
+            SDL_Rect actual{};
+            check(SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &bounds), SDL_GetError());
+            check(SDL_GetWindowPosition(window, &actual.x, &actual.y), SDL_GetError());
+            check(SDL_GetWindowSize(window, &actual.w, &actual.h), SDL_GetError());
+            check(synchronized && actual.x == bounds.x && actual.y == bounds.y &&
+                      actual.w == bounds.w && actual.h == bounds.h,
+                std::format("visible overlay {} must cover display ({}, {}, {}, {}), got "
+                            "({}, {}, {}, {}), synchronized={} after layer transition or replay",
+                    SDL_GetWindowID(window),
+                    bounds.x,
+                    bounds.y,
+                    bounds.w,
+                    bounds.h,
+                    actual.x,
+                    actual.y,
+                    actual.w,
+                    actual.h,
+                    synchronized)
+                    .c_str());
+        }
         void check_overlay_layer(SDL_Window* model,
             effect::EffectLayer layer,
             SDL_DisplayID selected,
@@ -363,6 +442,7 @@ namespace enishi::tests {
                 if (!expected) {
                     continue;
                 }
+                check_display_coverage(window);
                 ++visible;
                 const bool foreground = layer == effect::EffectLayer::Foreground;
                 check(((SDL_GetWindowFlags(window) & SDL_WINDOW_ALWAYS_ON_TOP) != 0) == foreground,
@@ -392,7 +472,7 @@ namespace enishi::tests {
             const auto focus = GetForegroundWindow();
 #endif
             auto drawn = surface.draw(1, std::nullopt, target);
-            check(drawn.is_ok(), "layer draw succeeds");
+            check(drawn, "layer draw succeeds");
             check_overlay_layer(model, target.layer, selected, expected_visible);
 #if defined(_WIN32)
             check(GetForegroundWindow() == focus, "each layer draw preserves foreground focus");
@@ -449,7 +529,7 @@ namespace enishi::tests {
             state->fail_draw = false;
             platform_impl::EffectSurface surface;
             check(surface.hide(), "unopened generic surface hide is idempotent");
-            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }).is_ok(),
+            check(surface.open([state]() { return std::make_unique<ProbeContent>(state); }),
                 "generic content prepares without crack resources");
             int display_count = 0;
             std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays{
@@ -458,7 +538,7 @@ namespace enishi::tests {
             check(state->initialized == static_cast<unsigned>(display_count),
                 "generic content initialized exactly once per display");
             check_visible_displays(0, 0);
-            check(surface.draw(effect::EffectTarget::all_displays()).is_ok(),
+            check(surface.draw(effect::EffectTarget::all_displays()),
                 "generic content draws on all displays");
             check_visible_displays(0, display_count);
             check(state->frames.size() == static_cast<std::size_t>(display_count),
@@ -470,7 +550,7 @@ namespace enishi::tests {
                 SDL_Rect bounds{};
                 check(SDL_GetDisplayBounds(displays.get()[index], &bounds), SDL_GetError());
                 state->frames.clear();
-                check(surface.draw(effect::EffectTarget::display_at(bounds.x, bounds.y)).is_ok(),
+                check(surface.draw(effect::EffectTarget::display_at(bounds.x, bounds.y)),
                     "generic content selects one display during playback");
                 check_visible_displays(displays.get()[index], 1);
                 check(state->frames.size() == 1, "unselected displays never draw their content");
@@ -503,7 +583,7 @@ namespace enishi::tests {
                 "generic content failure stops drawing and propagates as UpdateFailed");
             check_visible_displays(0, 0);
             state->fail_draw = false;
-            check(surface.draw(effect::EffectTarget::all_displays()).is_ok(),
+            check(surface.draw(effect::EffectTarget::all_displays()),
                 "generic content can draw again after a recoverable content error");
             check_visible_displays(0, display_count);
             surface.close();
@@ -526,9 +606,9 @@ namespace enishi::tests {
                 effect::CrackSettings settings;
                 settings.mask_size = 64;
                 auto mask = effect::make_crack_mask(settings);
-                check(mask.is_ok(), "layer test mask generated");
+                check(mask, "layer test mask generated");
                 auto surface = platform_impl::create_crack_surface(shaders);
-                check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+                check(surface->open(settings, std::move(mask.unwrap_mut())),
                     "layer surface prepared");
                 const auto loads = shaders->loads;
                 const auto prepared = snapshot_windows();
@@ -539,7 +619,7 @@ namespace enishi::tests {
                 check(window_count() == display_count + 1,
                     "exactly one overlay per display plus the model fixture");
                 check_overlay_layer(model.get(), effect::EffectLayer::Foreground, 0, 0);
-                check(surface->draw(1).is_ok(), "default effect layer draws");
+                check(surface->draw(1), "default effect layer draws");
                 check_overlay_layer(model.get(), effect::EffectLayer::Foreground, 0, display_count);
 #if defined(_WIN32)
                 check(SetWindowPos(native_window(model.get()),
@@ -580,12 +660,7 @@ namespace enishi::tests {
                 check(after.size() == prepared.size() && shaders->loads == loads,
                     "layer changes do not create windows or reload shaders");
                 for (std::size_t index = 0; index < prepared.size(); ++index) {
-                    check(after[index].id == prepared[index].id &&
-                              after[index].x == prepared[index].x &&
-                              after[index].y == prepared[index].y &&
-                              after[index].width == prepared[index].width &&
-                              after[index].height == prepared[index].height,
-                        "layer transitions preserve each window's identity and geometry");
+                    check_preserved_geometry(prepared[index], after[index]);
                 }
                 surface->close();
                 surface->close();
@@ -607,12 +682,12 @@ namespace enishi::tests {
                 effect::CrackSettings settings;
                 settings.mask_size = 64;
                 auto mask = effect::make_crack_mask(settings);
-                check(mask.is_ok(), "target mask generated");
+                check(mask, "target mask generated");
                 auto surface = platform_impl::create_crack_surface(shaders);
-                check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+                check(surface->open(settings, std::move(mask.unwrap_mut())),
                     "target resources prepared");
                 const auto loads = shaders->loads;
-                check(surface->draw(1).is_ok(), "all-display target draws");
+                check(surface->draw(1), "all-display target draws");
                 check_visible_displays(0, display_count);
                 for (int index = 0; index < display_count; ++index) {
                     SDL_Rect bounds{};
@@ -621,12 +696,11 @@ namespace enishi::tests {
                         bounds.x + bounds.w / 2, bounds.y + bounds.h / 2};
                     check(
                         surface
-                            ->draw(1, center, effect::EffectTarget::display_at(center.x, center.y))
-                            .is_ok(),
+                            ->draw(1, center, effect::EffectTarget::display_at(center.x, center.y)),
                         "target changes during playback without rebuilding");
                     check_visible_displays(displays.get()[index], 1);
                 }
-                check(surface->draw(1, std::nullopt, effect::EffectTarget::all_displays()).is_ok(),
+                check(surface->draw(1, std::nullopt, effect::EffectTarget::all_displays()),
                     "all displays can be enabled again");
                 check_visible_displays(0, display_count);
                 effect::EffectTarget invalid;
@@ -678,8 +752,8 @@ namespace enishi::tests {
             }
             auto surface = platform_impl::create_crack_surface(shaders);
             auto mask = effect::make_crack_mask(settings);
-            check(mask.is_ok(), "opacity test mask is valid");
-            check(surface->open(settings, std::move(mask.unwrap_mut())).is_ok(),
+            check(mask, "opacity test mask is valid");
+            check(surface->open(settings, std::move(mask.unwrap_mut())),
                 "opacity test surface opens");
             for (const float opacity : {-1.0f, 2.0f, std::numeric_limits<float>::quiet_NaN()}) {
                 auto drawn = surface->draw(opacity);
@@ -700,6 +774,8 @@ namespace enishi::tests {
     } // namespace
 } // namespace enishi::tests
 int main() {
+    enishi::tests::run_test(
+        "Automatic native window handles", enishi::tests::automatic_window_system);
     enishi::tests::run_test(
         "Generic effect surface lifecycle", enishi::tests::generic_surface_lifecycle);
     enishi::tests::run_test(

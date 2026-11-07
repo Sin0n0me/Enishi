@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/morph/vertex_morph.h>
 #include <core/system/render/vertex_morph_upload.h>
 #include <cstdlib>
@@ -12,12 +13,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void morph_weight_tests();

@@ -3,11 +3,50 @@
 Uses the platform test context and the standard library; no packages are downloaded.
 """
 import ctypes as c
+from contextlib import contextmanager
 from pathlib import Path
 import math
 import struct
 from gl_test_context import gl, run_with_context
 from gl_test_checks import check
+
+GL_FRAMEBUFFER = 0x8D40
+GL_RENDERBUFFER = 0x8D41
+GL_COLOR_ATTACHMENT0 = 0x8CE0
+GL_RGBA8 = 0x8058
+GL_FRAMEBUFFER_COMPLETE = 0x8CD5
+FEEDBACK_SURFACE_SIZE = 1
+
+
+def check_gl(operation):
+    error = gl("glGetError", c.c_uint)()
+    check(error == 0, f"{operation}: OpenGL error 0x{error:04x}")
+
+
+@contextmanager
+def feedback_framebuffer():
+    # CGL has no default drawable. Draw calls require a complete framebuffer
+    # even when rasterizer discard is enabled for transform feedback.
+    framebuffer = c.c_uint()
+    color = c.c_uint()
+    try:
+        gl("glGenFramebuffers", None, c.c_int, c.POINTER(c.c_uint))(1, c.byref(framebuffer))
+        gl("glBindFramebuffer", None, c.c_uint, c.c_uint)(GL_FRAMEBUFFER, framebuffer)
+        gl("glGenRenderbuffers", None, c.c_int, c.POINTER(c.c_uint))(1, c.byref(color))
+        gl("glBindRenderbuffer", None, c.c_uint, c.c_uint)(GL_RENDERBUFFER, color)
+        gl("glRenderbufferStorage", None, c.c_uint, c.c_uint, c.c_int, c.c_int)(
+            GL_RENDERBUFFER, GL_RGBA8, FEEDBACK_SURFACE_SIZE, FEEDBACK_SURFACE_SIZE)
+        gl("glFramebufferRenderbuffer", None, c.c_uint, c.c_uint, c.c_uint, c.c_uint)(
+            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color)
+        check_gl("transform feedback framebuffer setup")
+        status = gl("glCheckFramebufferStatus", c.c_uint, c.c_uint)(GL_FRAMEBUFFER)
+        check(status == GL_FRAMEBUFFER_COMPLETE, f"Incomplete feedback framebuffer: 0x{status:04x}")
+        yield
+    finally:
+        gl("glBindFramebuffer", None, c.c_uint, c.c_uint)(GL_FRAMEBUFFER, 0)
+        gl("glBindRenderbuffer", None, c.c_uint, c.c_uint)(GL_RENDERBUFFER, 0)
+        gl("glDeleteRenderbuffers", None, c.c_int, c.POINTER(c.c_uint))(1, c.byref(color))
+        gl("glDeleteFramebuffers", None, c.c_int, c.POINTER(c.c_uint))(1, c.byref(framebuffer))
 
 
 def identity():
@@ -21,6 +60,11 @@ def rotation(angle):
 
 
 def run_tests(directory):
+    with feedback_framebuffer():
+        run_transform_feedback_tests(directory)
+
+
+def run_transform_feedback_tests(directory):
     uint = c.c_uint
     integer = c.c_int
     pointer = c.c_void_p
@@ -80,6 +124,7 @@ def run_tests(directory):
     bind(0x8C8E, buffers[3])
     upload(0x8C8E, 24, None, 0x88E8)
     gl("glEnable", None, uint)(0x8C89)  # GL_RASTERIZER_DISCARD
+    check_gl("transform feedback program and buffer setup")
 
     def deform(method, matrices, weights, center=(0,0,0), a0=(0,0,0), a1=(0,0,0)):
         palette = (c.c_float * (512 * 16))(*(sum(matrices, []) + identity() * (512 - len(matrices))))
@@ -90,13 +135,17 @@ def run_tests(directory):
         vertex += struct.pack("<16f", *([0.0] * 16))
         bind(0x8892, buffers[2])
         upload(0x8892, len(vertex), c.c_char_p(vertex), 0x88E8)
+        check_gl(f"skinning method {method}: upload")
         gl("glBeginTransformFeedback", None, uint)(0)  # GL_POINTS
+        check_gl(f"skinning method {method}: glBeginTransformFeedback")
         gl("glDrawArrays", None, uint, integer, integer)(0, 0, 1)
+        check_gl(f"skinning method {method}: glDrawArrays")
         gl("glEndTransformFeedback", None)()
+        check_gl(f"skinning method {method}: glEndTransformFeedback")
         output = (c.c_float * 6)()
         bind(0x8C8E, buffers[3])
         gl("glGetBufferSubData", None, uint, c.c_ssize_t, c.c_ssize_t, pointer)(0x8C8E, 0, 24, output)
-        check(gl("glGetError", uint)() == 0, "OpenGL execution error")
+        check_gl(f"skinning method {method}: glGetBufferSubData")
         return list(output)
 
     def close(actual, expected):

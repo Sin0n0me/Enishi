@@ -20,3 +20,6 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME ik_tests COMMAND ik_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(ik_tests PRIVATE enishi_test_support)

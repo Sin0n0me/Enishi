@@ -135,10 +135,5 @@ if (POLICY CMP0141)
 endif()
 
 
-option(ENISHI_RENDERER_RESOURCE_TESTS "Build asset-free resource interface tests" OFF)
-if(ENISHI_RENDERER_RESOURCE_TESTS)
-    enable_testing()
-    add_subdirectory(tests/resources)
-endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC enishi::debug)

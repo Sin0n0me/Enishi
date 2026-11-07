@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmd/pmd_morph_converter.h>
 #include <assets_system/model/model_loader/pmd/pmd_to_model_data.h>
 #include <cstdlib>
@@ -12,12 +13,7 @@ namespace {
     constexpr std::uint32_t FIRST_VERTEX = 7;
     constexpr std::uint32_t SECOND_VERTEX = 2;
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 
     std::vector<assets_system::PMDMorph> fixture() {
         std::vector<assets_system::PMDMorph> morphs(2);

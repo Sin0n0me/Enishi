@@ -6,21 +6,23 @@
 
 ### 必要なツールと依存関係
 
-- CMake 3.24以降、Git、Python 3、Rust/Cargo。
+- CMake 3.24以降、Git、uv、Rust/Cargo。Pythonはuvで準備します。
 - WindowsのClang構成：Clang、Ninja、Visual StudioのC++ビルドツールとWindows SDK。x64のDeveloper PowerShellを使用し、`clang`、`clang++`、`ninja`をPATHに追加してください。
-- Visual Studio構成：Visual Studio 2022または2026のC++ビルドツールとWindows SDK。
+- Visual Studio構成：Visual StudioのC++ビルドツールとWindows SDK。`visualstudio` はCMakeがインストール済みのVisual Studioを検出します。VS 2026にはCMake 4.2以降が必要です。
 - GCC構成：GCCとNinja。WindowsではMinGW-w64を使用します。
 - Windowsの依存パッケージ管理にはvcpkgを使用します。`VCPKG_ROOT`にvcpkgのルートを指定してください。
 
 ```powershell
 git submodule update --init --recursive
-python -m pip install -r .github/requirements-ci.txt
+uv sync --locked
 $env:VCPKG_ROOT = 'C:/tools/vcpkg'
 ```
 
 Rustのバージョンは `src/engine/script/rust-toolchain.toml` の `channel` に合わせて導入してください。WindowsのGCC構成には、同じツールチェーンの `x86_64-pc-windows-gnu` ターゲットも必要です。
 
 Windowsではconfigure時に `src/vcpkg.json` の依存パッケージを導入します。
+
+Pythonツールは`uv run --locked python <スクリプト>`で実行します。OpenGLのGLAD生成では、configure時に`-DPython_EXECUTABLE=<Pythonのパス> -DPython3_EXECUTABLE=<Pythonのパス>`を指定してください。パスは`uv run --locked python -c "import sys; print(sys.executable)"`で確認できます。一括ビルド・テストツールとCIはこの指定を自動で行います。
 
 ### Clangでビルドする
 
@@ -46,10 +48,10 @@ preset名は `<OS>-<描画方式>-<コンパイラ>-<構成>` です。configure
 | --- | --- |
 | OS | `windows`、`linux`、`macos` |
 | 描画方式 | `directx`、`opengl`、`vulkan` |
-| コンパイラ | `clang`、`gcc`、`visualstudio`（2022）、`visualstudio2026` |
+| コンパイラ | `clang`、`gcc`、`visualstudio`（自動検出）、`visualstudio2026`（2026を明示指定） |
 | 構成 | `debug`、`release` |
 
-DirectXとVisual StudioはWindows専用です。Linux/macOSではClangまたはGCCを使用し、ICUをCMakeから検索できる環境に準備してください。
+DirectXとVisual StudioはWindows専用です。LinuxではClangまたはGCC、macOSではClangとOpenGLを使用します。Linux/macOSにはICUの開発パッケージが必要です。
 
 たとえば、`src`ディレクトリで次のように切り替えられます。
 
@@ -63,9 +65,69 @@ cmake --build --preset windows-opengl-gcc-debug --parallel 4
 
 各presetは別のビルドディレクトリを使用します。Visual Studioの実行ファイルはその中の `Debug` または `Release` ディレクトリ、Clang/GCCではビルドディレクトリ直下に出力されます。
 
+### DockerでLinux版をビルド
+
+Docker Compose v2（Docker Desktopに同梱）とLinuxコンテナを使用します。Ubuntu 24.04・Clang 19・GCC 14と、CIで使用するRust・uv・Vulkan SDK・シェーダー変換ツールをイメージに用意します。初回はイメージ作成とCMake/Cargoの依存取得にネットワーク接続が必要です。Windows版・macOS版の生成には各OSのビルド環境を使用してください。
+
+プロジェクトルートで以下を実行します。
+
+```powershell
+git submodule update --init --recursive
+docker compose build build
+docker compose run --rm build opengl Debug build clang
+```
+
+引数は順に描画方式（`opengl` / `vulkan`）、構成（`Debug` / `Release`）、処理（`build` / `test`）、コンパイラ（`clang` / `gcc`）です。省略時は `opengl Debug build clang` です。`build` はアプリケーションとシェルをビルドし、`test` はテストをビルドしてXvfb上のソフトウェア描画で実行します。
+
+```powershell
+docker compose run --rm build vulkan Release test clang
+```
+
+Git管理された `.gitkeep` により `build/docker` を用意し、Composeが書き込み可能な領域としてマウントします。生成物は `build/docker/linux-<描画方式>-<コンパイラ>-<構成小文字>/` に残り、次回のビルドでも再利用します。通常のローカルビルドのキャッシュとは分離し、Cargoの取得キャッシュは名前付きボリュームに保持します。並列数は `docker compose run --rm -e CMAKE_BUILD_PARALLEL_LEVEL=4 build` で指定できます（既定は3）。SDKとDXCの配布形式に合わせてamd64を対象とするため、ARMホストではDockerのエミュレーションを使用します。
+
+### DockerでWindows版をビルド
+
+WindowsホストでDocker DesktopをWindowsコンテナモードに切り替え、専用のComposeファイルを使用します。[MicrosoftのBuild Toolsコンテナ手順](https://learn.microsoft.com/en-us/visualstudio/install/build-tools-container)に沿って、Windows Server Core 2022・VS 2022 Build Tools・Clang・Windows SDKをコンテナ内に用意します。ホスト側のVisual Studioの有無やバージョンには依存しません。
+
+```powershell
+git submodule update --init --recursive
+docker compose -f compose.windows.yaml build build
+docker compose -f compose.windows.yaml run --rm build -Backend directx -Config Debug -Compiler clang
+docker compose -f compose.windows.yaml run --rm build -Backend vulkan -Config Release -Compiler visualstudio
+```
+
+`-Backend` は `directx` / `opengl` / `vulkan`、`-Config` は `Debug` / `Release`、`-Compiler` は `clang` / `visualstudio` を指定できます。生成先は `build/docker/windows-<描画方式>-<コンパイラ>-<構成小文字>/` で、MSVCの実行ファイルはその中の `Debug` / `Release` に入ります。ICUのDLLも実行ファイルと同じ場所へ配置します。vcpkgとCargoの取得済みパッケージは専用ボリュームで再利用します。
+
+既定はHyper-V分離です。ホストとコンテナOSが互換性を持つ環境では、環境変数 `ENISHI_WINDOWS_ISOLATION=process` で変更できます。Windowsコンテナは対話型デスクトップを提供しないため、ここではビルドのみを行い、描画テストはWindows上のCIまたはローカル環境で実行します。
+
+### Linux / macOS
+
+LinuxではClang 19以降とlibstdc++ 14以降、または同等のC++23標準ライブラリを使用してください。デスクトップへの配置とカーソル追跡にはX11を使用します。WaylandセッションではXWaylandが必要です。
+
+```sh
+cmake --preset linux-opengl-clang-debug -S src \
+  -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19
+cmake --build build/presets/linux-opengl-clang-debug --parallel 4
+./build/presets/linux-opengl-clang-debug/enishi_engine
+```
+
+macOSは14以降を対象とし、CocoaとOpenGL 4.1を使用します。`brew install llvm@21 ninja icu4c` で準備し、`$(brew --prefix llvm@21)/bin` をPATHへ追加してください。CIの `portable-opengl-shaders` 成果物を展開すると、macOS側でシェーダーコンパイラを準備せずビルドできます。
+
+```sh
+cmake --preset macos-opengl-clang-debug -S src \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix icu4c)" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix llvm@21)/lib/c++" \
+  -DCMAKE_BUILD_RPATH="$(brew --prefix llvm@21)/lib/c++" \
+  -DENISHI_PRECOMPILED_SHADER_DIRECTORY="/path/to/portable-opengl-shaders"
+cmake --build build/presets/macos-opengl-clang-debug --parallel 4
+./build/presets/macos-opengl-clang-debug/enishi_engine
+```
+
+変換済みシェーダーは現在のHLSLと変換スクリプトに一致するものが必要です。描画テストはconfigure時に `-DENISHI_OPENGL_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON` を指定し、`crack_render_tests` と `opengl_shadow_tests` をビルドしてから `ctest --test-dir <ビルド先> --output-on-failure` で実行します。
+
 ### シェーダーとVulkan SDK
 
-OpenGLとVulkanにはVulkan SDKの `dxc`、`spirv-val` が必要です。Vulkan構成ではヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`も使用します。`VULKAN_SDK`にSDKのルートを設定し、必要なツールをPATHへ追加してください。
+OpenGLとVulkanのシェーダーをソースから変換する場合は、Vulkan SDKの `dxc`、`spirv-val` が必要です。Vulkan構成ではヘッダー・ローダー、`glslc`、`Source/SPIRV-Reflect`も使用します。`VULKAN_SDK`にSDKのルートを設定し、必要なツールをPATHへ追加してください。
 
 ```powershell
 $env:VULKAN_SDK = 'C:/VulkanSDK/<インストールしたバージョン>'
@@ -82,8 +144,8 @@ cmake --build --preset windows-vulkan-clang-debug --parallel 4
 構成の追加・除外は `tools/generate_cmake_presets.py` を編集し、プロジェクトルートで再生成してください。
 
 ```powershell
-python tools/generate_cmake_presets.py
-python tools/generate_cmake_presets.py --check
+uv run --locked python tools/generate_cmake_presets.py
+uv run --locked python tools/generate_cmake_presets.py --check
 ```
 
 環境固有の設定にはGit管理対象外の `src/CMakeUserPresets.json` を使用できます。
@@ -91,13 +153,13 @@ python tools/generate_cmake_presets.py --check
 全構成の一括ビルドと回帰テストは、プロジェクトルートから実行できます。
 
 ```powershell
-python tools/build_all.py windows --compiler clang --jobs 4
-python tools/test_all.py --engine-build build/presets/windows-directx-clang-debug --jobs 4
+uv run --locked python tools/build_all.py windows --compiler clang --jobs 4
+uv run --locked python tools/test_all.py --engine-build build/presets/windows-directx-clang-debug --jobs 4
 ```
 
 回帰テストはビルド環境の準備後に実行してください。
 
-CIの成功したビルドは、GitHub Actionsの実行ページにあるArtifactsから取得できます。exe・DLL・PDB・シェーダー・設定ファイルを構成ごとにまとめ、14日間保持します。
+CIの成功したビルドは、GitHub Actionsの実行ページにあるArtifactsから取得できます。Windowsはexe・DLL・PDB・シェーダー・設定ファイルを構成ごとにまとめ、14日間保持します。Linux/macOSは実行ファイル・シェーダー・設定ファイルのtar.gzとテスト結果を7日間保持します。tar.gzを展開したディレクトリで `./enishi_engine` を実行してください。ICUやC++標準ライブラリなどの共有ライブラリは含まないため、ビルド手順に記載した実行環境が必要です。
 
 ## 設定ファイル
 

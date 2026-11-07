@@ -1,3 +1,4 @@
+#include <test_support/result_checks.h>
 #include "opengl_shadow_tests.h"
 #include <SDL3/SDL.h>
 #include <core/system/asset/asset_system.h>
@@ -14,19 +15,9 @@
 using namespace enishi;
 
 namespace {
-    void require(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
-    template <class Result> auto take(Result&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-        return std::move(result.unwrap_mut());
-    }
+    using enishi::tests::require;
+    using enishi::tests::take;
+    using enishi::tests::success;
     class Context final : public platform::IOpenGLContext {
         SDL_Window* window; // Borrowed; window outlives the test context.
         std::unique_ptr<std::remove_pointer_t<SDL_GLContext>, decltype(&SDL_GL_DestroyContext)>
@@ -206,7 +197,13 @@ namespace {
     }
     void run() {
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4), SDL_GetError());
+#if defined(__APPLE__)
+        require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1), SDL_GetError());
+        require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG),
+            SDL_GetError());
+#else
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0), SDL_GetError());
+#endif
         require(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE),
             SDL_GetError());
         const auto window = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>(

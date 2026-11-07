@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <core/system/skinning/skinning_system.h>
@@ -55,7 +55,8 @@ void model_physics_tests() {
     auto registry = std::make_shared<ecs::Registry>();
     const auto entity = registry->create();
     auto model = make_model();
-    check(registry->insert(entity, model).is_ok(), "insert simulated model");
+    check(registry->emplace<component::ModelComponent>(entity, model).is_ok(),
+        "insert simulated model");
     check(core::initialize_model_pose(*registry, entity, model).is_ok(), "register model physics");
     check(registry->has<component::PhysicsBodiesComponent>(entity) &&
               registry->has<component::PhysicsComponent>(entity),

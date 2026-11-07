@@ -23,3 +23,6 @@ endif()
 enable_testing()
 add_test(NAME effect_runtime_tests COMMAND effect_runtime_tests)
 set_tests_properties(effect_runtime_tests PROPERTIES TIMEOUT 60)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(effect_runtime_tests PRIVATE enishi_test_support)

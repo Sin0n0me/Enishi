@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <component/animation_component.h>
 #include <component/model_component.h>
 #include <core/system/camera/camera_controller.h>
@@ -93,12 +94,7 @@ namespace {
 } // namespace
 
 namespace {
-    void require(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::require;
     void perspective_movement(core::WindowAnimationSync& sync,
         core::CameraController& camera,
         SyncWindow& window,

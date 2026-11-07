@@ -1,0 +1,33 @@
+services:
+  build:
+    platform: windows/amd64
+    isolation: ${ENISHI_WINDOWS_ISOLATION:-hyperv}
+    build:
+      context: .
+      dockerfile: docker/windows/Dockerfile
+      isolation: ${ENISHI_WINDOWS_ISOLATION:-hyperv}
+    environment:
+      CMAKE_BUILD_PARALLEL_LEVEL: ${CMAKE_BUILD_PARALLEL_LEVEL:-3}
+      VCPKG_DEFAULT_BINARY_CACHE: C:\vcpkg-cache
+    volumes:
+      - type: bind
+        source: .
+        target: C:\workspace
+        read_only: true
+      - type: bind
+        source: ./build/docker
+        target: C:\workspace\build\docker
+      - type: volume
+        source: windows-vcpkg
+        target: C:\vcpkg-cache
+      - type: volume
+        source: windows-cargo-registry
+        target: C:\cargo\registry
+      - type: volume
+        source: windows-cargo-git
+        target: C:\cargo\git
+
+volumes:
+  windows-vcpkg:
+  windows-cargo-registry:
+  windows-cargo-git:

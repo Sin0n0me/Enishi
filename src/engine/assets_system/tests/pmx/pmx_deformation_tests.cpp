@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <cmath>
 #include <cstdlib>
@@ -12,12 +13,7 @@ namespace {
     constexpr std::size_t SKINNING_ATTRIBUTE = 1;
     constexpr float TOLERANCE = 0.000001f;
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 
     PMXData deformation_fixture() {
         PMXData data;

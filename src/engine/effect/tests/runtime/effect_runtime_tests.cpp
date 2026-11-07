@@ -1,5 +1,5 @@
 #include "effect_runtime_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include "crack_tests.h"
 #include <chrono>
 #include <effect/effect_manager.h>

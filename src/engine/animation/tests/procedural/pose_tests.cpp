@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "pose_tests.h"
 #include <animation/procedural/cursor/cursor_gaze.h>
 #include <animation/procedural/cursor/cursor_pose.h>
@@ -12,12 +13,7 @@
 using namespace enishi;
 namespace {
     constexpr float TOLERANCE = 0.001f;
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
     void linear_pose_transition() {
         std::vector<component::AnimationBuffer> from(1);
         auto to = from;
