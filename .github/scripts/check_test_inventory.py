@@ -12,6 +12,8 @@ COMMON = {
     "material_tests", "animation_runtime_tests", "bone_layer_tests", "physics_runtime_tests",
     "ik_tests", "ColliderTests", "engine_handle_tests", "render_pass_contract_tests", "ui_contract_tests",
     "platform_input_tests",
+    "test_support_success", "test_support_result", "test_support_empty", "test_support_boolean",
+    "test_support_exception", "test_support_terminate", "test_support_accumulator", "test_support_throw",
 }
 CORE = {"enishi_script_tests", "enishi_cursor_tests", "enishi_animation_pose_tests",
         "enishi_ecs_tests", "renderer_resource_tests"}
