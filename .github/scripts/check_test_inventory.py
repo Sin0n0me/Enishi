@@ -48,6 +48,15 @@ def validate(inventory, build, scope, backend, windows):
         properties = {item["name"]: item["value"] for item in test.get("properties", [])}
         if not command or not Path(command[0]).is_file():
             problems.append(f"{name}: test executable/interpreter was not built or found")
+        # CMake wrapper tests launch another executable; checking only cmake misses an unbuilt target.
+        for index, argument in enumerate(command):
+            if argument.startswith("-DEXECUTABLE="):
+                executable = Path(argument.partition("=")[2])
+                if not executable.is_file():
+                    problems.append(f"{name}: wrapped test executable was not built or found: {executable}")
+            if argument == "-P":
+                if index + 1 == len(command) or not Path(command[index + 1]).is_file():
+                    problems.append(f"{name}: CMake test script was not found")
         if properties.get("DISABLED", False):
             problems.append(f"{name}: registered test is disabled")
         if name in {"crack_render_tests", "vulkan_render_tests", "opengl_shadow_tests"}:

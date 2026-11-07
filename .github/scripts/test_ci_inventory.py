@@ -45,7 +45,11 @@ class InventoryTests(unittest.TestCase):
         registered = set()
         for name in result.stdout.splitlines():
             source = (repository / name).read_text(encoding="utf-8")
-            registered.update(re.findall(r"add_test\s*\(\s*NAME\s+(\w+)", source))
+            names = re.findall(r"add_test\s*\(\s*NAME\s+([^\s)]+)", source)
+            for test_name in names:
+                self.assertRegex(test_name, r"^[A-Za-z_][A-Za-z_0-9]*$",
+                                 f"{name}: declare literal test names so CI can audit every suite")
+            registered.update(names)
         covered = COMMON | CORE | OPENGL | {
             "skinning_tests", "shadow_tests", "effect_runtime_tests", "command_parser_tests",
             "vulkan_render_tests", "crack_render_tests",
@@ -66,6 +70,26 @@ class InventoryTests(unittest.TestCase):
             inventory = self.inventory()
             inventory["tests"][0]["command"] = command
             self.assertTrue(validate(inventory, self.build, "desktop", "vulkan", False))
+
+    def test_wrapper_executable_and_script(self):
+        inventory = self.inventory()
+        wrapper = inventory["tests"][0]
+        script = self.build / "check.cmake"
+        script.write_text("", encoding="utf-8")
+        wrapped = self.build / "diagnostic-executable"
+        wrapped.write_bytes(b"fixture")
+        wrapper["command"] += [f"-DEXECUTABLE={wrapped}", "-P", str(script)]
+        self.assertEqual([], validate(inventory, self.build, "desktop", "vulkan", False))
+        wrapped.unlink()
+        self.assertIn("wrapped test executable", "\n".join(
+            validate(inventory, self.build, "desktop", "vulkan", False)))
+        wrapped.write_bytes(b"fixture")
+        script.unlink()
+        self.assertIn("CMake test script", "\n".join(
+            validate(inventory, self.build, "desktop", "vulkan", False)))
+        wrapper["command"].pop()
+        self.assertIn("CMake test script", "\n".join(
+            validate(inventory, self.build, "desktop", "vulkan", False)))
 
     def test_disabled_and_duplicate(self):
         inventory = self.inventory()
