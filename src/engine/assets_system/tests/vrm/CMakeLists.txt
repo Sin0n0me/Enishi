@@ -31,3 +31,6 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME vrm_tests COMMAND vrm_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(vrm_tests PRIVATE enishi_test_support)

@@ -41,6 +41,9 @@ namespace enishi::tests {
         std::_Exit(EXIT_FAILURE);
     }
 
+    void require(bool condition, const char* message, std::source_location location) {
+        check(condition, message, location);
+    }
     void begin_test(const char* name) {
         active_test = name;
         std::set_terminate(report_termination);

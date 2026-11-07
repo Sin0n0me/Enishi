@@ -1,5 +1,5 @@
 #include "crack_render_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>

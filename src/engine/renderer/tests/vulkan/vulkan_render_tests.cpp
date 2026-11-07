@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "vulkan_render_tests.h"
 #include "render_pass_test.h"
 #include "shadow_render_test.h"
@@ -26,12 +27,7 @@ namespace {
     constexpr std::size_t CHANNELS = 4;
     constexpr std::size_t MINIMUM_LIT_PIXELS = 1000;
     constexpr std::uint32_t HIGH_BONE_INDEX = 600;
-    void require(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::require;
     template <class T> T take(platform::RenderResult<T>&& result) {
         if (result.is_err()) {
             std::cerr << result.unwrap_err().get_message() << '\n';

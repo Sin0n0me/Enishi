@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/morph/impulse_morph.h>
 #include <cstdlib>
 #include <iostream>
@@ -5,12 +6,7 @@
 
 using namespace enishi;
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void impulse_morph_tests() {

@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "shadow_render_test.h"
 #include <array>
 #include <core/system/asset/asset_system.h>
@@ -20,12 +21,7 @@ namespace {
     constexpr std::size_t CHANNELS = 4;
     constexpr std::uint8_t DARK_LIMIT = 80;
     constexpr std::uint8_t LIT_LIMIT = 180;
-    void require(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::require;
     template <class Result> auto take(Result&& result) {
         if (result.is_err()) {
             std::cerr << result.unwrap_err().get_message() << std::endl;

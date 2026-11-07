@@ -1,5 +1,5 @@
 #include "render_pass_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <array>
 #include <render_pass/constructor/pipeline_description_builder.h>
 #include <render_pass/render_pass.h>

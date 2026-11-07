@@ -1,5 +1,5 @@
 #include "result_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <memory>
 #include <string>
 #include <type_traits>

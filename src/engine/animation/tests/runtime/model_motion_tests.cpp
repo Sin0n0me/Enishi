@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/animation/vmd/vmd_file_struct.h>
 #include <component/morph_component.h>
 #include <core/system/animation/animation_system.h>
@@ -9,12 +10,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
     template <typename T> void write(std::ofstream& file, const T& value) {
         file.write(reinterpret_cast<const char*>(&value), sizeof(value));
     }

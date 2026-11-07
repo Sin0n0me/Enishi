@@ -1,5 +1,5 @@
 #include "crack_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <array>
 #include <cmath>
 #include <effect/crack/crack_effect.h>

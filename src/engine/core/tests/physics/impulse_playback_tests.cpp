@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <component/morph_component.h>
 #include <core/system/physics/physics_system.h>

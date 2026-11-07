@@ -1,10 +1,11 @@
+#include <test_support/test_runner.h>
 #include <algorithm>
 #include <script/script_engine.h>
 #include <ui/selection/selection_ui.h>
 #include <utility>
 
 using namespace enishi;
-void require(bool condition, const char* message);
+using enishi::tests::require;
 namespace {
     class Models final : public sub_system::IModelSelection {
       public:

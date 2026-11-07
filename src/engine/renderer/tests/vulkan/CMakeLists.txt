@@ -8,3 +8,6 @@ add_custom_command(TARGET vulkan_render_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL3::SDL3> $<TARGET_FILE_DIR:vulkan_render_tests>)
 add_test(NAME vulkan_render_tests COMMAND vulkan_render_tests)
 set_tests_properties(vulkan_render_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(vulkan_render_tests PRIVATE enishi_test_support)

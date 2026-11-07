@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/animation/vmd/vmd_loader.h>
 #include <cstdlib>
 #include <cstring>
@@ -8,12 +9,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
     template <typename T> void append(std::vector<char>& data, const T& value) {
         const auto* bytes = reinterpret_cast<const char*>(&value);
         data.insert(data.end(), bytes, bytes + sizeof(value));

@@ -1,5 +1,5 @@
 #include "handle_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <engine_types/handle/handle_allocator.h>
 #include <engine_types/handle/handle_mapper.h>
 #include <memory>

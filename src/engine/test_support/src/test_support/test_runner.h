@@ -1,10 +1,14 @@
 #pragma once
+#include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <source_location>
 #include <utility>
 
 namespace enishi::tests {
     void check(bool condition, const char* message,
+        std::source_location location = std::source_location::current());
+    void require(bool condition, const char* message,
         std::source_location location = std::source_location::current());
     [[noreturn]] void report_termination() noexcept;
     void begin_test(const char* name);

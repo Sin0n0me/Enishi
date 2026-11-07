@@ -32,3 +32,6 @@ if(MSVC)
     target_compile_options(physics_runtime_tests PRIVATE /utf-8 /W4)
 endif()
 add_test(NAME physics_runtime_tests COMMAND physics_runtime_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(physics_runtime_tests PRIVATE enishi_test_support)

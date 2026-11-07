@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/morph/uv_morph.h>
 #include <cstdlib>
 #include <cstring>
@@ -9,12 +10,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void uv_morph_tests() {

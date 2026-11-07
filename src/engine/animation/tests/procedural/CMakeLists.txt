@@ -6,3 +6,6 @@ if(MSVC)
     target_compile_options(enishi_animation_pose_tests PRIVATE /utf-8)
 endif()
 add_test(NAME enishi_animation_pose_tests COMMAND enishi_animation_pose_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(enishi_animation_pose_tests PRIVATE enishi_test_support)

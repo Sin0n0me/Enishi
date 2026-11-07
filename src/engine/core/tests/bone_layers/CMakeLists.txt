@@ -65,3 +65,6 @@ endif()
 target_sources(bone_layer_runtime PRIVATE
     "${ENGINE_ROOT}/renderer/src/renderer/common/upload/buffer_upload.cpp"
     "${ENGINE_ROOT}/renderer/src/renderer/common/upload/mesh_uniform_upload.cpp")
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(bone_layer_tests PRIVATE enishi_test_support)

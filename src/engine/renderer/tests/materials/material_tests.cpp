@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <cstdlib>
 #include <cstring>
 #include <engine_types/renderer/uniform_buffer/material.h>
@@ -7,12 +8,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void material_morph_tests();

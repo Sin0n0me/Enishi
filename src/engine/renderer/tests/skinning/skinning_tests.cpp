@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "skinning_tests.h"
 #include <array>
 #include <bit>
@@ -27,12 +28,7 @@ namespace {
         glm::vec3 normal;
     };
 
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
     void succeeded(HRESULT result) {
         check(SUCCEEDED(result), "D3D test operation failed");
     }

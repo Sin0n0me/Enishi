@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <core/system/physics/physics_system.h>
 #include <core/system/skinning/model_pose_initializer.h>
 #include <core/system/skinning/skinning_system.h>

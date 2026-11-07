@@ -1,5 +1,5 @@
 #include "vrm_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include "vrm_fixture.h"
 #include <assets_system/model/model_loader/vrm/vrm_model_loader.h>
 #include <cmath>

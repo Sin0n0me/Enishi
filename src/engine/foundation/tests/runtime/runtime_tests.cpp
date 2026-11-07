@@ -1,5 +1,5 @@
 #include "runtime_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <foundation/algorithm/resolve_dependencies.h>
 #include <foundation/text/config_line_reader.h>
 #include <foundation/thread/single_thread_executor.h>

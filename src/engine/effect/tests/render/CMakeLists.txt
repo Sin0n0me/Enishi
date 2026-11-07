@@ -12,3 +12,6 @@ endif()
 add_test(NAME crack_render_tests COMMAND crack_render_tests)
 set_tests_properties(crack_render_tests PROPERTIES TIMEOUT 60
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(crack_render_tests PRIVATE enishi_test_support)

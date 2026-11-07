@@ -12,3 +12,6 @@ endif()
 enable_testing()
 add_test(NAME vrm_json_tests COMMAND vrm_json_tests)
 set_tests_properties(vrm_json_tests PROPERTIES TIMEOUT 30)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(vrm_json_tests PRIVATE enishi_test_support)

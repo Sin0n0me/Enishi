@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <array>
 #include <cmath>
 #include <cstdlib>
@@ -22,12 +23,7 @@ namespace {
     constexpr UINT SIZE = 64;
     constexpr UINT BONE_COUNT = 512;
     constexpr float TOLERANCE = 0.001f;
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
     void succeeded(HRESULT result) {
         check(SUCCEEDED(result), "D3D shadow test operation failed");
     }

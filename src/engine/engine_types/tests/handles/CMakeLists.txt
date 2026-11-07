@@ -9,3 +9,6 @@ endif()
 enable_testing()
 add_test(NAME engine_handle_tests COMMAND engine_handle_tests)
 set_tests_properties(engine_handle_tests PROPERTIES TIMEOUT 30)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(engine_handle_tests PRIVATE enishi_test_support)

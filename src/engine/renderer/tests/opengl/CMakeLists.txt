@@ -22,3 +22,6 @@ add_test(NAME opengl_skinning_shaders COMMAND "${Python3_EXECUTABLE}" -B
     "${CMAKE_CURRENT_LIST_DIR}/../skinning/gl_skinning_tests.py"
     "${CMAKE_BINARY_DIR}/shader/opengl")
 set_tests_properties(opengl_shadow_shaders opengl_skinning_shaders PROPERTIES TIMEOUT 60)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(opengl_shadow_tests PRIVATE enishi_test_support)

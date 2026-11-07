@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "opengl_shadow_tests.h"
 #include <SDL3/SDL.h>
 #include <core/system/asset/asset_system.h>
@@ -14,12 +15,7 @@
 using namespace enishi;
 
 namespace {
-    void require(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::require;
     template <class Result> auto take(Result&& result) {
         if (result.is_err()) {
             std::cerr << result.unwrap_err().get_message() << std::endl;

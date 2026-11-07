@@ -1,5 +1,5 @@
 #include "option_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include "option_lookup_tests.h"
 #include <foundation/option/option.h>
 #include <memory>

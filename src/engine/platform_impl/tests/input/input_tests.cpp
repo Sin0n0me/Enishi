@@ -1,5 +1,5 @@
 #include "input_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <limits>
 #include <platform_impl/input/sdl/sdl_input.h>
 

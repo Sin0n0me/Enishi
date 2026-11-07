@@ -1,5 +1,5 @@
 #include "vrm_json_tests.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/vrm/vrm_json.h>
 #include <cmath>
 #include <limits>

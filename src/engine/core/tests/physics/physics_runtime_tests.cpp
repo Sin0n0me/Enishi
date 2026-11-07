@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <cstdlib>
 #include <iostream>
 #include <physics/bullet3/converter/bullet_converter.h>

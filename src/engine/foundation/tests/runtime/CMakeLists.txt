@@ -15,3 +15,6 @@ endif()
 enable_testing()
 add_test(NAME foundation_runtime_tests COMMAND foundation_runtime_tests)
 set_tests_properties(foundation_runtime_tests PROPERTIES TIMEOUT 30)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(foundation_runtime_tests PRIVATE enishi_test_support)

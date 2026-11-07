@@ -24,3 +24,6 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME pmd_morph_tests COMMAND pmd_morph_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(pmd_morph_tests PRIVATE enishi_test_support)
