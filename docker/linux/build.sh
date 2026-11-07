@@ -34,6 +34,10 @@ if [[ "$compiler" == gcc ]]; then
   cc=gcc-14
   cxx=g++-14
 fi
+# Cargo invokes its own linker, independently of CMake's compiler settings.
+# This image is x86_64 Linux and provides versioned compiler commands, not cc.
+export CC="$cc" CXX="$cxx"
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$cc"
 tests=OFF
 if [[ "$mode" == test ]]; then
   tests=ON
