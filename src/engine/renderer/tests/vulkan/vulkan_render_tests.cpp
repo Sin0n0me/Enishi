@@ -1,4 +1,4 @@
-#include <test_support/test_runner.h>
+#include <test_support/result_checks.h>
 #include "vulkan_render_tests.h"
 #include "render_pass_test.h"
 #include "shadow_render_test.h"
@@ -28,19 +28,8 @@ namespace {
     constexpr std::size_t MINIMUM_LIT_PIXELS = 1000;
     constexpr std::uint32_t HIGH_BONE_INDEX = 600;
     using enishi::tests::require;
-    template <class T> T take(platform::RenderResult<T>&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-        return std::move(result.unwrap_mut());
-    }
-    void success(platform::RenderResult<void>&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::take;
+    using enishi::tests::success;
     types::ShaderData shader(const char* name) {
         std::ifstream input(
             std::filesystem::path(VULKAN_SHADER_DIRECTORY) / name, std::ios::binary);

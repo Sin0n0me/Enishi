@@ -1,4 +1,4 @@
-#include <test_support/test_runner.h>
+#include <test_support/result_checks.h>
 #include "opengl_shadow_tests.h"
 #include <SDL3/SDL.h>
 #include <core/system/asset/asset_system.h>
@@ -16,13 +16,8 @@ using namespace enishi;
 
 namespace {
     using enishi::tests::require;
-    template <class Result> auto take(Result&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-        return std::move(result.unwrap_mut());
-    }
+    using enishi::tests::take;
+    using enishi::tests::success;
     class Context final : public platform::IOpenGLContext {
         SDL_Window* window; // Borrowed; window outlives the test context.
         std::unique_ptr<std::remove_pointer_t<SDL_GLContext>, decltype(&SDL_GL_DestroyContext)>

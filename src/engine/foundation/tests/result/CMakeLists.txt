@@ -13,3 +13,6 @@ set_tests_properties(foundation_result_tests PROPERTIES TIMEOUT 30)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
 target_link_libraries(foundation_result_tests PRIVATE enishi_test_support)
+
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/tests" test-support-tests)
+add_dependencies(foundation_result_tests test_support_diagnostics)

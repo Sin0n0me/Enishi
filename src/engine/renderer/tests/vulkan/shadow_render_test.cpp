@@ -1,4 +1,4 @@
-#include <test_support/test_runner.h>
+#include <test_support/result_checks.h>
 #include "shadow_render_test.h"
 #include <array>
 #include <core/system/asset/asset_system.h>
@@ -22,16 +22,8 @@ namespace {
     constexpr std::uint8_t DARK_LIMIT = 80;
     constexpr std::uint8_t LIT_LIMIT = 180;
     using enishi::tests::require;
-    template <class Result> auto take(Result&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-        return std::move(result.unwrap_mut());
-    }
-    void success(platform::RenderResult<void>&& result) {
-        require(result.is_ok(), result.is_err() ? result.unwrap_err().get_message().c_str() : "");
-    }
+    using enishi::tests::take;
+    using enishi::tests::success;
     types::DrawCommand bind(types::RenderHandle handle) {
         return {.handle = handle, .sub_command = types::SubCommand::Bind};
     }
