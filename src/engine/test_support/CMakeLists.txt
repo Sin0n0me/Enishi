@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(enishi_test_support LANGUAGES CXX)
-add_library(enishi_test_support STATIC src/test_support/test_runner.cpp)
+add_library(enishi_test_support STATIC src/test_support/test_runner.cpp
+    src/test_support/check_accumulator.cpp)
 target_compile_features(enishi_test_support PUBLIC cxx_std_20)
 target_include_directories(enishi_test_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 if(MSVC)

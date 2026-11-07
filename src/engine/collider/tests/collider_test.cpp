@@ -1,3 +1,4 @@
+#include <test_support/check_accumulator.h>
 #include <array>
 #include <cmath>
 #include <collider/collider.h>
@@ -13,14 +14,7 @@ namespace {
     using enishi::collider::OBBMaker;
     namespace types = enishi::types;
 
-    int failures = 0;
-#define CHECK(expression)                                                                          \
-    do {                                                                                           \
-        if (!(expression)) {                                                                       \
-            std::cerr << __LINE__ << ": " << #expression << '\n';                                  \
-            ++failures;                                                                            \
-        }                                                                                          \
-    } while (false)
+    enishi::tests::CheckAccumulator checks;
 
     bool near(const float first, const float second, const float tolerance = 1e-4f) {
         return std::abs(first - second) <= tolerance;
@@ -96,11 +90,11 @@ namespace {
     }
 
     void test_maker() {
-        CHECK(OBBMaker::make_by_covariance_matrix({}).is_none());
-        CHECK(OBBMaker::make_by_covariance_matrix(
+        ENISHI_EXPECT(checks, OBBMaker::make_by_covariance_matrix({}).is_none());
+        ENISHI_EXPECT(checks, OBBMaker::make_by_covariance_matrix(
             {glm::vec3(std::numeric_limits<float>::quiet_NaN())})
                   .is_none());
-        CHECK(
+        ENISHI_EXPECT(checks,
             OBBMaker::make_by_covariance_matrix({glm::vec3(std::numeric_limits<float>::infinity())})
                 .is_none());
         const glm::mat4 rotation =
@@ -108,33 +102,33 @@ namespace {
         const auto input =
             vertices(box(glm::vec3(5, -2, 8), glm::vec3(3, 2, 1), glm::mat3(rotation)));
         const auto obb = OBBMaker::make_by_covariance_matrix(input);
-        CHECK(obb.is_some());
+        ENISHI_EXPECT(checks, obb.is_some());
         if (obb.is_none()) {
             return;
         }
         for (const auto& point : input) {
-            CHECK(contains(obb.unwrap(), point));
+            ENISHI_EXPECT(checks, contains(obb.unwrap(), point));
         }
-        CHECK(near(
+        ENISHI_EXPECT(checks, near(
             obb.unwrap().half_extent.x * obb.unwrap().half_extent.y * obb.unwrap().half_extent.z,
             6.0f));
         for (const auto& points : std::vector<std::vector<glm::vec3>>{{glm::vec3(3, 4, 5)},
                  {glm::vec3(0), glm::vec3(1), glm::vec3(2)},
                  {{-1, -1, 0}, {1, -1, 0}, {1, 1, 0}, {-1, 1, 0}}}) {
             const auto degenerate = OBBMaker::make_by_covariance_matrix(points);
-            CHECK(degenerate.is_some());
+            ENISHI_EXPECT(checks, degenerate.is_some());
             if (degenerate.is_some()) {
                 for (const auto& point : points) {
-                    CHECK(contains(degenerate.unwrap(), point));
+                    ENISHI_EXPECT(checks, contains(degenerate.unwrap(), point));
                 }
-                CHECK(near(glm::length(degenerate.unwrap().axis[0]), 1));
-                CHECK(near(glm::dot(degenerate.unwrap().axis[0], degenerate.unwrap().axis[1]), 0));
+                ENISHI_EXPECT(checks, near(glm::length(degenerate.unwrap().axis[0]), 1));
+                ENISHI_EXPECT(checks, near(glm::dot(degenerate.unwrap().axis[0], degenerate.unwrap().axis[1]), 0));
             }
         }
         const auto rotated_cube = OBBMaker::transform(box(), rotation);
-        CHECK(rotated_cube.is_some());
+        ENISHI_EXPECT(checks, rotated_cube.is_some());
         if (rotated_cube.is_some()) {
-            CHECK(near(rotated_cube.unwrap().half_extent.x * rotated_cube.unwrap().half_extent.y *
+            ENISHI_EXPECT(checks, near(rotated_cube.unwrap().half_extent.x * rotated_cube.unwrap().half_extent.y *
                            rotated_cube.unwrap().half_extent.z,
                 1.0f));
         }
@@ -142,44 +136,44 @@ namespace {
                               glm::scale(glm::mat4(1), glm::vec3(-2, 3, 0.5));
         transform[1][0] += 0.8f;
         const auto world = OBBMaker::transform(obb.unwrap(), transform);
-        CHECK(world.is_some());
+        ENISHI_EXPECT(checks, world.is_some());
         if (world.is_some()) {
             for (const auto& point : vertices(obb.unwrap())) {
-                CHECK(contains(world.unwrap(), glm::vec3(transform * glm::vec4(point, 1))));
+                ENISHI_EXPECT(checks, contains(world.unwrap(), glm::vec3(transform * glm::vec4(point, 1))));
             }
         }
-        CHECK(OBBMaker::transform(obb.unwrap(), glm::scale(glm::mat4(1), glm::vec3(0))).is_some());
+        ENISHI_EXPECT(checks, OBBMaker::transform(obb.unwrap(), glm::scale(glm::mat4(1), glm::vec3(0))).is_some());
         transform[0][3] = 1;
-        CHECK(OBBMaker::transform(obb.unwrap(), transform).is_none());
+        ENISHI_EXPECT(checks, OBBMaker::transform(obb.unwrap(), transform).is_none());
     }
 
     void test_intersection() {
-        CHECK(Collider::intersect(1, box(), 1, box()).is_none());
-        CHECK(Collider::intersect(1, box(), 2, box(glm::vec3(3, 0, 0))).is_none());
+        ENISHI_EXPECT(checks, Collider::intersect(1, box(), 1, box()).is_none());
+        ENISHI_EXPECT(checks, Collider::intersect(1, box(), 2, box(glm::vec3(3, 0, 0))).is_none());
         for (const auto& other : {box(glm::vec3(1.5, 0, 0)),
                  box(glm::vec3(2, 0, 0)),
                  box(glm::vec3(2)),
                  box(glm::vec3(0), glm::vec3(0.25f)),
                  box(glm::vec3(0), glm::vec3(0))}) {
             const auto contact = Collider::intersect(1, box(), 2, other);
-            CHECK(contact.is_some());
+            ENISHI_EXPECT(checks, contact.is_some());
             if (contact.is_some()) {
-                CHECK(contains(box(), contact.unwrap().position));
-                CHECK(contains(other, contact.unwrap().position));
-                CHECK(contact.unwrap().penetration_depth >= 0);
-                CHECK(near(glm::length(contact.unwrap().normal), 1));
+                ENISHI_EXPECT(checks, contains(box(), contact.unwrap().position));
+                ENISHI_EXPECT(checks, contains(other, contact.unwrap().position));
+                ENISHI_EXPECT(checks, contact.unwrap().penetration_depth >= 0);
+                ENISHI_EXPECT(checks, near(glm::length(contact.unwrap().normal), 1));
             }
         }
         const auto overlap = Collider::intersect(1, box(), 2, box(glm::vec3(1.5, 0, 0)));
-        CHECK(overlap.is_some() && near(overlap.unwrap().penetration_depth, 0.5f));
-        CHECK(overlap.is_some() && near(overlap.unwrap().normal.x, 1.0f));
+        ENISHI_EXPECT(checks, overlap.is_some() && near(overlap.unwrap().penetration_depth, 0.5f));
+        ENISHI_EXPECT(checks, overlap.is_some() && near(overlap.unwrap().normal.x, 1.0f));
         const auto contained =
             Collider::intersect(1, box(), 2, box(glm::vec3(0), glm::vec3(0.25f)));
-        CHECK(contained.is_some() && near(contained.unwrap().penetration_depth, 1.25f));
-        CHECK(Collider::hit_model({{0, 0, -5}, {0, 0, 1}}, box()));
-        CHECK(!Collider::hit_model({{0, 0, -5}, {0, 0, -1}}, box()));
-        CHECK(!Collider::hit_model({{2, 0, -5}, {0, 0, 1}}, box()));
-        CHECK(!Collider::hit_model({{0, 0, 0}, {0, 0, 0}}, box()));
+        ENISHI_EXPECT(checks, contained.is_some() && near(contained.unwrap().penetration_depth, 1.25f));
+        ENISHI_EXPECT(checks, Collider::hit_model({{0, 0, -5}, {0, 0, 1}}, box()));
+        ENISHI_EXPECT(checks, !Collider::hit_model({{0, 0, -5}, {0, 0, -1}}, box()));
+        ENISHI_EXPECT(checks, !Collider::hit_model({{2, 0, -5}, {0, 0, 1}}, box()));
+        ENISHI_EXPECT(checks, !Collider::hit_model({{0, 0, 0}, {0, 0, 0}}, box()));
 
         std::mt19937 random(8421);
         std::uniform_real_distribution<float> number(-1.0f, 1.0f);
@@ -200,20 +194,20 @@ namespace {
             const auto second = make_random_box();
             const bool expected = reference_intersection(first, second);
             const auto actual = Collider::intersect(1, first, 2, second);
-            CHECK(actual.is_some() == expected);
+            ENISHI_EXPECT(checks, actual.is_some() == expected);
             expected ? ++hits : ++misses;
             if (actual.is_some()) {
-                CHECK(contains(first, actual.unwrap().position));
-                CHECK(contains(second, actual.unwrap().position));
+                ENISHI_EXPECT(checks, contains(first, actual.unwrap().position));
+                ENISHI_EXPECT(checks, contains(second, actual.unwrap().position));
                 const auto reverse = Collider::intersect(2, second, 1, first);
-                CHECK(reverse.is_some());
-                CHECK(reverse.is_some() &&
+                ENISHI_EXPECT(checks, reverse.is_some());
+                ENISHI_EXPECT(checks, reverse.is_some() &&
                       near(actual.unwrap().penetration_depth, reverse.unwrap().penetration_depth));
-                CHECK(reverse.is_some() &&
+                ENISHI_EXPECT(checks, reverse.is_some() &&
                       glm::length(actual.unwrap().normal + reverse.unwrap().normal) < 1e-4f);
             }
         }
-        CHECK(hits > 0 && misses > 0);
+        ENISHI_EXPECT(checks, hits > 0 && misses > 0);
     }
 
     class Handler : public enishi::sub_system::ICollisionHandler {
@@ -233,51 +227,51 @@ namespace {
         const auto points = vertices(box());
         const auto first_handler = std::make_shared<Handler>();
         const auto second_handler = std::make_shared<Handler>();
-        CHECK(!system.set_bone(1, 0, points));
-        CHECK(!system.add_handler(1, first_handler));
-        CHECK(system.register_model(1));
-        CHECK(!system.register_model(1));
-        CHECK(system.add_handler(1, first_handler));
-        CHECK(!system.add_handler(1, first_handler));
-        CHECK(!system.add_handler(1, nullptr));
-        CHECK(system.set_bone(1, 0, points));
-        CHECK(system.set_bone(1, 1, points));
-        CHECK(system.check_collisions() == 0);
-        CHECK(first_handler->events.empty());
-        CHECK(system.register_model(2));
-        CHECK(system.set_bone(2, 42, points, glm::translate(glm::mat4(1), glm::vec3(1.5, 0, 0))));
-        CHECK(system.add_handler(2, second_handler));
-        CHECK(system.check_collisions() == 2);
-        CHECK(first_handler->events.size() == 2 && second_handler->events.size() == 2);
+        ENISHI_EXPECT(checks, !system.set_bone(1, 0, points));
+        ENISHI_EXPECT(checks, !system.add_handler(1, first_handler));
+        ENISHI_EXPECT(checks, system.register_model(1));
+        ENISHI_EXPECT(checks, !system.register_model(1));
+        ENISHI_EXPECT(checks, system.add_handler(1, first_handler));
+        ENISHI_EXPECT(checks, !system.add_handler(1, first_handler));
+        ENISHI_EXPECT(checks, !system.add_handler(1, nullptr));
+        ENISHI_EXPECT(checks, system.set_bone(1, 0, points));
+        ENISHI_EXPECT(checks, system.set_bone(1, 1, points));
+        ENISHI_EXPECT(checks, system.check_collisions() == 0);
+        ENISHI_EXPECT(checks, first_handler->events.empty());
+        ENISHI_EXPECT(checks, system.register_model(2));
+        ENISHI_EXPECT(checks, system.set_bone(2, 42, points, glm::translate(glm::mat4(1), glm::vec3(1.5, 0, 0))));
+        ENISHI_EXPECT(checks, system.add_handler(2, second_handler));
+        ENISHI_EXPECT(checks, system.check_collisions() == 2);
+        ENISHI_EXPECT(checks, first_handler->events.size() == 2 && second_handler->events.size() == 2);
         for (const auto& [bone, event] : first_handler->events) {
-            CHECK((bone == 0 || bone == 1) && event.other_model == 2 && event.other_bone == 42);
-            CHECK(near(event.contact.penetration_depth, 0.5f));
-            CHECK(near(event.contact.normal.x, 1));
-            CHECK(contains(system.get_obb_map(1)->at(bone), event.contact.position));
+            ENISHI_EXPECT(checks, (bone == 0 || bone == 1) && event.other_model == 2 && event.other_bone == 42);
+            ENISHI_EXPECT(checks, near(event.contact.penetration_depth, 0.5f));
+            ENISHI_EXPECT(checks, near(event.contact.normal.x, 1));
+            ENISHI_EXPECT(checks, contains(system.get_obb_map(1)->at(bone), event.contact.position));
         }
         for (const auto& [bone, event] : second_handler->events) {
-            CHECK(bone == 42 && event.other_model == 1);
-            CHECK(near(event.contact.normal.x, -1));
+            ENISHI_EXPECT(checks, bone == 42 && event.other_model == 1);
+            ENISHI_EXPECT(checks, near(event.contact.normal.x, -1));
         }
-        CHECK(system.check_collisions() == 2);
-        CHECK(first_handler->events.size() == 4 && second_handler->events.size() == 4);
-        CHECK(!system.set_bone(2, 42, {}));
-        CHECK(!system.set_bone(2, types::INVALID_BONE_INDEX, points));
-        CHECK(system.get_obb_map(2)->size() == 1);
-        CHECK(system.update_bone(2, 42, glm::translate(glm::mat4(1), glm::vec3(10, 0, 0))));
-        CHECK(system.check_collisions() == 0);
-        CHECK(system.update_bone(2, 42, glm::mat4(1)));
-        CHECK(system.check_collisions() == 2);
-        CHECK(!system.update_bone(2, 999, glm::mat4(1)));
-        CHECK(system.remove_bone(1, 1));
-        CHECK(!system.remove_bone(1, 1));
-        CHECK(system.check_collisions() == 1);
-        CHECK(system.remove_handler(1, first_handler));
-        CHECK(!system.remove_handler(1, first_handler));
+        ENISHI_EXPECT(checks, system.check_collisions() == 2);
+        ENISHI_EXPECT(checks, first_handler->events.size() == 4 && second_handler->events.size() == 4);
+        ENISHI_EXPECT(checks, !system.set_bone(2, 42, {}));
+        ENISHI_EXPECT(checks, !system.set_bone(2, types::INVALID_BONE_INDEX, points));
+        ENISHI_EXPECT(checks, system.get_obb_map(2)->size() == 1);
+        ENISHI_EXPECT(checks, system.update_bone(2, 42, glm::translate(glm::mat4(1), glm::vec3(10, 0, 0))));
+        ENISHI_EXPECT(checks, system.check_collisions() == 0);
+        ENISHI_EXPECT(checks, system.update_bone(2, 42, glm::mat4(1)));
+        ENISHI_EXPECT(checks, system.check_collisions() == 2);
+        ENISHI_EXPECT(checks, !system.update_bone(2, 999, glm::mat4(1)));
+        ENISHI_EXPECT(checks, system.remove_bone(1, 1));
+        ENISHI_EXPECT(checks, !system.remove_bone(1, 1));
+        ENISHI_EXPECT(checks, system.check_collisions() == 1);
+        ENISHI_EXPECT(checks, system.remove_handler(1, first_handler));
+        ENISHI_EXPECT(checks, !system.remove_handler(1, first_handler));
         const auto previous = first_handler->events.size();
-        CHECK(system.check_collisions() == 1);
-        CHECK(first_handler->events.size() == previous);
-        CHECK(system.add_handler(1, first_handler));
+        ENISHI_EXPECT(checks, system.check_collisions() == 1);
+        ENISHI_EXPECT(checks, first_handler->events.size() == previous);
+        ENISHI_EXPECT(checks, system.add_handler(1, first_handler));
         // Removal and rehashing during delivery must not invalidate the notification batch.
         first_handler->callback = [&] {
             system.remove_model(2);
@@ -286,10 +280,10 @@ namespace {
             }
         };
         const auto second_previous = second_handler->events.size();
-        CHECK(system.check_collisions() == 1);
-        CHECK(second_handler->events.size() == second_previous + 1);
-        CHECK(system.get_obb_map(2) == nullptr);
-        CHECK(system.check_collisions() == 0);
+        ENISHI_EXPECT(checks, system.check_collisions() == 1);
+        ENISHI_EXPECT(checks, second_handler->events.size() == second_previous + 1);
+        ENISHI_EXPECT(checks, system.get_obb_map(2) == nullptr);
+        ENISHI_EXPECT(checks, system.check_collisions() == 0);
     }
 } // namespace
 
@@ -297,8 +291,8 @@ int main() {
     test_maker();
     test_intersection();
     test_system();
-    if (failures != 0) {
-        std::cerr << failures << " checks failed\n";
+    if (checks.failure_count() != 0) {
+        std::cerr << checks.failure_count() << " checks failed\n";
         return 1;
     }
     std::cout << "All collider checks passed (including 500 independent geometric comparisons).\n";

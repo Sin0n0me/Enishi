@@ -6,9 +6,12 @@
 #include <utility>
 
 namespace enishi::tests {
+    void report_failure(const char* message, std::source_location location);
     void check(bool condition, const char* message,
         std::source_location location = std::source_location::current());
     void require(bool condition, const char* message,
+        std::source_location location = std::source_location::current());
+    void check_or_throw(bool condition, const char* message,
         std::source_location location = std::source_location::current());
     [[noreturn]] void report_termination() noexcept;
     void begin_test(const char* name);

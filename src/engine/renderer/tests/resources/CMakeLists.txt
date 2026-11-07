@@ -7,3 +7,6 @@ else()
     target_sources(renderer_resource_tests PRIVATE common_resource_tests.cpp)
 endif()
 add_test(NAME renderer_resource_tests COMMAND renderer_resource_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(renderer_resource_tests PRIVATE enishi_test_support)

@@ -1,22 +1,21 @@
 #include "test_runner.h"
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
+#include <string>
 
 namespace enishi::tests {
     namespace {
         const char* active_test = "startup";
     }
-    void check(bool condition,
-        const char* message,
-        const std::source_location location) {
+    void report_failure(const char* message, std::source_location location) {
+        std::fprintf(stderr, "[FAIL] %s: %s (%s:%u)\n", active_test, message,
+            location.file_name(), location.line());
+        std::fflush(stderr);
+    }
+    void check(bool condition, const char* message, std::source_location location) {
         if (!condition) {
-            std::fprintf(stderr,
-                "[FAIL] %s: %s (%s:%u)\n",
-                active_test,
-                message,
-                location.file_name(),
-                location.line());
-            std::fflush(stderr);
+            report_failure(message, location);
             std::exit(EXIT_FAILURE);
         }
     }
@@ -43,6 +42,12 @@ namespace enishi::tests {
 
     void require(bool condition, const char* message, std::source_location location) {
         check(condition, message, location);
+    }
+    void check_or_throw(bool condition, const char* message, std::source_location location) {
+        if (!condition) {
+            throw std::runtime_error(std::string(message) + " (" + location.file_name() + ":" +
+                std::to_string(location.line()) + ")");
+        }
     }
     void begin_test(const char* name) {
         active_test = name;

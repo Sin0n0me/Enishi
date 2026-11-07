@@ -18,3 +18,5 @@ diagnostic_case(empty "error=7" "Result contains no error message" "diagnostic_t
 diagnostic_case(boolean "boolean failure" "diagnostic_tests.cpp:")
 diagnostic_case(exception "exception detail")
 diagnostic_case(terminate "without an active exception")
+diagnostic_case(accumulator "++evaluations == 0" "false" "diagnostic_tests.cpp:")
+diagnostic_case(throw "throwing assertion" "diagnostic_tests.cpp:")

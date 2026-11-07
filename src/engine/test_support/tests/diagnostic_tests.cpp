@@ -1,6 +1,7 @@
 #include "diagnostic_tests.h"
 #include <foundation/result/result.h>
 #include <test_support/result_checks.h>
+#include <test_support/check_accumulator.h>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -21,6 +22,16 @@ int main(int argc, char** argv) {
             enishi::tests::success(failure);
         } else if (mode == "boolean") {
             enishi::tests::check(false, "boolean failure");
+        } else if (mode == "accumulator") {
+            enishi::tests::CheckAccumulator checks;
+            int evaluations = 0;
+            ENISHI_EXPECT(checks, ++evaluations == 0);
+            ENISHI_EXPECT(checks, false);
+            enishi::tests::check(evaluations == 1 && checks.failure_count() == 2,
+                "accumulator evaluates once and continues after failure");
+            std::exit(EXIT_FAILURE);
+        } else if (mode == "throw") {
+            enishi::tests::check_or_throw(false, "throwing assertion");
         } else if (mode == "exception") {
             throw std::runtime_error("exception detail");
         } else if (mode == "terminate") {

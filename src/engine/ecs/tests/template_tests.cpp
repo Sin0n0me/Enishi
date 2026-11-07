@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include "template_tests.h"
 #include <concepts>
 #include <cstdlib>
@@ -20,11 +21,7 @@ namespace enishi::ecs::tests {
             !std::constructible_from<foundation::Result<std::unique_ptr<int>&, SourceError>,
                 std::unique_ptr<int>&&>);
 
-        void require(bool condition, const char* message) {
-            if (!condition) {
-                throw std::runtime_error(message);
-            }
-        }
+    using enishi::tests::check_or_throw;
     } // namespace
 
     void component_pool_cases() {
@@ -36,26 +33,26 @@ namespace enishi::ecs::tests {
         constexpr int ignored = 30;
         constexpr int other = 40;
         auto& inserted = pool.insert_or_replace(first, std::make_unique<int>(initial));
-        require(*inserted == initial && pool.has(first), "Insert missing component");
+        check_or_throw(*inserted == initial && pool.has(first), "Insert missing component");
         auto& replaced = pool.insert_or_replace(first, std::make_unique<int>(replacement));
-        require(&inserted == &replaced && *replaced == replacement, "Replace in place");
+        check_or_throw(&inserted == &replaced && *replaced == replacement, "Replace in place");
         auto candidate = std::make_unique<int>(ignored);
         auto& retained = pool.insert_or_ignore(first, std::move(candidate));
-        require(&retained == &replaced && *retained == replacement && candidate != nullptr,
+        check_or_throw(&retained == &replaced && *retained == replacement && candidate != nullptr,
             "Ignore preserves existing component and does not consume candidate");
-        require(*pool.insert_or_ignore(second, std::make_unique<int>(other)) == other,
+        check_or_throw(*pool.insert_or_ignore(second, std::make_unique<int>(other)) == other,
             "Ignore inserts a missing component");
         pool.remove(first);
-        require(!pool.has(first) && pool.has(second), "Remove updates sparse indices");
-        require(*pool.insert_or_replace(second, std::make_unique<int>(replacement)) == replacement,
+        check_or_throw(!pool.has(first) && pool.has(second), "Remove updates sparse indices");
+        check_or_throw(*pool.insert_or_replace(second, std::make_unique<int>(replacement)) == replacement,
             "Replace after dense relocation");
-        require(*pool.insert_or_ignore(first, std::make_unique<int>(initial)) == initial,
+        check_or_throw(*pool.insert_or_ignore(first, std::make_unique<int>(initial)) == initial,
             "Reinsert removed entity");
         const auto& const_pool = pool;
-        require(*const_pool.get(first).unwrap() == initial &&
+        check_or_throw(*const_pool.get(first).unwrap() == initial &&
                     *const_pool.get(second).unwrap() == replacement,
             "Const lookup uses entity indices");
-        require(pool.emplace(first, std::make_unique<int>(other)).is_err(),
+        check_or_throw(pool.emplace(first, std::make_unique<int>(other)).is_err(),
             "Duplicate emplace returns an error");
     }
 
@@ -63,11 +60,11 @@ namespace enishi::ecs::tests {
         foundation::Error<SourceError> source(SourceError::ReadFailed, "first");
         source.add_message("second");
         foundation::Error<TargetError> converted(TargetError::LoadFailed, std::move(source));
-        require(converted.get_error() == TargetError::LoadFailed &&
+        check_or_throw(converted.get_error() == TargetError::LoadFailed &&
                     converted.get_message() == "first\nsecond",
             "Error conversion preserves messages and changes error code");
         converted.add_message("third");
-        require(
+        check_or_throw(
             converted.get_message() == "first\nsecond\nthird", "Converted error remains usable");
     }
 } // namespace enishi::ecs::tests
