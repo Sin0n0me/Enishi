@@ -16,7 +16,7 @@ else()
     find_library(BULLET_MATH_LIBRARY NAMES LinearMath_Debug LinearMath REQUIRED)
 endif()
 file(GLOB_RECURSE PHYSICS_SOURCES CONFIGURE_DEPENDS "${ENGINE_ROOT}/physics/src/*.cpp")
-add_executable(physics_runtime_tests physics_runtime_tests.cpp model_physics_tests.cpp ${PHYSICS_SOURCES}
+add_executable(physics_runtime_tests physics_runtime_tests.cpp bullet_converter_tests.cpp model_physics_tests.cpp ${PHYSICS_SOURCES}
     rigid_body_impulse_tests.cpp
     impulse_playback_tests.cpp
     physics_object_tests.cpp

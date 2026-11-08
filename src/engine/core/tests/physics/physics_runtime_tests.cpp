@@ -1,3 +1,4 @@
+#include "bullet_converter_tests.h"
 #include <test_support/test_runner.h>
 #include <cstdlib>
 #include <iostream>
@@ -176,6 +177,7 @@ namespace {
 } // namespace
 
 int main() {
+    tests::run_test("bullet_converter_tests", bullet_converter_tests);
     extern void physics_object_tests();
     tests::run_test("physics_object_tests", physics_object_tests);
     extern void impulse_playback_tests();
