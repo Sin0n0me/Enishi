@@ -4,6 +4,7 @@ import faulthandler
 import sys
 import time
 from gl_test_checks import check
+from gl_stall_diagnostics import native_stall_watchdog
 
 CGL_OPENGL_PROFILE = 99
 CGL_OPENGL_41_CORE = 0x4100
@@ -52,7 +53,8 @@ def run_with_context(test):
     # Dump the Python call site before CTest terminates a stalled native GL call.
     faulthandler.dump_traceback_later(STALL_DIAGNOSTIC_SECONDS)
     try:
-        run_context(test)
+        with native_stall_watchdog(STALL_DIAGNOSTIC_SECONDS):
+            run_context(test)
     finally:
         faulthandler.cancel_dump_traceback_later()
 
