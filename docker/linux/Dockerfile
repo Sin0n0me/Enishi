@@ -4,7 +4,10 @@ FROM ubuntu:24.04
 
 # DXC and the existing Vulkan SDK distribution are Linux x86_64 binaries.
 RUN test "$(dpkg --print-architecture)" = amd64
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Retry transient archive failures, but never continue with an incomplete package index.
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update --error-on=any \
+    && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+    install -y --no-install-recommends \
     ca-certificates curl git cmake ninja-build clang-19 gcc-14 g++-14 \
     pkg-config xz-utils unzip libicu-dev \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
