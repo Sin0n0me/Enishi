@@ -30,8 +30,6 @@ EXCLUSIONS = (
     ({"os": ("linux", "macos"), "backend": ("directx",)}, "DirectX requires Windows"),
     ({"os": ("linux", "macos"), "compiler": ("visualstudio", "visualstudio2026")},
      "Visual Studio generators require Windows"),
-    ({"os": ("macos",), "backend": ("vulkan",)},
-     "The macOS desktop implementation uses OpenGL; MoltenVK is not a project dependency"),
     ({"os": ("macos",), "compiler": ("gcc",)},
      "The Cocoa implementation requires the supported Clang Objective-C++ toolchain"),
 )
