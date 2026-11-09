@@ -1,13 +1,112 @@
 """Regression tests for the CI preflight, without a compiler or graphics device."""
 
 import copy
+import json
+import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
 from check_test_inventory import COMMON, CORE, OPENGL, SHADERS, required_tests, validate
+from unix_matrix import matrix
+
+
+@unittest.skipIf(sys.platform == "win32", "macOS SDK shell setup is tested by the Unix CI preflight")
+class MacSdkSetupTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="enishi sdk test ")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.sdk = self.root / "enishi-vulkan/1.4.321.0/macOS"
+        self.files = ("include/vulkan/vulkan.h", "lib/libvulkan.1.dylib", "lib/libMoltenVK.dylib",
+                      "lib/libVkLayer_khronos_validation.dylib",
+                      "share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json",
+                      "share/vulkan/icd.d/MoltenVK_icd.json", "bin/glslc",
+                      "source/SPIRV-Reflect/spirv_reflect.c", "source/SPIRV-Reflect/spirv_reflect.h")
+        for name in self.files:
+            path = self.sdk / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("fixture", encoding="utf-8")
+        (self.sdk / "bin/glslc").chmod(0o755)
+        self.environment = {**os.environ, "RUNNER_TEMP": str(self.root),
+                            "GITHUB_ENV": str(self.root / "environment"),
+                            "GITHUB_PATH": str(self.root / "paths")}
+
+    def run_setup(self):
+        script = Path(__file__).with_name("setup_macos_vulkan.sh")
+        return subprocess.run(["bash", str(script)], env=self.environment,
+                              text=True, capture_output=True, timeout=10)
+
+    def test_cached_sdk_exports_loader_driver_layers_and_sources(self):
+        result = self.run_setup()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        environment = (self.root / "environment").read_text(encoding="utf-8")
+        for expected in (f"VULKAN_SDK={self.sdk}",
+                         f"VK_DRIVER_FILES={self.sdk}/share/vulkan/icd.d/MoltenVK_icd.json",
+                         f"VK_LAYER_PATH={self.sdk}/share/vulkan/explicit_layer.d",
+                         f"ENISHI_SPIRV_REFLECT_SOURCE_DIR={self.sdk}/source/SPIRV-Reflect"):
+            self.assertIn(expected, environment)
+        self.assertEqual((self.root / "paths").read_text().strip(), str(self.sdk / "bin"))
+
+    def test_missing_runtime_file_fails_with_its_path(self):
+        # Keep the header sentinel so a broken cache cannot start a network download in this test.
+        for name in self.files[1:7] + (self.files[8],):
+            with self.subTest(name=name):
+                path = self.sdk / name
+                path.unlink()
+                result = self.run_setup()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(str(path), result.stderr)
+                self.assertFalse((self.root / "environment").exists())
+                path.write_text("fixture", encoding="utf-8")
+                if name == "bin/glslc":
+                    path.chmod(0o755)
+
+    def test_reflect_source_must_be_unambiguous(self):
+        source = self.sdk / "source/SPIRV-Reflect/spirv_reflect.c"
+        source.unlink()
+        self.assertIn("found 0", self.run_setup().stderr)
+        source.write_text("fixture", encoding="utf-8")
+        (self.sdk / "duplicate").mkdir()
+        (self.sdk / "duplicate/spirv_reflect.c").write_text("fixture", encoding="utf-8")
+        result = self.run_setup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("found 2", result.stderr)
+        self.assertFalse((self.root / "environment").exists())
+
+
+class MatrixTests(unittest.TestCase):
+    def test_macos_vulkan_builds_cover_both_architectures_and_configurations(self):
+        builds = [entry for entry in matrix()["include"] if entry["os"] == "macos"]
+        self.assertEqual(len(builds), 4)
+        self.assertEqual({(entry["arch"], entry["config"]) for entry in builds},
+                         {("x64", "Debug"), ("x64", "Release"),
+                          ("arm64", "Debug"), ("arm64", "Release")})
+        for entry in builds:
+            self.assertEqual(entry["backend"], "vulkan")
+            self.assertEqual(entry["compiler"], "clang")
+            self.assertEqual(entry["runner"], "macos-15-intel" if entry["arch"] == "x64" else "macos-15")
+
+    def test_gpu_tests_keep_the_same_build_configuration(self):
+        builds = matrix()["include"]
+        tests = matrix(tests=True)["include"]
+        self.assertEqual(len(builds), len(tests))
+        for build, test in zip(builds, tests):
+            expected = dict(build)
+            if build["os"] == "macos":
+                expected["runner"] = "macos-15-xlarge"
+            self.assertEqual(test, expected)
+        self.assertEqual(len({entry["artifact"] for entry in tests}), len(tests))
+
+    def test_every_matrix_entry_has_a_generated_preset(self):
+        repository = Path(__file__).resolve().parents[2]
+        presets = json.loads((repository / "src/CMakePresets.json").read_text(encoding="utf-8"))
+        names = {entry["name"] for entry in presets["configurePresets"]}
+        for entry in matrix(tests=True)["include"]:
+            self.assertIn(entry["preset"], names)
 
 
 class InventoryTests(unittest.TestCase):

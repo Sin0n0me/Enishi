@@ -33,6 +33,7 @@ jobs:
       CONFIGURATION: ${{ matrix.config }}
       ARTIFACT: ${{ matrix.artifact }}
       ENABLE_TESTS: ${{ inputs.run-tests && 'ON' || 'OFF' }}
+      TARGET_ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,21 +49,39 @@ jobs:
           echo 'LIBGL_ALWAYS_SOFTWARE=1' >> "$GITHUB_ENV"
           echo 'SDL_VIDEO_DRIVER=x11' >> "$GITHUB_ENV"
       - name: Restore Linux Vulkan SDK
-        if: matrix.backend == 'vulkan'
+        if: runner.os == 'Linux' && matrix.backend == 'vulkan'
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/enishi-vulkan
           key: linux-x64-vulkan-${{ hashFiles('.github/scripts/setup_linux_vulkan.sh') }}
       - name: Set up Linux Vulkan SDK
-        if: matrix.backend == 'vulkan'
+        if: runner.os == 'Linux' && matrix.backend == 'vulkan'
         run: bash .github/scripts/setup_linux_vulkan.sh
       - name: Install macOS build tools
         if: runner.os == 'macOS'
         run: |
-          brew install llvm@21 ninja icu4c
-          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
+          bash .github/scripts/setup_macos_toolchain.sh
+      - name: Restore macOS Vulkan SDK
+        if: runner.os == 'macOS' && matrix.backend == 'vulkan'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/enishi-vulkan
+          key: macos-universal-vulkan-${{ hashFiles('.github/scripts/setup_macos_vulkan.sh') }}
+      - name: Set up macOS Vulkan SDK and MoltenVK
+        if: runner.os == 'macOS' && matrix.backend == 'vulkan'
+        run: bash .github/scripts/setup_macos_vulkan.sh
       - name: Install project Rust toolchain
-        run: rustup toolchain install 1.88.0 --profile minimal
+        run: |
+          toolchain=1.88.0
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            if [[ "$TARGET_ARCH" == x64 ]]; then
+              toolchain=1.88.0-x86_64-apple-darwin
+            else
+              toolchain=1.88.0-aarch64-apple-darwin
+            fi
+          fi
+          rustup toolchain install "$toolchain" --profile minimal
+          echo "ENISHI_RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
       - name: Set up Python for GLAD and test scripts
         uses: ./.github/actions/setup-python-tools
       - name: Run standalone tests
@@ -93,9 +112,10 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             options+=(-DSDL_WAYLAND=OFF)
           else
-            options+=("-DCMAKE_PREFIX_PATH=$(brew --prefix icu4c)"
-              "-DCMAKE_EXE_LINKER_FLAGS=-L$(brew --prefix llvm@21)/lib/c++"
-              "-DCMAKE_BUILD_RPATH=$(brew --prefix llvm@21)/lib/c++")
+            options+=("-DCMAKE_PREFIX_PATH=$ENISHI_ICU_PREFIX;$VULKAN_SDK"
+              "-DCMAKE_OSX_ARCHITECTURES=$ENISHI_OSX_ARCHITECTURE"
+              "-DCMAKE_EXE_LINKER_FLAGS=-L$ENISHI_LLVM_PREFIX/lib/c++"
+              "-DCMAKE_BUILD_RPATH=$ENISHI_LLVM_PREFIX/lib/c++;$VULKAN_SDK/lib")
           fi
           if [[ "$BACKEND" == vulkan ]]; then
             options+=("-DENISHI_VULKAN_TESTS=$ENABLE_TESTS"
@@ -106,6 +126,7 @@ jobs:
           cmake --preset "$PRESET" -S src \
             "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_CXX_COMPILER=$CXX" \
             "-DPython_EXECUTABLE=$ENISHI_PYTHON" "-DPython3_EXECUTABLE=$ENISHI_PYTHON" \
+            "-DENISHI_RUST_TOOLCHAIN=$ENISHI_RUST_TOOLCHAIN" \
             -DSDL_SHARED=OFF -DSDL_STATIC=ON -DENISHI_SHADER_RUNTIME_ROOT=./shader \
             "-DENISHI_PRECOMPILED_SHADER_DIRECTORY=$GITHUB_WORKSPACE/build/portable-shaders" \
             "-DENISHI_EFFECT_RENDER_TESTS=$ENABLE_TESTS" "-DENISHI_SCRIPT_TESTS=$ENABLE_TESTS" \
@@ -148,7 +169,7 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX +render -noreset' \
             bash .github/scripts/test_x11.sh
-      - name: Test on Cocoa and CGL
+      - name: Test on Cocoa and MoltenVK (x64 uses Rosetta)
         if: inputs.run-tests && runner.os == 'macOS'
         run: |
           ctest --test-dir "$BUILD_DIR" --output-on-failure --no-tests=error \

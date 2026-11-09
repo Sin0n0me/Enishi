@@ -4,9 +4,10 @@ set -euo pipefail
 options=("-DCMAKE_CXX_COMPILER=$CXX" "-DCMAKE_BUILD_TYPE=$CONFIGURATION"
   "-DPython_EXECUTABLE=$ENISHI_PYTHON" "-DPython3_EXECUTABLE=$ENISHI_PYTHON")
 if [[ "$RUNNER_OS" == macOS ]]; then
-  options+=("-DCMAKE_PREFIX_PATH=$(brew --prefix icu4c)"
-    "-DCMAKE_EXE_LINKER_FLAGS=-L$(brew --prefix llvm@21)/lib/c++"
-    "-DCMAKE_BUILD_RPATH=$(brew --prefix llvm@21)/lib/c++")
+  options+=("-DCMAKE_PREFIX_PATH=$ENISHI_ICU_PREFIX"
+    "-DCMAKE_OSX_ARCHITECTURES=$ENISHI_OSX_ARCHITECTURE"
+    "-DCMAKE_EXE_LINKER_FLAGS=-L$ENISHI_LLVM_PREFIX/lib/c++"
+    "-DCMAKE_BUILD_RPATH=$ENISHI_LLVM_PREFIX/lib/c++")
 fi
 
 # These targets need neither the application build nor its downloaded renderer dependencies.

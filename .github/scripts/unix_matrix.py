@@ -16,16 +16,20 @@ RUNNERS = {
 LINUX_COMPILERS = {"clang": ("clang-19", "clang++-19"), "gcc": ("gcc-14", "g++-14")}
 
 
-def matrix(standalone=False):
+def matrix(standalone=False, tests=False):
     entries = []
     for pattern in patterns():
         target_os, backend, compiler, config = (pattern[key] for key in
                                                ("os", "backend", "compiler", "config"))
         if target_os not in RUNNERS:
             continue
+        if target_os == "macos" and backend != "vulkan":
+            continue
         preset = f"{target_os}-{backend}-{compiler}-{config.lower()}"
         cc, cxx = LINUX_COMPILERS[compiler] if target_os == "linux" else ("clang", "clang++")
         for runner, arch in RUNNERS[target_os]:
+            if tests and target_os == "macos":
+                runner = "macos-15-xlarge"
             entries.append({**pattern, "preset": preset, "runner": runner, "arch": arch,
                             "cc": cc, "cxx": cxx, "artifact": f"enishi-{preset}-{arch}"})
     if standalone:
@@ -42,4 +46,6 @@ def matrix(standalone=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--standalone", action="store_true")
-    print(json.dumps(matrix(parser.parse_args().standalone), separators=(",", ":")))
+    parser.add_argument("--tests", action="store_true")
+    args = parser.parse_args()
+    print(json.dumps(matrix(args.standalone, args.tests), separators=(",", ":")))
