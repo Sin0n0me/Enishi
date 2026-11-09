@@ -51,7 +51,7 @@ preset名は `<OS>-<描画方式>-<コンパイラ>-<構成>` です。configure
 | コンパイラ | `clang`、`gcc`、`visualstudio`（自動検出）、`visualstudio2026`（2026を明示指定） |
 | 構成 | `debug`、`release` |
 
-DirectXとVisual StudioはWindows専用です。LinuxではClangまたはGCC、macOSではClangとOpenGLを使用します。Linux/macOSにはICUの開発パッケージが必要です。
+DirectXとVisual StudioはWindows専用です。LinuxではClangまたはGCC、macOSではClangとVulkan（MoltenVK）を使用します。Linux/macOSにはICUの開発パッケージが必要です。
 
 たとえば、`src`ディレクトリで次のように切り替えられます。
 
@@ -111,19 +111,22 @@ cmake --build build/presets/linux-opengl-clang-debug --parallel 4
 ./build/presets/linux-opengl-clang-debug/enishi_engine
 ```
 
-macOSは14以降を対象とし、CocoaとOpenGL 4.1を使用します。`brew install llvm@21 ninja icu4c` で準備し、`$(brew --prefix llvm@21)/bin` をPATHへ追加してください。CIの `portable-opengl-shaders` 成果物を展開すると、macOS側でシェーダーコンパイラを準備せずビルドできます。
+macOSは14以降とMetal対応GPUを対象とし、CocoaとVulkan（MoltenVK）を使用します。`brew install llvm@21 ninja icu4c` と[LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home)で準備してください。CIではIntel/Apple silicon両対応のSDK 1.4.321.0を使用します。SDKの `setup-env.sh` を読み込み、`$(brew --prefix llvm@21)/bin` をPATHへ追加してください。CIの `portable-vulkan-shaders` 成果物を展開すると、シェーダーの再生成を省略できます。
 
 ```sh
-cmake --preset macos-opengl-clang-debug -S src \
-  -DCMAKE_PREFIX_PATH="$(brew --prefix icu4c)" \
+cmake --preset macos-vulkan-clang-debug -S src \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix icu4c);$VULKAN_SDK" \
   -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix llvm@21)/lib/c++" \
-  -DCMAKE_BUILD_RPATH="$(brew --prefix llvm@21)/lib/c++" \
-  -DENISHI_PRECOMPILED_SHADER_DIRECTORY="/path/to/portable-opengl-shaders"
-cmake --build build/presets/macos-opengl-clang-debug --parallel 4
-./build/presets/macos-opengl-clang-debug/enishi_engine
+  -DCMAKE_BUILD_RPATH="$(brew --prefix llvm@21)/lib/c++;$VULKAN_SDK/lib" \
+  -DENISHI_SPIRV_REFLECT_SOURCE_DIR="$VULKAN_SDK/source/SPIRV-Reflect" \
+  -DENISHI_PRECOMPILED_SHADER_DIRECTORY="/path/to/portable-vulkan-shaders"
+cmake --build build/presets/macos-vulkan-clang-debug --parallel 4
+./build/presets/macos-vulkan-clang-debug/enishi_engine
 ```
 
-変換済みシェーダーは現在のHLSLと変換スクリプトに一致するものが必要です。描画テストはconfigure時に `-DENISHI_OPENGL_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON` を指定し、`crack_render_tests` と `opengl_shadow_tests` をビルドしてから `ctest --test-dir <ビルド先> --output-on-failure` で実行します。
+変換済みシェーダーは現在のHLSLと変換スクリプトに一致するものが必要です。Vulkanの描画テストはconfigure時に `-DENISHI_VULKAN_TESTS=ON -DENISHI_EFFECT_RENDER_TESTS=ON` を指定し、`crack_render_tests` と `vulkan_render_tests` をビルドしてから `ctest --test-dir <ビルド先> --output-on-failure` で実行します。OpenGLでは `ENISHI_OPENGL_TESTS` と `opengl_shadow_tests` を使用します。
+
+macOSの描画CIは有料の `macos-15-xlarge` runnerを使用します。arm64版はネイティブ、x64版はRosettaで実行します。リポジトリ側でlarger runnerの利用と課金設定を有効にする必要があります。ビルドCIは標準runnerを使用します。実行時にもVulkanローダーとMoltenVKが必要なため、配布tar.gzの利用環境にもVulkan SDKを準備してください。
 
 ### シェーダーとVulkan SDK
 
