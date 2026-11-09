@@ -153,7 +153,8 @@ namespace enishi::core {
                 auto result = loader->load(path);
                 if (result.is_ok()) {
                     debug::Logger::info(std::format("loaded path: {}", path.string<char>()));
-                    this->set_asset_state(handle, types::AssetState::Loaded);
+                    // LoadedはRegistryへの登録後に確定する。IO完了だけで公開すると、
+                    // get_asset_dataが登録待ちを省略して空のデータを返してしまう。
                     return result;
                 }
                 failure.add_message(result.unwrap_err().get_message());

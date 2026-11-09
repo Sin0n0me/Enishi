@@ -1,4 +1,4 @@
-#include "../test_runner.h"
+#include <test_support/test_runner.h>
 #include <BulletCollision/CollisionShapes/btSphereShape.h>
 #include <cstdlib>
 #include <iostream>

@@ -1,5 +1,5 @@
 #include "vrm_fixture.h"
-#include "../../../core/tests/test_runner.h"
+#include <test_support/test_runner.h>
 #include <array>
 #include <bit>
 #include <chrono>

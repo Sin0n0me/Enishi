@@ -144,6 +144,21 @@ namespace enishi::renderer::vulkan {
             return foundation::Error(platform::RenderError::MakeError, SDL_GetError());
         }
         std::vector<const char*> extensions(required, required + count);
+        std::uint32_t available_count = 0;
+        ENISHI_VK_TRY(vkEnumerateInstanceExtensionProperties(nullptr, &available_count, nullptr));
+        std::vector<VkExtensionProperties> available(available_count);
+        ENISHI_VK_TRY(
+            vkEnumerateInstanceExtensionProperties(nullptr, &available_count, available.data()));
+        available.resize(available_count);
+        const bool portability = std::ranges::any_of(available, [](const auto& extension) {
+            return std::strcmp(
+                       extension.extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0;
+        });
+        if (portability && !std::ranges::any_of(extensions, [](const auto* extension) {
+                return std::strcmp(extension, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0;
+            })) {
+            extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        }
         std::vector<const char*> layers;
         if (validation) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -153,6 +168,10 @@ namespace enishi::renderer::vulkan {
         app.pApplicationName = "Enishi";
         app.apiVersion = VK_API_VERSION_1_1;
         VkInstanceCreateInfo info{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+        // Portability devices such as MoltenVK are hidden by the loader without this opt-in.
+        if (portability) {
+            info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        }
         info.pApplicationInfo = &app;
         info.enabledExtensionCount = static_cast<std::uint32_t>(extensions.size());
         info.ppEnabledExtensionNames = extensions.data();
@@ -172,6 +191,9 @@ namespace enishi::renderer::vulkan {
         return {};
     }
     platform::RenderResult<void> VulkanDevice::select_device() {
+        // The subset name is stable, but its feature declarations use Vulkan beta headers.
+        constexpr const char* PORTABILITY_SUBSET_EXTENSION = "VK_KHR_portability_subset";
+        std::vector<const char*> enabled_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
         std::uint32_t count = 0;
         ENISHI_VK_TRY(vkEnumeratePhysicalDevices(this->instance, &count, nullptr));
         std::vector<VkPhysicalDevice> devices(count);
@@ -210,6 +232,13 @@ namespace enishi::renderer::vulkan {
                 }
             }
             if (this->physical != VK_NULL_HANDLE) {
+                // Vulkan requires enabling the subset extension whenever a device advertises it.
+                if (std::ranges::any_of(extensions, [](const auto& extension) {
+                        return std::strcmp(extension.extensionName, PORTABILITY_SUBSET_EXTENSION) ==
+                               0;
+                    })) {
+                    enabled_extensions.push_back(PORTABILITY_SUBSET_EXTENSION);
+                }
                 break;
             }
         }
@@ -222,7 +251,6 @@ namespace enishi::renderer::vulkan {
         queue_info.queueFamilyIndex = this->queue_family;
         queue_info.queueCount = 1;
         queue_info.pQueuePriorities = &PRIORITY;
-        const char* extension = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
         VkDeviceCreateInfo info{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
         VkPhysicalDeviceFeatures supported{};
         vkGetPhysicalDeviceFeatures(this->physical, &supported);
@@ -232,8 +260,8 @@ namespace enishi::renderer::vulkan {
         info.pEnabledFeatures = &enabled;
         info.queueCreateInfoCount = 1;
         info.pQueueCreateInfos = &queue_info;
-        info.enabledExtensionCount = 1;
-        info.ppEnabledExtensionNames = &extension;
+        info.enabledExtensionCount = static_cast<std::uint32_t>(enabled_extensions.size());
+        info.ppEnabledExtensionNames = enabled_extensions.data();
         ENISHI_VK_TRY(vkCreateDevice(this->physical, &info, nullptr, &this->device));
         vkGetDeviceQueue(this->device, this->queue_family, 0, &this->queue);
         return {};

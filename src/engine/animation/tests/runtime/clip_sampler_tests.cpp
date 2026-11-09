@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/playback/animation_controller.h>
 #include <animation/sampling/clip_sampler.h>
 #include <cstdlib>
@@ -7,12 +8,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void clip_sampler_tests() {

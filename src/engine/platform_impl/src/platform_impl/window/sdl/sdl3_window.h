@@ -56,6 +56,8 @@ namespace enishi::platform_impl {
 
         ~SDL3Window(void) noexcept;
 
+        [[nodiscard]] static foundation::Option<platform::WindowSystem> current_window_system();
+
         foundation::Option<SDL_Window*> get_window_handle(void) const;
         void set_debug_playback(std::shared_ptr<debug::PlaybackControl> playback);
         void set_ui(

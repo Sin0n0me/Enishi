@@ -2,6 +2,8 @@
 #include <utility>
 #if defined(_WIN32)
 #include "windows/windows_shell_socket.h"
+#elif defined(__APPLE__)
+#include "macos/macos_shell_socket.h"
 #elif defined(__linux__)
 #include "linux/linux_shell_socket.h"
 #else
@@ -49,7 +51,7 @@ namespace enishi::platform_impl {
         if (!this->impl->initialized) {
             return failure("Initialize sockets");
         }
-        this->impl->socket = ::socket(AF_INET, native_socket::STREAM_SOCKET, IPPROTO_TCP);
+        this->impl->socket = native_socket::create_socket();
         if (this->impl->socket == native_socket::INVALID_SOCKET_VALUE) {
             return failure("Create socket");
         }
@@ -69,7 +71,7 @@ namespace enishi::platform_impl {
         if (!this->impl->initialized) {
             return failure("Initialize sockets");
         }
-        this->impl->socket = ::socket(AF_INET, native_socket::STREAM_SOCKET, IPPROTO_TCP);
+        this->impl->socket = native_socket::create_socket();
         if (this->impl->socket == native_socket::INVALID_SOCKET_VALUE) {
             return failure("Create listener");
         }

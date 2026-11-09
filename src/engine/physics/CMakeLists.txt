@@ -51,6 +51,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(BULLET3)
 
+# Bullet enables /fp:fast on MSVC-compatible compilers. Clang's approximate
+# quaternion normalization creates angular velocity even for an unchanged
+# kinematic transform, preventing deactivation. Cover inline Bullet math too.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        set(bullet_precise_option /fp:precise)
+    else()
+        set(bullet_precise_option -ffp-model=precise)
+    endif()
+    foreach(bullet_target IN ITEMS BulletDynamics BulletCollision LinearMath)
+        target_compile_options(${bullet_target} PUBLIC ${bullet_precise_option})
+    endforeach()
+endif()
+
 
 set(DEPENDENCIES
     PUBLIC BulletDynamics

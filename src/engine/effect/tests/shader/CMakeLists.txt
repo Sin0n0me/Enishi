@@ -4,7 +4,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     enable_testing()
 endif()
 
-if(NOT WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(NOT WIN32 AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(FATAL_ERROR "A graphics test context provider is required for ${CMAKE_SYSTEM_NAME}")
 endif()
 

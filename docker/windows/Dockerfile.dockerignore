@@ -1,0 +1,9 @@
+**
+!docker/windows/Dockerfile
+!docker/windows/install.ps1
+!docker/windows/build.ps1
+!src/engine/script/rust-toolchain.toml
+!src/vcpkg.json
+!pyproject.toml
+!uv.lock
+!.python-version

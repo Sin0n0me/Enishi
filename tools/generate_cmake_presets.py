@@ -11,7 +11,8 @@ from pathlib import Path
 OUTPUT = Path(__file__).resolve().parents[1] / "src" / "CMakePresets.json"
 OPERATING_SYSTEMS = {"windows": "Windows", "linux": "Linux", "macos": "Darwin"}
 COMPILERS = {
-    "visualstudio": {"generator": "Visual Studio 17 2022", "architecture": "x64"},
+    # Let CMake discover the installed Visual Studio instead of requiring a release.
+    "visualstudio": {"architecture": "x64"},
     "visualstudio2026": {"generator": "Visual Studio 18 2026", "architecture": "x64"},
     "clang": {"generator": "Ninja", "cacheVariables": {
         "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}},
@@ -29,6 +30,8 @@ EXCLUSIONS = (
     ({"os": ("linux", "macos"), "backend": ("directx",)}, "DirectX requires Windows"),
     ({"os": ("linux", "macos"), "compiler": ("visualstudio", "visualstudio2026")},
      "Visual Studio generators require Windows"),
+    ({"os": ("macos",), "compiler": ("gcc",)},
+     "The Cocoa implementation requires the supported Clang Objective-C++ toolchain"),
 )
 MSBUILD_OPTIONS = ["/p:UseMultiToolTask=true", "/p:EnforceProcessCountAcrossBuilds=true"]
 
@@ -84,6 +87,9 @@ def generate() -> dict:
         variables = {"CMAKE_BUILD_TYPE": config}
         if target_os == "windows" and compiler == "gcc":
             variables["VCPKG_TARGET_TRIPLET"] = "x64-mingw-dynamic"
+        if target_os == "macos":
+            variables["CMAKE_OBJCXX_COMPILER"] = "clang++"
+            variables["CMAKE_OSX_DEPLOYMENT_TARGET"] = "14.0"
         configure.append({
             "name": name, "displayName": f"{target_os} / {backend} / {compiler} / {config}",
             "inherits": [compiler, backend, "windows" if target_os == "windows" else "unix"],
@@ -94,7 +100,7 @@ def generate() -> dict:
         })
         build_preset = {"name": name, "configurePreset": name,
                         "configuration": config, "targets": ["enishi_engine"]}
-        if COMPILERS[compiler]["generator"].startswith("Visual Studio "):
+        if compiler == "visualstudio" or COMPILERS[compiler].get("generator", "").startswith("Visual Studio "):
             build_preset["nativeToolOptions"] = MSBUILD_OPTIONS
         build.append(build_preset)
     return {

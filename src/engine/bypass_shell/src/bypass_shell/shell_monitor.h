@@ -31,6 +31,7 @@ namespace enishi::bypass_shell {
         const std::deque<ShellEvent>& events() const;
         const std::string& last_error() const;
         void clear_history();
+        [[nodiscard]] bool is_listening() const;
 
       private:
         void publish(ShellEvent event);

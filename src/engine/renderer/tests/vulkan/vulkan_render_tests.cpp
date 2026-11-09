@@ -1,3 +1,4 @@
+#include <test_support/result_checks.h>
 #include "vulkan_render_tests.h"
 #include "render_pass_test.h"
 #include "shadow_render_test.h"
@@ -26,25 +27,9 @@ namespace {
     constexpr std::size_t CHANNELS = 4;
     constexpr std::size_t MINIMUM_LIT_PIXELS = 1000;
     constexpr std::uint32_t HIGH_BONE_INDEX = 600;
-    void require(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
-    template <class T> T take(platform::RenderResult<T>&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-        return std::move(result.unwrap_mut());
-    }
-    void success(platform::RenderResult<void>&& result) {
-        if (result.is_err()) {
-            std::cerr << result.unwrap_err().get_message() << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::require;
+    using enishi::tests::take;
+    using enishi::tests::success;
     types::ShaderData shader(const char* name) {
         std::ifstream input(
             std::filesystem::path(VULKAN_SHADER_DIRECTORY) / name, std::ios::binary);
@@ -254,6 +239,14 @@ int enishi::renderer::tests::run_vulkan_render_tests() {
         SDL_DestroyWindow);
     require(window != nullptr, SDL_GetError());
     auto renderer = take(renderer::vulkan::VulkanRenderInitializer{}.init(window.get(), true));
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(renderer->get_native_context()->physical, &properties);
+    std::cout << "Vulkan rendering device: " << properties.deviceName << std::endl;
+#if defined(__APPLE__)
+    require(properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ||
+                properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+        "macOS rendering tests require a Metal GPU; a software device is not sufficient");
+#endif
     require(render_pass_test(renderer), "Application render-pass construction failed");
     const auto vertex = shader("vs_model_vk.spv");
     const auto fragment = shader("ps_model_vk.spv");

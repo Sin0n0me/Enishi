@@ -1,0 +1,27 @@
+services:
+  build:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: docker/linux/Dockerfile
+    init: true
+    environment:
+      CMAKE_BUILD_PARALLEL_LEVEL: ${CMAKE_BUILD_PARALLEL_LEVEL:-3}
+    volumes:
+      - type: bind
+        source: .
+        target: /workspace
+        read_only: true
+      - type: bind
+        source: ./build/docker
+        target: /workspace/build/docker
+      - type: volume
+        source: cargo-registry
+        target: /opt/cargo/registry
+      - type: volume
+        source: cargo-git
+        target: /opt/cargo/git
+
+volumes:
+  cargo-registry:
+  cargo-git:

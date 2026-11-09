@@ -1,0 +1,99 @@
+name: Linux and macOS CMake and Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      builds: ${{ steps.generate.outputs.builds }}
+      tests: ${{ steps.generate.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-tools
+      - name: Generate supported build matrix
+        id: generate
+        run: |
+          python3 tools/generate_cmake_presets.py --check
+          echo "builds=$(python3 -B .github/scripts/unix_matrix.py)" >> "$GITHUB_OUTPUT"
+          echo "tests=$(python3 -B .github/scripts/unix_matrix.py --tests)" >> "$GITHUB_OUTPUT"
+      - name: Validate CI preflight checks
+        run: python3 -B .github/scripts/test_ci_inventory.py
+
+  shaders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CC: clang-19
+      CXX: clang++-19
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Identify shader compiler revision
+        id: shader-compiler
+        run: echo "revision=$(git -C tools/SPIRV-Cross rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache validated shader bundles
+        id: shader-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/ci-shaders/opengl
+            build/ci-shaders/vulkan
+          key: portable-shaders-v1-${{ runner.os }}-${{ steps.shader-compiler.outputs.revision }}-${{ hashFiles('src/shader/hlsl/**', 'src/engine/cmake/TranspileShaders.cmake', '.github/shaders/**', 'tools/transpile_shader.py', '.github/workflows/unix.yml', 'uv.lock', '.python-version') }}
+      - name: Install shader build tools
+        if: steps.shader-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 g++-14 ninja-build spirv-tools
+          mkdir -p "$RUNNER_TEMP/dxc"
+          curl --fail --location --retry 3 \
+            https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/linux_dxc_2025_07_14.x86_64.tar.gz \
+            -o "$RUNNER_TEMP/dxc.tar.gz"
+          tar -xzf "$RUNNER_TEMP/dxc.tar.gz" -C "$RUNNER_TEMP/dxc"
+          echo "$RUNNER_TEMP/dxc/bin" >> "$GITHUB_PATH"
+      - name: Compile and validate both shader bundles
+        if: steps.shader-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup-python-tools
+      - name: Build shader bundles
+        if: steps.shader-cache.outputs.cache-hit != 'true'
+        run: |
+          cmake -S .github/shaders -B build/ci-shaders -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            "-DPython3_EXECUTABLE=$ENISHI_PYTHON" "-DPython_EXECUTABLE=$ENISHI_PYTHON"
+          cmake --build build/ci-shaders --parallel 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-opengl-shaders
+          path: build/ci-shaders/opengl/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-vulkan-shaders
+          path: build/ci-shaders/vulkan/
+          if-no-files-found: error
+
+  build:
+    name: CMake build
+    needs: [matrix, shaders]
+    uses: ./.github/workflows/unix-build.yml
+    with:
+      matrix: ${{ needs.matrix.outputs.builds }}
+      run-tests: false
+
+  integration-tests:
+    name: Tests
+    needs: [matrix, shaders]
+    uses: ./.github/workflows/unix-build.yml
+    with:
+      matrix: ${{ needs.matrix.outputs.tests }}
+      run-tests: true

@@ -5,3 +5,6 @@ if(MSVC)
     target_compile_options(enishi_cursor_tests PRIVATE /utf-8)
 endif()
 add_test(NAME enishi_cursor_tests COMMAND enishi_cursor_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(enishi_cursor_tests PRIVATE enishi_test_support)

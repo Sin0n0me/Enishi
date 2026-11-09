@@ -1,7 +1,12 @@
 .vs/
+.venv/
+__pycache__/
 x64/
 out/
 /build/*
+!/build/docker/
+/build/docker/*
+!/build/docker/.gitkeep
 build_cmake/
 assets/**/
 CMakeFiles/

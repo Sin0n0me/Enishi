@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/converter/vmd/vmd_converter.h>
 #include <animation/sampling/keyframe_interpolator.h>
 #include <assets_system/model/bone/bone_resolver.h>
@@ -10,12 +11,7 @@
 using namespace enishi;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void vmd_expression_tests() {

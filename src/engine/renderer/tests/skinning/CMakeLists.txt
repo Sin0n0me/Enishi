@@ -33,3 +33,7 @@ if(MSVC)
     target_compile_options(shadow_tests PRIVATE /utf-8 /W4)
 endif()
 add_test(NAME shadow_tests COMMAND shadow_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(skinning_tests PRIVATE enishi_test_support)
+target_link_libraries(shadow_tests PRIVATE enishi_test_support)

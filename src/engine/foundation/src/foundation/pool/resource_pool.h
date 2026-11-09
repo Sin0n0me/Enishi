@@ -1,7 +1,9 @@
 #pragma once
+#include <cstddef>
 #include <foundation/option/option.h>
 #include <span>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace enishi::foundation {

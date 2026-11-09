@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <cstdlib>
 #include <iostream>
 #include <script/script_engine.h>
@@ -5,12 +6,7 @@
 using namespace enishi;
 void popup_tests();
 void selection_tests();
-void require(bool condition, const char* message) {
-    if (!condition) {
-        std::cerr << message << '\n';
-        std::exit(EXIT_FAILURE);
-    }
-}
+using enishi::tests::require;
 namespace {
     class Receiver final : public sub_system::IScriptResultReceiver {
       public:

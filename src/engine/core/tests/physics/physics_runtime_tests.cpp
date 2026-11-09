@@ -1,4 +1,5 @@
-#include "../test_runner.h"
+#include "bullet_converter_tests.h"
+#include <test_support/test_runner.h>
 #include <cstdlib>
 #include <iostream>
 #include <physics/bullet3/converter/bullet_converter.h>
@@ -67,6 +68,13 @@ namespace {
                 wrapper.sync_animation();
                 world.stepSimulation(STEP, 1, STEP);
                 wrapper.apply_global_transform();
+            }
+            if (body->isActive()) {
+                std::cerr << "Sleep failure: kind=" << static_cast<int>(kind)
+                          << ", activation=" << body->getActivationState()
+                          << ", deactivation_time=" << body->getDeactivationTime()
+                          << ", linear_speed=" << body->getLinearVelocity().length()
+                          << ", angular_speed=" << body->getAngularVelocity().length() << '\n';
             }
             check(!body->isActive(),
                 "stationary bodies must sleep despite animation synchronization");
@@ -169,6 +177,7 @@ namespace {
 } // namespace
 
 int main() {
+    tests::run_test("bullet_converter_tests", bullet_converter_tests);
     extern void physics_object_tests();
     tests::run_test("physics_object_tests", physics_object_tests);
     extern void impulse_playback_tests();

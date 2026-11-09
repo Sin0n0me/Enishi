@@ -1,8 +1,8 @@
 #include "terminal_input.h"
 #if defined(_WIN32)
 #include "windows/windows_terminal_input.h"
-#elif defined(__linux__)
-#include "linux/linux_terminal_input.h"
+#elif defined(__linux__) || defined(__APPLE__)
+#include "posix/posix_terminal_input.h"
 #else
 #error Unsupported shell platform
 #endif

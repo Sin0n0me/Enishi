@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <animation/morph/material_morph.h>
 #include <core/system/render/material_morph_upload.h>
 #include <cstdlib>
@@ -11,12 +12,7 @@ using namespace enishi;
 
 namespace {
     constexpr float TOLERANCE = 0.0001f;
-    void check(bool value, const char* message) {
-        if (!value) {
-            std::cerr << message << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
+    using enishi::tests::check;
 } // namespace
 
 void material_morph_tests() {

@@ -1,3 +1,4 @@
+#include <test_support/test_runner.h>
 #include <assets_system/model/model_loader/pmx/pmx_to_model_data.h>
 #include <cstdlib>
 #include <iostream>
@@ -6,12 +7,7 @@ using namespace enishi;
 using namespace enishi::assets_system;
 
 namespace {
-    void check(bool condition, const char* message) {
-        if (!condition) {
-            std::cerr << message << '\n';
-            std::exit(1);
-        }
-    }
+    using enishi::tests::check;
 
     template <typename T> const T& addon(const types::ModelData& model) {
         for (const auto& value : model.addons) {

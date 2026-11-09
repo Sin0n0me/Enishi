@@ -103,6 +103,7 @@ elseif(USE_VULKAN)
     get_filename_component(vulkan_sdk_root "${Vulkan_INCLUDE_DIR}" DIRECTORY)
     find_path(ENISHI_SPIRV_REFLECT_SOURCE_DIR spirv_reflect.c
         HINTS "${vulkan_sdk_root}/Source/SPIRV-Reflect" "$ENV{VULKAN_SDK}/Source/SPIRV-Reflect"
+            "$ENV{VULKAN_SDK}/source/SPIRV-Reflect"
         REQUIRED)
     add_library(enishi_spirv_reflect STATIC "${ENISHI_SPIRV_REFLECT_SOURCE_DIR}/spirv_reflect.c")
     target_include_directories(enishi_spirv_reflect PUBLIC "${ENISHI_SPIRV_REFLECT_SOURCE_DIR}" "${Vulkan_INCLUDE_DIR}")
@@ -135,10 +136,5 @@ if (POLICY CMP0141)
 endif()
 
 
-option(ENISHI_RENDERER_RESOURCE_TESTS "Build asset-free resource interface tests" OFF)
-if(ENISHI_RENDERER_RESOURCE_TESTS)
-    enable_testing()
-    add_subdirectory(tests/resources)
-endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC enishi::debug)

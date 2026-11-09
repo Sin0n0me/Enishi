@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+options=("-DCMAKE_CXX_COMPILER=$CXX" "-DCMAKE_BUILD_TYPE=$CONFIGURATION"
+  "-DPython_EXECUTABLE=$ENISHI_PYTHON" "-DPython3_EXECUTABLE=$ENISHI_PYTHON")
+if [[ "$RUNNER_OS" == macOS ]]; then
+  options+=("-DCMAKE_PREFIX_PATH=$ENISHI_ICU_PREFIX"
+    "-DCMAKE_OSX_ARCHITECTURES=$ENISHI_OSX_ARCHITECTURE"
+    "-DCMAKE_EXE_LINKER_FLAGS=-L$ENISHI_LLVM_PREFIX/lib/c++"
+    "-DCMAKE_BUILD_RPATH=$ENISHI_LLVM_PREFIX/lib/c++")
+fi
+
+# These targets need neither the application build nor its downloaded renderer dependencies.
+for suite in foundation/tests/headers foundation/tests/option foundation/tests/result foundation/tests/runtime engine_types/tests/handles assets_system/tests/vrm_json bypass_shell/tests/command_parser effect/tests/runtime; do
+  directory="build/standalone/$suite"
+  cmake -S "src/engine/$suite" -B "$directory" -G Ninja "${options[@]}"
+  cmake --build "$directory" --parallel 3
+  ctest --test-dir "$directory" --output-on-failure --no-tests=error \
+    --timeout 120 --output-junit test-results.xml
+done
+
+cmake -S src/engine/bypass_shell -B build/standalone/shell -G Ninja "${options[@]}"
+cmake --build build/standalone/shell --parallel 3
+python3 -B .github/scripts/test_shell_relay.py build/standalone/shell/enishi-shell

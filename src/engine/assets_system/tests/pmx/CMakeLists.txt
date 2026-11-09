@@ -32,3 +32,6 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME pmx_tests COMMAND pmx_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(pmx_tests PRIVATE enishi_test_support)

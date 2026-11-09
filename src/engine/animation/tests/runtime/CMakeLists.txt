@@ -39,3 +39,6 @@ if(MSVC)
 endif()
 enable_testing()
 add_test(NAME animation_runtime_tests COMMAND animation_runtime_tests)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../../../test_support/test_support.cmake")
+target_link_libraries(animation_runtime_tests PRIVATE enishi_test_support)

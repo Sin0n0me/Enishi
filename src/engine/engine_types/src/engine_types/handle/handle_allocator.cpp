@@ -24,7 +24,7 @@ namespace enishi::types {
 
     void HandleAllocator::destroy(const HandleId handle) {
         const auto index = handle.handle_id;
-        if (index < this->alive.size()) {
+        if (index < this->alive.size() && this->alive[index]) {
             this->alive[index] = false;
             this->free_list.push_back(handle);
         }

@@ -22,4 +22,5 @@ namespace enishi::platform_impl {
         platform::ProcessResult<std::string> read(platform::ProcessOutput stream) override;
         platform::ProcessResult<std::optional<int>> exit_code() override;
     };
+    using NativeShellProcess = WindowsShellProcess;
 } // namespace enishi::platform_impl
