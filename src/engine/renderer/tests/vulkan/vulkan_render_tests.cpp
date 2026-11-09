@@ -239,6 +239,14 @@ int enishi::renderer::tests::run_vulkan_render_tests() {
         SDL_DestroyWindow);
     require(window != nullptr, SDL_GetError());
     auto renderer = take(renderer::vulkan::VulkanRenderInitializer{}.init(window.get(), true));
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(renderer->get_native_context()->physical, &properties);
+    std::cout << "Vulkan rendering device: " << properties.deviceName << std::endl;
+#if defined(__APPLE__)
+    require(properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ||
+                properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+        "macOS rendering tests require a Metal GPU; a software device is not sufficient");
+#endif
     require(render_pass_test(renderer), "Application render-pass construction failed");
     const auto vertex = shader("vs_model_vk.spv");
     const auto fragment = shader("ps_model_vk.spv");
