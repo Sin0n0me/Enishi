@@ -67,10 +67,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Validate Windows Docker and Compose
+      - name: Start Windows Docker engine
+        timeout-minutes: 2
         run: |
-          $server = docker version --format '{{.Server.Os}}'
-          if ($LASTEXITCODE -ne 0 -or $server -ne 'windows') { throw 'Windows Docker engine is required' }
+          $service = Get-Service -Name docker -ErrorAction Stop
+          Write-Host "Docker service status: $($service.Status)"
+          if ($service.Status -ne 'Running') {
+            Start-Service -Name docker -ErrorAction Stop
+            $service.WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
+          }
+          $maximumAttempts = 30
+          $retrySeconds = 2
+          for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+            $server = docker version --format '{{.Server.Os}}' 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              if ($server -ne 'windows') { throw "Expected Windows Docker engine, received: $server" }
+              Write-Host 'Windows Docker API is ready'
+              exit 0
+            }
+            Write-Host "Docker API not ready ($attempt/$maximumAttempts): $server"
+            if ($attempt -lt $maximumAttempts) { Start-Sleep -Seconds $retrySeconds }
+          }
+          Get-Service -Name docker | Format-List Name, Status, StartType
+          throw "Windows Docker API did not become ready: $server"
+      - name: Validate Windows Compose configuration
+        run: |
           docker compose -f compose.windows.yaml config --quiet
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Windows tool image
